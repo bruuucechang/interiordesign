@@ -1,0 +1,17 @@
+{
+  "name": "interior-designer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "室內設計 2D 平面圖繪圖軟體 — Canvas + TypeScript editor with furniture library, layers, export, and a lightweight Node/SQLite backend.",
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "build": "npm --workspace server run build && npm --workspace client run build",
+    "start": "npm --workspace server run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

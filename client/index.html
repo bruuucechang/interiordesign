@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>室內設計繪圖 · Interior Designer</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- top bar -->
+      <header id="topbar">
+        <span class="brand">🏠 室內設計繪圖</span>
+        <input id="projectName" class="proj-name" value="未命名平面圖" />
+        <div class="spacer"></div>
+        <button data-act="new">新建</button>
+        <button data-act="save">儲存</button>
+        <button data-act="open">開啟</button>
+        <span class="sep"></span>
+        <button data-act="undo" title="復原 (Ctrl+Z)">↶ 復原</button>
+        <button data-act="redo" title="重做 (Ctrl+Shift+Z)">重做 ↷</button>
+        <span class="sep"></span>
+        <button data-act="export-png">匯出 PNG</button>
+        <button data-act="export-pdf">匯出 PDF</button>
+        <span class="sep"></span>
+        <button data-act="toggle3d" id="btn3d">🧊 3D 檢視</button>
+        <span class="sep"></span>
+        <label class="chk"><input type="checkbox" id="snapToggle" checked /> 吸附</label>
+        <span id="zoomLabel" class="zoom">100%</span>
+      </header>
+
+      <div id="body">
+        <!-- left: tools + furniture -->
+        <aside id="left">
+          <div id="tools" class="palette"></div>
+          <div class="panel-title">家具庫</div>
+          <div id="furniture" class="furniture-grid"></div>
+        </aside>
+
+        <!-- center canvas -->
+        <main id="stage">
+          <canvas id="canvas"></canvas>
+          <div id="view3d" class="view3d hidden"></div>
+          <div id="hint" class="hint"></div>
+          <div id="hint3d" class="hint hidden">拖曳旋轉 · 滾輪縮放 · 右鍵平移</div>
+        </main>
+
+        <!-- right: layers + properties -->
+        <aside id="right">
+          <div class="panel-title">圖層</div>
+          <div id="layers"></div>
+          <div class="panel-title">屬性</div>
+          <div id="properties"><div class="muted">未選取物件</div></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- open-project modal -->
+    <div id="modal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-head"><span>開啟專案</span><button data-act="close-modal">✕</button></div>
+        <div id="projectList" class="project-list"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
