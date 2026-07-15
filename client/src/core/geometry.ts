@@ -25,6 +25,45 @@ export function pointInRect(p: Vec, x: number, y: number, w: number, h: number):
   return p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h;
 }
 
+// ---- polygons ----
+// signed area (shoelace) on raw coords; sign encodes winding
+export function polygonSignedArea(pts: Vec[]): number {
+  let a = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p = pts[i], q = pts[(i + 1) % n];
+    a += p.x * q.y - q.x * p.y;
+  }
+  return a / 2;
+}
+export function polygonArea(pts: Vec[]): number { return Math.abs(polygonSignedArea(pts)); }
+
+export function polygonCentroid(pts: Vec[]): Vec {
+  let a = 0, cx = 0, cy = 0;
+  for (let i = 0, n = pts.length; i < n; i++) {
+    const p = pts[i], q = pts[(i + 1) % n];
+    const cross = p.x * q.y - q.x * p.y;
+    a += cross; cx += (p.x + q.x) * cross; cy += (p.y + q.y) * cross;
+  }
+  if (Math.abs(a) < 1e-6) {                                    // degenerate: fall back to vertex average
+    const s = pts.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+    return { x: s.x / pts.length, y: s.y / pts.length };
+  }
+  a *= 0.5;
+  return { x: cx / (6 * a), y: cy / (6 * a) };
+}
+
+export function pointInPolygon(p: Vec, pts: Vec[]): boolean {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i], b = pts[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+// format an area (cm²) as m²
+export function fmtArea(cm2: number): string { return (cm2 / 10000).toFixed(2) + ' m²'; }
+
 // is point p within `tol` of segment a-b? returns distance
 export function distToSegment(p: Vec, a: Vec, b: Vec): number {
   const abx = b.x - a.x, aby = b.y - a.y;

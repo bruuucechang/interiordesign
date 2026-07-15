@@ -17,7 +17,9 @@ export type ObjKind = 'wall' | 'room' | 'door' | 'window' | 'furniture' | 'dimen
 interface Base { id: string; layer: LayerId; }
 
 export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; }
-export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; }
+// x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
+// makes the room an arbitrary polygon auto-closed from surrounding walls.
+export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; }
 export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; }
 export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; }
 export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; offset: number; }

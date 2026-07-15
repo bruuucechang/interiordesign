@@ -20,6 +20,7 @@ export function handles(o: Obj): Handle[] {
       return corners;
     }
     case 'room':
+      if (o.poly && o.poly.length) return [];   // polygon rooms follow the walls — move only, no corner resize
       return [
         { id: 'nw', pos: { x: o.x, y: o.y }, kind: 'corner' },
         { id: 'ne', pos: { x: o.x + o.w, y: o.y }, kind: 'corner' },

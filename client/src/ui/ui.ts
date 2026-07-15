@@ -1,8 +1,9 @@
 import { Editor } from '../core/editor';
-import { Doc } from '../model/doc';
-import { Obj } from '../model/types';
+import { Doc, genId } from '../model/doc';
+import { Obj, Vec, layerForKind } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
-import { fmtLen, dist } from '../core/geometry';
+import { fmtLen, fmtArea, dist, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
+import { detectRoomPolygons } from '../core/rooms';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { listProjects, loadProject, saveProject, deleteProject } from '../net/api';
 
@@ -140,8 +141,13 @@ function refreshProps(editor: Editor, doc: Doc) {
       break;
     case 'room':
       txt('名稱', o.name, v => up({ name: v } as any));
-      num('寬 (cm)', o.w, v => up({ w: Math.max(10, v) } as any));
-      num('高 (cm)', o.h, v => up({ h: Math.max(10, v) } as any));
+      if (o.poly && o.poly.length >= 3) {
+        info('面積', fmtArea(polygonArea(o.poly)));
+      } else {
+        num('寬 (cm)', o.w, v => up({ w: Math.max(10, v) } as any));
+        num('高 (cm)', o.h, v => up({ h: Math.max(10, v) } as any));
+        info('面積', fmtArea(o.w * o.h));
+      }
       break;
     case 'wall':
       info('長度', fmtLen(dist(o.a, o.b)));
@@ -193,7 +199,32 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'redo': doc.redo(); break;
     case 'export-png': exportPNG(doc, name()); break;
     case 'export-pdf': exportPDF(doc, name()); break;
+    case 'rooms-from-walls': generateRoomsFromWalls(doc); break;
   }
+}
+
+// Detect wall-enclosed regions and add a polygon room (with area) for each one
+// that isn't already covered by an existing room.
+function generateRoomsFromWalls(doc: Doc) {
+  const walls = doc.objects.filter(o => o.kind === 'wall') as Extract<Obj, { kind: 'wall' }>[];
+  const polys = detectRoomPolygons(walls);
+  const rooms = doc.objects.filter(o => o.kind === 'room') as Extract<Obj, { kind: 'room' }>[];
+  const covered = (c: Vec) =>
+    rooms.some(r => (r.poly && r.poly.length >= 3) ? pointInPolygon(c, r.poly) : pointInRect(c, r.x, r.y, r.w, r.h));
+
+  const toAdd: Extract<Obj, { kind: 'room' }>[] = [];
+  for (const poly of polys) {
+    if (covered(polygonCentroid(poly))) continue;
+    const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+    const x = Math.min(...xs), y = Math.min(...ys);
+    toAdd.push({ id: genId('room'), kind: 'room', layer: layerForKind('room'), x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y, name: '房間', poly });
+  }
+
+  if (!polys.length) { flash('找不到封閉的牆體區域'); return; }
+  if (!toAdd.length) { flash('封閉區域皆已有房間'); return; }
+  doc.commit();
+  for (const r of toAdd) doc.add(r);
+  flash(`已依牆體建立 ${toAdd.length} 個房間`);
 }
 
 async function openModal(editor: Editor, doc: Doc) {

@@ -1,6 +1,6 @@
 import { Obj, Vec } from '../model/types';
 import { Doc } from '../model/doc';
-import { dist, distToSegment, pointInRect, rotate } from './geometry';
+import { dist, distToSegment, pointInRect, pointInPolygon, rotate } from './geometry';
 
 export interface Bounds { x: number; y: number; w: number; h: number; }
 
@@ -20,7 +20,14 @@ export function furnitureCorners(o: Extract<Obj, { kind: 'furniture' }>): Vec[] 
 
 export function bounds(o: Obj): Bounds {
   switch (o.kind) {
-    case 'room': return { x: o.x, y: o.y, w: o.w, h: o.h };
+    case 'room': {
+      if (o.poly && o.poly.length) {
+        const xs = o.poly.map(p => p.x), ys = o.poly.map(p => p.y);
+        const x = Math.min(...xs), y = Math.min(...ys);
+        return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+      }
+      return { x: o.x, y: o.y, w: o.w, h: o.h };
+    }
     case 'furniture': {
       const cs = furnitureCorners(o);
       const xs = cs.map(p => p.x), ys = cs.map(p => p.y);
@@ -49,7 +56,8 @@ function hitObject(o: Obj, p: Vec, tol: number): boolean {
     case 'wall': return distToSegment(p, o.a, o.b) <= o.thickness / 2 + tol;
     case 'dimension': return distToSegment(p, o.a, o.b) <= tol * 1.5;
     case 'room': {
-      // hit near border OR inside (so it can be selected/moved)
+      // hit anywhere inside (so it can be selected/moved)
+      if (o.poly && o.poly.length >= 3) return pointInPolygon(p, o.poly);
       return pointInRect(p, o.x, o.y, o.w, o.h);
     }
     case 'door': case 'window': return dist(p, { x: o.x, y: o.y }) <= o.width / 2 + tol;
