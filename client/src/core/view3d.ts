@@ -209,6 +209,7 @@ export class View3D {
 
   private growObject(o: Obj, grow: (x: number, z: number) => void) {
     if (o.kind === 'wall' || o.kind === 'dimension') { grow(o.a.x, o.a.y); grow(o.b.x, o.b.y); }
+    else if (o.kind === 'room' && o.poly?.length) { for (const p of o.poly) grow(p.x, p.y); }
     else if (o.kind === 'room' || o.kind === 'furniture') { grow(o.x, o.y); grow(o.x + o.w, o.y + o.h); }
     else grow(o.x, o.y);
   }
@@ -216,10 +217,23 @@ export class View3D {
   private buildObject(o: Obj) {
     switch (o.kind) {
       case 'room': {
-        const map = woodClone(Math.max(1, Math.round(o.w / 120)), Math.max(1, Math.round(o.h / 120)));
-        const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), new THREE.MeshStandardMaterial({ map, roughness: 0.72, metalness: 0.02 }));
-        floor.position.set(o.x + o.w / 2, 2, o.y + o.h / 2);
-        this.staticGroup.add(floor);
+        if (o.poly && o.poly.length >= 3) {
+          const shape = new THREE.Shape();
+          shape.moveTo(o.poly[0].x, o.poly[0].y);
+          for (let i = 1; i < o.poly.length; i++) shape.lineTo(o.poly[i].x, o.poly[i].y);
+          shape.closePath();
+          const geo = new THREE.ExtrudeGeometry(shape, { depth: 4, bevelEnabled: false });
+          const map = woodClone(1, 1); map.repeat.set(1 / 240, 1 / 240);   // ExtrudeGeometry UVs are world cm
+          const floor = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map, roughness: 0.72, metalness: 0.02 }));
+          floor.rotation.x = Math.PI / 2;   // shape lies in plan XY -> lay flat on world XZ
+          floor.position.y = 4;
+          this.staticGroup.add(floor);
+        } else {
+          const map = woodClone(Math.max(1, Math.round(o.w / 120)), Math.max(1, Math.round(o.h / 120)));
+          const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), new THREE.MeshStandardMaterial({ map, roughness: 0.72, metalness: 0.02 }));
+          floor.position.set(o.x + o.w / 2, 2, o.y + o.h / 2);
+          this.staticGroup.add(floor);
+        }
         break;
       }
       case 'wall': {

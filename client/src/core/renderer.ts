@@ -2,7 +2,7 @@ import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
 import { Obj, Vec } from '../model/types';
 import { FURNITURE_BY_ID } from '../data/furniture';
-import { fmtLen, dist, angleDeg, sub, len, rotate } from './geometry';
+import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid } from './geometry';
 import { handles } from './handles';
 import { furnitureCenter } from './hit';
 
@@ -76,9 +76,17 @@ export class Renderer {
     switch (o.kind) {
       case 'room':
         ctx.fillStyle = 'rgba(76,141,255,0.06)';
-        ctx.fillRect(o.x, o.y, o.w, o.h);
         ctx.strokeStyle = color; ctx.lineWidth = 2 * line;
-        ctx.strokeRect(o.x, o.y, o.w, o.h);
+        if (o.poly && o.poly.length >= 3) {
+          ctx.beginPath();
+          ctx.moveTo(o.poly[0].x, o.poly[0].y);
+          for (let i = 1; i < o.poly.length; i++) ctx.lineTo(o.poly[i].x, o.poly[i].y);
+          ctx.closePath();
+          ctx.fill(); ctx.stroke();
+        } else {
+          ctx.fillRect(o.x, o.y, o.w, o.h);
+          ctx.strokeRect(o.x, o.y, o.w, o.h);
+        }
         break;
       case 'wall':
         ctx.strokeStyle = color; ctx.lineWidth = o.thickness; ctx.lineCap = 'round';
@@ -164,9 +172,11 @@ export class Renderer {
         break;
       }
       case 'room': {
-        const c = { x: o.x + o.w / 2, y: o.y + o.h / 2 };
+        const poly = o.poly && o.poly.length >= 3 ? o.poly : null;
+        const c = poly ? polygonCentroid(poly) : { x: o.x + o.w / 2, y: o.y + o.h / 2 };
+        const area = poly ? polygonArea(poly) : o.w * o.h;
         this.text({ x: c.x, y: c.y - 12 / this.vp.scale }, o.name || '房間', '#dbe0ea', 13);
-        this.text({ x: c.x, y: c.y + 12 / this.vp.scale }, `${fmtLen(o.w)} × ${fmtLen(o.h)}`, '#8b93a3');
+        this.text({ x: c.x, y: c.y + 12 / this.vp.scale }, fmtArea(area), '#8b93a3');
         break;
       }
       case 'dimension': {
