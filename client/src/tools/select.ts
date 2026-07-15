@@ -7,7 +7,7 @@ import { rotate, dist, angleDeg, snap } from '../core/geometry';
 type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate';
 
 export class SelectTool implements Tool {
-  name = 'select'; cursor = 'default'; hint = '點選物件；拖曳移動、角落縮放、圓點旋轉；Delete 刪除';
+  name = 'select'; cursor = 'default'; hint = '點選物件；拖曳移動、角落縮放、圓點旋轉（近 90° 自動對齊，Shift 每 15°）；Delete 刪除';
   private mode: Mode = 'idle';
   private handleId = '';
   private orig: any = null;      // JSON snapshot of the object at drag start
@@ -55,7 +55,10 @@ export class SelectTool implements Tool {
     this.ctx.render();
   }
 
-  onUp() { this.mode = 'idle'; this.orig = null; }
+  onUp() {
+    if (this.mode === 'rotate') { this.ctx.setPreview(); this.ctx.render(); }   // clear the angle badge
+    this.mode = 'idle'; this.orig = null;
+  }
 
   private patch(o: Obj, patch: Partial<Obj>) { this.ctx.doc.update(o.id, patch); }
 
@@ -106,8 +109,38 @@ export class SelectTool implements Tool {
     const g = this.orig;
     const c = 'w' in g ? furnitureCenter(g) : { x: g.x, y: g.y };
     let ang = angleDeg(c, p.world) + 90;
-    ang = p.shift ? Math.round(ang / 15) * 15 : Math.round(ang);
+    if (p.shift) {
+      ang = Math.round(ang / 15) * 15;            // Shift: fixed 15° steps
+    } else {
+      const near90 = Math.round(ang / 90) * 90;   // magnetic to 0/90/180/270 for easy alignment
+      ang = Math.abs(ang - near90) <= 8 ? near90 : Math.round(ang);
+    }
     this.patch(o, { angle: ang } as any);
+
+    // live angle readout above the object; green when snapped to a right angle
+    const deg = (((Math.round(ang)) % 360) + 360) % 360;
+    const at = this.ctx.vp.toScreen(c);
+    const cardinal = deg % 90 === 0;
+    this.ctx.setPreview(undefined, ctx => this.drawAngleBadge(ctx, at, deg, cardinal));
+  }
+
+  private drawAngleBadge(ctx: CanvasRenderingContext2D, at: Vec, deg: number, cardinal: boolean) {
+    const text = `${deg}°`;
+    ctx.save();
+    ctx.font = '600 13px system-ui, -apple-system, "Noto Sans TC", sans-serif';
+    const padX = 9, w = Math.ceil(ctx.measureText(text).width) + padX * 2, h = 22;
+    const x = at.x - w / 2, y = at.y - 44;
+    ctx.beginPath();
+    if ((ctx as any).roundRect) (ctx as any).roundRect(x, y, w, h, 6); else ctx.rect(x, y, w, h);
+    ctx.fillStyle = 'rgba(17,22,30,0.92)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = cardinal ? '#5ad19a' : '#7bc6ff';
+    ctx.stroke();
+    ctx.fillStyle = cardinal ? '#5ad19a' : '#cfe8ff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, at.x, y + h / 2 + 0.5);
+    ctx.restore();
   }
 
   onKey(e: KeyboardEvent) {
