@@ -114,6 +114,9 @@ export class Editor implements ToolCtx {
     window.addEventListener('keydown', e => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
       if (!this.inputEnabled) return; // 2D is only the preview — ignore shortcuts
+      // Esc always cancels the current tool (e.g. furniture placement) and clears
+      // the selection, returning to the plain select/mouse mode.
+      if (e.key === 'Escape') { this.selectTool('select'); this.doc.select(null); return; }
       if (e.code === 'Space') { this.space = true; this.canvas.style.cursor = 'grab'; return; }
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === 'z') { e.shiftKey ? this.doc.redo() : this.doc.undo(); e.preventDefault(); return; }

@@ -44,7 +44,7 @@ function applyMode() {
   c3d.className = 'pane view3d ' + (twoFull ? 'pip' : 'full');
   btnToggle.textContent = twoFull ? '🧊 切換 3D 檢視' : '📐 切換 2D 檢視';
   editor.inputEnabled = twoFull;      // only edit / 2D shortcuts when 2D is the main view
-  view3d.setFly(!twoFull);            // WASD flies the 3D camera only when 3D is the main view (not the PiP)
+  view3d.setFly(true);                // WASD drives the 3D camera whenever the 3D view is shown (main or PiP)
 
   requestAnimationFrame(() => {
     if (twoFull) {
