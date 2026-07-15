@@ -80,15 +80,30 @@ export class View3D {
     this.composer.addPass(this.gtao);
     this.composer.addPass(new OutputPass());   // applies tone mapping + sRGB after the AO blend
 
-    const editable = (t: EventTarget | null) => {
-      const el = t as HTMLElement | null;
-      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+    const MOVE = new Set(['w', 'a', 's', 'd', 'q', 'e']);
+    // Real text entry (project name, labels) must keep the keys; but the property
+    // panel's number inputs treat letters as junk, so WASD there should fly instead
+    // of getting swallowed — a common "WASD stopped working" trap after editing a value.
+    const isTextField = (el: HTMLElement | null) => {
+      if (!el) return false;
+      if (el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+      if (el.tagName !== 'INPUT') return false;
+      return !['number', 'range', 'checkbox', 'radio', 'button'].includes((el as HTMLInputElement).type);
     };
-    // Only grab keys while flying and not typing; clear on blur so a key held during
-    // an alt-tab doesn't stick and drift the camera forever.
-    window.addEventListener('keydown', e => { if (this.fly && !editable(e.target)) this.pressed.add(e.key.toLowerCase()); });
+    // Capture phase so we can release a focused number field and prevent it from
+    // also consuming the key before the browser's default runs.
+    window.addEventListener('keydown', e => {
+      if (!this.fly) return;
+      const k = e.key.toLowerCase();
+      if (!MOVE.has(k) && k !== 'shift') return;
+      const el = document.activeElement as HTMLElement | null;
+      if (isTextField(el)) return;                 // genuinely typing — leave the keys alone
+      if (el && el !== document.body) el.blur();    // drop focus off a number field so it stops eating keys
+      if (MOVE.has(k)) e.preventDefault();
+      this.pressed.add(k);
+    }, { capture: true });
     window.addEventListener('keyup', e => this.pressed.delete(e.key.toLowerCase()));
-    window.addEventListener('blur', () => this.pressed.clear());
+    window.addEventListener('blur', () => this.pressed.clear());   // don't let a held key stick across an alt-tab
   }
 
   setFly(on: boolean) { this.fly = on; if (!on) this.pressed.clear(); }
