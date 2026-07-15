@@ -16,6 +16,7 @@ export class Editor implements ToolCtx {
   currentFurniture = 'sofa';
   snapEnabled = true;
   gridSize = 10; // cm
+  inputEnabled = true; // false while the 2D view is just the corner preview
 
   hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void } = {};
 
@@ -112,11 +113,13 @@ export class Editor implements ToolCtx {
 
     window.addEventListener('keydown', e => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (!this.inputEnabled) return; // 2D is only the preview — ignore shortcuts
       if (e.code === 'Space') { this.space = true; this.canvas.style.cursor = 'grab'; return; }
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === 'z') { e.shiftKey ? this.doc.redo() : this.doc.undo(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'y') { this.doc.redo(); e.preventDefault(); return; }
-      const map: Record<string, string> = { v: 'select', w: 'wall', r: 'room', d: 'door', n: 'window', m: 'dimension' };
+      // note: W/A/S/D are reserved for 3D camera movement, so they are NOT tool shortcuts
+      const map: Record<string, string> = { v: 'select', r: 'room', n: 'window', m: 'dimension' };
       if (!meta && map[e.key.toLowerCase()]) { this.selectTool(map[e.key.toLowerCase()]); return; }
       this.active.onKey?.(e);
     });
