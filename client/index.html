@@ -23,7 +23,7 @@
         <button data-act="export-png">匯出 PNG</button>
         <button data-act="export-pdf">匯出 PDF</button>
         <span class="sep"></span>
-        <button data-act="toggle3d" id="btn3d">🧊 3D 檢視</button>
+        <button id="btnToggle">🧊 切換 3D 檢視</button>
         <span class="sep"></span>
         <label class="chk"><input type="checkbox" id="snapToggle" checked /> 吸附</label>
         <span id="zoomLabel" class="zoom">100%</span>
@@ -39,14 +39,20 @@
 
         <!-- center canvas -->
         <main id="stage">
-          <canvas id="canvas"></canvas>
-          <div id="view3d" class="view3d hidden"></div>
-          <div id="hint" class="hint"></div>
-          <div id="hint3d" class="hint hidden">拖曳旋轉 · 滾輪縮放 · 右鍵平移</div>
+          <div id="pane2d" class="pane full">
+            <canvas id="canvas"></canvas>
+            <div class="pane-tag">2D</div>
+            <div id="hint" class="hint"></div>
+          </div>
+          <div id="view3d" class="pane view3d pip">
+            <div class="pane-tag">3D</div>
+            <div id="hint3d" class="hint">WASD 移動 · Q/E 升降 · Shift 加速 · 拖曳旋轉 · 滾輪縮放</div>
+          </div>
         </main>
 
         <!-- right: layers + properties -->
         <aside id="right">
+          <div id="pipSlot"></div>
           <div class="panel-title">圖層</div>
           <div id="layers"></div>
           <div class="panel-title">屬性</div>
