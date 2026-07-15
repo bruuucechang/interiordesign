@@ -28,6 +28,7 @@ export class View3D {
   private raf = 0;
   private clock = new THREE.Clock();
   private pressed = new Set<string>();
+  private keyChips: Record<string, HTMLElement> = {};
   private fly = false;   // WASD/QE camera movement
   private moveSpeed = 500; // cm/s, scaled to the scene in build()
 
@@ -80,7 +81,24 @@ export class View3D {
     this.composer.addPass(this.gtao);
     this.composer.addPass(new OutputPass());   // applies tone mapping + sRGB after the AO blend
 
-    const MOVE = new Set(['w', 'a', 's', 'd', 'q', 'e']);
+    // On-screen key indicator — lights up as movement keys arrive, so it's obvious
+    // the fly controls are receiving input (and a quick diagnostic if they aren't).
+    if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+    const hud = document.createElement('div');
+    hud.style.cssText = 'position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:4px;padding:5px 7px;border-radius:8px;background:rgba(17,22,30,0.5);font:600 11px system-ui,sans-serif;pointer-events:none;z-index:6;user-select:none;';
+    for (const label of ['W', 'A', 'S', 'D', 'Q', 'E']) {
+      const c = document.createElement('div');
+      c.textContent = label;
+      c.style.cssText = 'min-width:15px;text-align:center;padding:2px 4px;border-radius:4px;background:rgba(255,255,255,0.06);color:#8b93a3;transition:background .07s,color .07s;';
+      hud.appendChild(c); this.keyChips[label.toLowerCase()] = c;
+    }
+    container.appendChild(hud);
+
+    // Match on e.code (physical key position), NOT e.key: a Chinese/Japanese IME or
+    // a non-US layout rewrites e.key (W becomes "Process" or a composition char) while
+    // e.code stays "KeyW". Matching e.key was silently dropping WASD under an active IME.
+    const MOVE: Record<string, string> = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyQ: 'q', KeyE: 'e' };
+    const isShift = (code: string) => code === 'ShiftLeft' || code === 'ShiftRight';
     // Real text entry (project name, labels) must keep the keys; but the property
     // panel's number inputs treat letters as junk, so WASD there should fly instead
     // of getting swallowed — a common "WASD stopped working" trap after editing a value.
@@ -94,19 +112,31 @@ export class View3D {
     // also consuming the key before the browser's default runs.
     window.addEventListener('keydown', e => {
       if (!this.fly) return;
-      const k = e.key.toLowerCase();
-      if (!MOVE.has(k) && k !== 'shift') return;
+      const mv = MOVE[e.code];
+      if (!mv && !isShift(e.code)) return;
       const el = document.activeElement as HTMLElement | null;
       if (isTextField(el)) return;                 // genuinely typing — leave the keys alone
       if (el && el !== document.body) el.blur();    // drop focus off a number field so it stops eating keys
-      if (MOVE.has(k)) e.preventDefault();
-      this.pressed.add(k);
+      if (mv) e.preventDefault();
+      this.pressed.add(mv || 'shift');
+      if (mv) this.flashChip(mv, true);
     }, { capture: true });
-    window.addEventListener('keyup', e => this.pressed.delete(e.key.toLowerCase()));
-    window.addEventListener('blur', () => this.pressed.clear());   // don't let a held key stick across an alt-tab
+    window.addEventListener('keyup', e => {
+      const mv = MOVE[e.code];
+      if (mv) { this.pressed.delete(mv); this.flashChip(mv, false); }
+      else if (isShift(e.code)) this.pressed.delete('shift');
+    });
+    window.addEventListener('blur', () => { this.pressed.clear(); for (const k in this.keyChips) this.flashChip(k, false); });   // don't let a held key stick across an alt-tab
   }
 
   setFly(on: boolean) { this.fly = on; if (!on) this.pressed.clear(); }
+
+  private flashChip(k: string, on: boolean) {
+    const c = this.keyChips[k];
+    if (!c) return;
+    c.style.background = on ? '#7bc6ff' : 'rgba(255,255,255,0.06)';
+    c.style.color = on ? '#0b0f14' : '#8b93a3';
+  }
 
   private applyFly(dt: number) {
     const P = this.pressed;
