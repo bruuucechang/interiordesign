@@ -66,9 +66,9 @@ export class SelectTool implements Tool {
   private doMove(o: Obj, p: PointerInfo) {
     const d = { x: p.snapped.x - this.start.x, y: p.snapped.y - this.start.y };
     const g = this.orig;
-    if (o.kind === 'room' && g.poly) {   // move the whole polygon with its bbox
+    if (o.kind === 'room' && g.poly) {   // move the whole polygon with its bbox (detaches an auto room)
       const poly = (g.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y }));
-      this.patch(o, { x: g.x + d.x, y: g.y + d.y, poly } as any);
+      this.patch(o, { x: g.x + d.x, y: g.y + d.y, poly, auto: false } as any);
     } else if ('x' in g) this.patch(o, { x: g.x + d.x, y: g.y + d.y } as any);
     else if ('a' in g) this.patch(o, { a: { x: g.a.x + d.x, y: g.a.y + d.y }, b: { x: g.b.x + d.x, y: g.b.y + d.y } } as any);
   }
