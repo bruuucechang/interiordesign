@@ -125,6 +125,9 @@ export class Doc {
 
   // ---- layers ----
   layer(id: LayerId): Layer | undefined { return this.project.layers.find(l => l.id === id); }
+  ensureLayer(id: LayerId, name: string, color: string, index = this.project.layers.length) {
+    if (!this.layer(id)) this.project.layers.splice(index, 0, { id, name, visible: true, locked: false, color });
+  }
   isLayerVisible(id: LayerId) { return this.layer(id)?.visible ?? true; }
   isLayerLocked(id: LayerId) { return this.layer(id)?.locked ?? false; }
   toggleLayerVisible(id: LayerId) { const l = this.layer(id); if (l) { l.visible = !l.visible; this.emit(); } }

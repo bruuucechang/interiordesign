@@ -142,10 +142,10 @@ export class SelectTool implements Tool {
 
   private doEndpoint(o: Obj, p: PointerInfo) {
     const g = this.orig;
-    if (o.kind === 'wall' || o.kind === 'dimension') {
+    if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'dimension') {
       let pt = p.snapped;
       this.ctx.setPreview();
-      if (o.kind === 'wall' && this.ctx.snapEnabled) {   // foolproof: snap the dragged end onto other walls
+      if ((o.kind === 'wall' || o.kind === 'beam') && this.ctx.snapEnabled) {   // snap the dragged end onto walls
         const walls = this.ctx.doc.objects.filter(w => w.kind === 'wall') as any[];
         const s = nearestWallSnap(walls, p.world, 14 / this.ctx.vp.scale, o.id);
         if (s) {

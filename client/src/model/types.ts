@@ -12,13 +12,15 @@ export interface Layer {
   color: string;
 }
 
-export type ObjKind = 'wall' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image';
+export type ObjKind = 'wall' | 'beam' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image';
 
 interface Base { id: string; layer: LayerId; }
 
 // `bulge` (cm) curves the wall into an arc — signed apex offset from the chord; 0/undefined = straight.
 // `height` (cm) is the 3D wall height (defaults to WALL_H). `color` is the wall finish (hex).
 export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; color?: string; }
+// A ceiling beam: `width` across, dropping `depth` cm down from the ceiling.
+export interface Beam extends Base { kind: 'beam'; a: Vec; b: Vec; width: number; depth: number; }
 // x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
 // makes the room an arbitrary polygon auto-closed from surrounding walls.
 // `auto` marks rooms created by wall-loop detection (they track the walls until
@@ -34,7 +36,7 @@ export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; off
 // A traceable background image (floor-plan underlay). `src` is a data URL.
 export interface ImageObj extends Base { kind: 'image'; x: number; y: number; w: number; h: number; src: string; opacity: number; }
 
-export type Obj = Wall | Room | Opening | Furniture | Dimension | ImageObj;
+export type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 
 // A building level: its own objects, stacked in 3D at `elevation` (cm).
 export interface Floor {
@@ -61,6 +63,7 @@ export function defaultLayers(): Layer[] {
   return [
     { id: 'underlay', name: '底圖', visible: true, locked: false, color: '#8b93a3' },
     { id: 'walls', name: '牆體', visible: true, locked: false, color: '#c9cfdb' },
+    { id: 'beams', name: '樑', visible: true, locked: false, color: '#b07de0' },
     { id: 'rooms', name: '房間', visible: true, locked: false, color: '#6d7890' },
     { id: 'openings', name: '門窗', visible: true, locked: false, color: '#7bc6ff' },
     { id: 'furniture', name: '家具', visible: true, locked: false, color: '#e0b45a' },
@@ -72,6 +75,7 @@ export function defaultLayers(): Layer[] {
 export function layerForKind(kind: ObjKind): LayerId {
   if (kind === 'image') return 'underlay';
   if (kind === 'wall') return 'walls';
+  if (kind === 'beam') return 'beams';
   if (kind === 'room') return 'rooms';
   if (kind === 'door' || kind === 'window') return 'openings';
   if (kind === 'furniture') return 'furniture';

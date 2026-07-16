@@ -5,7 +5,7 @@ import { snapPoint } from './geometry';
 import { bounds, Bounds } from './hit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
-import { WallTool, CurvedWallTool, RoomTool, DimensionTool, PanTool } from '../tools/draw';
+import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool, PanTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool } from '../tools/place';
 import { Obj, Vec } from '../model/types';
 
@@ -40,6 +40,7 @@ export class Editor implements ToolCtx {
       pan: new PanTool(this),
       wall: new WallTool(this),
       wallCurve: new CurvedWallTool(this),
+      beam: new BeamTool(this),
       room: new RoomTool(this),
       door: new OpeningTool(this, 'door'),
       window: new OpeningTool(this, 'window'),

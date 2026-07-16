@@ -16,6 +16,7 @@ const TOOLS = [
   { name: 'pan', ic: '✋', label: '平移' },
   { name: 'wall', ic: '▬', label: '直線牆' },
   { name: 'wallCurve', ic: '◠', label: '曲線牆' },
+  { name: 'beam', ic: '═', label: '樑' },
   { name: 'door', ic: '🚪', label: '門' },
   { name: 'window', ic: '🪟', label: '窗' },
   { name: 'dimension', ic: '↔', label: '尺寸' },
@@ -299,6 +300,16 @@ function refreshProps(editor: Editor, doc: Doc) {
       dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
       dim(size.body, '高度', o.height ?? 270, v => up({ height: Math.max(10, v) } as any), 10);
       break;
+    case 'beam':
+      dim(size.body, '長度', dist(o.a, o.b), v => {   // resize by moving the far end along the beam
+        const L = Math.max(1, v), cur = dist(o.a, o.b);
+        const ux = cur > 1e-6 ? (o.b.x - o.a.x) / cur : 1;
+        const uy = cur > 1e-6 ? (o.b.y - o.a.y) / cur : 0;
+        up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
+      }, 1);
+      dim(size.body, '寬度', o.width, v => up({ width: Math.max(2, v) } as any), 2);
+      dim(size.body, '下垂高度', o.depth, v => up({ depth: Math.max(2, v) } as any), 2);   // drop from the ceiling downward
+      break;
     case 'door': case 'window': {
       dim(size.body, '寬度', o.width, v => up({ width: Math.max(10, v) } as any), 10);
       dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up({ height: Math.max(10, v) } as any), 10);
@@ -358,7 +369,7 @@ function refreshProps(editor: Editor, doc: Doc) {
 }
 
 function kindLabel(k: string) {
-  return ({ wall: '牆', room: '房間', door: '門', window: '窗', furniture: '家具', dimension: '尺寸標註', image: '底圖' } as Record<string, string>)[k] ?? k;
+  return ({ wall: '牆', beam: '樑', room: '房間', door: '門', window: '窗', furniture: '家具', dimension: '尺寸標註', image: '底圖' } as Record<string, string>)[k] ?? k;
 }
 
 // ---- top bar ----
