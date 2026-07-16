@@ -1,12 +1,13 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId, Doc } from '../model/doc';
 import { layerForKind, Vec } from '../model/types';
-import { closestOnSegment, angleDeg, dist, arcOpening, wallControl } from '../core/geometry';
+import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, wallControl } from '../core/geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 
 const WALL_SNAP = 40; // cm — how close to a wall to snap an opening onto it
 
-export type OpeningFit = { pos: Vec; angle: number; width: number; bulge: number };
+// left/right = wall remaining on each side of the opening (cm); *At = label anchors.
+export type OpeningFit = { pos: Vec; angle: number; width: number; bulge: number; left?: number; right?: number; leftAt?: Vec; rightAt?: Vec };
 
 // Fit an opening of `width` onto the nearest wall within `threshold` cm of the
 // cursor: returns the snap position, the wall's tangent angle, the (possibly
@@ -19,9 +20,21 @@ export function fitOpeningToWall(doc: Doc, cursor: Vec, width: number, isWindow:
       const r = arcOpening(o.a, wallControl(o.a, o.b, o.bulge), o.b, cursor, width);   // windows bow to the wall; doors stay flat
       if (r.dist < bestD) { bestD = r.dist; best = { pos: r.pos, angle: r.angle, width: r.width, bulge: isWindow ? r.bulge : 0 }; }
     } else {
-      const { point } = closestOnSegment(cursor, o.a, o.b);
-      const d = dist(cursor, point);
-      if (d < bestD) { bestD = d; best = { pos: point, angle: angleDeg(o.a, o.b), width, bulge: 0 }; }
+      const cs = closestOnSegment(cursor, o.a, o.b);
+      const d = dist(cursor, cs.point);
+      if (d < bestD) {
+        bestD = d;
+        const L = dist(o.a, o.b), dc = cs.t * L, hw = width / 2;
+        const ux = L > 1e-6 ? (o.b.x - o.a.x) / L : 1, uy = L > 1e-6 ? (o.b.y - o.a.y) / L : 0;
+        const near = { x: o.a.x + ux * (dc - hw), y: o.a.y + uy * (dc - hw) };
+        const far = { x: o.a.x + ux * (dc + hw), y: o.a.y + uy * (dc + hw) };
+        best = {
+          pos: cs.point, angle: angleDeg(o.a, o.b), width, bulge: 0,
+          left: Math.max(0, dc - hw), right: Math.max(0, L - dc - hw),
+          leftAt: { x: (o.a.x + near.x) / 2, y: (o.a.y + near.y) / 2 },
+          rightAt: { x: (far.x + o.b.x) / 2, y: (far.y + o.b.y) / 2 },
+        };
+      }
     }
   }
   return best;
@@ -46,13 +59,26 @@ export class OpeningTool implements Tool {
   onMove(p: PointerInfo) {
     this.cand = this.findWall(p.snapped);
     const c = this.cand, hw = c.width / 2;
-    this.ctx.setPreview(ctx => {
-      ctx.save(); ctx.translate(c.pos.x, c.pos.y); ctx.rotate(c.angle * Math.PI / 180);
-      ctx.strokeStyle = '#7bc6ff'; ctx.globalAlpha = 0.7; ctx.lineWidth = 6 / this.ctx.vp.scale;
-      ctx.beginPath(); ctx.moveTo(-hw, 0);
-      if (c.bulge) ctx.quadraticCurveTo(0, 2 * c.bulge, hw, 0); else ctx.lineTo(hw, 0);
-      ctx.stroke(); ctx.globalAlpha = 1; ctx.restore();
-    });
+    this.ctx.setPreview(
+      ctx => {
+        ctx.save(); ctx.translate(c.pos.x, c.pos.y); ctx.rotate(c.angle * Math.PI / 180);
+        ctx.strokeStyle = '#7bc6ff'; ctx.globalAlpha = 0.7; ctx.lineWidth = 6 / this.ctx.vp.scale;
+        ctx.beginPath(); ctx.moveTo(-hw, 0);
+        if (c.bulge) ctx.quadraticCurveTo(0, 2 * c.bulge, hw, 0); else ctx.lineTo(hw, 0);
+        ctx.stroke(); ctx.globalAlpha = 1; ctx.restore();
+      },
+      ctx => {   // remaining wall on each side of the opening
+        if (c.leftAt === undefined) return;
+        ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const tag = (at: Vec, txt: string) => {
+          const s = this.ctx.vp.toScreen(at), w = ctx.measureText(txt).width + 10;
+          ctx.fillStyle = 'rgba(10,12,16,0.85)'; ctx.fillRect(s.x - w / 2, s.y - 9, w, 18);
+          ctx.fillStyle = '#8bffb0'; ctx.fillText(txt, s.x, s.y);
+        };
+        tag(c.leftAt, fmtLen(c.left!));
+        tag(c.rightAt!, fmtLen(c.right!));
+      },
+    );
     this.ctx.render();
   }
   onDown(p: PointerInfo) {
