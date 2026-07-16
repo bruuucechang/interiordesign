@@ -29,6 +29,18 @@ test('two separate squares yield two rooms', () => {
   assert.equal(polys.length, 2);
 });
 
+test('a rectangle with an interior divider wall yields two rooms', () => {
+  const walls = [
+    wall('t1', 0, 0, 200, 0), wall('t2', 200, 0, 400, 0),
+    wall('b1', 0, 300, 200, 300), wall('b2', 200, 300, 400, 300),
+    wall('l', 0, 0, 0, 300), wall('r', 400, 0, 400, 300),
+    wall('m', 200, 0, 200, 300),   // divider
+  ];
+  const polys = detectRoomPolygons(walls);
+  assert.equal(polys.length, 2);
+  assert.ok(polys.every(p => Math.abs(polygonArea(p) - 200 * 300) < 1));
+});
+
 test('nearly-touching endpoints (within merge epsilon) still close the loop', () => {
   const walls = [
     wall('1', 0, 0, 400, 0),
