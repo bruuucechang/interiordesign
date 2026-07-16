@@ -11,7 +11,8 @@ import { listProjects, loadProject, saveProject, deleteProject } from '../net/ap
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
-const TOOLS = [
+// 常用 = the everyday drawing tools, shown as the first catalog section.
+const COMMON_TOOLS = [
   { name: 'select', ic: '⬚', label: '選取' },
   { name: 'pan', ic: '✋', label: '平移' },
   { name: 'wall', ic: '▬', label: '直線牆' },
@@ -19,12 +20,10 @@ const TOOLS = [
   { name: 'beam', ic: '═', label: '樑' },
   { name: 'door', ic: '🚪', label: '門' },
   { name: 'window', ic: '🪟', label: '窗' },
-  { name: 'dimension', ic: '↔', label: '尺寸' },
 ];
 
 export function initUI(editor: Editor, doc: Doc) {
-  buildTools(editor);
-  buildFurniture(editor);
+  buildCatalog(editor);
   buildFloors(editor, doc);
   buildLayers(editor, doc);
   refreshProps(editor, doc);
@@ -55,30 +54,30 @@ export function initUI(editor: Editor, doc: Doc) {
   });
 }
 
-// ---- tools palette ----
-function buildTools(editor: Editor) {
-  const host = $('#tools'); host.innerHTML = '';
-  for (const t of TOOLS) {
+// ---- unified catalog: 常用 tools first, then furniture by room ----
+function buildCatalog(editor: Editor) {
+  const host = $('#catalog'); host.innerHTML = '';
+  const title = (text: string) => { const d = document.createElement('div'); d.className = 'panel-title'; d.textContent = text; host.appendChild(d); };
+
+  // 常用 — everyday drawing tools
+  title('常用');
+  const pal = document.createElement('div'); pal.className = 'palette';
+  for (const t of COMMON_TOOLS) {
     const b = document.createElement('button');
     b.className = 'tool-btn'; b.dataset.tool = t.name;
     b.innerHTML = `<span class="ic">${t.ic}</span>${t.label}`;
     b.onclick = () => editor.selectTool(t.name);
-    host.appendChild(b);
+    pal.appendChild(b);
   }
-}
-function markActiveTool(name: string) {
-  document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.tool === name));
-  if (name !== 'furniture') document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
-}
+  host.appendChild(pal);
 
-// ---- furniture palette ----
-function buildFurniture(editor: Editor) {
-  const host = $('#furniture'); host.innerHTML = '';
+  // furniture, grouped by room category
   for (const cat of FURNITURE_CATS) {
-    const title = document.createElement('div');
-    title.className = 'muted'; title.style.cssText = 'grid-column:1/3;font-size:11px;margin:4px 0 0;';
-    title.textContent = cat; host.appendChild(title);
-    for (const item of FURNITURE.filter(f => f.cat === cat)) {
+    const items = FURNITURE.filter(f => f.cat === cat);
+    if (!items.length) continue;
+    title(cat);
+    const grid = document.createElement('div'); grid.className = 'furniture-grid';
+    for (const item of items) {
       const b = document.createElement('button');
       b.className = 'furn-btn'; b.dataset.furn = item.id;
       const cv = document.createElement('canvas');
@@ -96,9 +95,14 @@ function buildFurniture(editor: Editor) {
         b.classList.add('active');
         document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
       };
-      host.appendChild(b);
+      grid.appendChild(b);
     }
+    host.appendChild(grid);
   }
+}
+function markActiveTool(name: string) {
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.tool === name));
+  if (name !== 'furniture') document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
 }
 
 function updateUndoRedo(doc: Doc) {

@@ -303,11 +303,35 @@ function plant(w: number, h: number): THREE.Group {
   return g;
 }
 
+// Generic cabinet: carcass + plinth + top, with `doors` fronts and handles.
+function cabinetModel(w: number, h: number, height: number, doors: number): THREE.Group {
+  const g = new THREE.Group(); const front = h / 2;
+  const bodyM = mat(0x7a5636), doorM = mat(0x86603a), frameM = mat(0x6b4a2a);
+  const handle = mat(0x9aa3b0, { metalness: 0.6, roughness: 0.4 });
+  const cy = 3 + (height - 6) / 2;
+  g.add(rbox(w, 6, h, 2, mat(0x4a3320), 0, 3, 0));                       // plinth
+  g.add(rbox(w, height - 6, h, 2, bodyM, 0, cy, 0));                     // carcass
+  g.add(rbox(w + 3, 4, h + 3, 2, frameM, 0, height, 0));                 // top
+  const dw = w / doors;
+  for (let i = 0; i < doors; i++) {
+    const dx = -w / 2 + dw * (i + 0.5);
+    g.add(rbox(dw - 3, height - 16, 3, 2, doorM, dx, cy, front));
+    g.add(cyl(1.8, 1.8, 5, handle, dx + dw / 2 - 5, cy, front + 2, 10));
+  }
+  return g;
+}
+
 const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   dining: (w, h) => table(w, h, 75), desk: (w, h) => table(w, h, 75), coffee,
   chair, sofa, armchair,
   bed_double: (w, h) => bed(w, h, true), bed_single: (w, h) => bed(w, h, false),
   wardrobe, fridge, stove, sink, toilet, bathtub, shower, tv: tvStand, rug, plant,
+  cabinet_storage: (w, h) => cabinetModel(w, h, 85, 2),
+  cabinet_side: (w, h) => cabinetModel(w, h, 85, 3),
+  nightstand: (w, h) => cabinetModel(w, h, 50, 1),
+  cabinet_kitchen: (w, h) => cabinetModel(w, h, 90, 4),
+  vanity: (w, h) => cabinetModel(w, h, 80, 2),
+  bookshelf: (w, h) => cabinetModel(w, h, 180, 4),
 };
 
 export function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
