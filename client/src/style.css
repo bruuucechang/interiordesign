@@ -107,6 +107,16 @@ body {
 .floor-row button:hover { color: var(--danger); }
 .add-floor { width: 100%; margin-top: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px; cursor: pointer; }
 .add-floor:hover { border-color: var(--accent); color: var(--accent); }
+.schedule-body { padding: 14px 16px; max-height: 70vh; overflow-y: auto; }
+.schedule-body h4 { margin: 12px 0 6px; color: var(--muted); font-size: 12px; letter-spacing: 1px; }
+.schedule-body h4:first-child { margin-top: 0; }
+table.sched { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.sched th, table.sched td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+table.sched th { color: var(--muted); font-weight: 500; }
+table.sched .num { text-align: right; font-variant-numeric: tabular-nums; }
+table.sched tr.sec td { color: var(--accent); font-weight: 600; background: var(--panel2); }
+table.sched tr.total td { font-weight: 700; border-top: 2px solid var(--line); border-bottom: none; }
+table.sched .muted { color: var(--muted); }
 .btn-danger { background: #3a2630; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; }
 
 /* modal */

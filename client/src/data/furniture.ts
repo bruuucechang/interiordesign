@@ -100,3 +100,12 @@ export const FURNITURE: FurnitureItem[] = [
 
 export const FURNITURE_BY_ID: Record<string, FurnitureItem> = Object.fromEntries(FURNITURE.map(f => [f.id, f]));
 export const FURNITURE_CATS = [...new Set(FURNITURE.map(f => f.cat))];
+
+// Rough reference prices (NT$) for the bill-of-materials estimate.
+const PRICES: Record<string, number> = {
+  sofa: 18000, armchair: 8000, coffee: 4500, tv: 6000, rug: 3500,
+  bed_double: 22000, bed_single: 14000, wardrobe: 12000, desk: 5000,
+  dining: 9000, stove: 15000, fridge: 20000, sink: 6000,
+  toilet: 5000, bathtub: 18000, shower: 12000, plant: 1200, chair: 2500,
+};
+export function itemPrice(id: string): number { return PRICES[id] ?? 3000; }
