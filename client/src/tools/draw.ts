@@ -1,7 +1,7 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId } from '../model/doc';
 import { layerForKind, Vec } from '../model/types';
-import { fmtLen, dist, angleDeg, alignWallEnd, nearestWallSnap } from '../core/geometry';
+import { fmtLen, dist, angleDeg, alignWallEnd, nearestWallSnap, bulgeFrom } from '../core/geometry';
 
 const WALL_THICKNESS = 12;   // cm
 const DIM_OFFSET = 40;       // cm
@@ -83,6 +83,67 @@ export class RoomTool implements Tool {
     this.ctx.render();
   }
   deactivate() { this.a = null; this.ctx.setPreview(); }
+}
+
+// Curved wall: click start, click end, move to set the arc, click to confirm.
+// Chains from the previous endpoint like the straight tool.
+export class CurvedWallTool implements Tool {
+  name = 'wallCurve'; cursor = 'crosshair';
+  hint = '點擊起點與終點，移動滑鼠設定弧度後再點擊確認；自動貼合牆體端點；Esc 結束';
+  private a: Vec | null = null;          // chain start
+  private wallId: string | null = null;  // wall currently being curved
+  private b: Vec | null = null;          // its end
+  private snapAt: Vec | null = null;
+  constructor(private ctx: ToolCtx) {}
+
+  private snap(p: PointerInfo): Vec {
+    if (this.ctx.snapEnabled) {
+      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as any[];
+      const s = nearestWallSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale, this.wallId ?? undefined);
+      if (s) { this.snapAt = s.point; return s.point; }
+    }
+    this.snapAt = null;
+    if (this.a && !this.wallId) return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.a, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+    return p.snapped;
+  }
+
+  onDown(p: PointerInfo) {
+    if (this.wallId) { this.a = this.b; this.wallId = null; this.b = null; this.snapAt = null; return; }   // confirm arc, chain on
+    const end = this.snap(p);
+    if (!this.a) { this.a = end; return; }
+    if (dist(this.a, end) < 1) return;
+    this.b = end;
+    this.ctx.doc.commit();
+    const id = genId('wall');
+    this.ctx.doc.add({ id, kind: 'wall', layer: layerForKind('wall'), a: this.a, b: this.b, thickness: WALL_THICKNESS, bulge: 0 });
+    this.wallId = id;
+  }
+
+  onMove(p: PointerInfo) {
+    if (this.wallId && this.b) {                       // setting the arc depth
+      let bulge = bulgeFrom(this.a!, this.b, p.world);
+      const grid = this.ctx.gridSize;
+      if (this.ctx.snapEnabled) bulge = Math.round(bulge / grid) * grid;
+      if (Math.abs(bulge) < grid) bulge = 0;
+      this.ctx.doc.update(this.wallId, { bulge } as any);
+      this.ctx.setPreview(); this.ctx.render();
+      return;
+    }
+    const s = this.a, e = this.snap(p), snapAt = this.snapAt;
+    this.ctx.setPreview(
+      ctx => { if (!s) return; ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = WALL_THICKNESS; ctx.globalAlpha = 0.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.globalAlpha = 1; },
+      ctx => {
+        if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(fmtLen(dist(s, e)), m.x, m.y - 6); }
+        if (snapAt) { const c = this.ctx.vp.toScreen(snapAt); ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); }
+      },
+    );
+    this.ctx.render();
+  }
+
+  onUp() {}
+  onKey(e: KeyboardEvent) { if (e.key === 'Escape') this.reset(); }
+  deactivate() { this.reset(); }
+  private reset() { this.a = null; this.wallId = null; this.b = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); }
 }
 
 // Grab the canvas with the left mouse button to pan the view.

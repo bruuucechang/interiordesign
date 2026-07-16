@@ -1,40 +1,51 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId } from '../model/doc';
 import { layerForKind, Vec } from '../model/types';
-import { closestOnSegment, angleDeg, dist } from '../core/geometry';
+import { closestOnSegment, angleDeg, dist, arcOpening, wallControl } from '../core/geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 
 const WALL_SNAP = 40; // cm — how close to a wall to snap an opening onto it
 
-// Place a door or window. Snaps onto the nearest wall (position + angle).
+type Cand = { pos: Vec; angle: number; width: number; bulge: number };
+
+// Place a door or window. Snaps onto the nearest wall (position + angle), and
+// follows the wall's curvature — a window on a curved wall becomes a curved window.
 export class OpeningTool implements Tool {
   cursor = 'crosshair';
-  private cand: { pos: Vec; angle: number } | null = null;
+  private cand: Cand | null = null;
   constructor(private ctx: ToolCtx, public kind: 'door' | 'window') {
-    this.name = kind; this.hint = kind === 'door' ? '在牆上點擊放置門' : '在牆上點擊放置窗';
+    this.name = kind; this.hint = kind === 'door' ? '在牆上點擊放置門' : '在牆上點擊放置窗（可貼合彎曲牆體）';
   }
   name: string; hint: string;
 
   private width() { return this.kind === 'door' ? 90 : 120; }
 
-  private findWall(p: Vec): { pos: Vec; angle: number } {
-    let best: { pos: Vec; angle: number } | null = null; let bestD = WALL_SNAP;
+  private findWall(p: Vec): Cand {
+    let best: Cand | null = null; let bestD = WALL_SNAP;
     for (const o of this.ctx.doc.objects) {
       if (o.kind !== 'wall' || !this.ctx.doc.isLayerVisible(o.layer)) continue;
-      const { point } = closestOnSegment(p, o.a, o.b);
-      const d = dist(p, point);
-      if (d < bestD) { bestD = d; best = { pos: point, angle: angleDeg(o.a, o.b) }; }
+      if (o.bulge) {
+        const r = arcOpening(o.a, wallControl(o.a, o.b, o.bulge), o.b, p, this.width());
+        // only windows bow to the wall; doors stay flat across the arc
+        if (r.dist < bestD) { bestD = r.dist; best = { pos: r.pos, angle: r.angle, width: r.width, bulge: this.kind === 'window' ? r.bulge : 0 }; }
+      } else {
+        const { point } = closestOnSegment(p, o.a, o.b);
+        const d = dist(p, point);
+        if (d < bestD) { bestD = d; best = { pos: point, angle: angleDeg(o.a, o.b), width: this.width(), bulge: 0 }; }
+      }
     }
-    return best ?? { pos: p, angle: 0 };
+    return best ?? { pos: p, angle: 0, width: this.width(), bulge: 0 };
   }
 
   onMove(p: PointerInfo) {
     this.cand = this.findWall(p.snapped);
-    const c = this.cand, w = this.width();
+    const c = this.cand, hw = c.width / 2;
     this.ctx.setPreview(ctx => {
       ctx.save(); ctx.translate(c.pos.x, c.pos.y); ctx.rotate(c.angle * Math.PI / 180);
       ctx.strokeStyle = '#7bc6ff'; ctx.globalAlpha = 0.7; ctx.lineWidth = 6 / this.ctx.vp.scale;
-      ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(w / 2, 0); ctx.stroke(); ctx.globalAlpha = 1; ctx.restore();
+      ctx.beginPath(); ctx.moveTo(-hw, 0);
+      if (c.bulge) ctx.quadraticCurveTo(0, 2 * c.bulge, hw, 0); else ctx.lineTo(hw, 0);
+      ctx.stroke(); ctx.globalAlpha = 1; ctx.restore();
     });
     this.ctx.render();
   }
@@ -42,7 +53,7 @@ export class OpeningTool implements Tool {
     const c = this.cand ?? this.findWall(p.snapped);
     this.ctx.doc.commit();
     const id = genId(this.kind);
-    this.ctx.doc.add({ id, kind: this.kind, layer: layerForKind(this.kind), x: c.pos.x, y: c.pos.y, width: this.width(), angle: c.angle });
+    this.ctx.doc.add({ id, kind: this.kind, layer: layerForKind(this.kind), x: c.pos.x, y: c.pos.y, width: c.width, angle: c.angle, bulge: c.bulge || undefined });
     this.ctx.doc.select(id);
     this.ctx.setPreview();
   }

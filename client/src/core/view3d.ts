@@ -258,10 +258,23 @@ export class View3D {
         const h = o.height ?? (isDoor ? 210 : 100);
         const yc = (o.elevation ?? (isDoor ? 0 : 90)) + h / 2;
         const m = isDoor ? this.mat(0x8a5a34, { roughness: 0.6 }) : this.mat(0x9fd4ff, { transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.1 });
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(o.width, h, 20), m);
-        panel.position.set(o.x, yc, o.y);
-        panel.rotation.y = -o.angle * Math.PI / 180;
-        this.staticGroup.add(panel);
+        if (o.bulge) {
+          const hw = o.width / 2, ca = Math.cos(o.angle * Math.PI / 180), sa = Math.sin(o.angle * Math.PI / 180);
+          const toPlan = (lx: number, ly: number) => ({ x: o.x + lx * ca - ly * sa, y: o.y + lx * sa + ly * ca });
+          const plan = quadPoints({ x: -hw, y: 0 }, { x: 0, y: 2 * o.bulge }, { x: hw, y: 0 }, 10).map(pt => toPlan(pt.x, pt.y));
+          for (let i = 1; i < plan.length; i++) {
+            const p1 = plan[i - 1], p2 = plan[i];
+            const seg = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + 4, h, 20), m);
+            seg.position.set((p1.x + p2.x) / 2, yc, (p1.y + p2.y) / 2);
+            seg.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
+            this.staticGroup.add(seg);
+          }
+        } else {
+          const panel = new THREE.Mesh(new THREE.BoxGeometry(o.width, h, 20), m);
+          panel.position.set(o.x, yc, o.y);
+          panel.rotation.y = -o.angle * Math.PI / 180;
+          this.staticGroup.add(panel);
+        }
         break;
       }
       case 'furniture': {

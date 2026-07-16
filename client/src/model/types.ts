@@ -25,7 +25,8 @@ export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: nu
 // the user renames/moves them, which detaches them into normal rooms).
 export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; auto?: boolean; }
 // `height` (cm) = opening height; `elevation` (cm) = sill height above the floor.
-export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; }
+// `bulge` (cm) curves the opening to follow a curved wall (windows).
+export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; bulge?: number; }
 // `height` (cm) overrides the model's natural 3D height; `elevation` (cm) lifts it off the floor.
 export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; height?: number; elevation?: number; }
 export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; offset: number; }
