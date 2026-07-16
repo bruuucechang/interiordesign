@@ -203,7 +203,7 @@ export class Renderer {
       }
       case 'beam': {
         const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
-        this.text(mid, `↧${fmtLen(o.depth)}`, '#c9a8ea');   // drop depth from ceiling
+        this.text(mid, `↥${fmtLen(o.elevation)}`, '#c9a8ea');   // underside clearance off the floor
         break;
       }
       case 'door': case 'window': {

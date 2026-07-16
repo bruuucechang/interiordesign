@@ -146,8 +146,8 @@ export class CurvedWallTool implements Tool {
   private reset() { this.a = null; this.wallId = null; this.b = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); }
 }
 
-// Ceiling beam: click endpoints (chains). Snaps to wall endpoints and axes.
-const BEAM_WIDTH = 20, BEAM_DEPTH = 40;   // cm
+// Beam: click endpoints (chains). Snaps to wall endpoints and axes.
+const BEAM_WIDTH = 20, BEAM_HEIGHT = 40, BEAM_ELEV = 230;   // cm (underside near a 270 ceiling)
 export class BeamTool implements Tool {
   name = 'beam'; cursor = 'crosshair';
   hint = '點擊放置樑的端點；自動貼合牆體，近水平/垂直對齊格線；Esc 結束';
@@ -172,7 +172,7 @@ export class BeamTool implements Tool {
     if (dist(this.start, end) < 1) return;
     this.ctx.doc.ensureLayer('beams', '樑', '#b07de0', 2);
     this.ctx.doc.commit();
-    this.ctx.doc.add({ id: genId('beam'), kind: 'beam', layer: layerForKind('beam'), a: this.start, b: end, width: BEAM_WIDTH, depth: BEAM_DEPTH });
+    this.ctx.doc.add({ id: genId('beam'), kind: 'beam', layer: layerForKind('beam'), a: this.start, b: end, width: BEAM_WIDTH, height: BEAM_HEIGHT, elevation: BEAM_ELEV });
     this.start = end;
   }
   onMove(p: PointerInfo) {
