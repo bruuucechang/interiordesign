@@ -2,7 +2,7 @@ import { Tool, ToolCtx, PointerInfo } from './types';
 import { Obj, Vec } from '../model/types';
 import { handles } from '../core/handles';
 import { hitTest, furnitureCenter, bounds } from '../core/hit';
-import { rotate, dist, angleDeg, snap, bulgeFrom } from '../core/geometry';
+import { rotate, dist, angleDeg, snap, bulgeFrom, nearestWallSnap } from '../core/geometry';
 
 type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'marquee';
 
@@ -71,15 +71,14 @@ export class SelectTool implements Tool {
   }
 
   onUp() {
-    if (this.mode === 'rotate') this.ctx.setPreview();   // clear the angle badge
     if (this.mode === 'marquee' && this.marquee) {
       const { doc } = this.ctx, m = this.marquee;
       const r = { x: Math.min(m.a.x, m.b.x), y: Math.min(m.a.y, m.b.y), w: Math.abs(m.b.x - m.a.x), h: Math.abs(m.b.y - m.a.y) };
       if (r.w < 2 && r.h < 2) doc.select(null);          // a plain click on empty space clears the selection
       else doc.selectMany(doc.objects.filter(o => doc.isLayerVisible(o.layer) && !doc.isLayerLocked(o.layer) && this.rectHits(r, o)).map(o => o.id));
-      this.ctx.setPreview();
     }
     this.mode = 'idle'; this.orig = null; this.origMany = []; this.marquee = null;
+    this.ctx.setPreview();   // clear angle badge / snap ring / marquee box
     this.ctx.render();
   }
 
@@ -136,7 +135,18 @@ export class SelectTool implements Tool {
   private doEndpoint(o: Obj, p: PointerInfo) {
     const g = this.orig;
     if (o.kind === 'wall' || o.kind === 'dimension') {
-      this.patch(o, (this.handleId === 'a' ? { a: p.snapped } : { b: p.snapped }) as any);
+      let pt = p.snapped;
+      this.ctx.setPreview();
+      if (o.kind === 'wall' && this.ctx.snapEnabled) {   // foolproof: snap the dragged end onto other walls
+        const walls = this.ctx.doc.objects.filter(w => w.kind === 'wall') as any[];
+        const s = nearestWallSnap(walls, p.world, 14 / this.ctx.vp.scale, o.id);
+        if (s) {
+          pt = s.point;
+          const c = this.ctx.vp.toScreen(pt);
+          this.ctx.setPreview(undefined, ctx => { ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); });
+        }
+      }
+      this.patch(o, (this.handleId === 'a' ? { a: pt } : { b: pt }) as any);
     } else if (o.kind === 'door' || o.kind === 'window') {
       const center = { x: g.x, y: g.y };
       const otherLocal = this.handleId === 'a' ? { x: g.x + g.width / 2, y: g.y } : { x: g.x - g.width / 2, y: g.y };
