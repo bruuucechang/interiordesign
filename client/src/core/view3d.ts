@@ -9,9 +9,18 @@ import { Doc } from '../model/doc';
 import { Obj } from '../model/types';
 import { dist, angleDeg, quadPoints, wallControl } from './geometry';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
-import { woodClone } from './textures3d';
+import { woodClone, tileClone } from './textures3d';
 
 const WALL_H = 270; // cm
+
+// Time-of-day lighting presets: sun colour/intensity/angle, sky fills, exposure.
+type TimeKey = 'morning' | 'noon' | 'dusk' | 'night';
+const LIGHTING: Record<TimeKey, { sun: number; intensity: number; hemi: number; amb: number; env: number; bg: number; exposure: number; elev: number; azim: number }> = {
+  morning: { sun: 0xffe6c2, intensity: 2.0, hemi: 0.55, amb: 0.16, env: 0.50, bg: 0xdfe8f0, exposure: 1.00, elev: 20, azim: 100 },
+  noon:    { sun: 0xfff4e2, intensity: 2.4, hemi: 0.75, amb: 0.15, env: 0.55, bg: 0xdbe2ea, exposure: 1.02, elev: 68, azim: 40 },
+  dusk:    { sun: 0xff9e5e, intensity: 1.9, hemi: 0.40, amb: 0.14, env: 0.38, bg: 0xe9c9a8, exposure: 1.05, elev: 12, azim: -60 },
+  night:   { sun: 0x9fb6ff, intensity: 0.5, hemi: 0.12, amb: 0.10, env: 0.10, bg: 0x161c28, exposure: 1.15, elev: 42, azim: 20 },
+};
 
 // plan coords (x, y) map to 3D (X = x, Z = y, Y = up)
 export class View3D {
@@ -20,10 +29,17 @@ export class View3D {
   private camera: THREE.PerspectiveCamera;
   private controls: OrbitControls;
   private composer: EffectComposer;
+  private renderPass!: RenderPass;
+  private sky!: THREE.Mesh;
   private gtao: GTAOPass;
   private staticGroup = new THREE.Group();   // walls/floors/openings — rebuilt+disposed each time
   private furnGroup = new THREE.Group();      // cloned cached furniture — cleared without disposing
   private dir: THREE.DirectionalLight;
+  private hemi!: THREE.HemisphereLight;
+  private amb!: THREE.AmbientLight;
+  private time: TimeKey = 'noon';
+  private sunCenter = { x: 0, z: 0 };
+  private sunSpan = 500;
   private running = false;
   private raf = 0;
   private clock = new THREE.Clock();
@@ -49,6 +65,12 @@ export class View3D {
     this.scene.environmentIntensity = 0.55;   // dial back the flat image-based light so surfaces show form
     pmrem.dispose();
 
+    // Sky dome as real geometry — a reliable background through the post-processing
+    // composer (scene.background alone doesn't survive the render passes).
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(60000, 24, 16), new THREE.MeshBasicMaterial({ color: 0xdbe2ea, side: THREE.BackSide }));
+    this.sky.frustumCulled = false;
+    this.scene.add(this.sky);
+
     this.camera = new THREE.PerspectiveCamera(52, 1, 1, 200000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
@@ -57,8 +79,8 @@ export class View3D {
     // Contrast-forward lighting: a strong key sun for crisp cast shadows, a weak
     // opposite fill so shadowed faces stay legible, minimal ambient. Depth/contact
     // cues come from the GTAO pass below.
-    this.scene.add(new THREE.HemisphereLight(0xeaf1ff, 0x555a63, 0.75));
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.15));   // tiny lift so nothing is pitch black
+    this.hemi = new THREE.HemisphereLight(0xeaf1ff, 0x555a63, 0.75); this.scene.add(this.hemi);
+    this.amb = new THREE.AmbientLight(0xffffff, 0.15); this.scene.add(this.amb);   // tiny lift so nothing is pitch black
     this.dir = new THREE.DirectionalLight(0xfff4e2, 2.4);
     this.dir.castShadow = true;
     this.dir.shadow.mapSize.set(4096, 4096);   // sharper contact shadows
@@ -72,7 +94,8 @@ export class View3D {
     // Post-processing: ground-truth ambient occlusion for object-to-floor and
     // object-to-object contact darkening — the main recognizability boost.
     this.composer = new EffectComposer(this.renderer);
-    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(this.renderPass);
     this.gtao = new GTAOPass(this.scene, this.camera, 1, 1);
     this.gtao.output = GTAOPass.OUTPUT.Default;
     this.gtao.blendIntensity = 0.9;
@@ -127,9 +150,30 @@ export class View3D {
       else if (isShift(e.code)) this.pressed.delete('shift');
     });
     window.addEventListener('blur', () => { this.pressed.clear(); for (const k in this.keyChips) this.flashChip(k, false); });   // don't let a held key stick across an alt-tab
+    this.setTimeOfDay('noon');   // initialize lights + background consistently
   }
 
   setFly(on: boolean) { this.fly = on; if (!on) this.pressed.clear(); }
+
+  // ---- lighting ----
+  setTimeOfDay(t: TimeKey) {
+    this.time = t;
+    const P = LIGHTING[t];
+    this.dir.color.setHex(P.sun); this.dir.intensity = P.intensity;
+    this.hemi.intensity = P.hemi; this.amb.intensity = P.amb;
+    this.scene.environmentIntensity = P.env;   // IBL lights the ground/walls — key for a dark night
+    this.scene.background = new THREE.Color(P.bg);
+    (this.sky.material as THREE.MeshBasicMaterial).color.setHex(P.bg);   // sky above the horizon
+    this.renderer.toneMappingExposure = P.exposure;
+    this.applySun();
+    this.renderer.shadowMap.needsUpdate = true;
+  }
+  private applySun() {
+    const P = LIGHTING[this.time];
+    const el = P.elev * Math.PI / 180, az = P.azim * Math.PI / 180, d = this.sunSpan * 1.6;
+    this.dir.position.set(this.sunCenter.x + Math.cos(el) * Math.cos(az) * d, Math.max(80, Math.sin(el) * d), this.sunCenter.z + Math.cos(el) * Math.sin(az) * d);
+    this.dir.target.position.set(this.sunCenter.x, 0, this.sunCenter.z);
+  }
 
   private flashChip(k: string, on: boolean) {
     const c = this.keyChips[k];
@@ -160,6 +204,13 @@ export class View3D {
 
   private mat(color: number, opts: THREE.MeshStandardMaterialParameters = {}) {
     return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.04, ...opts });
+  }
+
+  // floor finish: hex color, 'tile', or wood (default)
+  private floorMaterial(floor: string | undefined, u: number, v: number): THREE.MeshStandardMaterial {
+    if (floor && floor.startsWith('#')) return new THREE.MeshStandardMaterial({ color: new THREE.Color(floor).getHex(), roughness: 0.8, metalness: 0.02 });
+    const map = floor === 'tile' ? tileClone(u, v) : woodClone(u, v);
+    return new THREE.MeshStandardMaterial({ map, roughness: 0.72, metalness: 0.02 });
   }
 
   private clearStatic() {
@@ -194,10 +245,10 @@ export class View3D {
     const span = Math.max(maxX - minX, maxZ - minZ, 300) + 200;
     this.moveSpeed = Math.max(300, span * 0.7);   // perceptible regardless of scene scale
 
-    this.dir.position.set(cx + span * 0.4, span * 1.1, cz + span * 0.5);
-    this.dir.target.position.set(cx, 0, cz);
+    this.sunCenter = { x: cx, z: cz }; this.sunSpan = span;
     const sc = this.dir.shadow.camera;
     sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.near = 1; sc.far = span * 4; sc.updateProjectionMatrix();
+    this.applySun();                              // position the sun for the current time of day
     this.renderer.shadowMap.needsUpdate = true;   // refresh shadows once for this rebuild
 
     if (reframe) {
@@ -223,21 +274,22 @@ export class View3D {
           for (let i = 1; i < o.poly.length; i++) shape.lineTo(o.poly[i].x, o.poly[i].y);
           shape.closePath();
           const geo = new THREE.ExtrudeGeometry(shape, { depth: 4, bevelEnabled: false });
-          const map = woodClone(1, 1); map.repeat.set(1 / 240, 1 / 240);   // ExtrudeGeometry UVs are world cm
-          const floor = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map, roughness: 0.72, metalness: 0.02 }));
+          const fm = this.floorMaterial(o.floor, 1, 1);
+          if (fm.map) fm.map.repeat.set(1 / 240, 1 / 240);   // ExtrudeGeometry UVs are world cm
+          const floor = new THREE.Mesh(geo, fm);
           floor.rotation.x = Math.PI / 2;   // shape lies in plan XY -> lay flat on world XZ
           floor.position.y = 4;
           this.staticGroup.add(floor);
         } else {
-          const map = woodClone(Math.max(1, Math.round(o.w / 120)), Math.max(1, Math.round(o.h / 120)));
-          const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), new THREE.MeshStandardMaterial({ map, roughness: 0.72, metalness: 0.02 }));
+          const fm = this.floorMaterial(o.floor, Math.max(1, Math.round(o.w / 120)), Math.max(1, Math.round(o.h / 120)));
+          const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), fm);
           floor.position.set(o.x + o.w / 2, 2, o.y + o.h / 2);
           this.staticGroup.add(floor);
         }
         break;
       }
       case 'wall': {
-        const wallMat = this.mat(0xeceff4, { roughness: 0.92 });
+        const wallMat = this.mat(o.color ? new THREE.Color(o.color).getHex() : 0xeceff4, { roughness: 0.92 });
         const wh = o.height ?? WALL_H;
         const seg = (p1: { x: number; y: number }, p2: { x: number; y: number }, extend: number) => {
           const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + extend, wh, o.thickness), wallMat);

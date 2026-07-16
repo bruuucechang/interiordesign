@@ -64,6 +64,9 @@ function applyMode() {
 
 btnToggle.onclick = () => { mode = mode === '2d' ? '3d' : '2d'; applyMode(); };
 
+const timeSel = document.getElementById('timeOfDay') as HTMLSelectElement;
+timeSel.onchange = () => view3d.setTimeOfDay(timeSel.value as any);
+
 // live sync: any plan change rebuilds the (always-present) 3D view; if 2D is the
 // PiP, keep it fitted too
 let rebuildTimer: number | undefined;
