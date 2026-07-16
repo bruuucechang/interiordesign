@@ -77,6 +77,8 @@ export class Doc {
   private snapshot(): string {
     return JSON.stringify({ layers: this.project.layers, floors: this.project.floors, activeFloorId: this.project.activeFloorId });
   }
+  get canUndo() { return this.past.length > 0; }
+  get canRedo() { return this.future.length > 0; }
   commit() { // call before a mutation batch to save the current state
     this.past.push(this.snapshot());
     if (this.past.length > 100) this.past.shift();

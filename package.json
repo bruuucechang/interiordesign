@@ -9,7 +9,8 @@
     "dev:server": "npm --workspace server run dev",
     "dev:client": "npm --workspace client run dev",
     "build": "npm --workspace server run build && npm --workspace client run build",
-    "start": "npm --workspace server run start"
+    "start": "npm --workspace server run start",
+    "test": "tsx --test client/test/*.test.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

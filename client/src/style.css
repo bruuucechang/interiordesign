@@ -117,6 +117,9 @@ table.sched .num { text-align: right; font-variant-numeric: tabular-nums; }
 table.sched tr.sec td { color: var(--accent); font-weight: 600; background: var(--panel2); }
 table.sched tr.total td { font-weight: 700; border-top: 2px solid var(--line); border-bottom: none; }
 table.sched .muted { color: var(--muted); }
+.shortcuts { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.shortcuts kbd { display: inline-block; background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; margin: 0 2px; font-family: ui-monospace, monospace; font-size: 12px; }
+header button:disabled { opacity: 0.4; cursor: default; }
 .btn-danger { background: #3a2630; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; }
 
 /* modal */
