@@ -2,7 +2,7 @@ import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj, Vec, layerForKind } from '../model/types';
 import { FURNITURE, FURNITURE_CATS, FURNITURE_BY_ID, itemPrice } from '../data/furniture';
-import { dist, snap, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
+import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRoomPolygons } from '../core/rooms';
 import { detectWallsFromImage } from '../core/detect';
 import { getModelHeight } from '../core/furniture3d';
@@ -299,12 +299,26 @@ function refreshProps(editor: Editor, doc: Doc) {
       dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
       dim(size.body, '高度', o.height ?? 270, v => up({ height: Math.max(10, v) } as any), 10);
       break;
-    case 'door': case 'window':
+    case 'door': case 'window': {
       dim(size.body, '寬度', o.width, v => up({ width: Math.max(10, v) } as any), 10);
       dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up({ height: Math.max(10, v) } as any), 10);
+      // find the host straight wall to expose editable left/right offsets
+      let host: { w: Extract<Obj, { kind: 'wall' }>; L: number; dc: number; dir: Vec } | null = null; let bestD = 40;
+      for (const w of doc.objects) {
+        if (w.kind !== 'wall' || w.bulge) continue;
+        const cs = closestOnSegment({ x: o.x, y: o.y }, w.a, w.b), d = dist({ x: o.x, y: o.y }, cs.point);
+        if (d < bestD) { const L = dist(w.a, w.b); bestD = d; host = { w, L, dc: cs.t * L, dir: { x: L > 1e-6 ? (w.b.x - w.a.x) / L : 1, y: L > 1e-6 ? (w.b.y - w.a.y) / L : 0 } }; }
+      }
+      if (host) {
+        const { w, L, dc, dir } = host, hw = o.width / 2;
+        const place = (ndc: number) => { const c = Math.min(L - hw, Math.max(hw, ndc)); up({ x: w.a.x + dir.x * c, y: w.a.y + dir.y * c, angle: angleDeg(w.a, w.b) } as any); };
+        dim(pos.body, '左側牆長', Math.max(0, dc - hw), v => place(v + hw), 0);
+        dim(pos.body, '右側牆長', Math.max(0, L - dc - hw), v => place(L - v - hw), 0);
+      }
       deg(pos.body, '角度', o.angle, v => up({ angle: v } as any));
       dim(pos.body, '離地板距離', o.elevation ?? (o.kind === 'door' ? 0 : 90), v => up({ elevation: Math.max(0, v) } as any));
       break;
+    }
     case 'dimension':
       info(basics, '長度', fmtLenU(dist(o.a, o.b)));
       dim(pos.body, '偏移', o.offset, v => up({ offset: v } as any));
