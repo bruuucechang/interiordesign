@@ -320,6 +320,7 @@ export function buildFurniture(item: string, w: number, h: number): THREE.Object
 
 // Cache one model per (item, size); callers .clone() it (shares geometry/materials).
 const _cache = new Map<string, THREE.Object3D>();
+const _height = new Map<string, number>();
 export function getFurnitureModel(item: string, w: number, h: number): THREE.Object3D {
   const key = `${item}|${Math.round(w)}|${Math.round(h)}`;
   let m = _cache.get(key);
@@ -329,4 +330,16 @@ export function getFurnitureModel(item: string, w: number, h: number): THREE.Obj
     _cache.set(key, m);
   }
   return m;
+}
+
+// natural 3D height (cm) of a furniture model — used as the default for the height field
+export function getModelHeight(item: string, w: number, h: number): number {
+  const key = `${item}|${Math.round(w)}|${Math.round(h)}`;
+  let hgt = _height.get(key);
+  if (hgt === undefined) {
+    const box = new THREE.Box3().setFromObject(getFurnitureModel(item, w, h));
+    hgt = Math.max(1, Math.round(box.max.y - box.min.y));
+    _height.set(key, hgt);
+  }
+  return hgt;
 }

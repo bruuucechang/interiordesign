@@ -17,14 +17,17 @@ export type ObjKind = 'wall' | 'room' | 'door' | 'window' | 'furniture' | 'dimen
 interface Base { id: string; layer: LayerId; }
 
 // `bulge` (cm) curves the wall into an arc — signed apex offset from the chord; 0/undefined = straight.
-export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; }
+// `height` (cm) is the 3D wall height (defaults to WALL_H).
+export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; }
 // x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
 // makes the room an arbitrary polygon auto-closed from surrounding walls.
 // `auto` marks rooms created by wall-loop detection (they track the walls until
 // the user renames/moves them, which detaches them into normal rooms).
 export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; auto?: boolean; }
-export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; }
-export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; }
+// `height` (cm) = opening height; `elevation` (cm) = sill height above the floor.
+export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; }
+// `height` (cm) overrides the model's natural 3D height; `elevation` (cm) lifts it off the floor.
+export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; height?: number; elevation?: number; }
 export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; offset: number; }
 
 export type Obj = Wall | Room | Opening | Furniture | Dimension;

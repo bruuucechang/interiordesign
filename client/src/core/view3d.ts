@@ -8,7 +8,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Doc } from '../model/doc';
 import { Obj } from '../model/types';
 import { dist, angleDeg, quadPoints, wallControl } from './geometry';
-import { getFurnitureModel } from './furniture3d';
+import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone } from './textures3d';
 
 const WALL_H = 270; // cm
@@ -238,9 +238,10 @@ export class View3D {
       }
       case 'wall': {
         const wallMat = this.mat(0xeceff4, { roughness: 0.92 });
+        const wh = o.height ?? WALL_H;
         const seg = (p1: { x: number; y: number }, p2: { x: number; y: number }, extend: number) => {
-          const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + extend, WALL_H, o.thickness), wallMat);
-          box.position.set((p1.x + p2.x) / 2, WALL_H / 2, (p1.y + p2.y) / 2);
+          const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + extend, wh, o.thickness), wallMat);
+          box.position.set((p1.x + p2.x) / 2, wh / 2, (p1.y + p2.y) / 2);
           box.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
           this.staticGroup.add(box);
         };
@@ -254,7 +255,8 @@ export class View3D {
       }
       case 'door': case 'window': {
         const isDoor = o.kind === 'door';
-        const h = isDoor ? 210 : 100, yc = isDoor ? 105 : 140;
+        const h = o.height ?? (isDoor ? 210 : 100);
+        const yc = (o.elevation ?? (isDoor ? 0 : 90)) + h / 2;
         const m = isDoor ? this.mat(0x8a5a34, { roughness: 0.6 }) : this.mat(0x9fd4ff, { transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.1 });
         const panel = new THREE.Mesh(new THREE.BoxGeometry(o.width, h, 20), m);
         panel.position.set(o.x, yc, o.y);
@@ -264,7 +266,8 @@ export class View3D {
       }
       case 'furniture': {
         const inst = getFurnitureModel(o.item, o.w, o.h).clone();
-        inst.position.set(o.x + o.w / 2, 0, o.y + o.h / 2);
+        inst.position.set(o.x + o.w / 2, o.elevation ?? 0, o.y + o.h / 2);
+        if (o.height) inst.scale.y = o.height / getModelHeight(o.item, o.w, o.h);   // stretch to the set height
         inst.rotation.y = -o.angle * Math.PI / 180;
         this.furnGroup.add(inst);
         break;

@@ -73,6 +73,18 @@ body {
 .prop input, .prop select { width: 110px; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 4px 6px; }
 .prop .full { width: 100%; }
 .muted { color: var(--muted); }
+.prop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.prop-type { font-weight: 600; }
+.unit-toggle { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 999px; padding: 3px 12px; cursor: pointer; font-size: 12px; }
+.unit-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.prop-sec { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+.prop-sec > summary { list-style: none; cursor: pointer; padding: 7px 10px; background: var(--panel2); color: var(--muted); font-size: 12px; letter-spacing: 1px; user-select: none; }
+.prop-sec > summary::-webkit-details-marker { display: none; }
+.prop-sec > summary::before { content: '▸ '; display: inline-block; transition: transform .12s; }
+.prop-sec[open] > summary::before { transform: rotate(90deg); }
+.prop-body { padding: 10px 10px 2px; }
+.prop-body:empty { display: none; }
+.btn-danger { margin-top: 4px; }
 .btn-danger { background: #3a2630; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; }
 
 /* modal */

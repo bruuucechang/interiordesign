@@ -2,8 +2,9 @@ import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj, Vec, layerForKind } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
-import { fmtLen, fmtArea, dist, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
+import { dist, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRoomPolygons } from '../core/rooms';
+import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { listProjects, loadProject, saveProject, deleteProject } from '../net/api';
 
@@ -102,66 +103,113 @@ function buildLayers(editor: Editor, doc: Doc) {
 }
 
 // ---- properties ----
+type Unit = 'cm' | 'm';
+let unit: Unit = 'cm';   // shared across selections; toggled from the panel header
+const uLabel = () => (unit === 'm' ? 'm' : 'cm');
+const toU = (cm: number) => (unit === 'm' ? cm / 100 : cm);
+const fromU = (v: number) => (unit === 'm' ? v * 100 : v);
+const fmtLenU = (cm: number) => (unit === 'm' ? (cm / 100).toFixed(2) + ' m' : Math.round(cm) + ' cm');
+const fmtAreaU = (cm2: number) => (unit === 'm' ? (cm2 / 10000).toFixed(2) + ' m²' : Math.round(cm2) + ' cm²');
+
 function refreshProps(editor: Editor, doc: Doc) {
   const host = $('#properties'); host.innerHTML = '';
   const o = doc.selected;
   if (!o) { host.innerHTML = '<div class="muted">未選取物件</div>'; return; }
+  const up = (patch: Partial<Obj>) => doc.update(o.id, patch);
 
-  const num = (label: string, value: number, set: (v: number) => void, step = 1) => {
+  // field builders (append to a given parent)
+  const dim = (parent: HTMLElement, label: string, cm: number, setCm: (v: number) => void, min = 0) => {
     const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = label;
-    const inp = document.createElement('input'); inp.type = 'number'; inp.value = String(Math.round(value)); inp.step = String(step);
+    const l = document.createElement('label'); l.textContent = `${label} (${uLabel()})`;
+    const inp = document.createElement('input'); inp.type = 'number';
+    const d = toU(cm); inp.value = unit === 'm' ? d.toFixed(2) : String(Math.round(d)); inp.step = unit === 'm' ? '0.01' : '1';
+    inp.addEventListener('focus', () => doc.commit());
+    inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (!isNaN(v)) setCm(Math.max(min, fromU(v))); });
+    row.append(l, inp); parent.appendChild(row);
+  };
+  const deg = (parent: HTMLElement, label: string, value: number, set: (v: number) => void) => {
+    const row = document.createElement('div'); row.className = 'prop';
+    const l = document.createElement('label'); l.textContent = `${label} (°)`;
+    const inp = document.createElement('input'); inp.type = 'number'; inp.value = String(Math.round(value)); inp.step = '1';
     inp.addEventListener('focus', () => doc.commit());
     inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (!isNaN(v)) set(v); });
-    row.append(l, inp); host.appendChild(row);
+    row.append(l, inp); parent.appendChild(row);
   };
-  const txt = (label: string, value: string, set: (v: string) => void) => {
+  const text = (parent: HTMLElement, label: string, value: string, set: (v: string) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
     const l = document.createElement('label'); l.textContent = label;
     const inp = document.createElement('input'); inp.type = 'text'; inp.value = value;
     inp.addEventListener('focus', () => doc.commit());
     inp.addEventListener('input', () => set(inp.value));
-    row.append(l, inp); host.appendChild(row);
+    row.append(l, inp); parent.appendChild(row);
   };
-  const info = (label: string, value: string) => {
+  const info = (parent: HTMLElement, label: string, value: string) => {
     const row = document.createElement('div'); row.className = 'prop';
-    row.innerHTML = `<label>${label}</label><span>${value}</span>`; host.appendChild(row);
+    row.innerHTML = `<label>${label}</label><span>${value}</span>`; parent.appendChild(row);
+  };
+  const section = (title: string) => {
+    const el = document.createElement('details'); el.className = 'prop-sec'; el.open = true;
+    const s = document.createElement('summary'); s.textContent = title; el.appendChild(s);
+    const body = document.createElement('div'); body.className = 'prop-body'; el.appendChild(body);
+    return { el, body };
   };
 
-  const up = (patch: Partial<Obj>) => doc.update(o.id, patch);
-  info('類型', kindLabel(o.kind));
+  // header: type + unit toggle
+  const head = document.createElement('div'); head.className = 'prop-head';
+  const type = document.createElement('span'); type.className = 'prop-type'; type.textContent = kindLabel(o.kind);
+  const uBtn = document.createElement('button'); uBtn.className = 'unit-toggle'; uBtn.textContent = unit === 'cm' ? '公分' : '公尺';
+  uBtn.title = '切換單位（公分 / 公尺）';
+  uBtn.onclick = () => { unit = unit === 'cm' ? 'm' : 'cm'; refreshProps(editor, doc); };
+  head.append(type, uBtn); host.appendChild(head);
+
+  // basic params
+  const basics = document.createElement('div'); basics.className = 'prop-body'; host.appendChild(basics);
+  const size = section('尺寸');
+  const pos = section('位置');
+
   switch (o.kind) {
     case 'furniture':
-      info('名稱', o.label);
-      num('寬 (cm)', o.w, v => up({ w: Math.max(5, v) } as any));
-      num('高 (cm)', o.h, v => up({ h: Math.max(5, v) } as any));
-      num('旋轉 (°)', o.angle, v => up({ angle: v } as any));
-      num('X (cm)', o.x, v => up({ x: v } as any));
-      num('Y (cm)', o.y, v => up({ y: v } as any));
+      info(basics, '名稱', o.label);
+      dim(size.body, '寬', o.w, v => up({ w: Math.max(5, v) } as any), 5);
+      dim(size.body, '深', o.h, v => up({ h: Math.max(5, v) } as any), 5);
+      dim(size.body, '高', o.height ?? getModelHeight(o.item, o.w, o.h), v => up({ height: Math.max(5, v) } as any), 5);
+      dim(pos.body, 'X', o.x, v => up({ x: v } as any));
+      dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
+      deg(pos.body, '旋轉', o.angle, v => up({ angle: v } as any));
+      dim(pos.body, '離地板距離', o.elevation ?? 0, v => up({ elevation: Math.max(0, v) } as any));
       break;
-    case 'room':
-      txt('名稱', o.name, v => up({ name: v, auto: false } as any));   // renaming adopts an auto room as a normal one
-      if (o.poly && o.poly.length >= 3) {
-        info('面積', fmtArea(polygonArea(o.poly)));
-      } else {
-        num('寬 (cm)', o.w, v => up({ w: Math.max(10, v) } as any));
-        num('高 (cm)', o.h, v => up({ h: Math.max(10, v) } as any));
-        info('面積', fmtArea(o.w * o.h));
+    case 'room': {
+      text(basics, '名稱', o.name, v => up({ name: v, auto: false } as any));   // renaming adopts an auto room
+      const poly = o.poly && o.poly.length >= 3 ? o.poly : null;
+      info(basics, '面積', fmtAreaU(poly ? polygonArea(poly) : o.w * o.h));
+      if (!poly) {
+        dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
+        dim(size.body, '深', o.h, v => up({ h: Math.max(10, v) } as any), 10);
+        dim(pos.body, 'X', o.x, v => up({ x: v } as any));
+        dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
       }
       break;
+    }
     case 'wall':
-      info('長度', fmtLen(dist(o.a, o.b)));
-      num('厚度 (cm)', o.thickness, v => up({ thickness: Math.max(2, v) } as any));
+      info(basics, '長度', fmtLenU(dist(o.a, o.b)));
+      dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
+      dim(size.body, '高度', o.height ?? 270, v => up({ height: Math.max(10, v) } as any), 10);
       break;
     case 'door': case 'window':
-      num('寬度 (cm)', o.width, v => up({ width: Math.max(10, v) } as any));
-      num('角度 (°)', o.angle, v => up({ angle: v } as any));
+      dim(size.body, '寬度', o.width, v => up({ width: Math.max(10, v) } as any), 10);
+      dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up({ height: Math.max(10, v) } as any), 10);
+      deg(pos.body, '角度', o.angle, v => up({ angle: v } as any));
+      dim(pos.body, '離地板距離', o.elevation ?? (o.kind === 'door' ? 0 : 90), v => up({ elevation: Math.max(0, v) } as any));
       break;
     case 'dimension':
-      info('長度', fmtLen(dist(o.a, o.b)));
-      num('偏移 (cm)', o.offset, v => up({ offset: v } as any));
+      info(basics, '長度', fmtLenU(dist(o.a, o.b)));
+      dim(pos.body, '偏移', o.offset, v => up({ offset: v } as any));
       break;
   }
+
+  if (size.body.children.length) host.appendChild(size.el);
+  if (pos.body.children.length) host.appendChild(pos.el);
+
   const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = '刪除物件';
   del.onclick = () => { doc.commit(); doc.remove(o.id); };
   host.appendChild(del);
