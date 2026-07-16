@@ -19,8 +19,8 @@ interface Base { id: string; layer: LayerId; }
 // `bulge` (cm) curves the wall into an arc — signed apex offset from the chord; 0/undefined = straight.
 // `height` (cm) is the 3D wall height (defaults to WALL_H). `color` is the wall finish (hex).
 export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; color?: string; }
-// A ceiling beam: `width` across, dropping `depth` cm down from the ceiling.
-export interface Beam extends Base { kind: 'beam'; a: Vec; b: Vec; width: number; depth: number; }
+// A beam: `width` across, `height` tall, its underside `elevation` cm off the floor.
+export interface Beam extends Base { kind: 'beam'; a: Vec; b: Vec; width: number; height: number; elevation: number; }
 // x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
 // makes the room an arbitrary polygon auto-closed from surrounding walls.
 // `auto` marks rooms created by wall-loop detection (they track the walls until

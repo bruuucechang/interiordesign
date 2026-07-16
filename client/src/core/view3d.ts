@@ -339,8 +339,8 @@ export class View3D {
       }
       case 'beam': {
         const L = dist(o.a, o.b);
-        const box = new THREE.Mesh(new THREE.BoxGeometry(L, o.depth, o.width), this.mat(0xcfc9bf, { roughness: 0.9 }));
-        box.position.set((o.a.x + o.b.x) / 2, yBase + WALL_H - o.depth / 2, (o.a.y + o.b.y) / 2);   // top flush with ceiling
+        const box = new THREE.Mesh(new THREE.BoxGeometry(L, o.height, o.width), this.mat(0xcfc9bf, { roughness: 0.9 }));
+        box.position.set((o.a.x + o.b.x) / 2, yBase + o.elevation + o.height / 2, (o.a.y + o.b.y) / 2);   // underside at elevation
         box.rotation.y = -angleDeg(o.a, o.b) * Math.PI / 180;
         box.castShadow = true; box.receiveShadow = true;
         this.staticGroup.add(box);

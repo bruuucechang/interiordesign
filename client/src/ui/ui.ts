@@ -308,7 +308,8 @@ function refreshProps(editor: Editor, doc: Doc) {
         up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
       }, 1);
       dim(size.body, '寬度', o.width, v => up({ width: Math.max(2, v) } as any), 2);
-      dim(size.body, '下垂高度', o.depth, v => up({ depth: Math.max(2, v) } as any), 2);   // drop from the ceiling downward
+      dim(size.body, '高度', o.height, v => up({ height: Math.max(2, v) } as any), 2);
+      dim(pos.body, '離地面高度', o.elevation, v => up({ elevation: Math.max(0, v) } as any), 0);   // underside above the floor
       break;
     case 'door': case 'window': {
       dim(size.body, '寬度', o.width, v => up({ width: Math.max(10, v) } as any), 10);
