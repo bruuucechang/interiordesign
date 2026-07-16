@@ -4,7 +4,7 @@ import { Renderer } from './renderer';
 import { snapPoint } from './geometry';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
-import { WallTool, RoomTool, DimensionTool } from '../tools/draw';
+import { WallTool, RoomTool, DimensionTool, PanTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool } from '../tools/place';
 import { Vec } from '../model/types';
 
@@ -34,6 +34,7 @@ export class Editor implements ToolCtx {
     this.renderer = new Renderer(canvas, this.vp, doc);
     this.tools = {
       select: new SelectTool(this),
+      pan: new PanTool(this),
       wall: new WallTool(this),
       room: new RoomTool(this),
       door: new OpeningTool(this, 'door'),
@@ -125,7 +126,7 @@ export class Editor implements ToolCtx {
       if (meta && e.key.toLowerCase() === 'z') { e.shiftKey ? this.doc.redo() : this.doc.undo(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'y') { this.doc.redo(); e.preventDefault(); return; }
       // note: W/A/S/D are reserved for 3D camera movement, so they are NOT tool shortcuts
-      const map: Record<string, string> = { v: 'select', r: 'room', n: 'window', m: 'dimension' };
+      const map: Record<string, string> = { v: 'select', h: 'pan', n: 'window', m: 'dimension' };
       if (!meta && map[e.key.toLowerCase()]) { this.selectTool(map[e.key.toLowerCase()]); return; }
       this.active.onKey?.(e);
     });
