@@ -38,6 +38,7 @@ body {
 .tool-btn .ic { font-size: 18px; }
 .tool-btn.active { border-color: var(--accent); background: #33405c; }
 .panel-title { padding: 8px 12px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; border-top: 1px solid var(--line); }
+#catalog > .panel-title:first-child { border-top: none; }
 .furniture-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; }
 .furn-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px; cursor: pointer; font-size: 11px; text-align: center; }
 .furn-btn:hover { border-color: var(--accent); }
