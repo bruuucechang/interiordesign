@@ -23,6 +23,7 @@ const TOOLS = [
 export function initUI(editor: Editor, doc: Doc) {
   buildTools(editor);
   buildFurniture(editor);
+  buildFloors(editor, doc);
   buildLayers(editor, doc);
   refreshProps(editor, doc);
   wireTopbar(editor, doc);
@@ -31,7 +32,7 @@ export function initUI(editor: Editor, doc: Doc) {
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };
   markActiveTool('select');
 
-  doc.onChange(() => { buildLayers(editor, doc); refreshProps(editor, doc); scheduleAutosave(doc); scheduleReconcile(doc); });
+  doc.onChange(() => { buildFloors(editor, doc); buildLayers(editor, doc); refreshProps(editor, doc); scheduleAutosave(doc); scheduleReconcile(doc); });
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
   nameInput.addEventListener('input', () => { doc.project.name = nameInput.value || '未命名平面圖'; scheduleAutosave(doc); });
@@ -89,6 +90,26 @@ function buildFurniture(editor: Editor) {
       host.appendChild(b);
     }
   }
+}
+
+// ---- floors ----
+function buildFloors(editor: Editor, doc: Doc) {
+  const host = $('#floors'); host.innerHTML = '';
+  for (const f of [...doc.floors].reverse()) {   // highest level on top
+    const row = document.createElement('div'); row.className = 'floor-row' + (f.id === doc.project.activeFloorId ? ' active' : '');
+    const name = document.createElement('span'); name.className = 'fname'; name.textContent = f.name;
+    name.title = '點擊切換樓層，雙擊重新命名';
+    name.onclick = () => doc.setActiveFloor(f.id);
+    name.ondblclick = () => { const n = prompt('樓層名稱', f.name); if (n) doc.renameFloor(f.id, n); };
+    const elev = document.createElement('span'); elev.className = 'felev'; elev.textContent = (f.elevation / 100).toFixed(1) + 'm';
+    const del = document.createElement('button'); del.textContent = '✕'; del.title = '刪除樓層';
+    del.onclick = (e) => { e.stopPropagation(); if (doc.floors.length > 1 && confirm(`刪除樓層「${f.name}」？`)) doc.removeFloor(f.id); };
+    row.append(name, elev, del);
+    host.appendChild(row);
+  }
+  const add = document.createElement('button'); add.className = 'add-floor'; add.textContent = '＋ 新增樓層';
+  add.onclick = () => doc.addFloor();
+  host.appendChild(add);
 }
 
 // ---- layers ----

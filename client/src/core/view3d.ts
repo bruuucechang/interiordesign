@@ -225,7 +225,6 @@ export class View3D {
   build(doc: Doc, reframe = false) {
     this.clearStatic();
     this.furnGroup.clear();               // clones share cached geometry/materials — do NOT dispose
-    const objs = doc.objects;
 
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
     const grow = (x: number, z: number) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
@@ -233,9 +232,12 @@ export class View3D {
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), this.mat(0xccd3dc, { roughness: 1 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.staticGroup.add(ground);
 
-    for (const o of objs) {
-      if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
-      this.buildObject(o); this.growObject(o, grow);
+    // stack every floor at its elevation
+    for (const floor of doc.project.floors) {
+      for (const o of floor.objects) {
+        if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
+        this.buildObject(o, floor.elevation); this.growObject(o, grow);
+      }
     }
     // shadows for static meshes (furniture clones inherit from the cache)
     this.staticGroup.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m !== ground) { m.castShadow = true; m.receiveShadow = true; } });
@@ -265,7 +267,7 @@ export class View3D {
     else grow(o.x, o.y);
   }
 
-  private buildObject(o: Obj) {
+  private buildObject(o: Obj, yBase = 0) {
     switch (o.kind) {
       case 'room': {
         if (o.poly && o.poly.length >= 3) {
@@ -278,12 +280,12 @@ export class View3D {
           if (fm.map) fm.map.repeat.set(1 / 240, 1 / 240);   // ExtrudeGeometry UVs are world cm
           const floor = new THREE.Mesh(geo, fm);
           floor.rotation.x = Math.PI / 2;   // shape lies in plan XY -> lay flat on world XZ
-          floor.position.y = 4;
+          floor.position.y = 4 + yBase;
           this.staticGroup.add(floor);
         } else {
           const fm = this.floorMaterial(o.floor, Math.max(1, Math.round(o.w / 120)), Math.max(1, Math.round(o.h / 120)));
           const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), fm);
-          floor.position.set(o.x + o.w / 2, 2, o.y + o.h / 2);
+          floor.position.set(o.x + o.w / 2, 2 + yBase, o.y + o.h / 2);
           this.staticGroup.add(floor);
         }
         break;
@@ -293,7 +295,7 @@ export class View3D {
         const wh = o.height ?? WALL_H;
         const seg = (p1: { x: number; y: number }, p2: { x: number; y: number }, extend: number) => {
           const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + extend, wh, o.thickness), wallMat);
-          box.position.set((p1.x + p2.x) / 2, wh / 2, (p1.y + p2.y) / 2);
+          box.position.set((p1.x + p2.x) / 2, wh / 2 + yBase, (p1.y + p2.y) / 2);
           box.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
           this.staticGroup.add(box);
         };
@@ -308,7 +310,7 @@ export class View3D {
       case 'door': case 'window': {
         const isDoor = o.kind === 'door';
         const h = o.height ?? (isDoor ? 210 : 100);
-        const yc = (o.elevation ?? (isDoor ? 0 : 90)) + h / 2;
+        const yc = (o.elevation ?? (isDoor ? 0 : 90)) + h / 2 + yBase;
         const m = isDoor ? this.mat(0x8a5a34, { roughness: 0.6 }) : this.mat(0x9fd4ff, { transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.1 });
         if (o.bulge) {
           const hw = o.width / 2, ca = Math.cos(o.angle * Math.PI / 180), sa = Math.sin(o.angle * Math.PI / 180);
@@ -331,7 +333,7 @@ export class View3D {
       }
       case 'furniture': {
         const inst = getFurnitureModel(o.item, o.w, o.h).clone();
-        inst.position.set(o.x + o.w / 2, o.elevation ?? 0, o.y + o.h / 2);
+        inst.position.set(o.x + o.w / 2, (o.elevation ?? 0) + yBase, o.y + o.h / 2);
         if (o.height) inst.scale.y = o.height / getModelHeight(o.item, o.w, o.h);   // stretch to the set height
         inst.rotation.y = -o.angle * Math.PI / 180;
         this.furnGroup.add(inst);
