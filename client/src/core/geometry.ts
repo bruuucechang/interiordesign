@@ -89,3 +89,55 @@ export function fmtLen(cm: number): string {
   if (a >= 100) return (cm / 100).toFixed(2) + ' m';
   return Math.round(cm) + ' cm';
 }
+
+// ---- curved walls (quadratic-bezier arc; `bulge` = signed apex offset in cm) ----
+function perpUnit(a: Vec, b: Vec): Vec {           // unit normal, left of a->b
+  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+  return { x: -dy / L, y: dx / L };
+}
+// where the curvature handle sits (chord midpoint pushed out by `bulge`)
+export function wallApex(a: Vec, b: Vec, bulge: number): Vec {
+  const n = perpUnit(a, b);
+  return { x: (a.x + b.x) / 2 + n.x * bulge, y: (a.y + b.y) / 2 + n.y * bulge };
+}
+// quadratic control so the curve's midpoint lands exactly on the apex
+export function wallControl(a: Vec, b: Vec, bulge: number): Vec {
+  const n = perpUnit(a, b);
+  return { x: (a.x + b.x) / 2 + n.x * 2 * bulge, y: (a.y + b.y) / 2 + n.y * 2 * bulge };
+}
+export function quadAt(a: Vec, c: Vec, b: Vec, t: number): Vec {
+  const u = 1 - t;
+  return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y };
+}
+export function quadPoints(a: Vec, c: Vec, b: Vec, n = 20): Vec[] {
+  const pts: Vec[] = [];
+  for (let i = 0; i <= n; i++) pts.push(quadAt(a, c, b, i / n));
+  return pts;
+}
+export function distToQuad(p: Vec, a: Vec, c: Vec, b: Vec, n = 24): number {
+  let best = Infinity, prev = a;
+  for (let i = 1; i <= n; i++) { const cur = quadAt(a, c, b, i / n); best = Math.min(best, distToSegment(p, prev, cur)); prev = cur; }
+  return best;
+}
+// signed bulge implied by dragging the handle to point p
+export function bulgeFrom(a: Vec, b: Vec, p: Vec): number {
+  const n = perpUnit(a, b), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  return (p.x - mid.x) * n.x + (p.y - mid.y) * n.y;
+}
+
+// Snap a wall's end so the segment locks to 0/45/90° for easy grid alignment.
+// `t` is the already grid-snapped cursor; `hard` forces the snap (Shift).
+export function alignWallEnd(s: Vec, t: Vec, grid: number, hard: boolean): Vec {
+  const dx = t.x - s.x, dy = t.y - s.y;
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return t;
+  const ang = Math.atan2(dy, dx), step = Math.PI / 4;
+  const k = Math.round(ang / step);
+  let diff = ang - k * step; diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+  if (!hard && Math.abs(diff) > 8 * Math.PI / 180) return t;   // >8° off an axis: leave free
+  const m = ((k % 8) + 8) % 8;
+  if (m === 0 || m === 4) return { x: t.x, y: s.y };           // horizontal
+  if (m === 2 || m === 6) return { x: s.x, y: t.y };           // vertical
+  let leg = Math.max(grid, Math.round((Math.abs(dx) + Math.abs(dy)) / 2 / grid) * grid);   // 45° diagonal on grid
+  const sx = m === 1 || m === 7 ? 1 : -1, sy = m === 1 || m === 3 ? 1 : -1;
+  return { x: s.x + sx * leg, y: s.y + sy * leg };
+}

@@ -16,7 +16,8 @@ export type ObjKind = 'wall' | 'room' | 'door' | 'window' | 'furniture' | 'dimen
 
 interface Base { id: string; layer: LayerId; }
 
-export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; }
+// `bulge` (cm) curves the wall into an arc — signed apex offset from the chord; 0/undefined = straight.
+export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; }
 // x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
 // makes the room an arbitrary polygon auto-closed from surrounding walls.
 export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; }

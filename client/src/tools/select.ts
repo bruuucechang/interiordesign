@@ -2,9 +2,9 @@ import { Tool, ToolCtx, PointerInfo } from './types';
 import { Obj, Vec } from '../model/types';
 import { handles } from '../core/handles';
 import { hitTest, furnitureCenter } from '../core/hit';
-import { rotate, dist, angleDeg, snap } from '../core/geometry';
+import { rotate, dist, angleDeg, snap, bulgeFrom } from '../core/geometry';
 
-type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate';
+type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve';
 
 export class SelectTool implements Tool {
   name = 'select'; cursor = 'default'; hint = '點選物件；拖曳移動、角落縮放、圓點旋轉（近 90° 自動對齊，Shift 每 15°）；Delete 刪除';
@@ -26,7 +26,7 @@ export class SelectTool implements Tool {
           doc.commit();
           this.orig = JSON.parse(JSON.stringify(sel));
           this.handleId = h.id;
-          this.mode = h.kind === 'rotate' ? 'rotate' : h.kind === 'endpoint' ? 'endpoint' : 'corner';
+          this.mode = h.kind === 'rotate' ? 'rotate' : h.kind === 'endpoint' ? 'endpoint' : h.kind === 'curve' ? 'curve' : 'corner';
           return;
         }
       }
@@ -52,6 +52,7 @@ export class SelectTool implements Tool {
     else if (this.mode === 'corner') this.doResize(o, p);
     else if (this.mode === 'endpoint') this.doEndpoint(o, p);
     else if (this.mode === 'rotate') this.doRotate(o, p);
+    else if (this.mode === 'curve') this.doCurve(o, p);
     this.ctx.render();
   }
 
@@ -91,6 +92,16 @@ export class SelectTool implements Tool {
       const x = Math.min(f.x, q.x), y = Math.min(f.y, q.y);
       this.patch(o, { x, y, w: Math.max(10, Math.abs(q.x - f.x)), h: Math.max(10, Math.abs(q.y - f.y)) } as any);
     }
+  }
+
+  private doCurve(o: Obj, p: PointerInfo) {
+    if (o.kind !== 'wall') return;
+    const g = this.orig;
+    let bulge = bulgeFrom(g.a, g.b, p.world);
+    const grid = this.ctx.gridSize;
+    if (this.ctx.snapEnabled) bulge = Math.round(bulge / grid) * grid;   // tidy arc depths
+    if (Math.abs(bulge) < grid) bulge = 0;                               // snaps back to straight near zero
+    this.patch(o, { bulge } as any);
   }
 
   private doEndpoint(o: Obj, p: PointerInfo) {

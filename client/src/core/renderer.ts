@@ -2,7 +2,7 @@ import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
 import { Obj, Vec } from '../model/types';
 import { FURNITURE_BY_ID } from '../data/furniture';
-import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid } from './geometry';
+import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl } from './geometry';
 import { handles } from './handles';
 import { furnitureCenter } from './hit';
 
@@ -88,12 +88,17 @@ export class Renderer {
           ctx.strokeRect(o.x, o.y, o.w, o.h);
         }
         break;
-      case 'wall':
-        ctx.strokeStyle = color; ctx.lineWidth = o.thickness; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(o.a.x, o.a.y); ctx.lineTo(o.b.x, o.b.y); ctx.stroke();
-        ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = line;
-        ctx.beginPath(); ctx.moveTo(o.a.x, o.a.y); ctx.lineTo(o.b.x, o.b.y); ctx.stroke();
+      case 'wall': {
+        const trace = () => {
+          ctx.beginPath(); ctx.moveTo(o.a.x, o.a.y);
+          if (o.bulge) { const c = wallControl(o.a, o.b, o.bulge); ctx.quadraticCurveTo(c.x, c.y, o.b.x, o.b.y); }
+          else ctx.lineTo(o.b.x, o.b.y);
+        };
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = color; ctx.lineWidth = o.thickness; trace(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = line; trace(); ctx.stroke();
         break;
+      }
       case 'door': case 'window': {
         ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.angle * Math.PI / 180);
         const hw = o.width / 2;
@@ -212,6 +217,9 @@ export class Renderer {
       const s = vp.toScreen(h.pos);
       if (h.kind === 'rotate') {
         ctx.fillStyle = '#4c8dff'; ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, 7); ctx.fill();
+      } else if (h.kind === 'curve') {   // curvature handle — orange dot (drag to bend the wall)
+        ctx.fillStyle = '#e0b45a'; ctx.strokeStyle = '#171a20'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(s.x, s.y, 5, 0, 7); ctx.fill(); ctx.stroke();
       } else {
         ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = 1.5;
         ctx.fillRect(s.x - 4, s.y - 4, 8, 8); ctx.strokeRect(s.x - 4, s.y - 4, 8, 8);

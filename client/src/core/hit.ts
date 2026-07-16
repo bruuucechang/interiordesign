@@ -1,6 +1,6 @@
 import { Obj, Vec } from '../model/types';
 import { Doc } from '../model/doc';
-import { dist, distToSegment, pointInRect, pointInPolygon, rotate } from './geometry';
+import { dist, distToSegment, distToQuad, wallControl, pointInRect, pointInPolygon, rotate } from './geometry';
 
 export interface Bounds { x: number; y: number; w: number; h: number; }
 
@@ -53,7 +53,10 @@ export function hitTest(doc: Doc, p: Vec, tol: number): Obj | undefined {
 
 function hitObject(o: Obj, p: Vec, tol: number): boolean {
   switch (o.kind) {
-    case 'wall': return distToSegment(p, o.a, o.b) <= o.thickness / 2 + tol;
+    case 'wall': {
+      const d = o.bulge ? distToQuad(p, o.a, wallControl(o.a, o.b, o.bulge), o.b) : distToSegment(p, o.a, o.b);
+      return d <= o.thickness / 2 + tol;
+    }
     case 'dimension': return distToSegment(p, o.a, o.b) <= tol * 1.5;
     case 'room': {
       // hit anywhere inside (so it can be selected/moved)

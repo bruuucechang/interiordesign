@@ -1,30 +1,39 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId } from '../model/doc';
-import { layerForKind } from '../model/types';
-import { fmtLen, dist } from '../core/geometry';
+import { layerForKind, Vec } from '../model/types';
+import { fmtLen, dist, angleDeg, alignWallEnd } from '../core/geometry';
 
 const WALL_THICKNESS = 12;   // cm
 const DIM_OFFSET = 40;       // cm
 
 // Click to place points; each click chains a wall from the previous point.
+// Segments soft-snap to 0/45/90° so they line up with the grid (Shift = force).
 export class WallTool implements Tool {
-  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點，連續點擊接續繪製；Esc 結束';
-  private start: { x: number; y: number } | null = null;
+  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；近水平/垂直/45° 自動對齊格線，按住 Shift 強制對齊；Esc 結束';
+  private start: Vec | null = null;
   constructor(private ctx: ToolCtx) {}
 
+  // aligned endpoint for the current cursor (axis/45° snap when snapping is on or Shift held)
+  private end(p: PointerInfo): Vec {
+    if (!this.start) return p.snapped;
+    return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+  }
+
   onDown(p: PointerInfo) {
-    if (!this.start) { this.start = p.snapped; return; }
-    if (dist(this.start, p.snapped) < 1) return;
+    const end = this.end(p);
+    if (!this.start) { this.start = end; return; }
+    if (dist(this.start, end) < 1) return;
     this.ctx.doc.commit();
-    this.ctx.doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a: this.start, b: p.snapped, thickness: WALL_THICKNESS });
-    this.start = p.snapped;
+    this.ctx.doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a: this.start, b: end, thickness: WALL_THICKNESS });
+    this.start = end;
   }
   onMove(p: PointerInfo) {
     if (!this.start) { this.ctx.setPreview(); return; }
-    const s = this.start;
+    const s = this.start, e = this.end(p);
+    const ang = ((Math.round(angleDeg(s, e)) % 360) + 360) % 360;
     this.ctx.setPreview(
-      ctx => { ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = WALL_THICKNESS; ctx.globalAlpha = 0.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(p.snapped.x, p.snapped.y); ctx.stroke(); ctx.globalAlpha = 1; },
-      ctx => { const m = this.ctx.vp.toScreen({ x: (s.x + p.snapped.x) / 2, y: (s.y + p.snapped.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(fmtLen(dist(s, p.snapped)), m.x, m.y - 6); },
+      ctx => { ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = WALL_THICKNESS; ctx.globalAlpha = 0.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.globalAlpha = 1; },
+      ctx => { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(`${fmtLen(dist(s, e))} · ${ang}°`, m.x, m.y - 6); },
     );
     this.ctx.render();
   }
