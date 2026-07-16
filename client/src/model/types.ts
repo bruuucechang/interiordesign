@@ -17,13 +17,14 @@ export type ObjKind = 'wall' | 'room' | 'door' | 'window' | 'furniture' | 'dimen
 interface Base { id: string; layer: LayerId; }
 
 // `bulge` (cm) curves the wall into an arc — signed apex offset from the chord; 0/undefined = straight.
-// `height` (cm) is the 3D wall height (defaults to WALL_H).
-export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; }
+// `height` (cm) is the 3D wall height (defaults to WALL_H). `color` is the wall finish (hex).
+export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; color?: string; }
 // x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
 // makes the room an arbitrary polygon auto-closed from surrounding walls.
 // `auto` marks rooms created by wall-loop detection (they track the walls until
 // the user renames/moves them, which detaches them into normal rooms).
-export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; auto?: boolean; }
+// `floor` picks the floor finish: 'wood' | 'tile' | a hex color (default wood).
+export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; auto?: boolean; floor?: string; }
 // `height` (cm) = opening height; `elevation` (cm) = sill height above the floor.
 // `bulge` (cm) curves the opening to follow a curved wall (windows).
 export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; bulge?: number; }

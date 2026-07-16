@@ -95,7 +95,7 @@ export class Renderer {
           else ctx.lineTo(o.b.x, o.b.y);
         };
         ctx.lineCap = 'round';
-        ctx.strokeStyle = color; ctx.lineWidth = o.thickness; trace(); ctx.stroke();
+        ctx.strokeStyle = o.color ?? color; ctx.lineWidth = o.thickness; trace(); ctx.stroke();
         ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = line; trace(); ctx.stroke();
         break;
       }

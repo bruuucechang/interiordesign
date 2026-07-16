@@ -182,6 +182,23 @@ function refreshProps(editor: Editor, doc: Doc) {
     const body = document.createElement('div'); body.className = 'prop-body'; el.appendChild(body);
     return { el, body };
   };
+  const colorRow = (parent: HTMLElement, label: string, value: string, set: (v: string) => void) => {
+    const row = document.createElement('div'); row.className = 'prop';
+    const l = document.createElement('label'); l.textContent = label;
+    const inp = document.createElement('input'); inp.type = 'color'; inp.value = value; inp.className = 'color-input';
+    let committed = false;
+    inp.addEventListener('input', () => { if (!committed) { doc.commit(); committed = true; } set(inp.value); });
+    inp.addEventListener('change', () => { committed = false; });
+    row.append(l, inp); parent.appendChild(row);
+  };
+  const floorRow = (parent: HTMLElement, current: string, set: (v: string) => void) => {
+    const row = document.createElement('div'); row.className = 'prop';
+    const l = document.createElement('label'); l.textContent = '地板';
+    const wrap = document.createElement('div'); wrap.className = 'mat-btns';
+    const mk = (val: string, label: string) => { const b = document.createElement('button'); b.className = 'mat-btn' + (current === val ? ' active' : ''); b.textContent = label; b.onclick = () => { doc.commit(); set(val); }; wrap.appendChild(b); };
+    mk('wood', '木地板'); mk('tile', '磁磚');
+    row.append(l, wrap); parent.appendChild(row);
+  };
 
   // header: type + unit toggle
   const head = document.createElement('div'); head.className = 'prop-head';
@@ -238,6 +255,15 @@ function refreshProps(editor: Editor, doc: Doc) {
 
   if (size.body.children.length) host.appendChild(size.el);
   if (pos.body.children.length) host.appendChild(pos.el);
+
+  // material / finish
+  const material = section('材質');
+  if (o.kind === 'wall') colorRow(material.body, '顏色', o.color ?? '#eceff4', v => up({ color: v } as any));
+  if (o.kind === 'room') {
+    floorRow(material.body, o.floor && !o.floor.startsWith('#') ? o.floor : 'wood', v => up({ floor: v, auto: false } as any));
+    colorRow(material.body, '自訂色', o.floor && o.floor.startsWith('#') ? o.floor : '#b0895e', v => up({ floor: v, auto: false } as any));
+  }
+  if (material.body.children.length) host.appendChild(material.el);
 
   const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = '複製 (⌘D)';
   dup.onclick = () => editor.duplicateSelection();

@@ -90,6 +90,12 @@ body {
 .align-btn:hover { border-color: var(--accent); color: var(--accent); }
 .prop-action { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; margin-bottom: 6px; }
 .prop-action:hover { border-color: var(--accent); color: var(--accent); }
+.time-select { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 5px 8px; cursor: pointer; }
+.color-input { width: 44px; height: 26px; padding: 2px; background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.mat-btns { display: flex; gap: 5px; }
+.mat-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+.mat-btn.active { border-color: var(--accent); color: var(--accent); }
+.mat-btn:hover { border-color: var(--accent); }
 .btn-danger { background: #3a2630; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; }
 
 /* modal */
