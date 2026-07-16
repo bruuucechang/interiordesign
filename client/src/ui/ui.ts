@@ -32,7 +32,8 @@ export function initUI(editor: Editor, doc: Doc) {
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };
   markActiveTool('select');
 
-  doc.onChange(() => { buildFloors(editor, doc); buildLayers(editor, doc); refreshProps(editor, doc); scheduleAutosave(doc); scheduleReconcile(doc); });
+  doc.onChange(() => { buildFloors(editor, doc); buildLayers(editor, doc); refreshProps(editor, doc); scheduleAutosave(doc); scheduleReconcile(doc); updateUndoRedo(doc); });
+  updateUndoRedo(doc);
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
   nameInput.addEventListener('input', () => { doc.project.name = nameInput.value || '未命名平面圖'; scheduleAutosave(doc); });
@@ -90,6 +91,13 @@ function buildFurniture(editor: Editor) {
       host.appendChild(b);
     }
   }
+}
+
+function updateUndoRedo(doc: Doc) {
+  const u = document.querySelector('[data-act="undo"]') as HTMLButtonElement | null;
+  const r = document.querySelector('[data-act="redo"]') as HTMLButtonElement | null;
+  if (u) u.disabled = !doc.canUndo;
+  if (r) r.disabled = !doc.canRedo;
 }
 
 // ---- floors ----
@@ -337,6 +345,7 @@ function wireTopbar(editor: Editor, doc: Doc) {
   snap.onchange = () => editor.setSnap(snap.checked);
   $('[data-act="close-modal"]').addEventListener('click', () => $('#modal').classList.add('hidden'));
   $('[data-act="close-schedule"]').addEventListener('click', () => $('#scheduleModal').classList.add('hidden'));
+  $('[data-act="close-shortcuts"]').addEventListener('click', () => $('#shortcutsModal').classList.add('hidden'));
 }
 
 async function handle(act: string, editor: Editor, doc: Doc) {
@@ -353,6 +362,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'export-pdf': exportPDF(doc, name()); break;
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
     case 'schedule': openSchedule(doc); break;
+    case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
   }
 }
 
@@ -400,6 +410,15 @@ function openSchedule(doc: Doc) {
 function importImage(editor: Editor, doc: Doc, src: string) {
   const probe = new Image();
   probe.onload = () => {
+    // downscale big images so the data URL (stored in the project, autosaved) stays small
+    const MAX_PX = 1600;
+    const sc = Math.min(1, MAX_PX / Math.max(probe.naturalWidth, probe.naturalHeight));
+    if (sc < 1) {
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(probe.naturalWidth * sc); cv.height = Math.round(probe.naturalHeight * sc);
+      cv.getContext('2d')!.drawImage(probe, 0, 0, cv.width, cv.height);
+      src = cv.toDataURL('image/jpeg', 0.85);
+    }
     const s = 1000 / Math.max(probe.naturalWidth, probe.naturalHeight);   // fit longest side to ~10 m
     const w = Math.round(probe.naturalWidth * s), h = Math.round(probe.naturalHeight * s);
     const vp = editor.vp;

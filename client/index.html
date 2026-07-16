@@ -24,6 +24,7 @@
         <button data-act="export-png">匯出 PNG</button>
         <button data-act="export-pdf">匯出 PDF</button>
         <button data-act="schedule" title="房間面積清單與家具估價">📋 清單</button>
+        <button data-act="shortcuts" title="鍵盤快捷鍵">⌨</button>
         <span class="sep"></span>
         <button id="btnToggle">🧊 切換 3D 檢視</button>
         <select id="timeOfDay" class="time-select" title="光線時段">
@@ -84,6 +85,23 @@
       <div class="modal-box">
         <div class="modal-head"><span>清單與估價</span><button data-act="close-schedule">✕</button></div>
         <div id="scheduleBody" class="schedule-body"></div>
+      </div>
+    </div>
+
+    <!-- keyboard shortcuts modal -->
+    <div id="shortcutsModal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-head"><span>鍵盤快捷鍵</span><button data-act="close-shortcuts">✕</button></div>
+        <div class="shortcuts">
+          <div><kbd>V</kbd> 選取　<kbd>H</kbd> 平移　<kbd>N</kbd> 窗　<kbd>M</kbd> 尺寸</div>
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 2D 平移視角 / 3D 飛行</div>
+          <div><kbd>Q</kbd>/<kbd>E</kbd> 3D 升降　<kbd>Shift</kbd> 加速</div>
+          <div><kbd>⌘/Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> / <kbd>D</kbd> 複製 / 貼上 / 直接複製</div>
+          <div><kbd>⌘/Ctrl</kbd>+<kbd>Z</kbd> 復原　+<kbd>Shift</kbd> 重做</div>
+          <div><kbd>方向鍵</kbd> 微移　+<kbd>Shift</kbd> 移動一格</div>
+          <div><kbd>Delete</kbd> 刪除　<kbd>Esc</kbd> 取消 / 回到選取</div>
+          <div>畫牆自動貼合牆端點；近水平/垂直/45° 對齊格線（<kbd>Shift</kbd> 強制）</div>
+        </div>
       </div>
     </div>
 
