@@ -29,7 +29,7 @@ export function initUI(editor: Editor, doc: Doc) {
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };
   markActiveTool('select');
 
-  doc.onChange(() => { buildLayers(editor, doc); refreshProps(editor, doc); scheduleAutosave(doc); });
+  doc.onChange(() => { buildLayers(editor, doc); refreshProps(editor, doc); scheduleAutosave(doc); scheduleReconcile(doc); });
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
   nameInput.addEventListener('input', () => { doc.project.name = nameInput.value || '未命名平面圖'; scheduleAutosave(doc); });
@@ -140,7 +140,7 @@ function refreshProps(editor: Editor, doc: Doc) {
       num('Y (cm)', o.y, v => up({ y: v } as any));
       break;
     case 'room':
-      txt('名稱', o.name, v => up({ name: v } as any));
+      txt('名稱', o.name, v => up({ name: v, auto: false } as any));   // renaming adopts an auto room as a normal one
       if (o.poly && o.poly.length >= 3) {
         info('面積', fmtArea(polygonArea(o.poly)));
       } else {
@@ -199,32 +199,69 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'redo': doc.redo(); break;
     case 'export-png': exportPNG(doc, name()); break;
     case 'export-pdf': exportPDF(doc, name()); break;
-    case 'rooms-from-walls': generateRoomsFromWalls(doc); break;
   }
 }
 
-// Detect wall-enclosed regions and add a polygon room (with area) for each one
-// that isn't already covered by an existing room.
-function generateRoomsFromWalls(doc: Doc) {
-  const walls = doc.objects.filter(o => o.kind === 'wall') as Extract<Obj, { kind: 'wall' }>[];
-  const polys = detectRoomPolygons(walls);
-  const rooms = doc.objects.filter(o => o.kind === 'room') as Extract<Obj, { kind: 'room' }>[];
-  const covered = (c: Vec) =>
-    rooms.some(r => (r.poly && r.poly.length >= 3) ? pointInPolygon(c, r.poly) : pointInRect(c, r.x, r.y, r.w, r.h));
+// ---- automatic room recognition from closed walls ----
+type RoomObj = Extract<Obj, { kind: 'room' }>;
+type WallObj = Extract<Obj, { kind: 'wall' }>;
+const bboxOf = (poly: Vec[]) => {
+  const xs = poly.map(p => p.x), ys = poly.map(p => p.y), x = Math.min(...xs), y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+};
+const roomContains = (r: RoomObj, c: Vec) =>
+  (r.poly && r.poly.length >= 3) ? pointInPolygon(c, r.poly) : pointInRect(c, r.x, r.y, r.w, r.h);
 
-  const toAdd: Extract<Obj, { kind: 'room' }>[] = [];
-  for (const poly of polys) {
-    if (covered(polygonCentroid(poly))) continue;
-    const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
-    const x = Math.min(...xs), y = Math.min(...ys);
-    toAdd.push({ id: genId('room'), kind: 'room', layer: layerForKind('room'), x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y, name: '房間', poly });
+let reconcileTimer: number | undefined;
+let reconciling = false;
+let lastWallSig = ' ';
+function wallSig(doc: Doc): string {
+  return (doc.objects.filter(o => o.kind === 'wall') as WallObj[])
+    .map(w => `${w.a.x},${w.a.y},${w.b.x},${w.b.y}`).join(';');
+}
+// Debounced: whenever the walls change, re-derive the auto rooms.
+function scheduleReconcile(doc: Doc) {
+  if (reconciling) return;
+  clearTimeout(reconcileTimer);
+  reconcileTimer = window.setTimeout(() => {
+    const sig = wallSig(doc);
+    if (sig === lastWallSig) return;          // walls unchanged — nothing to do
+    lastWallSig = sig;
+    reconciling = true;
+    try { reconcileAutoRooms(doc); } finally { reconciling = false; }
+  }, 150);
+}
+
+// Match detected wall-enclosed regions to existing auto rooms: update ones that
+// still hold, drop ones whose enclosure is gone, and add rooms for new closures.
+// Manual rooms (drawn, renamed, or moved) are left untouched.
+function reconcileAutoRooms(doc: Doc) {
+  const walls = doc.objects.filter(o => o.kind === 'wall') as WallObj[];
+  const detected = detectRoomPolygons(walls);
+  const cents = detected.map(polygonCentroid);
+  const rooms = () => doc.objects.filter(o => o.kind === 'room') as RoomObj[];
+  const manual = rooms().filter(r => !r.auto);
+  const consumed = new Set<number>();
+
+  for (const ar of rooms().filter(r => r.auto)) {
+    const arC = ar.poly && ar.poly.length >= 3 ? polygonCentroid(ar.poly) : { x: ar.x + ar.w / 2, y: ar.y + ar.h / 2 };
+    let idx = -1;
+    for (let i = 0; i < detected.length; i++) {
+      if (consumed.has(i)) continue;
+      if ((ar.poly && ar.poly.length >= 3 && pointInPolygon(cents[i], ar.poly)) || pointInPolygon(arC, detected[i])) { idx = i; break; }
+    }
+    if (idx < 0) { doc.remove(ar.id); continue; }                       // enclosure gone
+    consumed.add(idx);
+    const poly = detected[idx];
+    if (JSON.stringify(ar.poly) !== JSON.stringify(poly)) doc.update(ar.id, { poly, ...bboxOf(poly) } as any);
   }
 
-  if (!polys.length) { flash('找不到封閉的牆體區域'); return; }
-  if (!toAdd.length) { flash('封閉區域皆已有房間'); return; }
-  doc.commit();
-  for (const r of toAdd) doc.add(r);
-  flash(`已依牆體建立 ${toAdd.length} 個房間`);
+  for (let i = 0; i < detected.length; i++) {
+    if (consumed.has(i)) continue;
+    if (manual.some(r => roomContains(r, cents[i]))) continue;          // already a manual room here
+    const poly = detected[i];
+    doc.add({ id: genId('room'), kind: 'room', layer: layerForKind('room'), name: '房間', poly, auto: true, ...bboxOf(poly) } as any);
+  }
 }
 
 async function openModal(editor: Editor, doc: Doc) {
