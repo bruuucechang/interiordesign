@@ -19,6 +19,13 @@ export function handles(o: Obj): Handle[] {
       corners.push({ id: 'rot', pos: rotate({ x: o.x + o.w / 2, y: o.y - 40 }, c, o.angle), kind: 'rotate' });
       return corners;
     }
+    case 'image':
+      return [
+        { id: 'nw', pos: { x: o.x, y: o.y }, kind: 'corner' },
+        { id: 'ne', pos: { x: o.x + o.w, y: o.y }, kind: 'corner' },
+        { id: 'se', pos: { x: o.x + o.w, y: o.y + o.h }, kind: 'corner' },
+        { id: 'sw', pos: { x: o.x, y: o.y + o.h }, kind: 'corner' },
+      ];
     case 'room':
       if (o.poly && o.poly.length) return [];   // polygon rooms follow the walls — move only, no corner resize
       return [

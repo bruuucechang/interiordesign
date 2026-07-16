@@ -12,7 +12,7 @@ export interface Layer {
   color: string;
 }
 
-export type ObjKind = 'wall' | 'room' | 'door' | 'window' | 'furniture' | 'dimension';
+export type ObjKind = 'wall' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image';
 
 interface Base { id: string; layer: LayerId; }
 
@@ -31,8 +31,10 @@ export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: n
 // `height` (cm) overrides the model's natural 3D height; `elevation` (cm) lifts it off the floor.
 export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; height?: number; elevation?: number; }
 export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; offset: number; }
+// A traceable background image (floor-plan underlay). `src` is a data URL.
+export interface ImageObj extends Base { kind: 'image'; x: number; y: number; w: number; h: number; src: string; opacity: number; }
 
-export type Obj = Wall | Room | Opening | Furniture | Dimension;
+export type Obj = Wall | Room | Opening | Furniture | Dimension | ImageObj;
 
 export interface Project {
   id: string;
@@ -47,6 +49,7 @@ export const LAYER_IDS = {
 
 export function defaultLayers(): Layer[] {
   return [
+    { id: 'underlay', name: '底圖', visible: true, locked: false, color: '#8b93a3' },
     { id: 'walls', name: '牆體', visible: true, locked: false, color: '#c9cfdb' },
     { id: 'rooms', name: '房間', visible: true, locked: false, color: '#6d7890' },
     { id: 'openings', name: '門窗', visible: true, locked: false, color: '#7bc6ff' },
@@ -57,6 +60,7 @@ export function defaultLayers(): Layer[] {
 
 // which layer a newly created object of a kind belongs to
 export function layerForKind(kind: ObjKind): LayerId {
+  if (kind === 'image') return 'underlay';
   if (kind === 'wall') return 'walls';
   if (kind === 'room') return 'rooms';
   if (kind === 'door' || kind === 'window') return 'openings';

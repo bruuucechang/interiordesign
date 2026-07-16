@@ -34,6 +34,7 @@ export class Editor implements ToolCtx {
   constructor(private canvas: HTMLCanvasElement, public doc: Doc, private hintEl: HTMLElement) {
     this.vp = new Viewport(canvas);
     this.renderer = new Renderer(canvas, this.vp, doc);
+    this.renderer.onImageLoad = () => this.render();
     this.tools = {
       select: new SelectTool(this),
       pan: new PanTool(this),

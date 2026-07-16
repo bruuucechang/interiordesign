@@ -96,6 +96,7 @@ body {
 .mat-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
 .mat-btn.active { border-color: var(--accent); color: var(--accent); }
 .mat-btn:hover { border-color: var(--accent); }
+.range-input { width: 110px; accent-color: var(--accent); cursor: pointer; }
 .btn-danger { background: #3a2630; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; }
 
 /* modal */

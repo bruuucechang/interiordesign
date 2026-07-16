@@ -37,6 +37,8 @@ export function bounds(o: Obj): Bounds {
       return { x: Math.min(o.a.x, o.b.x), y: Math.min(o.a.y, o.b.y), w: Math.abs(o.a.x - o.b.x), h: Math.abs(o.a.y - o.b.y) };
     case 'door': case 'window':
       return { x: o.x - o.width / 2, y: o.y - o.width / 2, w: o.width, h: o.width };
+    case 'image':
+      return { x: o.x, y: o.y, w: o.w, h: o.h };
   }
 }
 
@@ -64,6 +66,7 @@ function hitObject(o: Obj, p: Vec, tol: number): boolean {
       return pointInRect(p, o.x, o.y, o.w, o.h);
     }
     case 'door': case 'window': return dist(p, { x: o.x, y: o.y }) <= o.width / 2 + tol;
+    case 'image': return pointInRect(p, o.x, o.y, o.w, o.h);
     case 'furniture': {
       const c = furnitureCenter(o);
       const local = rotate(p, c, -o.angle);

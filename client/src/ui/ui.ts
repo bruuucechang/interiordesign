@@ -35,6 +35,14 @@ export function initUI(editor: Editor, doc: Doc) {
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
   nameInput.addEventListener('input', () => { doc.project.name = nameInput.value || '未命名平面圖'; scheduleAutosave(doc); });
+
+  const imgInput = $<HTMLInputElement>('#imageInput');
+  imgInput.addEventListener('change', () => {
+    const file = imgInput.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { importImage(editor, doc, reader.result as string); imgInput.value = ''; };
+    reader.readAsDataURL(file);
+  });
 }
 
 // ---- tools palette ----
@@ -191,6 +199,15 @@ function refreshProps(editor: Editor, doc: Doc) {
     inp.addEventListener('change', () => { committed = false; });
     row.append(l, inp); parent.appendChild(row);
   };
+  const rangeRow = (parent: HTMLElement, label: string, value: number, set: (v: number) => void) => {
+    const row = document.createElement('div'); row.className = 'prop';
+    const l = document.createElement('label'); l.textContent = label;
+    const inp = document.createElement('input'); inp.type = 'range'; inp.min = '0'; inp.max = '100'; inp.value = String(value); inp.className = 'range-input';
+    let committed = false;
+    inp.addEventListener('input', () => { if (!committed) { doc.commit(); committed = true; } set(parseFloat(inp.value)); });
+    inp.addEventListener('change', () => { committed = false; });
+    row.append(l, inp); parent.appendChild(row);
+  };
   const floorRow = (parent: HTMLElement, current: string, set: (v: string) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
     const l = document.createElement('label'); l.textContent = '地板';
@@ -251,6 +268,13 @@ function refreshProps(editor: Editor, doc: Doc) {
       info(basics, '長度', fmtLenU(dist(o.a, o.b)));
       dim(pos.body, '偏移', o.offset, v => up({ offset: v } as any));
       break;
+    case 'image':
+      rangeRow(basics, '透明度', Math.round((o.opacity ?? 1) * 100), v => up({ opacity: Math.max(0, Math.min(1, v / 100)) } as any));
+      dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
+      dim(size.body, '高', o.h, v => up({ h: Math.max(10, v) } as any), 10);
+      dim(pos.body, 'X', o.x, v => up({ x: v } as any));
+      dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
+      break;
   }
 
   if (size.body.children.length) host.appendChild(size.el);
@@ -274,7 +298,7 @@ function refreshProps(editor: Editor, doc: Doc) {
 }
 
 function kindLabel(k: string) {
-  return ({ wall: '牆', room: '房間', door: '門', window: '窗', furniture: '家具', dimension: '尺寸標註' } as Record<string, string>)[k] ?? k;
+  return ({ wall: '牆', room: '房間', door: '門', window: '窗', furniture: '家具', dimension: '尺寸標註', image: '底圖' } as Record<string, string>)[k] ?? k;
 }
 
 // ---- top bar ----
@@ -305,7 +329,28 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'redo': doc.redo(); break;
     case 'export-png': exportPNG(doc, name()); break;
     case 'export-pdf': exportPDF(doc, name()); break;
+    case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
   }
+}
+
+// Load an image as a traceable underlay: size it to fit, center it, drop it on
+// the bottom 'underlay' layer at 60% opacity.
+function importImage(editor: Editor, doc: Doc, src: string) {
+  const probe = new Image();
+  probe.onload = () => {
+    const s = 1000 / Math.max(probe.naturalWidth, probe.naturalHeight);   // fit longest side to ~10 m
+    const w = Math.round(probe.naturalWidth * s), h = Math.round(probe.naturalHeight * s);
+    const vp = editor.vp;
+    const cx = vp.origin.x + vp.width / 2 / vp.scale, cy = vp.origin.y + vp.height / 2 / vp.scale;
+    if (!doc.layer('underlay')) doc.project.layers.unshift({ id: 'underlay', name: '底圖', visible: true, locked: false, color: '#8b93a3' });
+    doc.commit();
+    const id = genId('img');
+    doc.add({ id, kind: 'image', layer: 'underlay', x: cx - w / 2, y: cy - h / 2, w, h, src, opacity: 0.6 } as Obj);
+    doc.select(id);
+    editor.selectTool('select');
+    flash('已匯入底圖 — 拖曳/縮放對位，鎖定「底圖」圖層後即可描圖');
+  };
+  probe.src = src;
 }
 
 // ---- automatic room recognition from closed walls ----

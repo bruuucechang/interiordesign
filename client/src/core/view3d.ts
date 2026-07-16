@@ -234,7 +234,7 @@ export class View3D {
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.staticGroup.add(ground);
 
     for (const o of objs) {
-      if (!doc.isLayerVisible(o.layer)) continue;
+      if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
       this.buildObject(o); this.growObject(o, grow);
     }
     // shadows for static meshes (furniture clones inherit from the cache)
