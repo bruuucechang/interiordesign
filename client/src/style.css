@@ -97,6 +97,16 @@ body {
 .mat-btn.active { border-color: var(--accent); color: var(--accent); }
 .mat-btn:hover { border-color: var(--accent); }
 .range-input { width: 110px; accent-color: var(--accent); cursor: pointer; }
+#floors { padding: 4px 8px 8px; }
+.floor-row { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.floor-row.active { background: var(--panel2); outline: 1px solid var(--accent); }
+.floor-row .fname { flex: 1; }
+.floor-row.active .fname { color: var(--accent); font-weight: 600; }
+.floor-row .felev { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.floor-row button { background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px 4px; }
+.floor-row button:hover { color: var(--danger); }
+.add-floor { width: 100%; margin-top: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px; cursor: pointer; }
+.add-floor:hover { border-color: var(--accent); color: var(--accent); }
 .btn-danger { background: #3a2630; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; }
 
 /* modal */

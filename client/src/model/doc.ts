@@ -1,4 +1,4 @@
-import { Project, Obj, Layer, LayerId, defaultLayers } from './types';
+import { Project, Obj, Layer, LayerId, Floor, defaultLayers } from './types';
 
 let counter = 0;
 export function genId(prefix = 'o'): string {
@@ -25,18 +25,57 @@ export class Doc {
 
   constructor(project?: Project) {
     this.project = project ?? Doc.blank();
+    this.normalize();
   }
 
   static blank(): Project {
-    return { id: genId('proj'), name: '未命名平面圖', layers: defaultLayers(), objects: [] };
+    const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: 280, objects: [] };
+    return { id: genId('proj'), name: '未命名平面圖', layers: defaultLayers(), floors: [floor], activeFloorId: floor.id };
+  }
+
+  // migrate older single-list projects into the floors model
+  private normalize() {
+    const p = this.project as any;
+    if (!p.layers?.length) p.layers = defaultLayers();
+    if (!Array.isArray(p.floors) || !p.floors.length) {
+      const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: 280, objects: p.objects ?? [] };
+      p.floors = [floor];
+      p.activeFloorId = floor.id;
+    }
+    delete p.objects;
+    if (!p.floors.find((f: Floor) => f.id === p.activeFloorId)) p.activeFloorId = p.floors[0].id;
   }
 
   onChange(fn: () => void) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   emit() { this.listeners.forEach(fn => fn()); }
 
+  // ---- floors ----
+  get floors(): Floor[] { return this.project.floors; }
+  get activeFloor(): Floor { return this.project.floors.find(f => f.id === this.project.activeFloorId) ?? this.project.floors[0]; }
+  setActiveFloor(id: string) { if (this.project.floors.some(f => f.id === id)) { this.project.activeFloorId = id; this.selectedIds = []; this.emit(); } }
+  addFloor() {
+    this.commit();
+    const top = this.project.floors.reduce((m, f) => Math.max(m, f.elevation + f.height), 0);
+    const floor: Floor = { id: genId('floor'), name: `${this.project.floors.length + 1}F`, elevation: top, height: 280, objects: [] };
+    this.project.floors.push(floor);
+    this.project.activeFloorId = floor.id;
+    this.selectedIds = [];
+    this.emit();
+  }
+  removeFloor(id: string) {
+    if (this.project.floors.length <= 1) return;
+    this.commit();
+    this.project.floors = this.project.floors.filter(f => f.id !== id);
+    if (this.project.activeFloorId === id) this.project.activeFloorId = this.project.floors[0].id;
+    this.selectedIds = [];
+    this.emit();
+  }
+  renameFloor(id: string, name: string) { const f = this.project.floors.find(f => f.id === id); if (f) { f.name = name; this.emit(); } }
+  setFloorElevation(id: string, elevation: number) { const f = this.project.floors.find(f => f.id === id); if (f) { f.elevation = elevation; this.emit(); } }
+
   // ---- history ----
   private snapshot(): string {
-    return JSON.stringify({ layers: this.project.layers, objects: this.project.objects });
+    return JSON.stringify({ layers: this.project.layers, floors: this.project.floors, activeFloorId: this.project.activeFloorId });
   }
   commit() { // call before a mutation batch to save the current state
     this.past.push(this.snapshot());
@@ -46,7 +85,8 @@ export class Doc {
   private restore(json: string) {
     const s = JSON.parse(json);
     this.project.layers = s.layers;
-    this.project.objects = s.objects;
+    this.project.floors = s.floors;
+    this.project.activeFloorId = s.activeFloorId;
     this.selectedIds = this.selectedIds.filter(id => this.get(id));
   }
   undo() {
@@ -62,12 +102,13 @@ export class Doc {
     this.emit();
   }
 
-  // ---- objects ----
-  get objects() { return this.project.objects; }
-  get(id: string | null): Obj | undefined { return this.project.objects.find(o => o.id === id); }
-  add(obj: Obj) { this.project.objects.push(obj); this.emit(); }
+  // ---- objects (scoped to the active floor) ----
+  get objects() { return this.activeFloor.objects; }
+  get(id: string | null): Obj | undefined { return this.activeFloor.objects.find(o => o.id === id); }
+  add(obj: Obj) { this.activeFloor.objects.push(obj); this.emit(); }
   remove(id: string) {
-    this.project.objects = this.project.objects.filter(o => o.id !== id);
+    const f = this.activeFloor;
+    f.objects = f.objects.filter(o => o.id !== id);
     this.selectedIds = this.selectedIds.filter(x => x !== id);
     this.emit();
   }
@@ -99,7 +140,7 @@ export class Doc {
   serialize(): Project { return this.project; }
   load(project: Project) {
     this.project = project;
-    if (!this.project.layers?.length) this.project.layers = defaultLayers();
+    this.normalize();   // migrate older single-list projects into floors
     this.selectedIds = [];
     this.past = []; this.future = [];
     this.emit();

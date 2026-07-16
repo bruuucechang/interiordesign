@@ -36,11 +36,21 @@ export interface ImageObj extends Base { kind: 'image'; x: number; y: number; w:
 
 export type Obj = Wall | Room | Opening | Furniture | Dimension | ImageObj;
 
+// A building level: its own objects, stacked in 3D at `elevation` (cm).
+export interface Floor {
+  id: string;
+  name: string;
+  elevation: number;   // cm above ground
+  height: number;      // cm, level-to-level
+  objects: Obj[];
+}
+
 export interface Project {
   id: string;
   name: string;
   layers: Layer[];
-  objects: Obj[];
+  floors: Floor[];
+  activeFloorId: string;
 }
 
 export const LAYER_IDS = {
