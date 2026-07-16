@@ -25,6 +25,9 @@ export class Editor implements ToolCtx {
   private panning = false;
   private space = false;
   private lastPan: Vec = { x: 0, y: 0 };
+  private panKeys = new Set<string>();   // WASD held keys for 2D view panning
+  private panRaf = 0;
+  private panShift = false;
 
   constructor(private canvas: HTMLCanvasElement, public doc: Doc, private hintEl: HTMLElement) {
     this.vp = new Viewport(canvas);
@@ -127,6 +130,38 @@ export class Editor implements ToolCtx {
       this.active.onKey?.(e);
     });
     window.addEventListener('keyup', e => { if (e.code === 'Space') { this.space = false; this.canvas.style.cursor = this.active.cursor; } });
+
+    // WASD pans the 2D view — only while 2D is the main view (in 3D, the same keys
+    // fly the 3D camera). Match on e.code so an IME/non-US layout can't swallow them.
+    const PAN: Record<string, string> = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
+    const typing = () => { const el = document.activeElement as HTMLElement | null; return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable); };
+    window.addEventListener('keydown', e => {
+      if (!this.inputEnabled) return;
+      const mv = PAN[e.code];
+      if (!mv || typing()) return;
+      e.preventDefault();
+      this.panShift = e.shiftKey;
+      if (!this.panKeys.has(mv)) { this.panKeys.add(mv); this.startPanLoop(); }
+    }, { capture: true });
+    window.addEventListener('keyup', e => { const mv = PAN[e.code]; if (mv) this.panKeys.delete(mv); if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.panShift = false; });
+    window.addEventListener('blur', () => this.panKeys.clear());
+  }
+
+  private startPanLoop() {
+    if (this.panRaf) return;
+    let last = performance.now();
+    const loop = (t: number) => {
+      const dt = Math.min(0.05, (t - last) / 1000); last = t;
+      if (!this.panKeys.size || !this.inputEnabled) { this.panRaf = 0; return; }
+      let dx = 0, dy = 0;
+      if (this.panKeys.has('a')) dx += 1; if (this.panKeys.has('d')) dx -= 1;
+      if (this.panKeys.has('w')) dy += 1; if (this.panKeys.has('s')) dy -= 1;
+      const speed = 750 * dt * (this.panShift ? 2.4 : 1);   // px/s, screen-space so it feels the same at any zoom
+      this.vp.panBy(dx * speed, dy * speed);
+      this.render();
+      this.panRaf = requestAnimationFrame(loop);
+    };
+    this.panRaf = requestAnimationFrame(loop);
   }
 
   setSnap(on: boolean) { this.snapEnabled = on; }
