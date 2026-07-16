@@ -7,7 +7,7 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Doc } from '../model/doc';
 import { Obj } from '../model/types';
-import { dist, angleDeg, quadPoints, wallControl } from './geometry';
+import { dist, angleDeg, quadPoints, wallControl, closestOnSegment } from './geometry';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone, tileClone } from './textures3d';
 
@@ -234,9 +234,12 @@ export class View3D {
 
     // stack every floor at its elevation
     for (const floor of doc.project.floors) {
+      const openings = floor.objects.filter(o => o.kind === 'door' || o.kind === 'window') as Extract<Obj, { kind: 'door' | 'window' }>[];
       for (const o of floor.objects) {
         if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
-        this.buildObject(o, floor.elevation); this.growObject(o, grow);
+        if (o.kind === 'wall') this.buildWall(o, openings, floor.elevation);
+        else this.buildObject(o, floor.elevation);
+        this.growObject(o, grow);
       }
     }
     // shadows for static meshes (furniture clones inherit from the cache)
@@ -267,6 +270,50 @@ export class View3D {
     else grow(o.x, o.y);
   }
 
+  // Build a wall, cutting real holes for its doors/windows (straight walls).
+  private buildWall(o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[], yBase: number) {
+    const wallMat = this.mat(o.color ? new THREE.Color(o.color).getHex() : 0xeceff4, { roughness: 0.92 });
+    const wh = o.height ?? WALL_H;
+    if (o.bulge) {   // curved wall: solid segmented strip (openings remain as panels)
+      const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 14);
+      for (let i = 1; i < pts.length; i++) {
+        const p1 = pts[i - 1], p2 = pts[i];
+        const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + o.thickness, wh, o.thickness), wallMat);
+        box.position.set((p1.x + p2.x) / 2, wh / 2 + yBase, (p1.y + p2.y) / 2);
+        box.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
+        this.staticGroup.add(box);
+      }
+      return;
+    }
+    const a = o.a, b = o.b, L = dist(a, b);
+    if (L < 1) return;
+    const dir = { x: (b.x - a.x) / L, y: (b.y - a.y) / L }, ang = -angleDeg(a, b) * Math.PI / 180;
+    // a solid wall block from distance s0..s1 along the wall, spanning height yLo..yHi
+    const piece = (s0: number, s1: number, yLo: number, yHi: number) => {
+      if (s1 - s0 <= 0.5 || yHi - yLo <= 0.5) return;
+      const mid = (s0 + s1) / 2;
+      const box = new THREE.Mesh(new THREE.BoxGeometry(s1 - s0, yHi - yLo, o.thickness), wallMat);
+      box.position.set(a.x + dir.x * mid, yBase + (yLo + yHi) / 2, a.y + dir.y * mid);
+      box.rotation.y = ang;
+      this.staticGroup.add(box);
+    };
+    const holes = openings
+      .map(op => { const cs = closestOnSegment({ x: op.x, y: op.y }, a, b); return { op, cs, d: dist({ x: op.x, y: op.y }, cs.point) }; })
+      .filter(h => h.d <= o.thickness / 2 + 10 && h.cs.t >= -0.001 && h.cs.t <= 1.001)
+      .map(h => { const dc = h.cs.t * L; return { op: h.op, s: Math.max(0, dc - h.op.width / 2), e: Math.min(L, dc + h.op.width / 2) }; })
+      .sort((x, y) => x.s - y.s);
+    let cursor = 0;
+    for (const h of holes) {
+      piece(cursor, h.s, 0, wh);                                    // solid wall before the opening
+      const oh = h.op.height ?? (h.op.kind === 'door' ? 210 : 100);
+      const elev = h.op.elevation ?? (h.op.kind === 'door' ? 0 : 90);
+      piece(h.s, h.e, 0, elev);                                     // sill under the opening (0 for doors)
+      piece(h.s, h.e, elev + oh, wh);                               // header above the opening
+      cursor = Math.max(cursor, h.e);
+    }
+    piece(cursor, L, 0, wh);                                        // remaining solid wall
+  }
+
   private buildObject(o: Obj, yBase = 0) {
     switch (o.kind) {
       case 'room': {
@@ -287,23 +334,6 @@ export class View3D {
           const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), fm);
           floor.position.set(o.x + o.w / 2, 2 + yBase, o.y + o.h / 2);
           this.staticGroup.add(floor);
-        }
-        break;
-      }
-      case 'wall': {
-        const wallMat = this.mat(o.color ? new THREE.Color(o.color).getHex() : 0xeceff4, { roughness: 0.92 });
-        const wh = o.height ?? WALL_H;
-        const seg = (p1: { x: number; y: number }, p2: { x: number; y: number }, extend: number) => {
-          const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + extend, wh, o.thickness), wallMat);
-          box.position.set((p1.x + p2.x) / 2, wh / 2 + yBase, (p1.y + p2.y) / 2);
-          box.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
-          this.staticGroup.add(box);
-        };
-        if (o.bulge) {
-          const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 14);
-          for (let i = 1; i < pts.length; i++) seg(pts[i - 1], pts[i], o.thickness);   // overlap hides joint gaps
-        } else {
-          seg(o.a, o.b, 0);
         }
         break;
       }
