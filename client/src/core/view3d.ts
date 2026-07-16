@@ -7,7 +7,7 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Doc } from '../model/doc';
 import { Obj } from '../model/types';
-import { dist, angleDeg } from './geometry';
+import { dist, angleDeg, quadPoints, wallControl } from './geometry';
 import { getFurnitureModel } from './furniture3d';
 import { woodClone } from './textures3d';
 
@@ -237,11 +237,19 @@ export class View3D {
         break;
       }
       case 'wall': {
-        const L = dist(o.a, o.b);
-        const box = new THREE.Mesh(new THREE.BoxGeometry(L, WALL_H, o.thickness), this.mat(0xeceff4, { roughness: 0.92 }));
-        box.position.set((o.a.x + o.b.x) / 2, WALL_H / 2, (o.a.y + o.b.y) / 2);
-        box.rotation.y = -angleDeg(o.a, o.b) * Math.PI / 180;
-        this.staticGroup.add(box);
+        const wallMat = this.mat(0xeceff4, { roughness: 0.92 });
+        const seg = (p1: { x: number; y: number }, p2: { x: number; y: number }, extend: number) => {
+          const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + extend, WALL_H, o.thickness), wallMat);
+          box.position.set((p1.x + p2.x) / 2, WALL_H / 2, (p1.y + p2.y) / 2);
+          box.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
+          this.staticGroup.add(box);
+        };
+        if (o.bulge) {
+          const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 14);
+          for (let i = 1; i < pts.length; i++) seg(pts[i - 1], pts[i], o.thickness);   // overlap hides joint gaps
+        } else {
+          seg(o.a, o.b, 0);
+        }
         break;
       }
       case 'door': case 'window': {

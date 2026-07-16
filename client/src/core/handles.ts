@@ -1,8 +1,8 @@
 import { Obj, Vec } from '../model/types';
-import { rotate } from './geometry';
+import { rotate, wallApex } from './geometry';
 import { furnitureCenter } from './hit';
 
-export type HandleKind = 'corner' | 'endpoint' | 'rotate';
+export type HandleKind = 'corner' | 'endpoint' | 'rotate' | 'curve';
 export interface Handle { id: string; pos: Vec; kind: HandleKind; }
 
 export function handles(o: Obj): Handle[] {
@@ -27,7 +27,14 @@ export function handles(o: Obj): Handle[] {
         { id: 'se', pos: { x: o.x + o.w, y: o.y + o.h }, kind: 'corner' },
         { id: 'sw', pos: { x: o.x, y: o.y + o.h }, kind: 'corner' },
       ];
-    case 'wall': case 'dimension':
+    case 'wall':
+      // endpoints + a curvature handle at the arc apex (drag it to bend the wall)
+      return [
+        { id: 'a', pos: o.a, kind: 'endpoint' },
+        { id: 'b', pos: o.b, kind: 'endpoint' },
+        { id: 'curve', pos: wallApex(o.a, o.b, o.bulge ?? 0), kind: 'curve' },
+      ];
+    case 'dimension':
       return [{ id: 'a', pos: o.a, kind: 'endpoint' }, { id: 'b', pos: o.b, kind: 'endpoint' }];
     case 'door': case 'window': {
       const c = { x: o.x, y: o.y };
