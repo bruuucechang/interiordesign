@@ -65,7 +65,10 @@ export function detectRoomPolygons(walls: Wall[]): Vec[][] {
       if (face.length < 3) continue;
       const pts = face.map(i => nodes[i]);
       const area = polygonSignedArea(pts);
-      if (area < -MIN_AREA) result.push(pts);            // bounded interior face
+      // bounded interior faces are positive here; the unbounded outer face is
+      // negative. (A lone loop's inner/outer share a shape, which hid this before
+      // — but a divider wall produces two interior faces that must both be kept.)
+      if (area > MIN_AREA) result.push([...pts].reverse());   // reversed to keep the prior CW winding downstream
     }
   }
   return result;

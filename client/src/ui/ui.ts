@@ -2,8 +2,9 @@ import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj, Vec, layerForKind } from '../model/types';
 import { FURNITURE, FURNITURE_CATS, FURNITURE_BY_ID, itemPrice } from '../data/furniture';
-import { dist, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
+import { dist, snap, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRoomPolygons } from '../core/rooms';
+import { detectWallsFromImage } from '../core/detect';
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { listProjects, loadProject, saveProject, deleteProject } from '../net/api';
@@ -297,13 +298,18 @@ function refreshProps(editor: Editor, doc: Doc) {
       info(basics, '長度', fmtLenU(dist(o.a, o.b)));
       dim(pos.body, '偏移', o.offset, v => up({ offset: v } as any));
       break;
-    case 'image':
+    case 'image': {
       rangeRow(basics, '透明度', Math.round((o.opacity ?? 1) * 100), v => up({ opacity: Math.max(0, Math.min(1, v / 100)) } as any));
+      const gen = document.createElement('button'); gen.className = 'prop-action'; gen.textContent = '🪄 自動偵測牆體';
+      gen.title = '從底圖自動生成牆體（適合清晰的平面線稿）';
+      gen.onclick = () => autoWallsFromImage(editor, doc, o);
+      basics.appendChild(gen);
       dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
       dim(size.body, '高', o.h, v => up({ h: Math.max(10, v) } as any), 10);
       dim(pos.body, 'X', o.x, v => up({ x: v } as any));
       dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
       break;
+    }
   }
 
   if (size.body.children.length) host.appendChild(size.el);
@@ -432,6 +438,42 @@ function importImage(editor: Editor, doc: Doc, src: string) {
     flash('已匯入底圖 — 拖曳/縮放對位，鎖定「底圖」圖層後即可描圖');
   };
   probe.src = src;
+}
+
+// Auto-generate walls from an underlay image, then let room detection fill in rooms.
+function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { kind: 'image' }>) {
+  const img = new Image();
+  img.onload = () => {
+    const { segments, w: iw, h: ih } = detectWallsFromImage(img);
+    const grid = editor.gridSize || 10;
+    const toWorld = (p: Vec) => ({ x: snap(o.x + (p.x / iw) * o.w, grid), y: snap(o.y + (p.y / ih) * o.h, grid) });
+    const raw = segments
+      .map(([a, b]) => [toWorld(a), toWorld(b)] as [Vec, Vec])
+      .filter(([a, b]) => Math.hypot(a.x - b.x, a.y - b.y) >= grid * 2);
+
+    // weld nearby endpoints into shared nodes so corners actually meet
+    const nodes: Vec[] = [];
+    const node = (p: Vec) => { for (const q of nodes) if (Math.hypot(p.x - q.x, p.y - q.y) <= grid * 1.5) return q; const n = { x: p.x, y: p.y }; nodes.push(n); return n; };
+    const welded = raw.map(([a, b]) => [node(a), node(b)] as [Vec, Vec]).filter(([a, b]) => a !== b);
+
+    // split walls where another wall's node lands mid-span (T-junctions), so rooms close
+    const walls: [Vec, Vec][] = [];
+    for (const [a, b] of welded) {
+      const mids = nodes
+        .filter(p => p !== a && p !== b && distToSegment(p, a, b) <= grid)
+        .map(p => { const cs = closestOnSegment(p, a, b); p.x = cs.point.x; p.y = cs.point.y; return { p, t: cs.t }; })   // weld the node exactly onto the wall
+        .filter(m => m.t > 0.02 && m.t < 0.98)
+        .sort((x, y) => x.t - y.t);
+      const seq = [a, ...mids.map(m => m.p), b];
+      for (let i = 1; i < seq.length; i++) if (Math.hypot(seq[i].x - seq[i - 1].x, seq[i].y - seq[i - 1].y) >= grid) walls.push([seq[i - 1], seq[i]]);
+    }
+    if (!walls.length) { flash('偵測不到牆體 — 請確認是清晰、線條分明的平面圖'); return; }
+    doc.commit();
+    for (const [a, b] of walls) doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a, b, thickness: 12 } as Obj);
+    editor.selectTool('select');
+    flash(`已從底圖生成 ${walls.length} 道牆（封閉區域會自動成為房間，可再手動調整）`);
+  };
+  img.src = o.src;
 }
 
 // ---- automatic room recognition from closed walls ----
