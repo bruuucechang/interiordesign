@@ -146,6 +146,55 @@ export class CurvedWallTool implements Tool {
   private reset() { this.a = null; this.wallId = null; this.b = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); }
 }
 
+// Ceiling beam: click endpoints (chains). Snaps to wall endpoints and axes.
+const BEAM_WIDTH = 20, BEAM_DEPTH = 40;   // cm
+export class BeamTool implements Tool {
+  name = 'beam'; cursor = 'crosshair';
+  hint = '點擊放置樑的端點；自動貼合牆體，近水平/垂直對齊格線；Esc 結束';
+  private start: Vec | null = null;
+  private snapAt: Vec | null = null;
+  constructor(private ctx: ToolCtx) {}
+
+  private end(p: PointerInfo): Vec {
+    if (this.ctx.snapEnabled) {
+      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as any[];
+      const s = nearestWallSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
+      if (s) { this.snapAt = s.point; return s.point; }
+    }
+    this.snapAt = null;
+    if (!this.start) return p.snapped;
+    return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+  }
+
+  onDown(p: PointerInfo) {
+    const end = this.end(p);
+    if (!this.start) { this.start = end; return; }
+    if (dist(this.start, end) < 1) return;
+    this.ctx.doc.ensureLayer('beams', '樑', '#b07de0', 2);
+    this.ctx.doc.commit();
+    this.ctx.doc.add({ id: genId('beam'), kind: 'beam', layer: layerForKind('beam'), a: this.start, b: end, width: BEAM_WIDTH, depth: BEAM_DEPTH });
+    this.start = end;
+  }
+  onMove(p: PointerInfo) {
+    const e = this.end(p), s = this.start, snapAt = this.snapAt;
+    this.ctx.setPreview(
+      ctx => {
+        if (!s) return;
+        ctx.strokeStyle = '#b07de0'; ctx.lineWidth = BEAM_WIDTH; ctx.globalAlpha = 0.35; ctx.setLineDash([16 / this.ctx.vp.scale, 10 / this.ctx.vp.scale]);
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      },
+      ctx => {
+        if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#b07de0'; ctx.fillText(fmtLen(dist(s, e)), m.x, m.y - 6); }
+        if (snapAt) { const c = this.ctx.vp.toScreen(snapAt); ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); }
+      },
+    );
+    this.ctx.render();
+  }
+  onUp() {}
+  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); } }
+  deactivate() { this.start = null; this.snapAt = null; this.ctx.setPreview(); }
+}
+
 // Grab the canvas with the left mouse button to pan the view.
 export class PanTool implements Tool {
   name = 'pan'; cursor = 'grab'; hint = '按住滑鼠左鍵拖曳平移視角';

@@ -102,6 +102,17 @@ export class Renderer {
           ctx.strokeRect(o.x, o.y, o.w, o.h);
         }
         break;
+      case 'beam': {
+        const dx = o.b.x - o.a.x, dy = o.b.y - o.a.y, L = Math.hypot(dx, dy) || 1;
+        const nx = -dy / L * o.width / 2, ny = dx / L * o.width / 2;
+        ctx.beginPath();
+        ctx.moveTo(o.a.x + nx, o.a.y + ny); ctx.lineTo(o.b.x + nx, o.b.y + ny);
+        ctx.lineTo(o.b.x - nx, o.b.y - ny); ctx.lineTo(o.a.x - nx, o.a.y - ny); ctx.closePath();
+        ctx.fillStyle = 'rgba(176,125,224,0.12)'; ctx.fill();
+        ctx.strokeStyle = color; ctx.lineWidth = line; ctx.setLineDash([16 * line, 10 * line]);   // dashed = overhead
+        ctx.stroke(); ctx.setLineDash([]);
+        break;
+      }
       case 'wall': {
         const trace = () => {
           ctx.beginPath(); ctx.moveTo(o.a.x, o.a.y);
@@ -188,6 +199,11 @@ export class Renderer {
       case 'wall': {
         const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
         this.text(mid, fmtLen(dist(o.a, o.b)), '#c9cfdb');
+        break;
+      }
+      case 'beam': {
+        const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
+        this.text(mid, `↧${fmtLen(o.depth)}`, '#c9a8ea');   // drop depth from ceiling
         break;
       }
       case 'door': case 'window': {

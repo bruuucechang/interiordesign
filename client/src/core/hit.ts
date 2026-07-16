@@ -33,7 +33,7 @@ export function bounds(o: Obj): Bounds {
       const xs = cs.map(p => p.x), ys = cs.map(p => p.y);
       return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
     }
-    case 'wall': case 'dimension':
+    case 'wall': case 'beam': case 'dimension':
       return { x: Math.min(o.a.x, o.b.x), y: Math.min(o.a.y, o.b.y), w: Math.abs(o.a.x - o.b.x), h: Math.abs(o.a.y - o.b.y) };
     case 'door': case 'window':
       return { x: o.x - o.width / 2, y: o.y - o.width / 2, w: o.width, h: o.width };
@@ -59,6 +59,7 @@ function hitObject(o: Obj, p: Vec, tol: number): boolean {
       const d = o.bulge ? distToQuad(p, o.a, wallControl(o.a, o.b, o.bulge), o.b) : distToSegment(p, o.a, o.b);
       return d <= o.thickness / 2 + tol;
     }
+    case 'beam': return distToSegment(p, o.a, o.b) <= o.width / 2 + tol;
     case 'dimension': return distToSegment(p, o.a, o.b) <= tol * 1.5;
     case 'room': {
       // hit anywhere inside (so it can be selected/moved)

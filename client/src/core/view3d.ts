@@ -264,7 +264,7 @@ export class View3D {
   }
 
   private growObject(o: Obj, grow: (x: number, z: number) => void) {
-    if (o.kind === 'wall' || o.kind === 'dimension') { grow(o.a.x, o.a.y); grow(o.b.x, o.b.y); }
+    if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'dimension') { grow(o.a.x, o.a.y); grow(o.b.x, o.b.y); }
     else if (o.kind === 'room' && o.poly?.length) { for (const p of o.poly) grow(p.x, p.y); }
     else if (o.kind === 'room' || o.kind === 'furniture') { grow(o.x, o.y); grow(o.x + o.w, o.y + o.h); }
     else grow(o.x, o.y);
@@ -335,6 +335,15 @@ export class View3D {
           floor.position.set(o.x + o.w / 2, 2 + yBase, o.y + o.h / 2);
           this.staticGroup.add(floor);
         }
+        break;
+      }
+      case 'beam': {
+        const L = dist(o.a, o.b);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(L, o.depth, o.width), this.mat(0xcfc9bf, { roughness: 0.9 }));
+        box.position.set((o.a.x + o.b.x) / 2, yBase + WALL_H - o.depth / 2, (o.a.y + o.b.y) / 2);   // top flush with ceiling
+        box.rotation.y = -angleDeg(o.a, o.b) * Math.PI / 180;
+        box.castShadow = true; box.receiveShadow = true;
+        this.staticGroup.add(box);
         break;
       }
       case 'door': case 'window': {

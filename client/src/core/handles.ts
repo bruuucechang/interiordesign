@@ -41,7 +41,7 @@ export function handles(o: Obj): Handle[] {
         { id: 'b', pos: o.b, kind: 'endpoint' },
         { id: 'curve', pos: wallApex(o.a, o.b, o.bulge ?? 0), kind: 'curve' },
       ];
-    case 'dimension':
+    case 'beam': case 'dimension':
       return [{ id: 'a', pos: o.a, kind: 'endpoint' }, { id: 'b', pos: o.b, kind: 'endpoint' }];
     case 'door': case 'window': {
       const c = { x: o.x, y: o.y };
