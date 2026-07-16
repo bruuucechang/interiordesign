@@ -16,8 +16,16 @@ export interface RenderOpts {
 
 export class Renderer {
   ctx: CanvasRenderingContext2D;
+  onImageLoad?: () => void;                 // re-render when an underlay image finishes loading
+  private imgCache = new Map<string, HTMLImageElement>();
   constructor(private canvas: HTMLCanvasElement, private vp: Viewport, private doc: Doc) {
     this.ctx = canvas.getContext('2d')!;
+  }
+
+  private getImg(src: string): HTMLImageElement | null {
+    let img = this.imgCache.get(src);
+    if (!img) { img = new Image(); img.onload = () => this.onImageLoad?.(); img.src = src; this.imgCache.set(src, img); }
+    return img.complete && img.naturalWidth ? img : null;
   }
 
   private setWorld() {
@@ -74,6 +82,12 @@ export class Renderer {
     const { ctx, vp } = this;
     const line = 1 / vp.scale;
     switch (o.kind) {
+      case 'image': {
+        const img = this.getImg(o.src);
+        if (img) { ctx.save(); ctx.globalAlpha = o.opacity ?? 1; ctx.drawImage(img, o.x, o.y, o.w, o.h); ctx.restore(); }
+        else { ctx.strokeStyle = color; ctx.lineWidth = line; ctx.strokeRect(o.x, o.y, o.w, o.h); }
+        break;
+      }
       case 'room':
         ctx.fillStyle = 'rgba(76,141,255,0.06)';
         ctx.strokeStyle = color; ctx.lineWidth = 2 * line;

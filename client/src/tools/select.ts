@@ -110,7 +110,7 @@ export class SelectTool implements Tool {
       let h = Math.max(10, Math.abs(local.y - c.y) * 2);
       if (this.ctx.snapEnabled) { w = Math.max(10, snap(w, this.ctx.gridSize)); h = Math.max(10, snap(h, this.ctx.gridSize)); }
       this.patch(o, { w, h, x: c.x - w / 2, y: c.y - h / 2 } as any);
-    } else if (o.kind === 'room') {
+    } else if (o.kind === 'room' || o.kind === 'image') {
       const opp: Record<string, Vec> = {
         nw: { x: g.x + g.w, y: g.y + g.h }, se: { x: g.x, y: g.y },
         ne: { x: g.x, y: g.y + g.h }, sw: { x: g.x + g.w, y: g.y },

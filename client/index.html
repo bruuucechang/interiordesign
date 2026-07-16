@@ -16,6 +16,7 @@
         <button data-act="new">新建</button>
         <button data-act="save">儲存</button>
         <button data-act="open">開啟</button>
+        <button data-act="import-image" title="匯入底圖以描繪（可調整位置、大小、透明度）">🖼️ 底圖</button>
         <span class="sep"></span>
         <button data-act="undo" title="復原 (Ctrl+Z)">↶ 復原</button>
         <button data-act="redo" title="重做 (Ctrl+Shift+Z)">重做 ↷</button>
@@ -75,6 +76,7 @@
       </div>
     </div>
 
+    <input id="imageInput" type="file" accept="image/*" style="display:none" />
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
