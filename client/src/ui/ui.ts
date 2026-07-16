@@ -33,7 +33,13 @@ export function initUI(editor: Editor, doc: Doc) {
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };
   markActiveTool('select');
 
-  doc.onChange(() => { buildFloors(editor, doc); buildLayers(editor, doc); refreshProps(editor, doc); scheduleAutosave(doc); scheduleReconcile(doc); updateUndoRedo(doc); });
+  doc.onChange(() => {
+    buildFloors(editor, doc); buildLayers(editor, doc);
+    // don't rebuild the property panel while the user is typing in one of its
+    // fields (it would replace the focused input); the edit is already applied.
+    if (!$('#properties').contains(document.activeElement)) refreshProps(editor, doc);
+    scheduleAutosave(doc); scheduleReconcile(doc); updateUndoRedo(doc);
+  });
   updateUndoRedo(doc);
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
@@ -284,7 +290,12 @@ function refreshProps(editor: Editor, doc: Doc) {
       break;
     }
     case 'wall':
-      info(basics, '長度', fmtLenU(dist(o.a, o.b)));
+      dim(size.body, '長度', dist(o.a, o.b), v => {   // resize by moving the far end along the wall
+        const L = Math.max(1, v), cur = dist(o.a, o.b);
+        const ux = cur > 1e-6 ? (o.b.x - o.a.x) / cur : 1;
+        const uy = cur > 1e-6 ? (o.b.y - o.a.y) / cur : 0;
+        up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
+      }, 1);
       dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
       dim(size.body, '高度', o.height ?? 270, v => up({ height: Math.max(10, v) } as any), 10);
       break;
