@@ -125,6 +125,26 @@ export function bulgeFrom(a: Vec, b: Vec, p: Vec): number {
   return (p.x - mid.x) * n.x + (p.y - mid.y) * n.y;
 }
 
+// Foolproof wall joining: snap a point to a nearby wall endpoint (preferred) or
+// onto a wall segment (T-junction). `radius` is in world cm; pass excludeId to
+// ignore the wall being edited. Returns the snapped point + which kind, or null.
+export function nearestWallSnap(
+  walls: { id: string; a: Vec; b: Vec }[], p: Vec, radius: number, excludeId?: string,
+): { point: Vec; kind: 'end' | 'seg' } | null {
+  let best: Vec | null = null, bestD = radius;
+  for (const w of walls) {                       // endpoints win — they make clean corners
+    if (w.id === excludeId) continue;
+    for (const e of [w.a, w.b]) { const d = dist(p, e); if (d < bestD) { bestD = d; best = e; } }
+  }
+  if (best) return { point: { x: best.x, y: best.y }, kind: 'end' };
+  for (const w of walls) {                        // otherwise snap onto the wall line
+    if (w.id === excludeId) continue;
+    const { point } = closestOnSegment(p, w.a, w.b);
+    const d = dist(p, point); if (d < bestD) { bestD = d; best = point; }
+  }
+  return best ? { point: best, kind: 'seg' } : null;
+}
+
 // Snap a wall's end so the segment locks to 0/45/90° for easy grid alignment.
 // `t` is the already grid-snapped cursor; `hard` forces the snap (Shift).
 export function alignWallEnd(s: Vec, t: Vec, grid: number, hard: boolean): Vec {

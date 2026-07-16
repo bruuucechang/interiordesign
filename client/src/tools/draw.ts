@@ -1,20 +1,29 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId } from '../model/doc';
 import { layerForKind, Vec } from '../model/types';
-import { fmtLen, dist, angleDeg, alignWallEnd } from '../core/geometry';
+import { fmtLen, dist, angleDeg, alignWallEnd, nearestWallSnap } from '../core/geometry';
 
 const WALL_THICKNESS = 12;   // cm
 const DIM_OFFSET = 40;       // cm
+const JOIN_PX = 14;          // screen-px radius for snapping onto other walls
 
 // Click to place points; each click chains a wall from the previous point.
-// Segments soft-snap to 0/45/90° so they line up with the grid (Shift = force).
+// Endpoints snap onto nearby walls (foolproof joining); otherwise they soft-snap
+// to 0/45/90° for grid alignment (Shift = force).
 export class WallTool implements Tool {
-  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；近水平/垂直/45° 自動對齊格線，按住 Shift 強制對齊；Esc 結束';
+  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；自動貼合鄰近牆體端點，近水平/垂直/45° 對齊格線（Shift 強制）；Esc 結束';
   private start: Vec | null = null;
+  private snapAt: Vec | null = null;   // set when the current end is snapped to another wall
   constructor(private ctx: ToolCtx) {}
 
-  // aligned endpoint for the current cursor (axis/45° snap when snapping is on or Shift held)
+  // endpoint for the current cursor: prefer snapping onto another wall, else grid/angle align
   private end(p: PointerInfo): Vec {
+    if (this.ctx.snapEnabled) {
+      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as any[];
+      const s = nearestWallSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
+      if (s) { this.snapAt = s.point; return s.point; }
+    }
+    this.snapAt = null;
     if (!this.start) return p.snapped;
     return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
   }
@@ -28,18 +37,25 @@ export class WallTool implements Tool {
     this.start = end;
   }
   onMove(p: PointerInfo) {
-    if (!this.start) { this.ctx.setPreview(); return; }
-    const s = this.start, e = this.end(p);
-    const ang = ((Math.round(angleDeg(s, e)) % 360) + 360) % 360;
+    const e = this.end(p);           // updates this.snapAt
+    const s = this.start, snapAt = this.snapAt;
+    const ang = s ? ((Math.round(angleDeg(s, e)) % 360) + 360) % 360 : 0;
     this.ctx.setPreview(
-      ctx => { ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = WALL_THICKNESS; ctx.globalAlpha = 0.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.globalAlpha = 1; },
-      ctx => { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(`${fmtLen(dist(s, e))} · ${ang}°`, m.x, m.y - 6); },
+      ctx => {
+        if (!s) return;
+        ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = WALL_THICKNESS; ctx.globalAlpha = 0.4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.globalAlpha = 1;
+      },
+      ctx => {
+        if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(`${fmtLen(dist(s, e))} · ${ang}°`, m.x, m.y - 6); }
+        if (snapAt) { const c = this.ctx.vp.toScreen(snapAt); ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); }   // green ring = snapping
+      },
     );
     this.ctx.render();
   }
   onUp() {}
-  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.ctx.setPreview(); this.ctx.render(); } }
-  deactivate() { this.start = null; this.ctx.setPreview(); }
+  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); } }
+  deactivate() { this.start = null; this.snapAt = null; this.ctx.setPreview(); }
 }
 
 // Drag a rectangle to make a room.
