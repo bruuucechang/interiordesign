@@ -12,8 +12,8 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySe
 
 const TOOLS = [
   { name: 'select', ic: '⬚', label: '選取' },
+  { name: 'pan', ic: '✋', label: '平移' },
   { name: 'wall', ic: '▬', label: '牆' },
-  { name: 'room', ic: '▢', label: '房間' },
   { name: 'door', ic: '🚪', label: '門' },
   { name: 'window', ic: '🪟', label: '窗' },
   { name: 'dimension', ic: '↔', label: '尺寸' },
@@ -113,8 +113,18 @@ const fmtAreaU = (cm2: number) => (unit === 'm' ? (cm2 / 10000).toFixed(2) + ' m
 
 function refreshProps(editor: Editor, doc: Doc) {
   const host = $('#properties'); host.innerHTML = '';
-  const o = doc.selected;
-  if (!o) { host.innerHTML = '<div class="muted">未選取物件</div>'; return; }
+  const ids = doc.selectedIds;
+  if (!ids.length) { host.innerHTML = '<div class="muted">未選取物件</div>'; return; }
+  if (ids.length > 1) {   // multi-selection: count + delete-all
+    const head = document.createElement('div'); head.className = 'prop-head';
+    head.innerHTML = `<span class="prop-type">已選取 ${ids.length} 個物件</span>`;
+    host.appendChild(head);
+    const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = '刪除全部';
+    del.onclick = () => { doc.commit(); for (const o of doc.selectedObjects) doc.remove(o.id); };
+    host.appendChild(del);
+    return;
+  }
+  const o = doc.selected!;
   const up = (patch: Partial<Obj>) => doc.update(o.id, patch);
 
   // field builders (append to a given parent)

@@ -1,16 +1,18 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { Obj, Vec } from '../model/types';
 import { handles } from '../core/handles';
-import { hitTest, furnitureCenter } from '../core/hit';
+import { hitTest, furnitureCenter, bounds } from '../core/hit';
 import { rotate, dist, angleDeg, snap, bulgeFrom } from '../core/geometry';
 
-type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve';
+type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'marquee';
 
 export class SelectTool implements Tool {
-  name = 'select'; cursor = 'default'; hint = '點選物件；拖曳移動、角落縮放、圓點旋轉（近 90° 自動對齊，Shift 每 15°）；Delete 刪除';
+  name = 'select'; cursor = 'default'; hint = '點選或框選物件；拖曳移動、角落縮放、圓點旋轉；Delete 刪除';
   private mode: Mode = 'idle';
   private handleId = '';
-  private orig: any = null;      // JSON snapshot of the object at drag start
+  private orig: any = null;      // JSON snapshot of the object at drag start (single-object edits)
+  private origMany: { o: Obj; snap: any }[] = [];   // snapshots for moving a multi-selection
+  private marquee: { a: Vec; b: Vec } | null = null; // rubber-band box in world coords
   private start: Vec = { x: 0, y: 0 };
 
   constructor(private ctx: ToolCtx) {}
@@ -33,23 +35,35 @@ export class SelectTool implements Tool {
     }
     const hit = hitTest(doc, p.world, 6 / vp.scale);
     if (hit) {
-      if (hit.id !== doc.selectedId) doc.select(hit.id);
+      if (!doc.isSelected(hit.id)) doc.select(hit.id);   // a fresh object selects alone; one already in the group keeps it
       doc.commit();
-      this.orig = JSON.parse(JSON.stringify(hit));
+      this.origMany = doc.selectedObjects.map(o => ({ o, snap: JSON.parse(JSON.stringify(o)) }));
       this.start = p.snapped;
       this.mode = 'move';
     } else {
-      doc.select(null);
-      this.mode = 'idle';
+      this.marquee = { a: p.world, b: p.world };   // start a rubber-band box on empty space
+      this.mode = 'marquee';
     }
   }
 
   onMove(p: PointerInfo) {
-    if (this.mode === 'idle' || !this.orig) return;
+    if (this.mode === 'marquee' && this.marquee) {
+      this.marquee.b = p.world;
+      const m = this.marquee, sc = this.ctx.vp.scale;
+      this.ctx.setPreview(ctx => {
+        const x = Math.min(m.a.x, m.b.x), y = Math.min(m.a.y, m.b.y), w = Math.abs(m.b.x - m.a.x), h = Math.abs(m.b.y - m.a.y);
+        ctx.fillStyle = 'rgba(76,141,255,0.08)'; ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = 1.5 / sc; ctx.setLineDash([6 / sc, 4 / sc]);
+        ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+      });
+      this.ctx.render();
+      return;
+    }
+    if (this.mode === 'idle') return;
+    if (this.mode === 'move') { for (const { o, snap } of this.origMany) this.translate(o, snap, p); this.ctx.render(); return; }
     const o = this.ctx.doc.selected;
-    if (!o) return;
-    if (this.mode === 'move') this.doMove(o, p);
-    else if (this.mode === 'corner') this.doResize(o, p);
+    if (!o || !this.orig) return;
+    if (this.mode === 'corner') this.doResize(o, p);
     else if (this.mode === 'endpoint') this.doEndpoint(o, p);
     else if (this.mode === 'rotate') this.doRotate(o, p);
     else if (this.mode === 'curve') this.doCurve(o, p);
@@ -57,20 +71,35 @@ export class SelectTool implements Tool {
   }
 
   onUp() {
-    if (this.mode === 'rotate') { this.ctx.setPreview(); this.ctx.render(); }   // clear the angle badge
-    this.mode = 'idle'; this.orig = null;
+    if (this.mode === 'rotate') this.ctx.setPreview();   // clear the angle badge
+    if (this.mode === 'marquee' && this.marquee) {
+      const { doc } = this.ctx, m = this.marquee;
+      const r = { x: Math.min(m.a.x, m.b.x), y: Math.min(m.a.y, m.b.y), w: Math.abs(m.b.x - m.a.x), h: Math.abs(m.b.y - m.a.y) };
+      if (r.w < 2 && r.h < 2) doc.select(null);          // a plain click on empty space clears the selection
+      else doc.selectMany(doc.objects.filter(o => doc.isLayerVisible(o.layer) && !doc.isLayerLocked(o.layer) && this.rectHits(r, o)).map(o => o.id));
+      this.ctx.setPreview();
+    }
+    this.mode = 'idle'; this.orig = null; this.origMany = []; this.marquee = null;
+    this.ctx.render();
+  }
+
+  deactivate() { this.mode = 'idle'; this.orig = null; this.origMany = []; this.marquee = null; this.ctx.setPreview(); }
+
+  private rectHits(r: { x: number; y: number; w: number; h: number }, o: Obj): boolean {
+    const b = bounds(o);
+    return r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y;
   }
 
   private patch(o: Obj, patch: Partial<Obj>) { this.ctx.doc.update(o.id, patch); }
 
-  private doMove(o: Obj, p: PointerInfo) {
+  // translate one object by (cursor - start), from its drag-start snapshot
+  private translate(o: Obj, snap: any, p: PointerInfo) {
     const d = { x: p.snapped.x - this.start.x, y: p.snapped.y - this.start.y };
-    const g = this.orig;
-    if (o.kind === 'room' && g.poly) {   // move the whole polygon with its bbox (detaches an auto room)
-      const poly = (g.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y }));
-      this.patch(o, { x: g.x + d.x, y: g.y + d.y, poly, auto: false } as any);
-    } else if ('x' in g) this.patch(o, { x: g.x + d.x, y: g.y + d.y } as any);
-    else if ('a' in g) this.patch(o, { a: { x: g.a.x + d.x, y: g.a.y + d.y }, b: { x: g.b.x + d.x, y: g.b.y + d.y } } as any);
+    if (o.kind === 'room' && snap.poly) {   // move the polygon with its bbox (detaches an auto room)
+      const poly = (snap.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y }));
+      this.patch(o, { x: snap.x + d.x, y: snap.y + d.y, poly, auto: false } as any);
+    } else if ('x' in snap) this.patch(o, { x: snap.x + d.x, y: snap.y + d.y } as any);
+    else if ('a' in snap) this.patch(o, { a: { x: snap.a.x + d.x, y: snap.a.y + d.y }, b: { x: snap.b.x + d.x, y: snap.b.y + d.y } } as any);
   }
 
   private doResize(o: Obj, p: PointerInfo) {
@@ -159,9 +188,9 @@ export class SelectTool implements Tool {
 
   onKey(e: KeyboardEvent) {
     const { doc } = this.ctx;
-    const o = doc.selected;
-    if (!o) return;
-    if (e.key === 'Delete' || e.key === 'Backspace') { doc.commit(); doc.remove(o.id); e.preventDefault(); }
+    const objs = doc.selectedObjects;
+    if (!objs.length) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { doc.commit(); for (const o of objs) doc.remove(o.id); e.preventDefault(); }
     else if (e.key === 'Escape') doc.select(null);
     else if (e.key.startsWith('Arrow')) {
       const step = e.shiftKey ? this.ctx.gridSize : 1;
@@ -169,9 +198,12 @@ export class SelectTool implements Tool {
       if (e.key === 'ArrowLeft') d.x = -step; if (e.key === 'ArrowRight') d.x = step;
       if (e.key === 'ArrowUp') d.y = -step; if (e.key === 'ArrowDown') d.y = step;
       doc.commit();
-      const g: any = o;
-      if ('x' in g) this.patch(o, { x: g.x + d.x, y: g.y + d.y } as any);
-      else if ('a' in g) this.patch(o, { a: { x: g.a.x + d.x, y: g.a.y + d.y }, b: { x: g.b.x + d.x, y: g.b.y + d.y } } as any);
+      for (const o of objs) {
+        const g: any = o;
+        if (o.kind === 'room' && g.poly) { const poly = (g.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y })); this.patch(o, { x: g.x + d.x, y: g.y + d.y, poly, auto: false } as any); }
+        else if ('x' in g) this.patch(o, { x: g.x + d.x, y: g.y + d.y } as any);
+        else if ('a' in g) this.patch(o, { a: { x: g.a.x + d.x, y: g.a.y + d.y }, b: { x: g.b.x + d.x, y: g.b.y + d.y } } as any);
+      }
       e.preventDefault();
     }
   }

@@ -9,8 +9,15 @@ export function genId(prefix = 'o'): string {
 // The editor document: project data + selection + undo/redo history.
 export class Doc {
   project: Project;
-  selectedId: string | null = null;
+  selectedIds: string[] = [];
   activeLayer: LayerId = 'walls';
+
+  // primary selection (last picked) — used where a single object is expected
+  get selectedId(): string | null { return this.selectedIds.length ? this.selectedIds[this.selectedIds.length - 1] : null; }
+  // the object only when exactly one is selected (handles, single-object property panel)
+  get selected(): Obj | undefined { return this.selectedIds.length === 1 ? this.get(this.selectedIds[0]) : undefined; }
+  get selectedObjects(): Obj[] { const r: Obj[] = []; for (const id of this.selectedIds) { const o = this.get(id); if (o) r.push(o); } return r; }
+  isSelected(id: string): boolean { return this.selectedIds.includes(id); }
 
   private past: string[] = [];
   private future: string[] = [];
@@ -40,7 +47,7 @@ export class Doc {
     const s = JSON.parse(json);
     this.project.layers = s.layers;
     this.project.objects = s.objects;
-    if (this.selectedId && !this.get(this.selectedId)) this.selectedId = null;
+    this.selectedIds = this.selectedIds.filter(id => this.get(id));
   }
   undo() {
     if (!this.past.length) return;
@@ -61,7 +68,7 @@ export class Doc {
   add(obj: Obj) { this.project.objects.push(obj); this.emit(); }
   remove(id: string) {
     this.project.objects = this.project.objects.filter(o => o.id !== id);
-    if (this.selectedId === id) this.selectedId = null;
+    this.selectedIds = this.selectedIds.filter(x => x !== id);
     this.emit();
   }
   update(id: string, patch: Partial<Obj>) {
@@ -70,8 +77,8 @@ export class Doc {
     Object.assign(o, patch);
     this.emit();
   }
-  select(id: string | null) { this.selectedId = id; this.emit(); }
-  get selected(): Obj | undefined { return this.get(this.selectedId); }
+  select(id: string | null) { this.selectedIds = id ? [id] : []; this.emit(); }
+  selectMany(ids: string[]) { this.selectedIds = Array.from(new Set(ids)); this.emit(); }
 
   // ---- layers ----
   layer(id: LayerId): Layer | undefined { return this.project.layers.find(l => l.id === id); }
@@ -93,7 +100,7 @@ export class Doc {
   load(project: Project) {
     this.project = project;
     if (!this.project.layers?.length) this.project.layers = defaultLayers();
-    this.selectedId = null;
+    this.selectedIds = [];
     this.past = []; this.future = [];
     this.emit();
   }

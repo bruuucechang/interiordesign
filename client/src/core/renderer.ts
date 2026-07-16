@@ -4,7 +4,7 @@ import { Obj, Vec } from '../model/types';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl } from './geometry';
 import { handles } from './handles';
-import { furnitureCenter } from './hit';
+import { furnitureCenter, bounds } from './hit';
 
 export interface RenderOpts {
   world?: (ctx: CanvasRenderingContext2D) => void;   // preview in world (cm) space
@@ -50,7 +50,7 @@ export class Renderer {
       if (!layer.visible) continue;
       for (const o of this.doc.objects) if (o.layer === layer.id) this.labelObject(o);
     }
-    if (opts.selection !== false && this.doc.selected) this.drawSelection(this.doc.selected);
+    if (opts.selection !== false) { const sel = this.doc.selectedObjects; for (const s of sel) this.drawSelection(s, sel.length === 1); }
     if (opts.screen) { ctx.save(); opts.screen(ctx); ctx.restore(); }
   }
 
@@ -199,7 +199,7 @@ export class Renderer {
     }
   }
 
-  private drawSelection(o: Obj) {
+  private drawSelection(o: Obj, withHandles = true) {
     const { ctx, vp } = this;
     ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = 1.5;
     // outline
@@ -208,11 +208,13 @@ export class Renderer {
       const pts = [{ x: o.x, y: o.y }, { x: o.x + o.w, y: o.y }, { x: o.x + o.w, y: o.y + o.h }, { x: o.x, y: o.y + o.h }]
         .map(p => vp.toScreen(rotate(p, c, o.angle)));
       ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); ctx.stroke();
-    } else if (o.kind === 'room') {
-      const a = vp.toScreen({ x: o.x, y: o.y }), b = vp.toScreen({ x: o.x + o.w, y: o.y + o.h });
-      ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    } else if (o.kind === 'room' || !withHandles) {   // rooms always; walls/openings/dims when multi-selected
+      const b = bounds(o);
+      const a = vp.toScreen({ x: b.x, y: b.y }), c = vp.toScreen({ x: b.x + b.w, y: b.y + b.h });
+      ctx.strokeRect(a.x, a.y, c.x - a.x, c.y - a.y);
     }
-    // handles
+    // handles (single selection only)
+    if (!withHandles) return;
     for (const h of handles(o)) {
       const s = vp.toScreen(h.pos);
       if (h.kind === 'rotate') {

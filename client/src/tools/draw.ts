@@ -69,6 +69,22 @@ export class RoomTool implements Tool {
   deactivate() { this.a = null; this.ctx.setPreview(); }
 }
 
+// Grab the canvas with the left mouse button to pan the view.
+export class PanTool implements Tool {
+  name = 'pan'; cursor = 'grab'; hint = '按住滑鼠左鍵拖曳平移視角';
+  private last: Vec | null = null;
+  constructor(private ctx: ToolCtx) {}
+  onDown(p: PointerInfo) { this.last = p.screen; }
+  onMove(p: PointerInfo) {
+    if (!this.last) return;
+    this.ctx.vp.panBy(p.screen.x - this.last.x, p.screen.y - this.last.y);
+    this.last = p.screen;
+    this.ctx.render();
+  }
+  onUp() { this.last = null; }
+  deactivate() { this.last = null; }
+}
+
 // Drag between two points to place a dimension line.
 export class DimensionTool implements Tool {
   name = 'dimension'; cursor = 'crosshair'; hint = '拖曳量測兩點之間的距離';
