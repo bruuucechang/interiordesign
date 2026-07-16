@@ -125,6 +125,31 @@ export function bulgeFrom(a: Vec, b: Vec, p: Vec): number {
   return (p.x - mid.x) * n.x + (p.y - mid.y) * n.y;
 }
 
+// Fit an opening of `width` onto a curved wall (quadratic bezier a-c-b): returns
+// the chord midpoint, chord angle, signed sagitta (so the opening arcs like the
+// wall), chord width, and the cursor's distance to the arc (for nearest-wall pick).
+export function arcOpening(a: Vec, c: Vec, b: Vec, cursor: Vec, width: number):
+  { pos: Vec; angle: number; bulge: number; width: number; dist: number } {
+  const N = 48;
+  const pts: Vec[] = [];
+  for (let i = 0; i <= N; i++) pts.push(quadAt(a, c, b, i / N));
+  let bi = 0, bd = Infinity;
+  for (let i = 0; i < pts.length; i++) { const d = dist(cursor, pts[i]); if (d < bd) { bd = d; bi = i; } }
+  const half = width / 2;
+  const walk = (dir: number): Vec => {   // step `half` cm along the arc from the nearest point
+    let acc = 0, i = bi;
+    for (;;) {
+      const ni = i + dir;
+      if (ni < 0 || ni >= pts.length) return pts[i];
+      const seg = dist(pts[i], pts[ni]);
+      if (acc + seg >= half) { const t = (half - acc) / seg; return { x: pts[i].x + (pts[ni].x - pts[i].x) * t, y: pts[i].y + (pts[ni].y - pts[i].y) * t }; }
+      acc += seg; i = ni;
+    }
+  };
+  const e0 = walk(-1), e1 = walk(1);
+  return { pos: { x: (e0.x + e1.x) / 2, y: (e0.y + e1.y) / 2 }, angle: angleDeg(e0, e1), bulge: bulgeFrom(e0, e1, pts[bi]), width: dist(e0, e1), dist: bd };
+}
+
 // Foolproof wall joining: snap a point to a nearby wall endpoint (preferred) or
 // onto a wall segment (T-junction). `radius` is in world cm; pass excludeId to
 // ignore the wall being edited. Returns the snapped point + which kind, or null.

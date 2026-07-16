@@ -109,10 +109,10 @@ export class Renderer {
           ctx.strokeStyle = '#171a20'; ctx.lineWidth = 3 * line;
           ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0); ctx.stroke();               // threshold gap
         } else {
-          ctx.strokeStyle = '#171a20'; ctx.lineWidth = 4 * line;
-          ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0); ctx.stroke();
-          ctx.strokeStyle = color; ctx.lineWidth = 1.5 * line;
-          ctx.beginPath(); ctx.moveTo(-hw, -3); ctx.lineTo(hw, -3); ctx.moveTo(-hw, 3); ctx.lineTo(hw, 3); ctx.stroke();
+          const bulge = o.bulge || 0;   // curved windows arc to match the wall
+          const arc = (off: number) => { ctx.beginPath(); ctx.moveTo(-hw, off); if (bulge) ctx.quadraticCurveTo(0, 2 * bulge + off, hw, off); else ctx.lineTo(hw, off); ctx.stroke(); };
+          ctx.strokeStyle = '#171a20'; ctx.lineWidth = 4 * line; arc(0);
+          ctx.strokeStyle = color; ctx.lineWidth = 1.5 * line; arc(-3); arc(3);
         }
         ctx.restore();
         break;

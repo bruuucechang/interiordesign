@@ -13,7 +13,8 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySe
 const TOOLS = [
   { name: 'select', ic: '⬚', label: '選取' },
   { name: 'pan', ic: '✋', label: '平移' },
-  { name: 'wall', ic: '▬', label: '牆' },
+  { name: 'wall', ic: '▬', label: '直線牆' },
+  { name: 'wallCurve', ic: '◠', label: '曲線牆' },
   { name: 'door', ic: '🚪', label: '門' },
   { name: 'window', ic: '🪟', label: '窗' },
   { name: 'dimension', ic: '↔', label: '尺寸' },
