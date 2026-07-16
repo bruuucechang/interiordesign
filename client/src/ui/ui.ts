@@ -116,10 +116,28 @@ function refreshProps(editor: Editor, doc: Doc) {
   const host = $('#properties'); host.innerHTML = '';
   const ids = doc.selectedIds;
   if (!ids.length) { host.innerHTML = '<div class="muted">未選取物件</div>'; return; }
-  if (ids.length > 1) {   // multi-selection: count + delete-all
+  if (ids.length > 1) {   // multi-selection: align / distribute / duplicate / delete
     const head = document.createElement('div'); head.className = 'prop-head';
     head.innerHTML = `<span class="prop-type">已選取 ${ids.length} 個物件</span>`;
     host.appendChild(head);
+
+    const grid = document.createElement('div'); grid.className = 'align-grid';
+    const btn = (label: string, title: string, fn: () => void) => { const b = document.createElement('button'); b.className = 'align-btn'; b.textContent = label; b.title = title; b.onclick = fn; grid.appendChild(b); };
+    btn('⇤', '靠左對齊', () => editor.align('left'));
+    btn('⇔', '水平置中', () => editor.align('hcenter'));
+    btn('⇥', '靠右對齊', () => editor.align('right'));
+    btn('⤒', '靠上對齊', () => editor.align('top'));
+    btn('⇕', '垂直置中', () => editor.align('vcenter'));
+    btn('⤓', '靠下對齊', () => editor.align('bottom'));
+    if (ids.length >= 3) {
+      btn('⇿', '水平均分', () => editor.distribute('h'));
+      btn('⇳', '垂直均分', () => editor.distribute('v'));
+    }
+    host.appendChild(grid);
+
+    const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = '複製 (⌘D)';
+    dup.onclick = () => editor.duplicateSelection();
+    host.appendChild(dup);
     const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = '刪除全部';
     del.onclick = () => { doc.commit(); for (const o of doc.selectedObjects) doc.remove(o.id); };
     host.appendChild(del);
@@ -221,6 +239,9 @@ function refreshProps(editor: Editor, doc: Doc) {
   if (size.body.children.length) host.appendChild(size.el);
   if (pos.body.children.length) host.appendChild(pos.el);
 
+  const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = '複製 (⌘D)';
+  dup.onclick = () => editor.duplicateSelection();
+  host.appendChild(dup);
   const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = '刪除物件';
   del.onclick = () => { doc.commit(); doc.remove(o.id); };
   host.appendChild(del);

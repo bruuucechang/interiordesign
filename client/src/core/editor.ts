@@ -1,12 +1,13 @@
-import { Doc } from '../model/doc';
+import { Doc, genId } from '../model/doc';
 import { Viewport } from './viewport';
 import { Renderer } from './renderer';
 import { snapPoint } from './geometry';
+import { bounds, Bounds } from './hit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, RoomTool, DimensionTool, PanTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool } from '../tools/place';
-import { Vec } from '../model/types';
+import { Obj, Vec } from '../model/types';
 
 export class Editor implements ToolCtx {
   vp: Viewport;
@@ -28,6 +29,7 @@ export class Editor implements ToolCtx {
   private panKeys = new Set<string>();   // WASD held keys for 2D view panning
   private panRaf = 0;
   private panShift = false;
+  private clipboard: Obj[] = [];
 
   constructor(private canvas: HTMLCanvasElement, public doc: Doc, private hintEl: HTMLElement) {
     this.vp = new Viewport(canvas);
@@ -126,6 +128,9 @@ export class Editor implements ToolCtx {
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === 'z') { e.shiftKey ? this.doc.redo() : this.doc.undo(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'y') { this.doc.redo(); e.preventDefault(); return; }
+      if (meta && e.key.toLowerCase() === 'c') { this.copySelection(); e.preventDefault(); return; }
+      if (meta && e.key.toLowerCase() === 'v') { this.pasteClipboard(); e.preventDefault(); return; }
+      if (meta && e.key.toLowerCase() === 'd') { this.duplicateSelection(); e.preventDefault(); return; }
       // note: W/A/S/D are reserved for 3D camera movement, so they are NOT tool shortcuts
       const map: Record<string, string> = { v: 'select', h: 'pan', n: 'window', m: 'dimension' };
       if (!meta && map[e.key.toLowerCase()]) { this.selectTool(map[e.key.toLowerCase()]); return; }
@@ -168,4 +173,66 @@ export class Editor implements ToolCtx {
 
   setSnap(on: boolean) { this.snapEnabled = on; }
   resetView() { this.vp.scale = 0.4; this.vp.centerOn(0, 0, 800, 600); this.hooks.zoom?.(100); this.render(); }
+
+  // ---- clipboard / duplicate ----
+  private offsetObj(o: any, dx: number, dy: number) {
+    if (o.kind === 'room' && o.poly) { o.poly = o.poly.map((p: Vec) => ({ x: p.x + dx, y: p.y + dy })); o.auto = false; }
+    if ('x' in o) { o.x += dx; o.y += dy; }
+    if ('a' in o) { o.a = { x: o.a.x + dx, y: o.a.y + dy }; o.b = { x: o.b.x + dx, y: o.b.y + dy }; }
+    return o;
+  }
+  private cloneWithOffset(objs: Obj[], dx: number, dy: number): Obj[] {
+    return objs.map(o => { const c = JSON.parse(JSON.stringify(o)); c.id = genId(o.kind); return this.offsetObj(c, dx, dy); });
+  }
+  copySelection() { const s = this.doc.selectedObjects; if (s.length) this.clipboard = s.map(o => JSON.parse(JSON.stringify(o))); }
+  pasteClipboard() {
+    if (!this.clipboard.length) return;
+    const d = this.gridSize * 2;
+    const clones = this.cloneWithOffset(this.clipboard, d, d);
+    this.doc.commit();
+    for (const c of clones) this.doc.add(c);
+    this.doc.selectMany(clones.map(c => c.id));
+  }
+  duplicateSelection() {
+    const s = this.doc.selectedObjects; if (!s.length) return;
+    const d = this.gridSize * 2;
+    const clones = this.cloneWithOffset(s, d, d);
+    this.doc.commit();
+    for (const c of clones) this.doc.add(c);
+    this.doc.selectMany(clones.map(c => c.id));
+  }
+
+  // ---- align / distribute a multi-selection ----
+  align(edge: 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom') {
+    const objs = this.doc.selectedObjects; if (objs.length < 2) return;
+    const bs = objs.map(o => bounds(o));
+    const minX = Math.min(...bs.map(b => b.x)), maxX = Math.max(...bs.map(b => b.x + b.w));
+    const minY = Math.min(...bs.map(b => b.y)), maxY = Math.max(...bs.map(b => b.y + b.h));
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    this.doc.commit();
+    objs.forEach((o, i) => {
+      const b = bs[i]; let dx = 0, dy = 0;
+      if (edge === 'left') dx = minX - b.x;
+      else if (edge === 'right') dx = maxX - (b.x + b.w);
+      else if (edge === 'hcenter') dx = cx - (b.x + b.w / 2);
+      else if (edge === 'top') dy = minY - b.y;
+      else if (edge === 'bottom') dy = maxY - (b.y + b.h);
+      else if (edge === 'vcenter') dy = cy - (b.y + b.h / 2);
+      if (dx || dy) this.doc.update(o.id, this.offsetObj(JSON.parse(JSON.stringify(o)), dx, dy));
+    });
+  }
+  distribute(axis: 'h' | 'v') {
+    const objs = this.doc.selectedObjects; if (objs.length < 3) return;
+    const items = objs.map(o => ({ o, b: bounds(o) }));
+    const key = axis === 'h' ? (b: Bounds) => b.x + b.w / 2 : (b: Bounds) => b.y + b.h / 2;
+    items.sort((a, z) => key(a.b) - key(z.b));
+    const first = key(items[0].b), last = key(items[items.length - 1].b);
+    const step = (last - first) / (items.length - 1);
+    this.doc.commit();
+    items.forEach((it, i) => {
+      const target = first + step * i, cur = key(it.b);
+      const d = target - cur; if (!d) return;
+      this.doc.update(it.o.id, this.offsetObj(JSON.parse(JSON.stringify(it.o)), axis === 'h' ? d : 0, axis === 'h' ? 0 : d));
+    });
+  }
 }

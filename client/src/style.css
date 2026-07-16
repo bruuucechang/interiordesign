@@ -85,6 +85,11 @@ body {
 .prop-body { padding: 10px 10px 2px; }
 .prop-body:empty { display: none; }
 .btn-danger { margin-top: 4px; }
+.align-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 8px; }
+.align-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 6px 0; cursor: pointer; font-size: 15px; }
+.align-btn:hover { border-color: var(--accent); color: var(--accent); }
+.prop-action { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; margin-bottom: 6px; }
+.prop-action:hover { border-color: var(--accent); color: var(--accent); }
 .btn-danger { background: #3a2630; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; }
 
 /* modal */
