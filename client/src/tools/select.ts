@@ -3,6 +3,7 @@ import { Obj, Vec } from '../model/types';
 import { handles } from '../core/handles';
 import { hitTest, furnitureCenter, bounds } from '../core/hit';
 import { rotate, dist, angleDeg, snap, bulgeFrom, nearestWallSnap } from '../core/geometry';
+import { fitOpeningToWall } from './place';
 
 type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'marquee';
 
@@ -94,6 +95,13 @@ export class SelectTool implements Tool {
   // translate one object by (cursor - start), from its drag-start snapshot
   private translate(o: Obj, snap: any, p: PointerInfo) {
     const d = { x: p.snapped.x - this.start.x, y: p.snapped.y - this.start.y };
+    if (o.kind === 'door' || o.kind === 'window') {   // openings stay glued to the nearest wall
+      const c = { x: snap.x + d.x, y: snap.y + d.y };
+      const fit = fitOpeningToWall(this.ctx.doc, c, snap.width, o.kind === 'window', 80);
+      if (fit) this.patch(o, { x: fit.pos.x, y: fit.pos.y, angle: fit.angle, width: fit.width, bulge: fit.bulge || undefined } as any);
+      else this.patch(o, { x: c.x, y: c.y } as any);
+      return;
+    }
     if (o.kind === 'room' && snap.poly) {   // move the polygon with its bbox (detaches an auto room)
       const poly = (snap.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y }));
       this.patch(o, { x: snap.x + d.x, y: snap.y + d.y, poly, auto: false } as any);
@@ -153,8 +161,10 @@ export class SelectTool implements Tool {
       const other = rotate(otherLocal, center, g.angle);
       const nc = { x: (other.x + p.world.x) / 2, y: (other.y + p.world.y) / 2 };
       const width = Math.max(10, dist(other, p.world));
-      const ang = this.handleId === 'b' ? angleDeg(other, p.world) : angleDeg(p.world, other);
-      this.patch(o, { x: nc.x, y: nc.y, width, angle: ang } as any);
+      // keep the resized opening glued to its wall (position + angle + curvature)
+      const fit = fitOpeningToWall(this.ctx.doc, nc, width, o.kind === 'window', 100);
+      if (fit) this.patch(o, { x: fit.pos.x, y: fit.pos.y, width: fit.width, angle: fit.angle, bulge: fit.bulge || undefined } as any);
+      else this.patch(o, { x: nc.x, y: nc.y, width, angle: this.handleId === 'b' ? angleDeg(other, p.world) : angleDeg(p.world, other) } as any);
     }
   }
 

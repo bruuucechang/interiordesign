@@ -1,18 +1,37 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
-import { genId } from '../model/doc';
+import { genId, Doc } from '../model/doc';
 import { layerForKind, Vec } from '../model/types';
 import { closestOnSegment, angleDeg, dist, arcOpening, wallControl } from '../core/geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 
 const WALL_SNAP = 40; // cm — how close to a wall to snap an opening onto it
 
-type Cand = { pos: Vec; angle: number; width: number; bulge: number };
+export type OpeningFit = { pos: Vec; angle: number; width: number; bulge: number };
+
+// Fit an opening of `width` onto the nearest wall within `threshold` cm of the
+// cursor: returns the snap position, the wall's tangent angle, the (possibly
+// chord-) width, and the curvature for windows on curved walls. null = no wall.
+export function fitOpeningToWall(doc: Doc, cursor: Vec, width: number, isWindow: boolean, threshold = WALL_SNAP): OpeningFit | null {
+  let best: OpeningFit | null = null; let bestD = threshold;
+  for (const o of doc.objects) {
+    if (o.kind !== 'wall' || !doc.isLayerVisible(o.layer)) continue;
+    if (o.bulge) {
+      const r = arcOpening(o.a, wallControl(o.a, o.b, o.bulge), o.b, cursor, width);   // windows bow to the wall; doors stay flat
+      if (r.dist < bestD) { bestD = r.dist; best = { pos: r.pos, angle: r.angle, width: r.width, bulge: isWindow ? r.bulge : 0 }; }
+    } else {
+      const { point } = closestOnSegment(cursor, o.a, o.b);
+      const d = dist(cursor, point);
+      if (d < bestD) { bestD = d; best = { pos: point, angle: angleDeg(o.a, o.b), width, bulge: 0 }; }
+    }
+  }
+  return best;
+}
 
 // Place a door or window. Snaps onto the nearest wall (position + angle), and
 // follows the wall's curvature — a window on a curved wall becomes a curved window.
 export class OpeningTool implements Tool {
   cursor = 'crosshair';
-  private cand: Cand | null = null;
+  private cand: OpeningFit | null = null;
   constructor(private ctx: ToolCtx, public kind: 'door' | 'window') {
     this.name = kind; this.hint = kind === 'door' ? '在牆上點擊放置門' : '在牆上點擊放置窗（可貼合彎曲牆體）';
   }
@@ -20,21 +39,8 @@ export class OpeningTool implements Tool {
 
   private width() { return this.kind === 'door' ? 90 : 120; }
 
-  private findWall(p: Vec): Cand {
-    let best: Cand | null = null; let bestD = WALL_SNAP;
-    for (const o of this.ctx.doc.objects) {
-      if (o.kind !== 'wall' || !this.ctx.doc.isLayerVisible(o.layer)) continue;
-      if (o.bulge) {
-        const r = arcOpening(o.a, wallControl(o.a, o.b, o.bulge), o.b, p, this.width());
-        // only windows bow to the wall; doors stay flat across the arc
-        if (r.dist < bestD) { bestD = r.dist; best = { pos: r.pos, angle: r.angle, width: r.width, bulge: this.kind === 'window' ? r.bulge : 0 }; }
-      } else {
-        const { point } = closestOnSegment(p, o.a, o.b);
-        const d = dist(p, point);
-        if (d < bestD) { bestD = d; best = { pos: point, angle: angleDeg(o.a, o.b), width: this.width(), bulge: 0 }; }
-      }
-    }
-    return best ?? { pos: p, angle: 0, width: this.width(), bulge: 0 };
+  private findWall(p: Vec): OpeningFit {
+    return fitOpeningToWall(this.ctx.doc, p, this.width(), this.kind === 'window') ?? { pos: p, angle: 0, width: this.width(), bulge: 0 };
   }
 
   onMove(p: PointerInfo) {
