@@ -2,7 +2,7 @@ import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
 import { Obj, Vec } from '../model/types';
 import { FURNITURE_BY_ID } from '../data/furniture';
-import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl } from './geometry';
+import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment } from './geometry';
 import { handles } from './handles';
 import { furnitureCenter, bounds } from './hit';
 
@@ -188,6 +188,25 @@ export class Renderer {
       case 'wall': {
         const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
         this.text(mid, fmtLen(dist(o.a, o.b)), '#c9cfdb');
+        break;
+      }
+      case 'door': case 'window': {
+        // always show the wall remaining on each side of the opening
+        let best: { w: Extract<Obj, { kind: 'wall' }>; t: number } | null = null, bestD = 40;
+        for (const w of this.doc.objects) {
+          if (w.kind !== 'wall' || w.bulge) continue;
+          const cs = closestOnSegment({ x: o.x, y: o.y }, w.a, w.b);
+          const d = dist({ x: o.x, y: o.y }, cs.point);
+          if (d < bestD) { bestD = d; best = { w, t: cs.t }; }
+        }
+        if (best) {
+          const { w, t } = best, L = dist(w.a, w.b), dc = t * L, hw = o.width / 2;
+          const ux = L > 1e-6 ? (w.b.x - w.a.x) / L : 1, uy = L > 1e-6 ? (w.b.y - w.a.y) / L : 0;
+          const near = { x: w.a.x + ux * (dc - hw), y: w.a.y + uy * (dc - hw) };
+          const far = { x: w.a.x + ux * (dc + hw), y: w.a.y + uy * (dc + hw) };
+          this.text({ x: (w.a.x + near.x) / 2, y: (w.a.y + near.y) / 2 }, fmtLen(Math.max(0, dc - hw)), '#8bffb0');
+          this.text({ x: (far.x + w.b.x) / 2, y: (far.y + w.b.y) / 2 }, fmtLen(Math.max(0, L - dc - hw)), '#8bffb0');
+        }
         break;
       }
       case 'room': {
