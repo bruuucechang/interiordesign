@@ -7,13 +7,34 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 // Y up from the floor (0). The caller positions/rotates the returned group.
 
 const mat = (color: number, opts: THREE.MeshStandardMaterialParameters = {}) =>
-  new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.04, ...opts });
+  new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.04, envMapIntensity: 1.15, ...opts });
 
-// rounded box
+// --- physically-based material archetypes: each surface type reacts to light
+// the way its real material does (sheen, glaze, brushed metal, tinted glass) ---
+// oiled / lacquered wood — matte grain with a faint clearcoat sheen
+const woodMat = (color: number, roughness = 0.6) =>
+  new THREE.MeshPhysicalMaterial({ color, roughness, metalness: 0, clearcoat: 0.22, clearcoatRoughness: 0.5, envMapIntensity: 1.0 });
+// brushed / satin metal — appliances, faucets, handles, legs
+const metalMat = (color = 0x9aa3b0, roughness = 0.32) =>
+  new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.9, envMapIntensity: 1.35 });
+// matte upholstery fabric — no reflections, soft
+const fabricMat = (color: number, roughness = 1.0) =>
+  new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.45 });
+// glazed ceramic / porcelain — sanitaryware, planters
+const ceramicMat = (color = 0xeef2f6) =>
+  new THREE.MeshPhysicalMaterial({ color, roughness: 0.12, metalness: 0, clearcoat: 0.85, clearcoatRoughness: 0.08, envMapIntensity: 1.2 });
+// polished stone — countertops
+const stoneMat = (color = 0x8a929e) =>
+  new THREE.MeshPhysicalMaterial({ color, roughness: 0.28, metalness: 0.05, clearcoat: 0.4, clearcoatRoughness: 0.35, envMapIntensity: 1.1 });
+// tinted glass
+const glassMat = (color = 0x9fd4ff, opacity = 0.22) =>
+  new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity, roughness: 0.04, metalness: 0, envMapIntensity: 1.4 });
+
+// rounded box (smooth-shaded, extra round segments so edges catch light softly)
 function rbox(w: number, h: number, d: number, r: number, m: THREE.Material, x: number, y: number, z: number, rotY = 0) {
   w = Math.max(1, w); h = Math.max(1, h); d = Math.max(1, d);
   const rr = Math.max(0.4, Math.min(r, w / 2 - 0.3, h / 2 - 0.3, d / 2 - 0.3));
-  const mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, rr), m);
+  const mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, rr), m);
   mesh.position.set(x, y, z); if (rotY) mesh.rotation.y = rotY;
   return mesh;
 }
@@ -57,7 +78,7 @@ function tufts(g: THREE.Group, cols: number, rows: number, x0: number, y0: numbe
 // ---- builders ----
 function table(w: number, h: number, height: number): THREE.Group {
   const g = new THREE.Group();
-  const top = mat(0x9a6b3f, { roughness: 0.55 }), wood2 = mat(0x835a34), leg = mat(0x6b4a2a);
+  const top = woodMat(0x9a6b3f, 0.48), wood2 = woodMat(0x835a34, 0.62), leg = woodMat(0x6b4a2a, 0.55);
   const t = 5;
   g.add(rbox(w, t, h, 2.5, top, 0, height - t / 2, 0));                       // rounded tabletop
   const apronY = height - t - 5, ah = 8, inset = 7;
@@ -70,7 +91,7 @@ function table(w: number, h: number, height: number): THREE.Group {
 }
 function coffee(w: number, h: number): THREE.Group {
   const g = table(w, h, 42);
-  g.add(rbox(w - 16, 3, h - 16, 1.5, mat(0x835a34), 0, 14, 0));               // lower shelf
+  g.add(rbox(w - 16, 3, h - 16, 1.5, woodMat(0x835a34, 0.6), 0, 14, 0));       // lower shelf
   g.add(rbox(w * 0.28, 5, h * 0.4, 1, mat(0xc9b48a), -w * 0.12, 44, 0));       // books
   g.add(rbox(w * 0.24, 4, h * 0.34, 1, mat(0x7f9bb0), -w * 0.12, 48.5, 4));
   return g;
@@ -78,7 +99,7 @@ function coffee(w: number, h: number): THREE.Group {
 
 function chair(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
-  const wood = mat(0x7a5636), fabric = mat(0x9a8468, { roughness: 0.95 });
+  const wood = woodMat(0x7a5636, 0.55), fabric = fabricMat(0x9a8468);
   const seatY = 45;
   g.add(rbox(w - 2, 5, h - 2, 2, wood, 0, seatY, 0));
   g.add(rbox(w - 8, 6, h - 8, 3, fabric, 0, seatY + 5, 0));                    // plump seat cushion
@@ -89,9 +110,9 @@ function chair(w: number, h: number): THREE.Group {
 
 function sofa(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
-  const fabric = mat(0x6b7690, { roughness: 0.98 }), cushion = mat(0x808eab, { roughness: 0.98 });
-  const seam = mat(0x54607a), legM = mat(0x3a2a1c);
-  const throw1 = mat(0xd98c6a, { roughness: 0.98 }), throw2 = mat(0x88b0a0, { roughness: 0.98 });
+  const fabric = fabricMat(0x6b7690), cushion = fabricMat(0x808eab);
+  const seam = fabricMat(0x54607a), legM = metalMat(0x4a3a2c, 0.4);
+  const throw1 = fabricMat(0xd98c6a), throw2 = fabricMat(0x88b0a0);
   const legH = 10, arm = Math.min(24, w * 0.15), baseH = 20;
   legs4(g, w, h, legH, legM, 3, 2, 10, 0.12);
   g.add(rbox(w, baseH, h, 5, fabric, 0, legH + baseH / 2, 0));                 // base
@@ -122,7 +143,7 @@ function sofa(w: number, h: number): THREE.Group {
 
 function armchair(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
-  const fabric = mat(0x7d6f8f, { roughness: 0.98 }), cushion = mat(0x9184a6, { roughness: 0.98 }), legM = mat(0x3a2a1c);
+  const fabric = fabricMat(0x7d6f8f), cushion = fabricMat(0x9184a6), legM = metalMat(0x4a3a2c, 0.4);
   const legH = 10, arm = w * 0.18, baseH = 20;
   legs4(g, w, h, legH, legM, 3, 2, 8, 0.12);
   g.add(rbox(w, baseH, h, 5, fabric, 0, legH + baseH / 2, 0));
@@ -134,15 +155,15 @@ function armchair(w: number, h: number): THREE.Group {
   }
   const back = rbox(w - 2 * arm, 50, 18, 8, cushion, 0, legH + baseH + 26, -h / 2 + 12); back.rotation.x = -0.08; g.add(back);
   g.add(rbox(w - 2 * arm - 4, 18, h * 0.58, 7, cushion, 0, legH + baseH + 12, h * 0.06));
-  g.add(rbox(24, 24, 11, 5, mat(0xd98c6a, { roughness: 0.98 }), 0, legH + baseH + 28, -h / 2 + 20, 0.4));
+  g.add(rbox(24, 24, 11, 5, fabricMat(0xd98c6a), 0, legH + baseH + 28, -h / 2 + 20, 0.4));
   return g;
 }
 
 function bed(w: number, h: number, dbl: boolean): THREE.Group {
   const g = new THREE.Group();
-  const frame = mat(0x6b4a2a), legM = mat(0x4a3320), mattress = mat(0xe8e2d2, { roughness: 0.96 });
-  const duvet = mat(0xc7d0dc, { roughness: 0.98 }), runner = mat(0x7c93b0, { roughness: 0.98 });
-  const pillow = mat(0xf3f1ea, { roughness: 0.96 }), deco = mat(0xcf8f6b, { roughness: 0.96 }), head = mat(0x8492a8, { roughness: 0.97 });
+  const frame = woodMat(0x6b4a2a, 0.58), legM = woodMat(0x4a3320, 0.55), mattress = fabricMat(0xe8e2d2, 0.95);
+  const duvet = fabricMat(0xc7d0dc), runner = fabricMat(0x7c93b0);
+  const pillow = fabricMat(0xf3f1ea, 0.95), deco = fabricMat(0xcf8f6b, 0.95), head = fabricMat(0x8492a8);
   const legH = 10;
   legs4(g, w, h, legH, legM, 4, 3, 6, 0);
   g.add(rbox(w, 20, h, 3, frame, 0, legH + 10, 0));
@@ -150,7 +171,7 @@ function bed(w: number, h: number, dbl: boolean): THREE.Group {
   g.add(rbox(w - 8, 17, h - 8, 6, mattress, 0, legH + 20 + 8.5, 0));           // rounded mattress
   // upholstered headboard with tufting
   g.add(rbox(w, 62, 8, 4, head, 0, legH + 31, -h / 2 + 4));
-  tufts(g, Math.max(3, Math.round(w / 40)), 3, -w / 2 + 18, legH + 22, -h / 2 + 8.5, 36, 14, mat(0x6f7d92));
+  tufts(g, Math.max(3, Math.round(w / 40)), 3, -w / 2 + 18, legH + 22, -h / 2 + 8.5, 36, 14, fabricMat(0x6f7d92));
   // duvet draped over lower ~60% with a folded top edge
   g.add(rbox(w - 4, 9, h * 0.58, 4, duvet, 0, mattTop + 1, h * 0.2));
   g.add(rbox(w - 4, 12, 13, 5, duvet, 0, mattTop + 3, -h * 0.1));
@@ -165,9 +186,9 @@ function bed(w: number, h: number, dbl: boolean): THREE.Group {
 
 function wardrobe(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const height = 200, front = h / 2;
-  const bodyM = mat(0x7a5636), doorM = mat(0x86603a), frameM = mat(0x6b4a2a);
-  const handle = mat(0x9aa3b0, { metalness: 0.6, roughness: 0.4 }), mirror = mat(0xaecbe0, { metalness: 0.9, roughness: 0.06 });
-  g.add(rbox(w, 8, h, 2, mat(0x4a3320), 0, 4, 0));                             // plinth
+  const bodyM = woodMat(0x7a5636, 0.55), doorM = woodMat(0x86603a, 0.5), frameM = woodMat(0x6b4a2a, 0.55);
+  const handle = metalMat(0x9aa3b0, 0.3), mirror = metalMat(0xc2d4e2, 0.04);
+  g.add(rbox(w, 8, h, 2, woodMat(0x4a3320, 0.6), 0, 4, 0));                    // plinth
   g.add(rbox(w, height - 8, h, 2, bodyM, 0, 6 + (height - 8) / 2, 0));
   g.add(rbox(w + 4, 6, h + 4, 2, frameM, 0, height + 1, 0));                   // cornice
   for (const s of [-1, 1]) {
@@ -183,10 +204,10 @@ function wardrobe(w: number, h: number): THREE.Group {
 
 function fridge(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const height = 180, front = h / 2, legH = 4;
-  const bodyM = mat(0xdfe4ea, { metalness: 0.35, roughness: 0.35 });
-  const handle = mat(0x8b93a2, { metalness: 0.6, roughness: 0.35 });
+  const bodyM = metalMat(0xdfe4ea, 0.28);
+  const handle = metalMat(0x8b93a2, 0.3);
   g.add(rbox(w, height - legH, h, 5, bodyM, 0, legH + (height - legH) / 2, 0));
-  g.add(box(w, 2, 1, mat(0x9aa3b0), 0, legH + (height - legH) * 0.36, front + 1));
+  g.add(box(w, 2, 1, metalMat(0x9aa3b0, 0.3), 0, legH + (height - legH) * 0.36, front + 1));
   g.add(rbox(3, 46, 3, 1.2, handle, -w / 2 + 8, height * 0.66, front + 1.5));
   g.add(rbox(3, 30, 3, 1.2, handle, -w / 2 + 8, height * 0.2, front + 1.5));
   g.add(box(w * 0.34, 22, 2, mat(0x2a2f38, { metalness: 0.3, roughness: 0.3 }), w * 0.12, height * 0.72, front + 1));
@@ -196,10 +217,10 @@ function fridge(w: number, h: number): THREE.Group {
 
 function stove(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const height = 90, front = h / 2;
-  const bodyM = mat(0x8a929e, { metalness: 0.45, roughness: 0.45 }), dark = mat(0x14171e);
+  const bodyM = metalMat(0x8a929e, 0.32), dark = mat(0x14171e, { roughness: 0.5 });
   g.add(rbox(w, height, h, 3, bodyM, 0, height / 2, 0));
-  g.add(box(w, 22, 3, mat(0x6b7280, { metalness: 0.4 }), 0, height + 11, -h / 2 + 1));
-  g.add(rbox(w - 4, 4, h - 4, 1.5, mat(0x24282f), 0, height + 2, 0));          // cooktop glass
+  g.add(box(w, 22, 3, metalMat(0x6b7280, 0.35), 0, height + 11, -h / 2 + 1));
+  g.add(rbox(w - 4, 4, h - 4, 1.5, mat(0x24282f, { roughness: 0.1, metalness: 0.1, envMapIntensity: 1.4 }), 0, height + 2, 0));  // glossy cooktop glass
   const knob = mat(0x2a2f38);
   for (let i = 0; i < 4; i++) g.add(cyl(2.5, 2.5, 3, knob, -w / 2 + 8 + i * ((w - 16) / 3), height + 11, -h / 2 + 3, 10));
   g.add(rbox(w - 10, height - 26, 2, 2, mat(0x3a4048, { metalness: 0.3 }), 0, (height - 26) / 2, front + 0.5));
@@ -214,9 +235,9 @@ function stove(w: number, h: number): THREE.Group {
 
 function sink(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const height = 85;
-  const counter = mat(0x8a929e, { metalness: 0.2, roughness: 0.5 });
-  const basin = mat(0x5f6b7a, { metalness: 0.5, roughness: 0.3 });
-  const f = mat(0x9aa3b0, { metalness: 0.7, roughness: 0.2 });
+  const counter = stoneMat(0x8a929e);
+  const basin = metalMat(0x5f6b7a, 0.25);
+  const f = metalMat(0x9aa3b0, 0.18);
   g.add(rbox(w, height, h, 2, counter, 0, height / 2, 0));
   for (const s of [-1, 1]) { g.add(rbox(w * 0.28, 14, h * 0.6, 4, basin, s * w * 0.17, height - 7, 0)); g.add(cyl(1.6, 1.6, 1, mat(0x3a4048), s * w * 0.17, height - 1, 0, 10)); }
   g.add(box(3, 14, h * 0.6, counter, 0, height - 7, 0));
@@ -228,7 +249,7 @@ function sink(w: number, h: number): THREE.Group {
 }
 
 function toilet(w: number, h: number): THREE.Group {
-  const g = new THREE.Group(); const white = mat(0xe8edf3, { roughness: 0.35 }), metal = mat(0x9aa3b0, { metalness: 0.5 });
+  const g = new THREE.Group(); const white = ceramicMat(0xeef2f6), metal = metalMat(0x9aa3b0, 0.25);
   g.add(rbox(w - 6, 44, 14, 4, white, 0, 46, -h / 2 + 8));                     // tank
   g.add(cyl(3, 3, 2, metal, 0, 68, -h / 2 + 8, 12));
   g.add(cyl(w / 2 - 3, w / 2 - 7, 30, white, 0, 16, h * 0.08, 24));            // bowl
@@ -239,8 +260,8 @@ function toilet(w: number, h: number): THREE.Group {
 
 function bathtub(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const height = 55;
-  const outer = mat(0xe8edf3, { roughness: 0.3 }), inner = mat(0xbcc7d4, { roughness: 0.25 });
-  const f = mat(0x9aa3b0, { metalness: 0.65, roughness: 0.25 });
+  const outer = ceramicMat(0xeef2f6), inner = ceramicMat(0xc6d0da);
+  const f = metalMat(0x9aa3b0, 0.2);
   g.add(rbox(w, height, h, 10, outer, 0, height / 2, 0));
   g.add(rbox(w - 16, height - 12, h - 16, 8, inner, 0, height / 2 + 6, 0));
   g.add(cyl(1.8, 1.8, 16, f, -w / 2 + 12, height + 4, -h / 2 + 10));
@@ -251,9 +272,9 @@ function bathtub(w: number, h: number): THREE.Group {
 
 function shower(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const height = 200;
-  const tray = mat(0xe8edf3, { roughness: 0.35 });
-  const glass = mat(0x9fd4ff, { transparent: true, opacity: 0.22, roughness: 0.05 });
-  const metal = mat(0x9aa3b0, { metalness: 0.6, roughness: 0.35 });
+  const tray = ceramicMat(0xeef2f6);
+  const glass = glassMat(0x9fd4ff, 0.2);
+  const metal = metalMat(0x9aa3b0, 0.3);
   g.add(rbox(w, 8, h, 2, tray, 0, 4, 0));
   g.add(box(w, height - 8, 3, glass, 0, height / 2, h / 2));
   g.add(box(3, height - 8, h, glass, w / 2, height / 2, 0));
@@ -266,36 +287,36 @@ function shower(w: number, h: number): THREE.Group {
 
 function tvStand(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
-  const wood = mat(0x3a4150), handle = mat(0x9aa3b0, { metalness: 0.6, roughness: 0.4 });
+  const wood = woodMat(0x3a4150, 0.5), handle = metalMat(0x9aa3b0, 0.3);
   g.add(rbox(w, 34, h, 3, wood, 0, 4 + 17, 0));
-  legs4(g, w, h, 4, mat(0x222), 2.5, 2, 6, 0);
+  legs4(g, w, h, 4, metalMat(0x2a2a2a, 0.4), 2.5, 2, 6, 0);
   for (let i = 0; i < 2; i++) {
     const x = (i === 0 ? -1 : 1) * w / 4;
     g.add(box(w / 2 - 6, 24, 1.5, mat(0x2f353f), x, 4 + 17, h / 2));
     g.add(rbox(w * 0.14, 2.5, 2, 1, handle, x, 4 + 17, h / 2 + 1.5));
   }
   g.add(box(w * 0.18, 6, 8, mat(0x14171e), 0, 41, 0));
-  g.add(rbox(w * 0.86, 54, 4, 2, mat(0x0a0c10), 0, 41 + 30, -h / 2 + 5));
-  g.add(box(w * 0.82, 48, 1.5, mat(0x1b2740, { metalness: 0.3, roughness: 0.25 }), 0, 41 + 30, -h / 2 + 6.6));
+  g.add(rbox(w * 0.86, 54, 4, 2, mat(0x0a0c10, { roughness: 0.4 }), 0, 41 + 30, -h / 2 + 5));
+  g.add(box(w * 0.82, 48, 1.5, mat(0x1b2740, { metalness: 0.1, roughness: 0.08, envMapIntensity: 1.5 }), 0, 41 + 30, -h / 2 + 6.6));  // glossy screen
   g.add(rbox(w * 0.5, 6, 8, 2, mat(0x2a2f38), 0, 6 + 17, h / 2 - 4));
   return g;
 }
 
 function rug(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
-  g.add(rbox(w, 2, h, 3, mat(0x4a5570, { roughness: 0.98 }), 0, 1, 0));
-  g.add(box(w - 12, 1.5, h - 12, mat(0x5f6d92, { roughness: 0.98 }), 0, 2, 0));
-  g.add(box(w - 40, 1, h - 40, mat(0x3f4a66, { roughness: 0.98 }), 0, 2.5, 0));
+  g.add(rbox(w, 2, h, 3, fabricMat(0x4a5570), 0, 1, 0));
+  g.add(box(w - 12, 1.5, h - 12, fabricMat(0x5f6d92), 0, 2, 0));
+  g.add(box(w - 40, 1, h - 40, fabricMat(0x3f4a66), 0, 2.5, 0));
   return g;
 }
 
 function plant(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const r = Math.min(w, h) / 2;
-  g.add(cyl(r * 0.72, r * 0.62, 3, mat(0x3a3f48), 0, 1.5, 0, 20));
-  g.add(cyl(r * 0.6, r * 0.42, 28, mat(0x8a5a3a, { roughness: 0.9 }), 0, 15, 0));
-  g.add(cyl(r * 0.62, r * 0.6, 3, mat(0x9a6a48), 0, 28, 0, 20));
-  g.add(cyl(r * 0.55, r * 0.55, 3, mat(0x3a2a1c), 0, 28.5, 0, 18));
-  const g1 = mat(0x3fae6a, { roughness: 0.9 }), g2 = mat(0x2f7d4f, { roughness: 0.9 }), g3 = mat(0x57c47f, { roughness: 0.9 });
+  g.add(cyl(r * 0.72, r * 0.62, 3, ceramicMat(0x3a3f48), 0, 1.5, 0, 24));
+  g.add(cyl(r * 0.6, r * 0.42, 28, ceramicMat(0xc9a883), 0, 15, 0));           // glazed pot
+  g.add(cyl(r * 0.62, r * 0.6, 3, ceramicMat(0xd7b891), 0, 28, 0, 24));
+  g.add(cyl(r * 0.55, r * 0.55, 3, mat(0x3a2a1c, { roughness: 0.95 }), 0, 28.5, 0, 18));  // soil
+  const g1 = fabricMat(0x3fae6a, 0.85), g2 = fabricMat(0x2f7d4f, 0.85), g3 = fabricMat(0x57c47f, 0.85);
   g.add(sphere(r * 0.8, g1, 0, 30 + r * 0.75, 0));
   g.add(sphere(r * 0.5, g2, r * 0.45, 30 + r * 1.05, r * 0.1));
   g.add(sphere(r * 0.46, g3, -r * 0.42, 30 + r * 0.9, r * 0.3));
@@ -306,10 +327,10 @@ function plant(w: number, h: number): THREE.Group {
 // Generic cabinet: carcass + plinth + top, with `doors` fronts and handles.
 function cabinetModel(w: number, h: number, height: number, doors: number): THREE.Group {
   const g = new THREE.Group(); const front = h / 2;
-  const bodyM = mat(0x7a5636), doorM = mat(0x86603a), frameM = mat(0x6b4a2a);
-  const handle = mat(0x9aa3b0, { metalness: 0.6, roughness: 0.4 });
+  const bodyM = woodMat(0x7a5636, 0.55), doorM = woodMat(0x86603a, 0.48), frameM = woodMat(0x6b4a2a, 0.55);
+  const handle = metalMat(0x9aa3b0, 0.3);
   const cy = 3 + (height - 6) / 2;
-  g.add(rbox(w, 6, h, 2, mat(0x4a3320), 0, 3, 0));                       // plinth
+  g.add(rbox(w, 6, h, 2, woodMat(0x4a3320, 0.6), 0, 3, 0));              // plinth
   g.add(rbox(w, height - 6, h, 2, bodyM, 0, cy, 0));                     // carcass
   g.add(rbox(w + 3, 4, h + 3, 2, frameM, 0, height, 0));                 // top
   const dw = w / doors;
