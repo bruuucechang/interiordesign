@@ -272,32 +272,66 @@ export class View3D {
     else grow(o.x, o.y);
   }
 
+  // One continuous band swept along a plan polyline, from yLo..yHi with thickness
+  // T. The two side faces share vertices along the sweep, so computeVertexNormals
+  // shades the curve smoothly (no per-segment facets/seams); the top and end caps
+  // get their own vertices so those edges stay crisp. Double-sided (walls are seen
+  // from both rooms). Returns nothing — adds the mesh to the static group.
+  private sweptWall(pts: Vec[], yLo: number, yHi: number, T: number, yBase: number, mat: THREE.Material) {
+    const n = pts.length;
+    if (n < 2 || yHi - yLo < 0.5) return;
+    const ht = T / 2, yb = yBase + yLo, yt = yBase + yHi;
+    const nrm = pts.map((_, i) => {
+      const p = pts[Math.max(0, i - 1)], q = pts[Math.min(n - 1, i + 1)];
+      const tx = q.x - p.x, tz = q.y - p.y, L = Math.hypot(tx, tz) || 1;
+      return { x: -tz / L, y: tx / L };   // unit perpendicular to the tangent (in plan)
+    });
+    const outer = pts.map((p, i) => ({ x: p.x + nrm[i].x * ht, z: p.y + nrm[i].y * ht }));
+    const inner = pts.map((p, i) => ({ x: p.x - nrm[i].x * ht, z: p.y - nrm[i].y * ht }));
+    const pos: number[] = [], idx: number[] = [];
+    const V = (x: number, y: number, z: number) => (pos.push(x, y, z), pos.length / 3 - 1);
+    const quad = (a: number, b: number, c: number, d: number) => idx.push(a, b, c, a, c, d);
+    const oB: number[] = [], oT: number[] = [], iB: number[] = [], iT: number[] = [];
+    for (let i = 0; i < n; i++) { oB.push(V(outer[i].x, yb, outer[i].z)); oT.push(V(outer[i].x, yt, outer[i].z)); }
+    for (let i = 0; i < n; i++) { iB.push(V(inner[i].x, yb, inner[i].z)); iT.push(V(inner[i].x, yt, inner[i].z)); }
+    for (let i = 0; i < n - 1; i++) { quad(oB[i], oB[i + 1], oT[i + 1], oT[i]); quad(iB[i + 1], iB[i], iT[i], iT[i + 1]); }  // outer + inner side faces
+    const tO: number[] = [], tI: number[] = [];
+    for (let i = 0; i < n; i++) { tO.push(V(outer[i].x, yt, outer[i].z)); tI.push(V(inner[i].x, yt, inner[i].z)); }
+    for (let i = 0; i < n - 1; i++) quad(tO[i], tI[i], tI[i + 1], tO[i + 1]);                                              // crisp top face
+    const cap = (i: number) => { const a = V(outer[i].x, yb, outer[i].z), b = V(outer[i].x, yt, outer[i].z), c = V(inner[i].x, yt, inner[i].z), d = V(inner[i].x, yb, inner[i].z); quad(a, b, c, d); };
+    cap(0); cap(n - 1);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    const m = (mat as THREE.Material).clone(); m.side = THREE.DoubleSide;
+    this.staticGroup.add(new THREE.Mesh(geo, m));
+  }
+
   // Build a wall, cutting real holes for its doors/windows (straight walls).
   private buildWall(o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[], yBase: number) {
     const wallMat = this.mat(o.color ? new THREE.Color(o.color).getHex() : 0xeceff4, { roughness: 0.92 });
     const wh = o.height ?? WALL_H;
-    if (o.bulge) {   // curved wall: segmented strip, with sill/header cut for openings
-      const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 28);
-      const nearestIdx = (p: Vec) => { let bi = 0, bd = Infinity; for (let i = 0; i < pts.length; i++) { const d = dist(p, pts[i]); if (d < bd) { bd = d; bi = i; } } return { bi, bd }; };
+    if (o.bulge) {   // curved wall: one smooth swept band, with sill/header where openings sit
+      const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 48);   // dense sampling → smooth curve
+      const N = pts.length;
+      const nearestIdx = (p: Vec) => { let bi = 0, bd = Infinity; for (let i = 0; i < N; i++) { const d = dist(p, pts[i]); if (d < bd) { bd = d; bi = i; } } return { bi, bd }; };
       // map each opening on this wall to an arc-index span (its endpoints lie on the arc)
-      const holes = openings.map(op => {
+      type Hole = { lo: number; hi: number; elev: number; oh: number };
+      const holes: Hole[] = openings.map(op => {
         const half = op.width / 2, ca = Math.cos(op.angle * Math.PI / 180), sa = Math.sin(op.angle * Math.PI / 180);
         const r0 = nearestIdx({ x: op.x - half * ca, y: op.y - half * sa }), r1 = nearestIdx({ x: op.x + half * ca, y: op.y + half * sa });
         return { lo: Math.min(r0.bi, r1.bi), hi: Math.max(r0.bi, r1.bi), d: Math.max(r0.bd, r1.bd), elev: op.elevation ?? (op.kind === 'door' ? 0 : 90), oh: op.height ?? (op.kind === 'door' ? 210 : 100) };
-      }).filter(h => h.d <= o.thickness / 2 + 15 && h.hi > h.lo);   // only openings actually on this arc
-      const seg = (p1: Vec, p2: Vec, yLo: number, yHi: number) => {
-        if (yHi - yLo <= 0.5) return;
-        const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + o.thickness, yHi - yLo, o.thickness), wallMat);
-        box.position.set((p1.x + p2.x) / 2, yBase + (yLo + yHi) / 2, (p1.y + p2.y) / 2);
-        box.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
-        this.staticGroup.add(box);
+      }).filter(h => h.d <= o.thickness / 2 + 15 && h.hi > h.lo);
+      const holeAt = (i: number) => holes.find(hl => i - 1 < hl.hi && i > hl.lo);   // opening spanning segment i (pts[i-1]->pts[i])
+      // group consecutive segments with the same state (same hole / solid) into ranges
+      let from = 0, cur = holeAt(1);
+      const flush = (to: number, hole?: Hole) => {
+        const band = pts.slice(from, to + 1);
+        if (!hole) this.sweptWall(band, 0, wh, o.thickness, yBase, wallMat);
+        else { this.sweptWall(band, 0, hole.elev, o.thickness, yBase, wallMat); this.sweptWall(band, hole.elev + hole.oh, wh, o.thickness, yBase, wallMat); }
       };
-      for (let i = 1; i < pts.length; i++) {
-        const p1 = pts[i - 1], p2 = pts[i];
-        const hole = holes.find(hl => i - 1 < hl.hi && i > hl.lo);   // this segment spans an opening
-        if (hole) { seg(p1, p2, 0, hole.elev); seg(p1, p2, hole.elev + hole.oh, wh); }   // sill + header, gap between
-        else seg(p1, p2, 0, wh);
-      }
+      for (let i = 2; i < N; i++) { const h = holeAt(i); if (h !== cur) { flush(i - 1, cur); from = i - 1; cur = h; } }
+      flush(N - 1, cur);
       return;
     }
     const a = o.a, b = o.b, L = dist(a, b);
@@ -444,19 +478,21 @@ export class View3D {
         const h = o.height ?? (isDoor ? 210 : 100);
         const elev = o.elevation ?? (isDoor ? 0 : 90);
         if (o.bulge) {
-          // curved-wall opening: follow the arc with segmented leaf/glass + a frame
+          // curved-wall opening: smooth arc-swept leaf/glass + frame
           const hw = o.width / 2, ca = Math.cos(o.angle * Math.PI / 180), sa = Math.sin(o.angle * Math.PI / 180);
           const toPlan = (lx: number, ly: number) => ({ x: o.x + lx * ca - ly * sa, y: o.y + lx * sa + ly * ca });
-          const plan = quadPoints({ x: -hw, y: 0 }, { x: 0, y: 2 * o.bulge }, { x: hw, y: 0 }, 12).map(pt => toPlan(pt.x, pt.y));
+          const plan = quadPoints({ x: -hw, y: 0 }, { x: 0, y: 2 * o.bulge }, { x: hw, y: 0 }, 24).map(pt => toPlan(pt.x, pt.y));
           const d = 10, fw = 6;
-          const frameM = this.mat(isDoor ? 0x6b4a2a : 0xf2f4f7, { roughness: isDoor ? 0.6 : 0.5, metalness: isDoor ? 0.04 : 0.1 });
+          const frameM = this.mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
           const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, envMapIntensity: 1.1 });
           const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
-          for (let i = 1; i < plan.length; i++) {
-            const p1 = plan[i - 1], p2 = plan[i], cx = (p1.x + p2.x) / 2, cz = (p1.y + p2.y) / 2, ry = -angleDeg(p1, p2) * Math.PI / 180, segW = dist(p1, p2) + 2;
-            const mk = (hh: number, yy: number, dd: number, m: THREE.Material) => { const s = new THREE.Mesh(new THREE.BoxGeometry(segW, hh, dd), m); s.position.set(cx, yBase + yy, cz); s.rotation.y = ry; this.staticGroup.add(s); };
-            if (isDoor) { mk(h, elev + h / 2, 8, leafM); }
-            else { mk(h - 2 * fw, elev + h / 2, 3, glass); mk(fw, elev + fw / 2, d, frameM); mk(fw, elev + h - fw / 2, d, frameM); mk(4, elev - 1, d + 6, this.mat(0xe7eaee, { roughness: 0.6 })); }  // glass + rails + sill
+          if (isDoor) {
+            this.sweptWall(plan, elev, elev + h, 8, yBase, leafM);
+          } else {
+            this.sweptWall(plan, elev + fw, elev + h - fw, 3, yBase, glass);      // glass
+            this.sweptWall(plan, elev, elev + fw, d, yBase, frameM);              // bottom rail
+            this.sweptWall(plan, elev + h - fw, elev + h, d, yBase, frameM);      // top rail
+            this.sweptWall(plan, elev - 4, elev, d + 6, yBase, this.mat(0xe7eaee, { roughness: 0.6 }));  // sill
           }
         } else {
           const grp = isDoor ? this.buildDoor3D(o.width, h, elev, o.style) : this.buildWindow3D(o.width, h, elev, o.style);
