@@ -316,54 +316,81 @@ export class View3D {
     piece(cursor, L, 0, wh);                                        // remaining solid wall
   }
 
-  // A framed door leaf with recessed panels and a lever handle. Built in local
-  // coords: X along the opening (width), Z = wall normal, Y up from the floor.
-  private buildDoor3D(width: number, h: number, elev: number): THREE.Group {
+  // A framed door in one of several styles (single / double / sliding / glass).
+  // Built in local coords: X along the opening (width), Z = wall normal, Y up.
+  private buildDoor3D(width: number, h: number, elev: number, style = 'single'): THREE.Group {
     const g = new THREE.Group();
     const d = 12, fw = 7;
     const frameM = this.mat(0x6b4a2a, { roughness: 0.6 });
     const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.4, envMapIntensity: 1.1 });
     const panelM = new THREE.MeshPhysicalMaterial({ color: 0x7a4e2c, roughness: 0.45, metalness: 0, clearcoat: 0.25, envMapIntensity: 1.0 });
     const metalM = this.mat(0xc2c7cf, { roughness: 0.28, metalness: 0.92, envMapIntensity: 1.35 });
+    const glassM = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
     const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
       const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
     };
-    bx(fw, h, d, frameM, -width / 2 + fw / 2, elev + h / 2, 0);           // jambs
+    bx(fw, h, d, frameM, -width / 2 + fw / 2, elev + h / 2, 0);           // jambs + header
     bx(fw, h, d, frameM, width / 2 - fw / 2, elev + h / 2, 0);
-    bx(width, fw, d, frameM, 0, elev + h - fw / 2, 0);                    // header
-    const lw = width - 2 * fw + 1, lh = h - fw + 1, ld = d * 0.55;
-    bx(lw, lh, ld, leafM, 0, elev + lh / 2, 0);                          // leaf
-    for (const zs of [1, -1]) {
-      const zz = zs * (ld / 2 + 0.6);
-      bx(lw * 0.66, lh * 0.36, 1.2, panelM, 0, elev + lh * 0.7, zz);      // recessed panels
-      bx(lw * 0.66, lh * 0.34, 1.2, panelM, 0, elev + lh * 0.3, zz);
-      const hy = elev + h * 0.45, hx = lw / 2 - 7;
-      bx(3, 3, 5, metalM, hx, hy, zs * (ld / 2 + 1));                     // handle rose
-      const lever = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 11, 10), metalM);
-      lever.rotation.z = Math.PI / 2; lever.position.set(hx - 6, hy, zs * (ld / 2 + 3)); g.add(lever);
+    bx(width, fw, d, frameM, 0, elev + h - fw / 2, 0);
+    const lw = width - 2 * fw, lh = h - fw, ld = d * 0.55;
+    const putHandle = (hx: number) => {                                   // rose + lever, both faces, pointing inward
+      const hy = elev + h * 0.45, inward = hx >= 0 ? -1 : 1;
+      for (const zs of [1, -1]) {
+        bx(3, 3, 5, metalM, hx, hy, zs * (ld / 2 + 1));
+        const lever = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 11, 10), metalM);
+        lever.rotation.z = Math.PI / 2; lever.position.set(hx + inward * 6, hy, zs * (ld / 2 + 3)); g.add(lever);
+      }
+    };
+    const panelLeaf = (cx: number, cw: number) => {                       // wood leaf with two recessed panels
+      bx(cw, lh, ld, leafM, cx, elev + lh / 2, 0);
+      for (const zs of [1, -1]) { const zz = zs * (ld / 2 + 0.6); bx(cw * 0.66, lh * 0.36, 1.2, panelM, cx, elev + lh * 0.7, zz); bx(cw * 0.66, lh * 0.34, 1.2, panelM, cx, elev + lh * 0.3, zz); }
+    };
+    if (style === 'double') {
+      const cw = lw / 2 - 0.5;
+      for (const s of [-1, 1]) { const cx = s * (lw / 4 + 0.25); panelLeaf(cx, cw); putHandle(cx - s * (cw / 2 - 5)); }  // handles at the meeting stile
+    } else if (style === 'sliding') {
+      for (const s of [-1, 1]) {                                          // two panels in a track, offset in depth
+        const cx = s * (lw / 4 - 1), pw = lw / 2 + 3, pz = s * ld * 0.32;
+        bx(pw, lh, ld * 0.6, leafM, cx, elev + lh / 2, pz);
+        bx(2.6, lh * 0.42, 3, metalM, cx - s * (pw / 2 - 6), elev + lh * 0.5, pz + s * 2);   // flush pull
+      }
+    } else if (style === 'glass') {
+      bx(lw, lh, ld, leafM, 0, elev + lh / 2, 0);                         // wood stile-and-rail
+      bx(lw - 12, lh - 16, ld + 2, glassM, 0, elev + lh / 2 + 3, 0);      // glazed panel
+      bx(lw - 12, 5, ld + 2.2, leafM, 0, elev + lh * 0.34, 0);           // lock rail
+      putHandle(lw / 2 - 7);
+    } else {                                                              // single
+      panelLeaf(0, lw); putHandle(lw / 2 - 7);
     }
     return g;
   }
 
-  // A framed window: white sash, a mullion cross dividing it into panes, real
-  // glass, and a protruding sill. Same local coords as buildDoor3D.
-  private buildWindow3D(width: number, h: number, elev: number): THREE.Group {
+  // A framed window in one of several styles (single grid / casement / sliding /
+  // picture). Same local coords as buildDoor3D.
+  private buildWindow3D(width: number, h: number, elev: number, style = 'single'): THREE.Group {
     const g = new THREE.Group();
-    const d = 10, fw = 6;
+    const d = 10, fw = 6, iw = width - 2 * fw, ih = h - 2 * fw;
     const frameM = this.mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
     const sillM = this.mat(0xe7eaee, { roughness: 0.6 });
-    const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
+    const glass = () => new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
     const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
       const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
     };
-    bx(width - 2 * fw, h - 2 * fw, 2, glass, 0, elev + h / 2, 0);         // glass pane
     bx(fw, h, d, frameM, -width / 2 + fw / 2, elev + h / 2, 0);           // outer sash
     bx(fw, h, d, frameM, width / 2 - fw / 2, elev + h / 2, 0);
     bx(width, fw, d, frameM, 0, elev + h - fw / 2, 0);
     bx(width, fw, d, frameM, 0, elev + fw / 2, 0);
-    bx(3, h - 2 * fw, d * 0.7, frameM, 0, elev + h / 2, 0);               // mullion cross
-    bx(width - 2 * fw, 3, d * 0.7, frameM, 0, elev + h / 2, 0);
     bx(width + 6, 4, d + 7, sillM, 0, elev - 1, 2);                       // sill
+    if (style === 'sliding') {                                           // two sashes offset in depth + meeting stile
+      bx(iw / 2 + 3, ih, 2, glass(), -iw / 4, elev + h / 2, 2.5);
+      bx(iw / 2 + 3, ih, 2, glass(), iw / 4, elev + h / 2, -2.5);
+      bx(4, ih, d * 0.7, frameM, 0, elev + h / 2, 0);
+    } else {
+      bx(iw, ih, 2, glass(), 0, elev + h / 2, 0);                        // single pane
+      if (style === 'single') { bx(3, ih, d * 0.7, frameM, 0, elev + h / 2, 0); bx(iw, 3, d * 0.7, frameM, 0, elev + h / 2, 0); }  // grid cross
+      else if (style === 'casement') bx(3, ih, d * 0.7, frameM, 0, elev + h / 2, 0);   // centre mullion
+      // picture: no mullion
+    }
     return g;
   }
 
@@ -420,7 +447,7 @@ export class View3D {
             this.staticGroup.add(seg);
           }
         } else {
-          const grp = isDoor ? this.buildDoor3D(o.width, h, elev) : this.buildWindow3D(o.width, h, elev);
+          const grp = isDoor ? this.buildDoor3D(o.width, h, elev, o.style) : this.buildWindow3D(o.width, h, elev, o.style);
           grp.position.set(o.x, yBase, o.y);
           grp.rotation.y = -o.angle * Math.PI / 180;
           this.staticGroup.add(grp);

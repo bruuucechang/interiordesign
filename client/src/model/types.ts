@@ -29,7 +29,23 @@ export interface Beam extends Base { kind: 'beam'; a: Vec; b: Vec; width: number
 export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; auto?: boolean; floor?: string; }
 // `height` (cm) = opening height; `elevation` (cm) = sill height above the floor.
 // `bulge` (cm) curves the opening to follow a curved wall (windows).
-export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; bulge?: number; }
+// `style` selects the leaf/sash form (see DOOR_STYLES / WINDOW_STYLES).
+export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; bulge?: number; style?: string; }
+
+// Selectable door/window forms. `id` is stored on the opening; the 2D renderer
+// and the 3D view both branch on it. First entry is the default.
+export const DOOR_STYLES = [
+  { id: 'single', label: '單開門' },
+  { id: 'double', label: '雙開門' },
+  { id: 'sliding', label: '推拉門' },
+  { id: 'glass', label: '玻璃門' },
+];
+export const WINDOW_STYLES = [
+  { id: 'single', label: '格窗' },
+  { id: 'sliding', label: '橫拉窗' },
+  { id: 'casement', label: '平開窗' },
+  { id: 'picture', label: '景觀窗' },
+];
 // `height` (cm) overrides the model's natural 3D height; `elevation` (cm) lifts it off the floor.
 export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; height?: number; elevation?: number; }
 export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; offset: number; }
