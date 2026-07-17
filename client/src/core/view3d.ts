@@ -6,7 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Doc } from '../model/doc';
-import { Obj } from '../model/types';
+import { Obj, Vec } from '../model/types';
 import { dist, angleDeg, quadPoints, wallControl, closestOnSegment } from './geometry';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone, tileClone } from './textures3d';
@@ -17,7 +17,7 @@ const WALL_H = 270; // cm
 type TimeKey = 'morning' | 'noon' | 'dusk' | 'night';
 const LIGHTING: Record<TimeKey, { sun: number; intensity: number; hemi: number; amb: number; env: number; bg: number; exposure: number; elev: number; azim: number }> = {
   morning: { sun: 0xffe6c2, intensity: 2.0, hemi: 0.55, amb: 0.16, env: 0.50, bg: 0xdfe8f0, exposure: 1.00, elev: 20, azim: 100 },
-  noon:    { sun: 0xfff4e2, intensity: 2.4, hemi: 0.75, amb: 0.15, env: 0.55, bg: 0xdbe2ea, exposure: 1.02, elev: 68, azim: 40 },
+  noon:    { sun: 0xfff4e2, intensity: 2.0, hemi: 0.48, amb: 0.12, env: 0.40, bg: 0xdbe2ea, exposure: 0.85, elev: 68, azim: 40 },
   dusk:    { sun: 0xff9e5e, intensity: 1.9, hemi: 0.40, amb: 0.14, env: 0.38, bg: 0xe9c9a8, exposure: 1.05, elev: 12, azim: -60 },
   night:   { sun: 0x9fb6ff, intensity: 0.5, hemi: 0.12, amb: 0.10, env: 0.10, bg: 0x161c28, exposure: 1.15, elev: 42, azim: 20 },
 };
@@ -276,14 +276,27 @@ export class View3D {
   private buildWall(o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[], yBase: number) {
     const wallMat = this.mat(o.color ? new THREE.Color(o.color).getHex() : 0xeceff4, { roughness: 0.92 });
     const wh = o.height ?? WALL_H;
-    if (o.bulge) {   // curved wall: solid segmented strip (openings remain as panels)
-      const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 14);
-      for (let i = 1; i < pts.length; i++) {
-        const p1 = pts[i - 1], p2 = pts[i];
-        const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + o.thickness, wh, o.thickness), wallMat);
-        box.position.set((p1.x + p2.x) / 2, wh / 2 + yBase, (p1.y + p2.y) / 2);
+    if (o.bulge) {   // curved wall: segmented strip, with sill/header cut for openings
+      const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 28);
+      const nearestIdx = (p: Vec) => { let bi = 0, bd = Infinity; for (let i = 0; i < pts.length; i++) { const d = dist(p, pts[i]); if (d < bd) { bd = d; bi = i; } } return { bi, bd }; };
+      // map each opening on this wall to an arc-index span (its endpoints lie on the arc)
+      const holes = openings.map(op => {
+        const half = op.width / 2, ca = Math.cos(op.angle * Math.PI / 180), sa = Math.sin(op.angle * Math.PI / 180);
+        const r0 = nearestIdx({ x: op.x - half * ca, y: op.y - half * sa }), r1 = nearestIdx({ x: op.x + half * ca, y: op.y + half * sa });
+        return { lo: Math.min(r0.bi, r1.bi), hi: Math.max(r0.bi, r1.bi), d: Math.max(r0.bd, r1.bd), elev: op.elevation ?? (op.kind === 'door' ? 0 : 90), oh: op.height ?? (op.kind === 'door' ? 210 : 100) };
+      }).filter(h => h.d <= o.thickness / 2 + 15 && h.hi > h.lo);   // only openings actually on this arc
+      const seg = (p1: Vec, p2: Vec, yLo: number, yHi: number) => {
+        if (yHi - yLo <= 0.5) return;
+        const box = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + o.thickness, yHi - yLo, o.thickness), wallMat);
+        box.position.set((p1.x + p2.x) / 2, yBase + (yLo + yHi) / 2, (p1.y + p2.y) / 2);
         box.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
         this.staticGroup.add(box);
+      };
+      for (let i = 1; i < pts.length; i++) {
+        const p1 = pts[i - 1], p2 = pts[i];
+        const hole = holes.find(hl => i - 1 < hl.hi && i > hl.lo);   // this segment spans an opening
+        if (hole) { seg(p1, p2, 0, hole.elev); seg(p1, p2, hole.elev + hole.oh, wh); }   // sill + header, gap between
+        else seg(p1, p2, 0, wh);
       }
       return;
     }
@@ -431,20 +444,19 @@ export class View3D {
         const h = o.height ?? (isDoor ? 210 : 100);
         const elev = o.elevation ?? (isDoor ? 0 : 90);
         if (o.bulge) {
-          // curved-wall opening: follow the arc with segmented leaf/glass
-          const m = isDoor
-            ? new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, envMapIntensity: 1.1 })
-            : new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
-          const yc = elev + h / 2 + yBase;
+          // curved-wall opening: follow the arc with segmented leaf/glass + a frame
           const hw = o.width / 2, ca = Math.cos(o.angle * Math.PI / 180), sa = Math.sin(o.angle * Math.PI / 180);
           const toPlan = (lx: number, ly: number) => ({ x: o.x + lx * ca - ly * sa, y: o.y + lx * sa + ly * ca });
-          const plan = quadPoints({ x: -hw, y: 0 }, { x: 0, y: 2 * o.bulge }, { x: hw, y: 0 }, 10).map(pt => toPlan(pt.x, pt.y));
+          const plan = quadPoints({ x: -hw, y: 0 }, { x: 0, y: 2 * o.bulge }, { x: hw, y: 0 }, 12).map(pt => toPlan(pt.x, pt.y));
+          const d = 10, fw = 6;
+          const frameM = this.mat(isDoor ? 0x6b4a2a : 0xf2f4f7, { roughness: isDoor ? 0.6 : 0.5, metalness: isDoor ? 0.04 : 0.1 });
+          const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, envMapIntensity: 1.1 });
+          const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
           for (let i = 1; i < plan.length; i++) {
-            const p1 = plan[i - 1], p2 = plan[i];
-            const seg = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + 4, h, isDoor ? 6 : 3), m);
-            seg.position.set((p1.x + p2.x) / 2, yc, (p1.y + p2.y) / 2);
-            seg.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
-            this.staticGroup.add(seg);
+            const p1 = plan[i - 1], p2 = plan[i], cx = (p1.x + p2.x) / 2, cz = (p1.y + p2.y) / 2, ry = -angleDeg(p1, p2) * Math.PI / 180, segW = dist(p1, p2) + 2;
+            const mk = (hh: number, yy: number, dd: number, m: THREE.Material) => { const s = new THREE.Mesh(new THREE.BoxGeometry(segW, hh, dd), m); s.position.set(cx, yBase + yy, cz); s.rotation.y = ry; this.staticGroup.add(s); };
+            if (isDoor) { mk(h, elev + h / 2, 8, leafM); }
+            else { mk(h - 2 * fw, elev + h / 2, 3, glass); mk(fw, elev + fw / 2, d, frameM); mk(fw, elev + h - fw / 2, d, frameM); mk(4, elev - 1, d + 6, this.mat(0xe7eaee, { roughness: 0.6 })); }  // glass + rails + sill
           }
         } else {
           const grp = isDoor ? this.buildDoor3D(o.width, h, elev, o.style) : this.buildWindow3D(o.width, h, elev, o.style);
