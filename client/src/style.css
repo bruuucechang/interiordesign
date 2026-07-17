@@ -17,6 +17,14 @@ body {
 .proj-name { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 5px 10px; width: 200px; }
 .spacer { flex: 1; }
 .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.menu { position: relative; display: inline-flex; }
+.menu.open > button, .menu > button.active { border-color: var(--accent); background: #33405c; }
+.menu-pop { position: absolute; top: calc(100% + 5px); left: 0; z-index: 60; min-width: 150px; padding: 4px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  display: flex; flex-direction: column; gap: 2px; }
+.menu-pop button { width: 100%; text-align: left; background: transparent; border: none; color: var(--text);
+  padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.menu-pop button:hover { background: #33405c; }
 .zoom { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
 .chk { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 4px; }
 #topbar button {
