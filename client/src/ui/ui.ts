@@ -40,6 +40,7 @@ export function initUI(editor: Editor, doc: Doc) {
     if (!$('#properties').contains(document.activeElement)) refreshProps(editor, doc);
     scheduleAutosave(doc); scheduleReconcile(doc); updateUndoRedo(doc);
   });
+  startAutosave(doc);
   updateUndoRedo(doc);
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
@@ -392,11 +393,22 @@ function kindLabel(k: string) {
   return ({ wall: '牆', beam: '樑', room: '房間', door: '門', window: '窗', furniture: '家具', dimension: '尺寸標註', image: '底圖' } as Record<string, string>)[k] ?? k;
 }
 
-// ---- top bar ----
-let autosaveTimer: number | undefined;
-function scheduleAutosave(doc: Doc) {
-  clearTimeout(autosaveTimer);
-  autosaveTimer = window.setTimeout(() => saveProject(doc.serialize()), 800);
+// ---- auto-save ----
+// The document is marked dirty on any change; a 30-second heartbeat persists it
+// (see startAutosave). Kept separate from the change handler so edits don't hit
+// the server on every keystroke.
+const AUTOSAVE_MS = 30_000;
+let dirty = false;
+function scheduleAutosave(_doc: Doc) { dirty = true; }
+function startAutosave(doc: Doc) {
+  window.setInterval(() => {
+    if (!dirty) return;
+    dirty = false;
+    saveProject(doc.serialize());
+    flash('已自動儲存 ' + new Date().toLocaleTimeString());
+  }, AUTOSAVE_MS);
+  // best-effort save when leaving, so the last (< 30s) of edits aren't lost
+  window.addEventListener('beforeunload', () => { if (dirty) saveProject(doc.serialize()); });
 }
 
 // Collapsible 匯出 menu: its items are built only while open and removed on
@@ -454,7 +466,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'new':
       if (!confirm('新建會清空目前畫布，確定？')) return;
       doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView(); break;
-    case 'save': doc.project.name = name(); await saveProject(doc.serialize()); flash('已儲存'); break;
+    case 'save': doc.project.name = name(); dirty = false; await saveProject(doc.serialize()); flash('已儲存'); break;
     case 'open': await openModal(editor, doc); break;
     case 'undo': doc.undo(); break;
     case 'redo': doc.redo(); break;
