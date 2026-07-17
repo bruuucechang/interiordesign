@@ -1,6 +1,8 @@
+import 'dotenv/config';   // load server/.env (e.g. ANTHROPIC_API_KEY)
 import express from 'express';
 import cors from 'cors';
 import { listProjects, getProject, saveProject, deleteProject } from './db.js';
+import { handleAgent } from './agent.js';
 
 const app = express();
 app.use(cors());
@@ -28,5 +30,7 @@ app.delete('/api/projects/:id', (req, res) => {
   deleteProject(req.params.id);
   res.json({ ok: true });
 });
+
+app.post('/api/agent', handleAgent);   // AI assistant: returns { reply, ops }
 
 app.listen(PORT, () => console.log(`[interior-designer] API on http://localhost:${PORT}`));

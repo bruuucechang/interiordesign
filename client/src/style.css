@@ -122,6 +122,16 @@ body {
 .floor-row button:hover { color: var(--danger); }
 .add-floor { width: 100%; margin-top: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px; cursor: pointer; }
 .add-floor:hover { border-color: var(--accent); color: var(--accent); }
+#ai { padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.ai-log { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; font-size: 12px; }
+.ai-msg { padding: 6px 8px; border-radius: 8px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.ai-msg.user { background: #33405c; color: var(--text); align-self: flex-end; max-width: 90%; }
+.ai-msg.bot { background: var(--panel2); color: var(--text); align-self: flex-start; max-width: 95%; }
+.ai-msg.err { background: #5a2b30; color: #ffd7db; align-self: flex-start; max-width: 95%; }
+.ai-input { display: flex; gap: 6px; }
+.ai-input input { flex: 1; min-width: 0; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 8px; }
+.ai-input button { background: var(--accent); border: 1px solid var(--accent); color: #fff; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.ai-input button:disabled { opacity: .5; cursor: default; }
 .shortcuts { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
 .shortcuts kbd { display: inline-block; background: var(--panel2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; margin: 0 2px; font-family: ui-monospace, monospace; font-size: 12px; }
 header button:disabled { opacity: 0.4; cursor: default; }
