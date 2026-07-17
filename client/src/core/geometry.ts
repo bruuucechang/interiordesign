@@ -150,6 +150,23 @@ export function arcOpening(a: Vec, c: Vec, b: Vec, cursor: Vec, width: number):
   return { pos: { x: (e0.x + e1.x) / 2, y: (e0.y + e1.y) / 2 }, angle: angleDeg(e0, e1), bulge: bulgeFrom(e0, e1, pts[bi]), width: dist(e0, e1), dist: bd };
 }
 
+// Fit an opening that spans the arc between two points (e.g. a fixed endpoint and
+// a dragged one) — each is projected onto the arc, and the sub-arc between them
+// gives the chord midpoint, angle, signed sagitta and chord width. Unlike
+// arcOpening this anchors on the endpoints, so a window can be stretched right up
+// to the wall's ends without the arc-length walk shrinking or capping it early.
+export function arcSpan(a: Vec, c: Vec, b: Vec, p0: Vec, p1: Vec):
+  { pos: Vec; angle: number; bulge: number; width: number; dist: number } {
+  const N = 48;
+  const pts: Vec[] = [];
+  for (let i = 0; i <= N; i++) pts.push(quadAt(a, c, b, i / N));
+  const nearest = (p: Vec) => { let bi = 0, bd = Infinity; for (let i = 0; i < pts.length; i++) { const d = dist(p, pts[i]); if (d < bd) { bd = d; bi = i; } } return { bi, bd }; };
+  const n0 = nearest(p0), n1 = nearest(p1);
+  const lo = Math.min(n0.bi, n1.bi), hi = Math.max(n0.bi, n1.bi);
+  const e0 = pts[lo], e1 = pts[hi], apex = pts[(lo + hi) >> 1];
+  return { pos: { x: (e0.x + e1.x) / 2, y: (e0.y + e1.y) / 2 }, angle: angleDeg(e0, e1), bulge: bulgeFrom(e0, e1, apex), width: dist(e0, e1), dist: Math.min(n0.bd, n1.bd) };
+}
+
 // Foolproof wall joining: snap a point to a nearby wall endpoint (preferred) or
 // onto a wall segment (T-junction). `radius` is in world cm; pass excludeId to
 // ignore the wall being edited. Returns the snapped point + which kind, or null.

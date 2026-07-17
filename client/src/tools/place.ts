@@ -1,7 +1,7 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId, Doc } from '../model/doc';
 import { layerForKind, Vec } from '../model/types';
-import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, wallControl } from '../core/geometry';
+import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, arcSpan, wallControl } from '../core/geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 
 const WALL_SNAP = 40; // cm — how close to a wall to snap an opening onto it
@@ -12,12 +12,16 @@ export type OpeningFit = { pos: Vec; angle: number; width: number; bulge: number
 // Fit an opening of `width` onto the nearest wall within `threshold` cm of the
 // cursor: returns the snap position, the wall's tangent angle, the (possibly
 // chord-) width, and the curvature for windows on curved walls. null = no wall.
-export function fitOpeningToWall(doc: Doc, cursor: Vec, width: number, isWindow: boolean, threshold = WALL_SNAP): OpeningFit | null {
+// `span` (a fixed endpoint + the dragged one) is passed while resizing so the
+// opening is fit between those two points along the wall — otherwise the opening
+// is fit centered on `cursor` with the given `width`.
+export function fitOpeningToWall(doc: Doc, cursor: Vec, width: number, isWindow: boolean, threshold = WALL_SNAP, span?: { p0: Vec; p1: Vec }): OpeningFit | null {
   let best: OpeningFit | null = null; let bestD = threshold;
   for (const o of doc.objects) {
     if (o.kind !== 'wall' || !doc.isLayerVisible(o.layer)) continue;
     if (o.bulge) {
-      const r = arcOpening(o.a, wallControl(o.a, o.b, o.bulge), o.b, cursor, width);   // windows bow to the wall; doors stay flat
+      const c = wallControl(o.a, o.b, o.bulge);
+      const r = span ? arcSpan(o.a, c, o.b, span.p0, span.p1) : arcOpening(o.a, c, o.b, cursor, width);   // windows bow to the wall; doors stay flat
       if (r.dist < bestD) { bestD = r.dist; best = { pos: r.pos, angle: r.angle, width: r.width, bulge: isWindow ? r.bulge : 0 }; }
     } else {
       const cs = closestOnSegment(cursor, o.a, o.b);
