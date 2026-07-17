@@ -342,6 +342,63 @@ function cabinetModel(w: number, h: number, height: number, doors: number): THRE
   return g;
 }
 
+// Chest of drawers: carcass with `n` stacked drawer fronts, each with a bar handle.
+function drawerModel(w: number, h: number, height: number, n: number): THREE.Group {
+  const g = new THREE.Group(); const front = h / 2;
+  const bodyM = woodMat(0x7a5636, 0.55), drawerM = woodMat(0x86603a, 0.5), handle = metalMat(0x9aa3b0, 0.3);
+  const carH = height - 6, cy = 3 + carH / 2;
+  g.add(rbox(w, 6, h, 2, woodMat(0x4a3320, 0.6), 0, 3, 0));                // plinth
+  g.add(rbox(w, carH, h, 2, bodyM, 0, cy, 0));                            // carcass
+  g.add(rbox(w + 3, 4, h + 3, 2, woodMat(0x6b4a2a, 0.55), 0, height, 0)); // top
+  const gap = 2, dh = (carH - (n + 1) * gap) / n;
+  for (let i = 0; i < n; i++) {
+    const dy = 3 + gap + dh / 2 + i * (dh + gap);
+    g.add(rbox(w - 6, dh, 3, 1.5, drawerM, 0, dy, front));
+    g.add(rbox(w * 0.4, 2.4, 3, 1, handle, 0, dy, front + 2));            // bar pull
+  }
+  return g;
+}
+
+// Open shelving: side/top/bottom panels, a back, `n` shelves, no doors — plus a few books.
+function shelfModel(w: number, h: number, height: number, n: number): THREE.Group {
+  const g = new THREE.Group(); const t = 3;
+  const woodM = woodMat(0x8a6238, 0.55), backM = woodMat(0x6b4a2a, 0.62);
+  g.add(rbox(t, height, h, 1, woodM, -w / 2 + t / 2, height / 2, 0));      // sides
+  g.add(rbox(t, height, h, 1, woodM, w / 2 - t / 2, height / 2, 0));
+  g.add(rbox(w, t, h, 1, woodM, 0, height - t / 2, 0));                    // top
+  g.add(rbox(w, t, h, 1, woodM, 0, t / 2, 0));                            // bottom
+  g.add(box(w - 2 * t, height - 2 * t, 1, backM, 0, height / 2, -h / 2 + 1));  // back panel
+  const bookM = [mat(0xb4553f), mat(0x3f6ab4), mat(0x4f9a5a), mat(0xc9a13a), mat(0x8a4fb0)];
+  for (let i = 1; i < n; i++) {
+    const y = t + (height - 2 * t) * i / n;
+    g.add(rbox(w - 2 * t, t, h - 2, 1, woodM, 0, y, 0));
+    if (i % 2) for (let b = 0; b < Math.min(6, Math.floor(w / 14)); b++)     // books on alternate shelves
+      g.add(box(9, (height / n) * 0.6, h * 0.55, bookM[(i + b) % bookM.length], -w / 2 + 10 + b * 11, y + (height / n) * 0.3 + t, 0));
+  }
+  return g;
+}
+
+// Glass display cabinet: framed carcass, visible shelves, tinted glass doors.
+function glassCabModel(w: number, h: number, height: number, doors: number): THREE.Group {
+  const g = new THREE.Group(); const front = h / 2;
+  const frameM = woodMat(0x5a4028, 0.5), handle = metalMat(0x9aa3b0, 0.3), glass = glassMat(0xcfe6f0, 0.18);
+  const carH = height - 6, cy = 3 + carH / 2;
+  g.add(rbox(w, 6, h, 2, woodMat(0x4a3320, 0.6), 0, 3, 0));               // plinth
+  g.add(rbox(4, carH, h, 1, frameM, -w / 2 + 2, cy, 0));                  // frame sides
+  g.add(rbox(4, carH, h, 1, frameM, w / 2 - 2, cy, 0));
+  g.add(rbox(w, 4, h, 1, frameM, 0, 3 + 2, 0));                          // bottom rail
+  g.add(rbox(w, 5, h, 1, frameM, 0, height - 2, 0));                     // top
+  g.add(box(w - 8, carH - 8, 1, frameM, 0, cy, -h / 2 + 1));             // back
+  for (let i = 1; i <= 2; i++) g.add(box(w - 10, 2, h - 6, frameM, 0, 3 + carH * i / 3, 0));  // shelves
+  const dw = (w - 4) / doors;
+  for (let i = 0; i < doors; i++) {
+    const dx = -w / 2 + 2 + dw * (i + 0.5);
+    g.add(box(dw - 2, carH - 8, 2, glass, dx, cy, front - 1));           // glass door
+    g.add(rbox(2, 22, 3, 1, handle, dx + (i === 0 ? dw / 2 - 4 : -dw / 2 + 4), cy, front + 1));
+  }
+  return g;
+}
+
 const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   dining: (w, h) => table(w, h, 75), desk: (w, h) => table(w, h, 75), coffee,
   chair, sofa, armchair,
@@ -349,10 +406,15 @@ const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   wardrobe, fridge, stove, sink, toilet, bathtub, shower, tv: tvStand, rug, plant,
   cabinet_storage: (w, h) => cabinetModel(w, h, 85, 2),
   cabinet_side: (w, h) => cabinetModel(w, h, 85, 3),
-  nightstand: (w, h) => cabinetModel(w, h, 50, 1),
+  dresser: (w, h) => drawerModel(w, h, 110, 4),
+  nightstand: (w, h) => drawerModel(w, h, 50, 2),
+  shoe_cabinet: (w, h) => cabinetModel(w, h, 110, 3),
   cabinet_kitchen: (w, h) => cabinetModel(w, h, 90, 4),
   vanity: (w, h) => cabinetModel(w, h, 80, 2),
-  bookshelf: (w, h) => cabinetModel(w, h, 180, 4),
+  bookshelf: (w, h) => shelfModel(w, h, 180, 4),
+  open_shelf: (w, h) => shelfModel(w, h, 180, 3),
+  display_cabinet: (w, h) => glassCabModel(w, h, 180, 2),
+  tall_cabinet: (w, h) => cabinetModel(w, h, 200, 2),
 };
 
 export function buildFurniture(item: string, w: number, h: number): THREE.Object3D {

@@ -316,6 +316,57 @@ export class View3D {
     piece(cursor, L, 0, wh);                                        // remaining solid wall
   }
 
+  // A framed door leaf with recessed panels and a lever handle. Built in local
+  // coords: X along the opening (width), Z = wall normal, Y up from the floor.
+  private buildDoor3D(width: number, h: number, elev: number): THREE.Group {
+    const g = new THREE.Group();
+    const d = 12, fw = 7;
+    const frameM = this.mat(0x6b4a2a, { roughness: 0.6 });
+    const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.4, envMapIntensity: 1.1 });
+    const panelM = new THREE.MeshPhysicalMaterial({ color: 0x7a4e2c, roughness: 0.45, metalness: 0, clearcoat: 0.25, envMapIntensity: 1.0 });
+    const metalM = this.mat(0xc2c7cf, { roughness: 0.28, metalness: 0.92, envMapIntensity: 1.35 });
+    const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
+      const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
+    };
+    bx(fw, h, d, frameM, -width / 2 + fw / 2, elev + h / 2, 0);           // jambs
+    bx(fw, h, d, frameM, width / 2 - fw / 2, elev + h / 2, 0);
+    bx(width, fw, d, frameM, 0, elev + h - fw / 2, 0);                    // header
+    const lw = width - 2 * fw + 1, lh = h - fw + 1, ld = d * 0.55;
+    bx(lw, lh, ld, leafM, 0, elev + lh / 2, 0);                          // leaf
+    for (const zs of [1, -1]) {
+      const zz = zs * (ld / 2 + 0.6);
+      bx(lw * 0.66, lh * 0.36, 1.2, panelM, 0, elev + lh * 0.7, zz);      // recessed panels
+      bx(lw * 0.66, lh * 0.34, 1.2, panelM, 0, elev + lh * 0.3, zz);
+      const hy = elev + h * 0.45, hx = lw / 2 - 7;
+      bx(3, 3, 5, metalM, hx, hy, zs * (ld / 2 + 1));                     // handle rose
+      const lever = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 11, 10), metalM);
+      lever.rotation.z = Math.PI / 2; lever.position.set(hx - 6, hy, zs * (ld / 2 + 3)); g.add(lever);
+    }
+    return g;
+  }
+
+  // A framed window: white sash, a mullion cross dividing it into panes, real
+  // glass, and a protruding sill. Same local coords as buildDoor3D.
+  private buildWindow3D(width: number, h: number, elev: number): THREE.Group {
+    const g = new THREE.Group();
+    const d = 10, fw = 6;
+    const frameM = this.mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
+    const sillM = this.mat(0xe7eaee, { roughness: 0.6 });
+    const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
+    const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
+      const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
+    };
+    bx(width - 2 * fw, h - 2 * fw, 2, glass, 0, elev + h / 2, 0);         // glass pane
+    bx(fw, h, d, frameM, -width / 2 + fw / 2, elev + h / 2, 0);           // outer sash
+    bx(fw, h, d, frameM, width / 2 - fw / 2, elev + h / 2, 0);
+    bx(width, fw, d, frameM, 0, elev + h - fw / 2, 0);
+    bx(width, fw, d, frameM, 0, elev + fw / 2, 0);
+    bx(3, h - 2 * fw, d * 0.7, frameM, 0, elev + h / 2, 0);               // mullion cross
+    bx(width - 2 * fw, 3, d * 0.7, frameM, 0, elev + h / 2, 0);
+    bx(width + 6, 4, d + 7, sillM, 0, elev - 1, 2);                       // sill
+    return g;
+  }
+
   private buildObject(o: Obj, yBase = 0) {
     switch (o.kind) {
       case 'room': {
@@ -351,26 +402,28 @@ export class View3D {
       case 'door': case 'window': {
         const isDoor = o.kind === 'door';
         const h = o.height ?? (isDoor ? 210 : 100);
-        const yc = (o.elevation ?? (isDoor ? 0 : 90)) + h / 2 + yBase;
-        const m = isDoor
-          ? new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.45, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 1.1 })   // varnished door
-          : new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.85, thickness: 4, ior: 1.5, transparent: true, opacity: 0.55, envMapIntensity: 1.4 });   // real glass
+        const elev = o.elevation ?? (isDoor ? 0 : 90);
         if (o.bulge) {
+          // curved-wall opening: follow the arc with segmented leaf/glass
+          const m = isDoor
+            ? new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, envMapIntensity: 1.1 })
+            : new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
+          const yc = elev + h / 2 + yBase;
           const hw = o.width / 2, ca = Math.cos(o.angle * Math.PI / 180), sa = Math.sin(o.angle * Math.PI / 180);
           const toPlan = (lx: number, ly: number) => ({ x: o.x + lx * ca - ly * sa, y: o.y + lx * sa + ly * ca });
           const plan = quadPoints({ x: -hw, y: 0 }, { x: 0, y: 2 * o.bulge }, { x: hw, y: 0 }, 10).map(pt => toPlan(pt.x, pt.y));
           for (let i = 1; i < plan.length; i++) {
             const p1 = plan[i - 1], p2 = plan[i];
-            const seg = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + 4, h, 20), m);
+            const seg = new THREE.Mesh(new THREE.BoxGeometry(dist(p1, p2) + 4, h, isDoor ? 6 : 3), m);
             seg.position.set((p1.x + p2.x) / 2, yc, (p1.y + p2.y) / 2);
             seg.rotation.y = -angleDeg(p1, p2) * Math.PI / 180;
             this.staticGroup.add(seg);
           }
         } else {
-          const panel = new THREE.Mesh(new THREE.BoxGeometry(o.width, h, 20), m);
-          panel.position.set(o.x, yc, o.y);
-          panel.rotation.y = -o.angle * Math.PI / 180;
-          this.staticGroup.add(panel);
+          const grp = isDoor ? this.buildDoor3D(o.width, h, elev) : this.buildWindow3D(o.width, h, elev);
+          grp.position.set(o.x, yBase, o.y);
+          grp.rotation.y = -o.angle * Math.PI / 180;
+          this.staticGroup.add(grp);
         }
         break;
       }
