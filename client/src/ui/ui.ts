@@ -384,10 +384,43 @@ function scheduleAutosave(doc: Doc) {
   autosaveTimer = window.setTimeout(() => saveProject(doc.serialize()), 800);
 }
 
+// Collapsible 匯出 menu: its items are built only while open and removed on
+// close (dynamic rendering — no idle DOM), keeping the topbar light.
+function wireExportMenu(editor: Editor, doc: Doc) {
+  const wrap = $('#exportMenu'), toggle = $('#exportToggle');
+  const items: { label: string; act: string }[] = [
+    { label: '匯出 PNG', act: 'export-png' },
+    { label: '匯出 PDF', act: 'export-pdf' },
+    { label: '🧊 匯出 3D 模型', act: 'export-glb' },
+  ];
+  let pop: HTMLElement | null = null;
+  const onDoc = (e: Event) => { if (!wrap.contains(e.target as Node)) close(); };
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+  function close() {
+    if (pop) { pop.remove(); pop = null; }
+    wrap.classList.remove('open');
+    document.removeEventListener('click', onDoc, true);
+    document.removeEventListener('keydown', onKey);
+  }
+  function open() {
+    pop = document.createElement('div'); pop.className = 'menu-pop';
+    for (const it of items) {
+      const b = document.createElement('button'); b.textContent = it.label;
+      b.onclick = () => { close(); handle(it.act, editor, doc); };
+      pop.appendChild(b);
+    }
+    wrap.appendChild(pop); wrap.classList.add('open');
+    document.addEventListener('click', onDoc, true);
+    document.addEventListener('keydown', onKey);
+  }
+  toggle.onclick = (e) => { e.stopPropagation(); pop ? close() : open(); };
+}
+
 function wireTopbar(editor: Editor, doc: Doc) {
   document.querySelectorAll('#topbar [data-act]').forEach(btn => {
     (btn as HTMLElement).onclick = () => handle((btn as HTMLElement).dataset.act!, editor, doc);
   });
+  wireExportMenu(editor, doc);
   const snap = $<HTMLInputElement>('#snapToggle');
   snap.onchange = () => editor.setSnap(snap.checked);
   $('[data-act="close-modal"]').addEventListener('click', () => $('#modal').classList.add('hidden'));
