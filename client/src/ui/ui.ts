@@ -28,6 +28,7 @@ export function initUI(editor: Editor, doc: Doc) {
   buildLayers(editor, doc);
   refreshProps(editor, doc);
   wireTopbar(editor, doc);
+  wireAI(editor, doc);
 
   editor.hooks.toolChange = (name) => markActiveTool(name);
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };
@@ -104,6 +105,39 @@ function buildCatalog(editor: Editor) {
 function markActiveTool(name: string) {
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.tool === name));
   if (name !== 'furniture') document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
+}
+
+// ---- AI assistant ----
+// Sends the user's message + current design + furniture catalog to /api/agent;
+// applies the returned add-operations through Doc (so undo/autosave/room
+// detection all fire) and shows the reply.
+function wireAI(_editor: Editor, doc: Doc) {
+  const log = $('#aiLog'), input = $<HTMLInputElement>('#aiInput'), send = $<HTMLButtonElement>('#aiSend');
+  const add = (cls: string, text: string) => { const d = document.createElement('div'); d.className = 'ai-msg ' + cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; return d; };
+  let busy = false;
+  async function run() {
+    const msg = input.value.trim();
+    if (!msg || busy) return;
+    busy = true; send.disabled = true; input.value = '';
+    add('user', msg);
+    const pending = add('bot', '思考中…');
+    try {
+      const catalog = FURNITURE.map(f => ({ id: f.id, name: f.name, w: f.w, h: f.h }));
+      const r = await fetch('/api/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, objects: doc.objects, catalog }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data?.error || ('HTTP ' + r.status));
+      const ops: { op: string; obj: any }[] = data.ops ?? [];
+      if (ops.length) {
+        doc.commit();
+        for (const op of ops) if (op.op === 'add' && op.obj?.kind) { const k = op.obj.kind; doc.add({ ...op.obj, id: genId(k), layer: layerForKind(k) }); }
+      }
+      pending.textContent = (data.reply || '（已完成）') + (ops.length ? `　✏️ ${ops.length} 項變更` : '');
+    } catch (e: any) {
+      pending.className = 'ai-msg err'; pending.textContent = '⚠ ' + (e?.message || String(e));
+    } finally { busy = false; send.disabled = false; input.focus(); }
+  }
+  send.onclick = run;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 }
 
 function updateUndoRedo(doc: Doc) {
