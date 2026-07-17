@@ -204,14 +204,14 @@ export class View3D {
   }
 
   private mat(color: number, opts: THREE.MeshStandardMaterialParameters = {}) {
-    return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.04, ...opts });
+    return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.04, envMapIntensity: 1.1, ...opts });
   }
 
   // floor finish: hex color, 'tile', or wood (default)
   private floorMaterial(floor: string | undefined, u: number, v: number): THREE.MeshStandardMaterial {
-    if (floor && floor.startsWith('#')) return new THREE.MeshStandardMaterial({ color: new THREE.Color(floor).getHex(), roughness: 0.8, metalness: 0.02 });
+    if (floor && floor.startsWith('#')) return new THREE.MeshStandardMaterial({ color: new THREE.Color(floor).getHex(), roughness: 0.8, metalness: 0.02, envMapIntensity: 1.1 });
     const map = floor === 'tile' ? tileClone(u, v) : woodClone(u, v);
-    return new THREE.MeshStandardMaterial({ map, roughness: 0.72, metalness: 0.02 });
+    return new THREE.MeshStandardMaterial({ map, roughness: 0.6, metalness: 0.02, envMapIntensity: 1.2 });   // slightly polished floor
   }
 
   private clearStatic() {
@@ -352,7 +352,9 @@ export class View3D {
         const isDoor = o.kind === 'door';
         const h = o.height ?? (isDoor ? 210 : 100);
         const yc = (o.elevation ?? (isDoor ? 0 : 90)) + h / 2 + yBase;
-        const m = isDoor ? this.mat(0x8a5a34, { roughness: 0.6 }) : this.mat(0x9fd4ff, { transparent: true, opacity: 0.4, roughness: 0.1, metalness: 0.1 });
+        const m = isDoor
+          ? new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.45, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 1.1 })   // varnished door
+          : new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.85, thickness: 4, ior: 1.5, transparent: true, opacity: 0.55, envMapIntensity: 1.4 });   // real glass
         if (o.bulge) {
           const hw = o.width / 2, ca = Math.cos(o.angle * Math.PI / 180), sa = Math.sin(o.angle * Math.PI / 180);
           const toPlan = (lx: number, ly: number) => ({ x: o.x + lx * ca - ly * sa, y: o.y + lx * sa + ly * ca });
