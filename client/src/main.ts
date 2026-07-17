@@ -18,6 +18,7 @@ const editor = new Editor(canvas, doc, hint);
 initUI(editor, doc);
 
 const view3d = new View3D(c3d);
+editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter
 let mode: '2d' | '3d' = '2d';
 let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 

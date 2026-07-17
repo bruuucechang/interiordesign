@@ -19,7 +19,7 @@ export class Editor implements ToolCtx {
   gridSize = 10; // cm
   inputEnabled = true; // false while the 2D view is just the corner preview
 
-  hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void } = {};
+  hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void } = {};
 
   private previewW?: DrawFn;
   private previewS?: DrawFn;
