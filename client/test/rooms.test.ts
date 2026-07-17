@@ -55,3 +55,17 @@ test('slivers below the minimum area are ignored', () => {
   const polys = detectRoomPolygons(square('a', 0, 0, 30));   // 30×30 = 900 cm² < 2500 min
   assert.equal(polys.length, 0);
 });
+
+test('a curved wall contributes its arc area to the room', () => {
+  const s = 400, bulge = 60;
+  const walls = [
+    { id: 'a1', kind: 'wall', layer: 'walls', a: { x: 0, y: 0 }, b: { x: s, y: 0 }, thickness: 12, bulge } as any,
+    wall('a2', s, 0, s, s), wall('a3', s, s, 0, s), wall('a4', 0, s, 0, 0),
+  ];
+  const polys = detectRoomPolygons(walls);
+  assert.equal(polys.length, 1);
+  const area = polygonArea(polys[0]);
+  const seg = (2 / 3) * s * bulge;                       // parabolic-segment area of the bulge
+  assert.ok(Math.abs(area - s * s) > 1000, `area ${area} should not equal the straight-chord area`);
+  assert.ok(Math.abs(Math.abs(area - s * s) - seg) < 250, `arc area off: got ${area}`);
+});
