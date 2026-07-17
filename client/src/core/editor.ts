@@ -176,6 +176,13 @@ export class Editor implements ToolCtx {
   setSnap(on: boolean) { this.snapEnabled = on; }
   resetView() { this.vp.scale = 0.4; this.vp.centerOn(0, 0, 800, 600); this.hooks.zoom?.(100); this.render(); }
 
+  // Zoom in/out about the canvas centre — used by the topbar − / + buttons.
+  zoomBy(factor: number) {
+    this.vp.zoomAt({ x: this.vp.width / 2, y: this.vp.height / 2 }, factor);
+    this.hooks.zoom?.(Math.round(this.vp.scale / 0.4 * 100));
+    this.render();
+  }
+
   // ---- clipboard / duplicate ----
   private offsetObj(o: any, dx: number, dy: number) {
     if (o.kind === 'room' && o.poly) { o.poly = o.poly.map((p: Vec) => ({ x: p.x + dx, y: p.y + dy })); o.auto = false; }

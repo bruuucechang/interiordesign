@@ -33,7 +33,11 @@
         </select>
         <span class="sep"></span>
         <label class="chk"><input type="checkbox" id="snapToggle" checked /> 吸附</label>
-        <span id="zoomLabel" class="zoom">100%</span>
+        <div class="zoom-ctl">
+          <button id="zoomOut" title="縮小">−</button>
+          <span id="zoomLabel" class="zoom" title="點擊重設為 100%">100%</span>
+          <button id="zoomIn" title="放大">＋</button>
+        </div>
       </header>
 
       <div id="body">

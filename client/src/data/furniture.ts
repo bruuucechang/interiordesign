@@ -123,29 +123,28 @@ export const FURNITURE: FurnitureItem[] = [
       rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.arc(w / 2, h / 2, 6, 0, 7); ctx.stroke();
     } },
-  // 書房
   { id: 'desk', name: '書桌', cat: '書房', w: 120, h: 60, draw(ctx, w, h) { body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke(); } },
-  // 櫃子 — every form of cabinet lives here
-  { id: 'cabinet_storage', name: '收納櫃', cat: '櫃子', w: 90, h: 40, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
-  { id: 'cabinet_side', name: '餐邊櫃', cat: '櫃子', w: 120, h: 45, draw(ctx, w, h) { cabinet(ctx, w, h, 3); } },
-  { id: 'dresser', name: '五斗櫃', cat: '櫃子', w: 100, h: 50, draw(ctx, w, h) { drawers(ctx, w, h, 4); } },
-  { id: 'nightstand', name: '床頭櫃', cat: '櫃子', w: 45, h: 40, draw(ctx, w, h) { drawers(ctx, w, h, 2); } },
-  { id: 'shoe_cabinet', name: '鞋櫃', cat: '櫃子', w: 100, h: 35, draw(ctx, w, h) { cabinet(ctx, w, h, 3); } },
-  { id: 'cabinet_kitchen', name: '廚櫃', cat: '櫃子', w: 180, h: 60, draw(ctx, w, h) { cabinet(ctx, w, h, 4); } },
-  { id: 'vanity', name: '浴櫃', cat: '櫃子', w: 80, h: 50, draw(ctx, w, h) {
+  // 櫃子 — filed under the room each belongs to
+  { id: 'cabinet_storage', name: '收納櫃', cat: '客廳', w: 90, h: 40, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
+  { id: 'display_cabinet', name: '展示櫃', cat: '客廳', w: 90, h: 40, draw(ctx, w, h) { glassCab(ctx, w, h, 2); } },
+  { id: 'shoe_cabinet', name: '鞋櫃', cat: '客廳', w: 100, h: 35, draw(ctx, w, h) { cabinet(ctx, w, h, 3); } },
+  { id: 'cabinet_side', name: '餐邊櫃', cat: '餐廳', w: 120, h: 45, draw(ctx, w, h) { cabinet(ctx, w, h, 3); } },
+  { id: 'wardrobe', name: '衣櫃', cat: '臥室', w: 120, h: 60, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
+  { id: 'dresser', name: '五斗櫃', cat: '臥室', w: 100, h: 50, draw(ctx, w, h) { drawers(ctx, w, h, 4); } },
+  { id: 'nightstand', name: '床頭櫃', cat: '臥室', w: 45, h: 40, draw(ctx, w, h) { drawers(ctx, w, h, 2); } },
+  { id: 'cabinet_kitchen', name: '廚櫃', cat: '廚房', w: 180, h: 60, draw(ctx, w, h) { cabinet(ctx, w, h, 4); } },
+  { id: 'tall_cabinet', name: '高櫃', cat: '廚房', w: 60, h: 50, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
+  { id: 'vanity', name: '浴櫃', cat: '浴室', w: 80, h: 50, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
       ctx.strokeStyle = '#7bc6ff'; ctx.beginPath(); ctx.ellipse(w / 2, h / 2, w * 0.26, h * 0.28, 0, 0, 7); ctx.stroke();
     } },
-  { id: 'bookshelf', name: '書櫃', cat: '櫃子', w: 100, h: 30, draw(ctx, w, h) { openShelf(ctx, w, h, 4); } },
-  { id: 'open_shelf', name: '開放層架', cat: '櫃子', w: 90, h: 30, draw(ctx, w, h) { openShelf(ctx, w, h, 3); } },
-  { id: 'display_cabinet', name: '展示櫃', cat: '櫃子', w: 90, h: 40, draw(ctx, w, h) { glassCab(ctx, w, h, 2); } },
-  { id: 'wardrobe', name: '衣櫃', cat: '櫃子', w: 120, h: 60, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
-  { id: 'tall_cabinet', name: '高櫃', cat: '櫃子', w: 60, h: 50, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
+  { id: 'bookshelf', name: '書櫃', cat: '書房', w: 100, h: 30, draw(ctx, w, h) { openShelf(ctx, w, h, 4); } },
+  { id: 'open_shelf', name: '開放層架', cat: '書房', w: 90, h: 30, draw(ctx, w, h) { openShelf(ctx, w, h, 3); } },
 ];
 
 export const FURNITURE_BY_ID: Record<string, FurnitureItem> = Object.fromEntries(FURNITURE.map(f => [f.id, f]));
 // Fixed display order for the catalog; any stray category falls in at the end.
-const CAT_ORDER = ['客廳', '餐廳', '臥室', '廚房', '浴室', '書房', '櫃子'];
+const CAT_ORDER = ['客廳', '餐廳', '臥室', '廚房', '浴室', '書房'];
 export const FURNITURE_CATS = [...new Set(FURNITURE.map(f => f.cat))]
   .sort((a, b) => { const ia = CAT_ORDER.indexOf(a), ib = CAT_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
 
