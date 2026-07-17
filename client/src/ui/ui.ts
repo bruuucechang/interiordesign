@@ -1,6 +1,6 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, Vec, layerForKind } from '../model/types';
+import { Obj, Vec, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRoomPolygons } from '../core/rooms';
@@ -316,6 +316,21 @@ function refreshProps(editor: Editor, doc: Doc) {
       dim(pos.body, '離地面高度', o.elevation, v => up({ elevation: Math.max(0, v) } as any), 0);   // underside above the floor
       break;
     case 'door': case 'window': {
+      // style picker (門/窗 form) — wraps to fit the panel
+      const styles = o.kind === 'door' ? DOOR_STYLES : WINDOW_STYLES;
+      const cur = o.style || styles[0].id;
+      const srow = document.createElement('div'); srow.className = 'prop';
+      const sl = document.createElement('label'); sl.textContent = '樣式';
+      const swrap = document.createElement('div'); swrap.className = 'mat-btns'; swrap.style.flexWrap = 'wrap';
+      for (const s of styles) {
+        const b = document.createElement('button'); b.className = 'mat-btn' + (cur === s.id ? ' active' : ''); b.textContent = s.label;
+        b.onclick = () => {   // toggle active here too — the focused button suppresses the panel rebuild
+          doc.commit(); up({ style: s.id } as any);
+          swrap.querySelectorAll('.mat-btn').forEach(x => x.classList.remove('active')); b.classList.add('active');
+        };
+        swrap.appendChild(b);
+      }
+      srow.append(sl, swrap); basics.appendChild(srow);
       dim(size.body, '寬度', o.width, v => up({ width: Math.max(10, v) } as any), 10);
       dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up({ height: Math.max(10, v) } as any), 10);
       // find the host straight wall to expose editable left/right offsets

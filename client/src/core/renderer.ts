@@ -126,18 +126,37 @@ export class Renderer {
       }
       case 'door': case 'window': {
         ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.angle * Math.PI / 180);
-        const hw = o.width / 2;
+        const hw = o.width / 2, w = o.width, style = o.style || 'single';
         if (o.kind === 'door') {
-          ctx.strokeStyle = color; ctx.lineWidth = 2 * line;
-          ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(-hw, -o.width); ctx.stroke();      // leaf
-          ctx.beginPath(); ctx.arc(-hw, 0, o.width, -Math.PI / 2, 0); ctx.stroke();          // swing arc
           ctx.strokeStyle = '#171a20'; ctx.lineWidth = 3 * line;
           ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0); ctx.stroke();               // threshold gap
+          ctx.strokeStyle = color; ctx.lineWidth = 2 * line;
+          if (style === 'double') {                                                           // two leaves meeting in the middle
+            ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(-hw, -hw); ctx.stroke();
+            ctx.beginPath(); ctx.arc(-hw, 0, hw, -Math.PI / 2, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(hw, 0); ctx.lineTo(hw, -hw); ctx.stroke();
+            ctx.beginPath(); ctx.arc(hw, 0, hw, -Math.PI, -Math.PI / 2); ctx.stroke();
+          } else if (style === 'sliding') {                                                   // two overlapping panels along the wall
+            ctx.beginPath(); ctx.moveTo(-hw, -3 * line); ctx.lineTo(3 * line, -3 * line); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-3 * line, 3 * line); ctx.lineTo(hw, 3 * line); ctx.stroke();
+          } else {                                                                            // single / glass — hinged leaf + swing
+            if (style === 'glass') ctx.setLineDash([8 * line, 5 * line]);
+            ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(-hw, -w); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.arc(-hw, 0, w, -Math.PI / 2, 0); ctx.stroke();
+          }
         } else {
           const bulge = o.bulge || 0;   // curved windows arc to match the wall
           const arc = (off: number) => { ctx.beginPath(); ctx.moveTo(-hw, off); if (bulge) ctx.quadraticCurveTo(0, 2 * bulge + off, hw, off); else ctx.lineTo(hw, off); ctx.stroke(); };
           ctx.strokeStyle = '#171a20'; ctx.lineWidth = 4 * line; arc(0);
-          ctx.strokeStyle = color; ctx.lineWidth = 1.5 * line; arc(-3); arc(3);
+          ctx.strokeStyle = color; ctx.lineWidth = 1.5 * line;
+          if (style === 'picture') { arc(-3.5); arc(3.5); }                                   // single fixed pane
+          else { arc(-3); arc(3); }
+          // sash divisions
+          ctx.lineWidth = 1 * line;
+          if (style === 'sliding') { ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(0, 3); ctx.stroke(); }          // meeting rail
+          else if (style === 'casement') { ctx.beginPath(); ctx.moveTo(0, -3.5); ctx.lineTo(0, 3.5); ctx.stroke(); } // centre mullion
+          else if (style === 'single') { for (const mx of [-w / 3, 0, w / 3]) { ctx.beginPath(); ctx.moveTo(mx, -3); ctx.lineTo(mx, 3); ctx.stroke(); } }  // muntins
         }
         ctx.restore();
         break;
