@@ -407,6 +407,11 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'redo': doc.redo(); break;
     case 'export-png': exportPNG(doc, name()); break;
     case 'export-pdf': exportPDF(doc, name()); break;
+    case 'export-glb':
+      if (!doc.objects.length) { flash('尚無可匯出的 3D 內容'); break; }
+      try { await editor.hooks.export3d?.(name()); flash('已匯出 3D 模型 (.glb)'); }
+      catch (e) { console.error(e); flash('匯出 3D 失敗'); }
+      break;
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
     case 'schedule': openSchedule(doc); break;
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;

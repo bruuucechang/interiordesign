@@ -34,6 +34,7 @@ export class View3D {
   private gtao: GTAOPass;
   private staticGroup = new THREE.Group();   // walls/floors/openings — rebuilt+disposed each time
   private furnGroup = new THREE.Group();      // cloned cached furniture — cleared without disposing
+  private ground?: THREE.Mesh;                // the infinite ground plane (excluded from 3D export)
   private dir: THREE.DirectionalLight;
   private hemi!: THREE.HemisphereLight;
   private amb!: THREE.AmbientLight;
@@ -231,6 +232,7 @@ export class View3D {
 
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), this.mat(0xccd3dc, { roughness: 1 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.staticGroup.add(ground);
+    this.ground = ground;
 
     // stack every floor at its elevation
     for (const floor of doc.project.floors) {
@@ -378,6 +380,26 @@ export class View3D {
         this.furnGroup.add(inst);
         break;
       }
+    }
+  }
+
+  // Export the current 3D model — walls, floors, openings and furniture — as a
+  // binary glTF (.glb). Geometry + materials/colours are included; the infinite
+  // ground plane, sky, and lights are left out so the file holds just the design.
+  async exportGLB(filename: string) {
+    const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
+    const groundWasVisible = this.ground?.visible ?? true;
+    if (this.ground) this.ground.visible = false;   // omit the 80 m ground plane
+    try {
+      const exporter = new GLTFExporter();
+      const gltf = await exporter.parseAsync([this.staticGroup, this.furnGroup], { binary: true, onlyVisible: true }) as ArrayBuffer;
+      const url = URL.createObjectURL(new Blob([gltf], { type: 'model/gltf-binary' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = filename.replace(/\.(glb|gltf)$/i, '') + '.glb';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      if (this.ground) this.ground.visible = groundWasVisible;
     }
   }
 
