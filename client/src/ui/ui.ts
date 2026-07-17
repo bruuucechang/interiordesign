@@ -1,7 +1,7 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj, Vec, layerForKind } from '../model/types';
-import { FURNITURE, FURNITURE_CATS, FURNITURE_BY_ID, itemPrice } from '../data/furniture';
+import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRoomPolygons } from '../core/rooms';
 import { detectWallsFromImage } from '../core/detect';
@@ -424,7 +424,6 @@ function wireTopbar(editor: Editor, doc: Doc) {
   const snap = $<HTMLInputElement>('#snapToggle');
   snap.onchange = () => editor.setSnap(snap.checked);
   $('[data-act="close-modal"]').addEventListener('click', () => $('#modal').classList.add('hidden'));
-  $('[data-act="close-schedule"]').addEventListener('click', () => $('#scheduleModal').classList.add('hidden'));
   $('[data-act="close-shortcuts"]').addEventListener('click', () => $('#shortcutsModal').classList.add('hidden'));
 }
 
@@ -446,48 +445,8 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       catch (e) { console.error(e); flash('匯出 3D 失敗'); }
       break;
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
-    case 'schedule': openSchedule(doc); break;
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
   }
-}
-
-// Room area schedule + furniture bill-of-materials, across all floors.
-function openSchedule(doc: Doc) {
-  const modal = $('#scheduleModal'), body = $('#scheduleBody');
-  const money = (n: number) => 'NT$ ' + Math.round(n).toLocaleString();
-  const m2 = (cm2: number) => (cm2 / 10000).toFixed(2);
-
-  let roomsHtml = '', totalArea = 0;
-  for (const floor of doc.floors) {
-    const rooms = floor.objects.filter(o => o.kind === 'room') as Extract<Obj, { kind: 'room' }>[];
-    if (!rooms.length) continue;
-    roomsHtml += `<tr class="sec"><td colspan="2">${floor.name}</td></tr>`;
-    for (const r of rooms) {
-      const area = (r.poly && r.poly.length >= 3) ? polygonArea(r.poly) : r.w * r.h;
-      totalArea += area;
-      roomsHtml += `<tr><td>${r.name || '房間'}</td><td class="num">${m2(area)} m²</td></tr>`;
-    }
-  }
-  if (!roomsHtml) roomsHtml = '<tr><td colspan="2" class="muted">尚無房間</td></tr>';
-
-  const counts: Record<string, number> = {};
-  for (const floor of doc.floors) for (const o of floor.objects) if (o.kind === 'furniture') counts[o.item] = (counts[o.item] || 0) + 1;
-  let furnHtml = '', totalCost = 0;
-  for (const id of Object.keys(counts).sort((a, b) => (FURNITURE_BY_ID[a]?.name || a).localeCompare(FURNITURE_BY_ID[b]?.name || b))) {
-    const qty = counts[id], price = itemPrice(id), sub = qty * price; totalCost += sub;
-    furnHtml += `<tr><td>${FURNITURE_BY_ID[id]?.name || id}</td><td class="num">${qty}</td><td class="num">${money(price)}</td><td class="num">${money(sub)}</td></tr>`;
-  }
-  if (!furnHtml) furnHtml = '<tr><td colspan="4" class="muted">尚無家具</td></tr>';
-
-  body.innerHTML = `
-    <h4>房間面積</h4>
-    <table class="sched"><tbody>${roomsHtml}
-      <tr class="total"><td>總樓地板面積</td><td class="num">${m2(totalArea)} m²</td></tr></tbody></table>
-    <h4>家具估價</h4>
-    <table class="sched"><thead><tr><th>品項</th><th class="num">數量</th><th class="num">單價</th><th class="num">小計</th></tr></thead>
-      <tbody>${furnHtml}
-      <tr class="total"><td colspan="3">總計</td><td class="num">${money(totalCost)}</td></tr></tbody></table>`;
-  modal.classList.remove('hidden');
 }
 
 // Load an image as a traceable underlay: size it to fit, center it, drop it on
