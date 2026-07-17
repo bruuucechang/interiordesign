@@ -48,6 +48,10 @@ body {
 .tool-btn .ic { font-size: 18px; }
 .tool-btn.active { border-color: var(--accent); background: #33405c; }
 .panel-title { padding: 8px 12px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; border-top: 1px solid var(--line); }
+.panel-title.collapsible { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+.panel-title.collapsible::after { content: '▾'; font-size: 10px; transition: transform .15s; }
+.panel-title.collapsible.collapsed::after { transform: rotate(-90deg); }
+.panel-title.collapsible.collapsed + div { display: none !important; }   /* beat the #id display rule on the content div */
 #catalog > .panel-title:first-child { border-top: none; }
 .furniture-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; }
 .furn-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px; cursor: pointer; font-size: 11px; text-align: center; }
