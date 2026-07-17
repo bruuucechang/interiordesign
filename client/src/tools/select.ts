@@ -161,8 +161,11 @@ export class SelectTool implements Tool {
       const other = rotate(otherLocal, center, g.angle);
       const nc = { x: (other.x + p.world.x) / 2, y: (other.y + p.world.y) / 2 };
       const width = Math.max(10, dist(other, p.world));
-      // keep the resized opening glued to its wall (position + angle + curvature)
-      const fit = fitOpeningToWall(this.ctx.doc, nc, width, o.kind === 'window', 100);
+      // keep the resized opening glued to its wall (position + angle + curvature).
+      // On a curved wall the chord midpoint `nc` sits off the arc by the sagitta,
+      // which grows with the width (up to ~width/2), so scale the snap threshold
+      // with the width — otherwise a widened window stops snapping to the curve.
+      const fit = fitOpeningToWall(this.ctx.doc, nc, width, o.kind === 'window', Math.max(120, width));
       if (fit) this.patch(o, { x: fit.pos.x, y: fit.pos.y, width: fit.width, angle: fit.angle, bulge: fit.bulge || undefined } as any);
       else this.patch(o, { x: nc.x, y: nc.y, width, angle: this.handleId === 'b' ? angleDeg(other, p.world) : angleDeg(p.world, other) } as any);
     }
