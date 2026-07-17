@@ -25,7 +25,9 @@ body {
 .menu-pop button { width: 100%; text-align: left; background: transparent; border: none; color: var(--text);
   padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .menu-pop button:hover { background: #33405c; }
-.zoom { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
+.zoom-ctl { display: inline-flex; align-items: center; gap: 2px; }
+.zoom-ctl button { width: 26px; padding: 4px 0; font-size: 15px; line-height: 1; text-align: center; }
+.zoom { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 46px; text-align: center; cursor: pointer; }
 .chk { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 4px; }
 #topbar button {
   background: var(--panel2); border: 1px solid var(--line); color: var(--text);

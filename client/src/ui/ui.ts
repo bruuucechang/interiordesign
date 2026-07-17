@@ -421,6 +421,9 @@ function wireTopbar(editor: Editor, doc: Doc) {
     (btn as HTMLElement).onclick = () => handle((btn as HTMLElement).dataset.act!, editor, doc);
   });
   wireExportMenu(editor, doc);
+  $('#zoomOut').onclick = () => editor.zoomBy(1 / 1.1);
+  $('#zoomIn').onclick = () => editor.zoomBy(1.1);
+  $('#zoomLabel').onclick = () => editor.resetView();
   const snap = $<HTMLInputElement>('#snapToggle');
   snap.onchange = () => editor.setSnap(snap.checked);
   $('[data-act="close-modal"]').addEventListener('click', () => $('#modal').classList.add('hidden'));
