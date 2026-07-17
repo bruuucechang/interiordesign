@@ -421,6 +421,9 @@ function wireTopbar(editor: Editor, doc: Doc) {
     (btn as HTMLElement).onclick = () => handle((btn as HTMLElement).dataset.act!, editor, doc);
   });
   wireExportMenu(editor, doc);
+  document.querySelectorAll<HTMLElement>('.panel-title.collapsible').forEach(h => {
+    h.onclick = () => h.classList.toggle('collapsed');   // fold/unfold the section below
+  });
   $('#zoomOut').onclick = () => editor.zoomBy(1 / 1.1);
   $('#zoomIn').onclick = () => editor.zoomBy(1.1);
   $('#zoomLabel').onclick = () => editor.resetView();
