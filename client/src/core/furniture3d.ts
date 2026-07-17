@@ -117,12 +117,12 @@ function sofa(w: number, h: number): THREE.Group {
   legs4(g, w, h, legH, legM, 3, 2, 10, 0.12);
   g.add(rbox(w, baseH, h, 5, fabric, 0, legH + baseH / 2, 0));                 // base
   g.add(rbox(w - 2 * arm + 6, 12, h - 8, 5, cushion, 0, legH + baseH + 1, 2)); // seat platform
-  // rolled arms
+  // padded track arms: a soft upholstered block with a rounded bolster on top
   for (const s of [-1, 1]) {
-    const ax = s * (w / 2 - arm / 2);
-    g.add(rbox(arm, 46, h, arm * 0.4, fabric, ax, legH + baseH / 2 + 13, 0));
-    const roll = new THREE.Mesh(new THREE.CylinderGeometry(arm / 2, arm / 2, h, 18), fabric);
-    roll.rotation.x = Math.PI / 2; roll.position.set(ax, legH + baseH + 36, 0); g.add(roll);
+    const ax = s * (w / 2 - arm / 2), armH = 40;
+    g.add(rbox(arm, armH, h, arm * 0.42, fabric, ax, legH + baseH / 2 + armH / 2 - 2, 0));       // arm block
+    g.add(rbox(arm + 1, 13, h - 4, 6, cushion, ax, legH + baseH / 2 + armH + 4, 0));             // cushioned top pad
+    g.add(rbox(arm - 3, armH * 0.7, 9, 4, cushion, ax, legH + baseH / 2 + armH * 0.4, h / 2 - 6)); // front scroll panel
   }
   // seat + back cushions (plump, rounded)
   const innerW = w - 2 * arm - 6;
@@ -148,10 +148,9 @@ function armchair(w: number, h: number): THREE.Group {
   legs4(g, w, h, legH, legM, 3, 2, 8, 0.12);
   g.add(rbox(w, baseH, h, 5, fabric, 0, legH + baseH / 2, 0));
   for (const s of [-1, 1]) {
-    const ax = s * (w / 2 - arm / 2);
-    g.add(rbox(arm, 44, h, arm * 0.45, fabric, ax, legH + baseH / 2 + 12, 0));
-    const roll = new THREE.Mesh(new THREE.CylinderGeometry(arm / 2, arm / 2, h, 16), fabric);
-    roll.rotation.x = Math.PI / 2; roll.position.set(ax, legH + baseH + 34, 0); g.add(roll);
+    const ax = s * (w / 2 - arm / 2), armH = 40;
+    g.add(rbox(arm, armH, h, arm * 0.42, fabric, ax, legH + baseH / 2 + armH / 2 - 2, 0));       // padded arm block
+    g.add(rbox(arm + 1, 12, h - 4, 6, cushion, ax, legH + baseH / 2 + armH + 3, 0));             // cushioned top pad
   }
   const back = rbox(w - 2 * arm, 50, 18, 8, cushion, 0, legH + baseH + 26, -h / 2 + 12); back.rotation.x = -0.08; g.add(back);
   g.add(rbox(w - 2 * arm - 4, 18, h * 0.58, 7, cushion, 0, legH + baseH + 12, h * 0.06));
@@ -312,32 +311,84 @@ function rug(w: number, h: number): THREE.Group {
 
 function plant(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const r = Math.min(w, h) / 2;
-  g.add(cyl(r * 0.72, r * 0.62, 3, ceramicMat(0x3a3f48), 0, 1.5, 0, 24));
-  g.add(cyl(r * 0.6, r * 0.42, 28, ceramicMat(0xc9a883), 0, 15, 0));           // glazed pot
-  g.add(cyl(r * 0.62, r * 0.6, 3, ceramicMat(0xd7b891), 0, 28, 0, 24));
-  g.add(cyl(r * 0.55, r * 0.55, 3, mat(0x3a2a1c, { roughness: 0.95 }), 0, 28.5, 0, 18));  // soil
-  const g1 = fabricMat(0x3fae6a, 0.85), g2 = fabricMat(0x2f7d4f, 0.85), g3 = fabricMat(0x57c47f, 0.85);
-  g.add(sphere(r * 0.8, g1, 0, 30 + r * 0.75, 0));
-  g.add(sphere(r * 0.5, g2, r * 0.45, 30 + r * 1.05, r * 0.1));
-  g.add(sphere(r * 0.46, g3, -r * 0.42, 30 + r * 0.9, r * 0.3));
-  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.add(cone(r * 0.18, r * 1.4, i % 2 ? g2 : g3, Math.cos(a) * r * 0.4, 30 + r * 1.2, Math.sin(a) * r * 0.4, 6)); }
+  // tapered glazed pot with a rim + soil
+  g.add(cyl(r * 0.5, r * 0.62, 30, ceramicMat(0xc7a079), 0, 15, 0, 26));       // pot (wider at top)
+  g.add(cyl(r * 0.66, r * 0.62, 4, ceramicMat(0xd8b48c), 0, 30, 0, 26));        // rim
+  g.add(cyl(r * 0.58, r * 0.58, 2, mat(0x2a1d12, { roughness: 0.98 }), 0, 30.5, 0, 22));  // soil
+  const greens = [fabricMat(0x3f9a52, 0.82), fabricMat(0x2f7d42, 0.82), fabricMat(0x54b56a, 0.82), fabricMat(0x357a46, 0.82), fabricMat(0x6bbf7c, 0.82)];
+  const crownY = 32, up = new THREE.Vector3(0, 1, 0);
+  // broad leaves fanning up and out from the crown (golden-angle spread → natural, full)
+  const N = 22;
+  for (let i = 0; i < N; i++) {
+    const a = i * 2.399963;
+    const tilt = 0.3 + (i % 5) * 0.16;                                          // lean from vertical
+    const dir = new THREE.Vector3(Math.sin(tilt) * Math.cos(a), Math.cos(tilt), Math.sin(tilt) * Math.sin(a)).normalize();
+    const L = (24 + (i % 5) * 7) * (0.7 + r / 40);                              // leaf length scales with pot size
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), greens[i % greens.length]);
+    leaf.scale.set(1.5, L / 2, Math.min(7, L * 0.22));                          // thin, long, broad blade
+    leaf.quaternion.setFromUnitVectors(up, dir);
+    leaf.position.set(dir.x * (L / 2 - 3), crownY + dir.y * (L / 2 - 3), dir.z * (L / 2 - 3));
+    g.add(leaf);
+  }
+  // a couple of upright central shoots for fullness
+  for (const [dx, dz, L] of [[0, 0, 30], [r * 0.12, -r * 0.1, 24]] as const)
+    g.add(cyl(1.4, 2.2, L * (0.7 + r / 40), greens[1], dx, crownY + L * (0.7 + r / 40) / 2, dz, 6));
   return g;
 }
 
-// Generic cabinet: carcass + plinth + top, with `doors` fronts and handles.
-function cabinetModel(w: number, h: number, height: number, doors: number): THREE.Group {
+// A cabinet built from real-world parts. Options pick the base (splayed legs /
+// recessed toe-kick / turned feet / plinth), whether it carries a stone counter
+// (with optional backsplash and a sink basin), and a row of drawers over the
+// doors — so a credenza, a sideboard, a kitchen base unit and a vanity all read
+// as different pieces of furniture rather than the same box.
+interface CabOpts { doors?: number; rows?: number; topDrawers?: number; base?: 'plinth' | 'toekick' | 'legs' | 'feet'; counter?: boolean; backsplash?: boolean; basin?: boolean; handle?: 'bar' | 'knob'; }
+function cabPull(g: THREE.Group, m: THREE.Material, style: 'bar' | 'knob', x: number, y: number, z: number, span: number) {
+  if (style === 'knob') g.add(cyl(1.5, 1.5, 3, m, x, y, z + 2, 12));
+  else g.add(rbox(Math.min(span * 0.5, 14), 2.2, 3, 1, m, x, y, z + 2));
+}
+function cabinetModel(w: number, h: number, height: number, opts: CabOpts = {}): THREE.Group {
+  const { doors = 2, rows = 1, topDrawers = 0, base = 'plinth', counter = false, backsplash = false, basin = false, handle = 'knob' } = opts;
   const g = new THREE.Group(); const front = h / 2;
-  const bodyM = woodMat(0x7a5636, 0.55), doorM = woodMat(0x86603a, 0.48), frameM = woodMat(0x6b4a2a, 0.55);
-  const handle = metalMat(0x9aa3b0, 0.3);
-  const cy = 3 + (height - 6) / 2;
-  g.add(rbox(w, 6, h, 2, woodMat(0x4a3320, 0.6), 0, 3, 0));              // plinth
-  g.add(rbox(w, height - 6, h, 2, bodyM, 0, cy, 0));                     // carcass
-  g.add(rbox(w + 3, 4, h + 3, 2, frameM, 0, height, 0));                 // top
+  const bodyM = woodMat(0x7a5636, 0.55), doorM = woodMat(0x86603a, 0.48);
+  const panelM = woodMat(0x6f4d2b, 0.5), frameM = woodMat(0x6b4a2a, 0.55), hwM = metalMat(0x9aa3b0, 0.3);
+  const counterM = stoneMat(0x9aa0a8);
+  // --- base / feet ---
+  let bottom = 0;
+  if (base === 'legs') { const lh = 15; legs4(g, w - 6, h - 6, lh, woodMat(0x4a3320, 0.5), 3, 2, 9, 0.14); bottom = lh; }
+  else if (base === 'feet') { const lh = 9; for (const dx of [-1, 1]) for (const dz of [-1, 1]) g.add(cyl(3, 2.4, lh, frameM, dx * (w / 2 - 8), lh / 2, dz * (h / 2 - 8), 10)); bottom = lh; }
+  else if (base === 'toekick') { const k = 8; g.add(box(w - 10, k, h - 8, mat(0x241d15, { roughness: 0.85 }), 0, k / 2, 1)); bottom = k; }
+  else { const p = 6; g.add(rbox(w, p, h, 2, woodMat(0x4a3320, 0.6), 0, p / 2, 0)); bottom = p; }
+  // --- carcass (leave headroom for a counter) ---
+  const carTop = counter ? height - 4 : height;
+  const carH = carTop - bottom;
+  g.add(rbox(w, carH, h, 2, bodyM, 0, bottom + carH / 2, 0));
+  if (!counter) g.add(rbox(w + 3, 4, h + 3, 2, frameM, 0, height, 0));    // finished top when no counter
+  // --- drawer band over the doors ---
+  const bandH = topDrawers ? Math.min(carH * 0.26, 20) : 0;
+  const doorTop = carTop - bandH - (topDrawers ? 2 : 0);
+  for (let i = 0; i < topDrawers; i++) {
+    const dwn = w / topDrawers, dx = -w / 2 + dwn * (i + 0.5), dy = doorTop + bandH / 2 + 1;
+    g.add(rbox(dwn - 4, bandH - 3, 3, 1.5, doorM, dx, dy, front));
+    cabPull(g, hwM, 'bar', dx, dy, front, dwn);
+  }
+  // --- doors, optionally split into `rows`, each with a recessed shaker panel ---
+  const doorAreaBot = bottom + 2, doorAreaTop = doorTop - 2, dh = (doorAreaTop - doorAreaBot) / rows;
   const dw = w / doors;
-  for (let i = 0; i < doors; i++) {
-    const dx = -w / 2 + dw * (i + 0.5);
-    g.add(rbox(dw - 3, height - 16, 3, 2, doorM, dx, cy, front));
-    g.add(cyl(1.8, 1.8, 5, handle, dx + dw / 2 - 5, cy, front + 2, 10));
+  for (let r = 0; r < rows; r++) for (let i = 0; i < doors; i++) {
+    const dx = -w / 2 + dw * (i + 0.5), dyc = doorAreaBot + dh * (r + 0.5);
+    g.add(rbox(dw - 3, dh - 2, 3, 2, doorM, dx, dyc, front));                       // door leaf
+    g.add(box((dw - 3) * 0.62, (dh - 2) * 0.78, 1.2, panelM, dx, dyc, front + 1.6)); // recessed panel
+    const hx = dx + (i % 2 ? -dw / 2 + 6 : dw / 2 - 6);
+    cabPull(g, hwM, handle, hx, dyc, front, 6);
+  }
+  // --- counter / backsplash / basin ---
+  if (counter) {
+    g.add(rbox(w + 6, 4, h + 5, 1.5, counterM, 0, height - 2, 1));                  // overhanging top
+    if (backsplash) g.add(rbox(w + 6, 14, 3, 1, counterM, 0, height + 5, -h / 2 + 1.5));
+    if (basin) {
+      g.add(cyl(h * 0.26, h * 0.3, 7, ceramicMat(0xeef2f6), 0, height + 1.5, 2, 24));  // sink bowl
+      g.add(cyl(1.6, 1.6, 12, hwM, 0, height + 8, -h / 2 + 9)); g.add(arc(5, 1.4, Math.PI, hwM, 0, height + 14, -h / 2 + 9, 0));  // faucet
+    }
   }
   return g;
 }
@@ -404,17 +455,17 @@ const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   chair, sofa, armchair,
   bed_double: (w, h) => bed(w, h, true), bed_single: (w, h) => bed(w, h, false),
   wardrobe, fridge, stove, sink, toilet, bathtub, shower, tv: tvStand, rug, plant,
-  cabinet_storage: (w, h) => cabinetModel(w, h, 85, 2),
-  cabinet_side: (w, h) => cabinetModel(w, h, 85, 3),
+  cabinet_storage: (w, h) => cabinetModel(w, h, 82, { doors: 2, base: 'legs', handle: 'knob' }),          // mid-century credenza on splayed legs
+  cabinet_side: (w, h) => cabinetModel(w, h, 88, { doors: 2, topDrawers: 2, base: 'feet', handle: 'bar' }), // sideboard: drawers over doors
   dresser: (w, h) => drawerModel(w, h, 110, 4),
   nightstand: (w, h) => drawerModel(w, h, 50, 2),
-  shoe_cabinet: (w, h) => cabinetModel(w, h, 110, 3),
-  cabinet_kitchen: (w, h) => cabinetModel(w, h, 90, 4),
-  vanity: (w, h) => cabinetModel(w, h, 80, 2),
+  shoe_cabinet: (w, h) => cabinetModel(w, h, 100, { doors: 3, base: 'toekick', handle: 'bar' }),           // shallow shoe cabinet
+  cabinet_kitchen: (w, h) => cabinetModel(w, h, 88, { doors: 4, base: 'toekick', counter: true, backsplash: true, handle: 'bar' }), // base unit + worktop
+  vanity: (w, h) => cabinetModel(w, h, 80, { doors: 2, base: 'toekick', counter: true, basin: true, handle: 'bar' }),               // vanity with sink
   bookshelf: (w, h) => shelfModel(w, h, 180, 4),
   open_shelf: (w, h) => shelfModel(w, h, 180, 3),
   display_cabinet: (w, h) => glassCabModel(w, h, 180, 2),
-  tall_cabinet: (w, h) => cabinetModel(w, h, 200, 2),
+  tall_cabinet: (w, h) => cabinetModel(w, h, 200, { doors: 2, rows: 2, base: 'toekick', handle: 'knob' }), // tall pantry: stacked doors
 };
 
 export function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
