@@ -49,6 +49,7 @@ export class View3D {
   private fly = false;   // WASD/QE camera movement
   private moveSpeed = 500; // cm/s, scaled to the scene in build()
   onFloorClick: ((plan: { x: number; y: number }) => void) | null = null;   // click (not drag) on the floor → plan coords
+  onRotate90: ((deg: number) => void) | null = null;                        // Q/E in 3D → rotate the selected object ±90°
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);      // y = 0
   private downXY: { x: number; y: number } | null = null;
@@ -116,19 +117,20 @@ export class View3D {
     if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
     const hud = document.createElement('div');
     hud.style.cssText = 'position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:4px;padding:5px 7px;border-radius:8px;background:rgba(17,22,30,0.5);font:600 11px system-ui,sans-serif;pointer-events:none;z-index:6;user-select:none;';
-    for (const label of ['W', 'A', 'S', 'D', 'Q', 'E']) {
+    for (const [label, key] of [['W', 'w'], ['A', 'a'], ['S', 's'], ['D', 'd'], ['⇧', 'shift'], ['⌃', 'ctrl'], ['Q', 'q'], ['E', 'e']]) {
       const c = document.createElement('div');
       c.textContent = label;
       c.style.cssText = 'min-width:15px;text-align:center;padding:2px 4px;border-radius:4px;background:rgba(255,255,255,0.06);color:#8b93a3;transition:background .07s,color .07s;';
-      hud.appendChild(c); this.keyChips[label.toLowerCase()] = c;
+      hud.appendChild(c); this.keyChips[key] = c;
     }
     container.appendChild(hud);
 
     // Match on e.code (physical key position), NOT e.key: a Chinese/Japanese IME or
     // a non-US layout rewrites e.key (W becomes "Process" or a composition char) while
     // e.code stays "KeyW". Matching e.key was silently dropping WASD under an active IME.
-    const MOVE: Record<string, string> = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyQ: 'q', KeyE: 'e' };
+    const MOVE: Record<string, string> = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
     const isShift = (code: string) => code === 'ShiftLeft' || code === 'ShiftRight';
+    const isCtrl = (code: string) => code === 'ControlLeft' || code === 'ControlRight';
     // Real text entry (project name, labels) must keep the keys; but the property
     // panel's number inputs treat letters as junk, so WASD there should fly instead
     // of getting swallowed — a common "WASD stopped working" trap after editing a value.
@@ -142,19 +144,30 @@ export class View3D {
     // also consuming the key before the browser's default runs.
     window.addEventListener('keydown', e => {
       if (!this.fly) return;
-      const mv = MOVE[e.code];
-      if (!mv && !isShift(e.code)) return;
       const el = document.activeElement as HTMLElement | null;
       if (isTextField(el)) return;                 // genuinely typing — leave the keys alone
+      // Q/E rotate the selected object 90° (one-shot per press; ignore auto-repeat)
+      if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {
+        e.preventDefault();
+        this.onRotate90?.(e.code === 'KeyE' ? 90 : -90);
+        this.flashChip(e.code === 'KeyE' ? 'e' : 'q', true);
+        return;
+      }
+      const mv = MOVE[e.code], up = isShift(e.code), down = isCtrl(e.code);
+      if (!mv && !up && !down) return;
       if (el && el !== document.body) el.blur();    // drop focus off a number field so it stops eating keys
-      if (mv) e.preventDefault();
-      this.pressed.add(mv || 'shift');
-      if (mv) this.flashChip(mv, true);
+      e.preventDefault();
+      if (up) { this.pressed.add('up'); this.flashChip('shift', true); }        // Shift → rise
+      else if (down) { this.pressed.add('down'); this.flashChip('ctrl', true); } // Ctrl → descend
+      else { this.pressed.add(mv); this.flashChip(mv, true); }
     }, { capture: true });
     window.addEventListener('keyup', e => {
       const mv = MOVE[e.code];
       if (mv) { this.pressed.delete(mv); this.flashChip(mv, false); }
-      else if (isShift(e.code)) this.pressed.delete('shift');
+      else if (isShift(e.code)) { this.pressed.delete('up'); this.flashChip('shift', false); }
+      else if (isCtrl(e.code)) { this.pressed.delete('down'); this.flashChip('ctrl', false); }
+      else if (e.code === 'KeyQ') this.flashChip('q', false);
+      else if (e.code === 'KeyE') this.flashChip('e', false);
     });
     window.addEventListener('blur', () => { this.pressed.clear(); for (const k in this.keyChips) this.flashChip(k, false); });   // don't let a held key stick across an alt-tab
 
@@ -256,14 +269,14 @@ export class View3D {
     if (P.has('s')) fwd -= 1;
     if (P.has('d')) strafe += 1;
     if (P.has('a')) strafe -= 1;
-    if (P.has('e')) vert += 1;   // up
-    if (P.has('q')) vert -= 1;   // down
+    if (P.has('up')) vert += 1;     // Shift → rise
+    if (P.has('down')) vert -= 1;   // Ctrl → descend
     if (!fwd && !strafe && !vert) return;
     const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir); dir.y = 0;
     if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
     dir.normalize();
     const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
-    const speed = this.moveSpeed * dt * (P.has('shift') ? 2.6 : 1);
+    const speed = this.moveSpeed * dt;
     const move = new THREE.Vector3().addScaledVector(dir, fwd * speed).addScaledVector(right, strafe * speed);
     move.y += vert * speed;
     this.camera.position.add(move); this.controls.target.add(move);
