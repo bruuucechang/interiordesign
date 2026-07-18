@@ -48,7 +48,7 @@ export class View3D {
   private keyChips: Record<string, HTMLElement> = {};
   private fly = false;   // WASD/QE camera movement
   private moveSpeed = 500; // cm/s, scaled to the scene in build()
-  onFloorClick: ((plan: { x: number; y: number }) => void) | null = null;   // click (not drag) on the floor → plan coords
+  onFloorClick: ((floor: { x: number; y: number }, sceneHit: { x: number; y: number } | null) => void) | null = null;   // click → floor-plane point + nearest-mesh hit (walls)
   onRotate90: ((deg: number) => void) | null = null;                        // Q/E in 3D → rotate the selected object ±90°
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);      // y = 0
@@ -179,7 +179,7 @@ export class View3D {
       const d = this.downXY; this.downXY = null;
       if (!this.onFloorClick || !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;   // moved → it was orbiting
       const p = this.floorPoint(e);
-      if (p) this.onFloorClick(p);
+      if (p) this.onFloorClick(p, this.sceneHit(e));
     });
     dom.addEventListener('pointermove', e => {
       if (!this.previewItem) return;
@@ -201,6 +201,16 @@ export class View3D {
     this.raycaster.setFromCamera(ndc, this.camera);
     const hit = new THREE.Vector3();
     return this.raycaster.ray.intersectPlane(this.groundPlane, hit) ? { x: hit.x, y: hit.z } : null;
+  }
+
+  // raycast against the built geometry (walls/floor) → plan coords of the nearest
+  // surface hit; used to place openings on the wall the cursor is over.
+  private sceneHit(e: PointerEvent): { x: number; y: number } | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const hits = this.raycaster.intersectObjects(this.staticGroup.children, true);
+    return hits.length ? { x: hits[0].point.x, y: hits[0].point.z } : null;
   }
 
   // Arm/disarm the placement ghost. Pass the furniture item (id + size) to show

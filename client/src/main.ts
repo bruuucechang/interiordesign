@@ -19,11 +19,13 @@ const editor = new Editor(canvas, doc, hint);
 initUI(editor, doc);
 
 const view3d = new View3D(c3d);
-// Place furniture by clicking the floor in the 3D view (when 3D is the main
-// view and a furniture item is the active tool). Openings/walls stay 2D.
-view3d.onFloorClick = (p) => {
-  if (mode !== '3d' || editor.toolName !== 'furniture') return;
-  editor.placeFurnitureAt(p.x, p.y);
+// Place objects by clicking in the 3D view (when 3D is the main view): furniture
+// drops on the floor point; a door/window snaps onto the wall under the cursor.
+view3d.onFloorClick = (floor, sceneHit) => {
+  if (mode !== '3d') return;
+  const t = editor.toolName;
+  if (t === 'furniture') editor.placeFurnitureAt(floor.x, floor.y);
+  else if (t === 'door' || t === 'window') editor.placeOpeningAt(t, sceneHit ?? floor);
 };
 view3d.onRotate90 = (deg) => editor.rotateSelection(deg);   // Q/E in 3D rotate the selected object 90°
 editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter

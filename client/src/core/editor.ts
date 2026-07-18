@@ -6,7 +6,7 @@ import { bounds, Bounds } from './hit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool, PanTool } from '../tools/draw';
-import { OpeningTool, FurnitureTool } from '../tools/place';
+import { OpeningTool, FurnitureTool, fitOpeningToWall } from '../tools/place';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { Obj, Vec, layerForKind } from '../model/types';
 
@@ -85,6 +85,19 @@ export class Editor implements ToolCtx {
     this.doc.commit();
     const id = genId('furn');
     this.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: x - item.w / 2, y: y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name } as Obj);
+    this.doc.select(id);
+    this.selectTool('select');
+    return true;
+  }
+
+  // Place a door/window near plan point (x, y), snapped onto the nearest wall
+  // (falls back to an unsnapped opening if none). Used by 3D wall-click placement.
+  placeOpeningAt(kind: 'door' | 'window', pt: { x: number; y: number }): boolean {
+    const width = kind === 'door' ? 90 : 120;
+    const fit = fitOpeningToWall(this.doc, pt, width, kind === 'window', 200) ?? { pos: pt, angle: 0, width, bulge: 0 };
+    this.doc.commit();
+    const id = genId(kind);
+    this.doc.add({ id, kind, layer: layerForKind(kind), x: fit.pos.x, y: fit.pos.y, width: fit.width, angle: fit.angle, bulge: fit.bulge || undefined } as Obj);
     this.doc.select(id);
     this.selectTool('select');
     return true;
