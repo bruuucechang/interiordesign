@@ -7,7 +7,8 @@ import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool, PanTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool } from '../tools/place';
-import { Obj, Vec } from '../model/types';
+import { FURNITURE_BY_ID } from '../data/furniture';
+import { Obj, Vec, layerForKind } from '../model/types';
 
 export class Editor implements ToolCtx {
   vp: Viewport;
@@ -72,6 +73,21 @@ export class Editor implements ToolCtx {
     this.setHint(this.active.hint);
     this.hooks.toolChange?.(name);
     this.render();
+  }
+
+  get toolName() { return this.active.name; }
+
+  // Place the currently-selected furniture item centred at (x, y) world cm.
+  // Used by the 3D view (floor-click placement); mirrors FurnitureTool.onDown.
+  placeFurnitureAt(x: number, y: number): boolean {
+    const item = FURNITURE_BY_ID[this.currentFurniture];
+    if (!item) return false;
+    this.doc.commit();
+    const id = genId('furn');
+    this.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: x - item.w / 2, y: y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name } as Obj);
+    this.doc.select(id);
+    this.selectTool('select');
+    return true;
   }
 
   // ---- events ----
