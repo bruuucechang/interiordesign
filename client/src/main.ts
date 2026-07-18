@@ -18,6 +18,12 @@ const editor = new Editor(canvas, doc, hint);
 initUI(editor, doc);
 
 const view3d = new View3D(c3d);
+// Place furniture by clicking the floor in the 3D view (when 3D is the main
+// view and a furniture item is the active tool). Openings/walls stay 2D.
+view3d.onFloorClick = (p) => {
+  if (mode !== '3d' || editor.toolName !== 'furniture') return;
+  editor.placeFurnitureAt(p.x, p.y);
+};
 editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter
 let mode: '2d' | '3d' = '2d';
 let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;

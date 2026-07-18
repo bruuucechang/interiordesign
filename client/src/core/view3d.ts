@@ -48,6 +48,10 @@ export class View3D {
   private keyChips: Record<string, HTMLElement> = {};
   private fly = false;   // WASD/QE camera movement
   private moveSpeed = 500; // cm/s, scaled to the scene in build()
+  onFloorClick: ((plan: { x: number; y: number }) => void) | null = null;   // click (not drag) on the floor → plan coords
+  private raycaster = new THREE.Raycaster();
+  private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);      // y = 0
+  private downXY: { x: number; y: number } | null = null;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -151,6 +155,21 @@ export class View3D {
       else if (isShift(e.code)) this.pressed.delete('shift');
     });
     window.addEventListener('blur', () => { this.pressed.clear(); for (const k in this.keyChips) this.flashChip(k, false); });   // don't let a held key stick across an alt-tab
+
+    // A click (not an orbit drag) on the floor reports the plan coords, so the
+    // app can place an object there. Distinguish click from drag by movement.
+    const dom = this.renderer.domElement;
+    dom.addEventListener('pointerdown', e => { this.downXY = { x: e.clientX, y: e.clientY }; });
+    dom.addEventListener('pointerup', e => {
+      const d = this.downXY; this.downXY = null;
+      if (!this.onFloorClick || !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;   // moved → it was orbiting
+      const rect = dom.getBoundingClientRect();
+      const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+      this.raycaster.setFromCamera(ndc, this.camera);
+      const hit = new THREE.Vector3();
+      if (this.raycaster.ray.intersectPlane(this.groundPlane, hit)) this.onFloorClick({ x: hit.x, y: hit.z });   // world X,Z → plan x,y
+    });
+
     this.setTimeOfDay('noon');   // initialize lights + background consistently
   }
 
