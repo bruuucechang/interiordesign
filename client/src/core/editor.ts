@@ -1,7 +1,7 @@
 import { Doc, genId } from '../model/doc';
 import { Viewport } from './viewport';
 import { Renderer } from './renderer';
-import { snapPoint } from './geometry';
+import { snapPoint, rotate } from './geometry';
 import { bounds, Bounds } from './hit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
@@ -88,6 +88,23 @@ export class Editor implements ToolCtx {
     this.doc.select(id);
     this.selectTool('select');
     return true;
+  }
+
+  // Rotate the selected object(s) by `deg` degrees. Objects with an `angle`
+  // (furniture, doors, windows) spin in place; a/b objects (walls, beams) rotate
+  // their endpoints about their midpoint. Used by Q/E in the 3D view.
+  rotateSelection(deg: number) {
+    const sel = this.doc.selectedObjects;
+    if (!sel.length) return;
+    this.doc.commit();
+    for (const o of sel) {
+      if ('angle' in o) {
+        this.doc.update(o.id, { angle: (((o.angle + deg) % 360) + 360) % 360 } as any);
+      } else if ('a' in o && 'b' in o) {
+        const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
+        this.doc.update(o.id, { a: rotate(o.a, mid, deg), b: rotate(o.b, mid, deg) } as any);
+      }
+    }
   }
 
   // ---- events ----

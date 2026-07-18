@@ -25,6 +25,7 @@ view3d.onFloorClick = (p) => {
   if (mode !== '3d' || editor.toolName !== 'furniture') return;
   editor.placeFurnitureAt(p.x, p.y);
 };
+view3d.onRotate90 = (deg) => editor.rotateSelection(deg);   // Q/E in 3D rotate the selected object 90°
 editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter
 let mode: '2d' | '3d' = '2d';
 let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
