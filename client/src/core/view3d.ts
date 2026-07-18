@@ -52,6 +52,8 @@ export class View3D {
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);      // y = 0
   private downXY: { x: number; y: number } | null = null;
+  private previewItem: { id: string; w: number; h: number } | null = null;  // furniture to ghost while placing
+  private ghost: THREE.Object3D | null = null;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -157,23 +159,68 @@ export class View3D {
     window.addEventListener('blur', () => { this.pressed.clear(); for (const k in this.keyChips) this.flashChip(k, false); });   // don't let a held key stick across an alt-tab
 
     // A click (not an orbit drag) on the floor reports the plan coords, so the
-    // app can place an object there. Distinguish click from drag by movement.
+    // app can place an object there; while a placement is armed, a translucent
+    // ghost of the item follows the cursor on the floor.
     const dom = this.renderer.domElement;
     dom.addEventListener('pointerdown', e => { this.downXY = { x: e.clientX, y: e.clientY }; });
     dom.addEventListener('pointerup', e => {
       const d = this.downXY; this.downXY = null;
       if (!this.onFloorClick || !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;   // moved → it was orbiting
-      const rect = dom.getBoundingClientRect();
-      const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
-      this.raycaster.setFromCamera(ndc, this.camera);
-      const hit = new THREE.Vector3();
-      if (this.raycaster.ray.intersectPlane(this.groundPlane, hit)) this.onFloorClick({ x: hit.x, y: hit.z });   // world X,Z → plan x,y
+      const p = this.floorPoint(e);
+      if (p) this.onFloorClick(p);
     });
+    dom.addEventListener('pointermove', e => {
+      if (!this.previewItem) return;
+      const p = this.floorPoint(e);
+      const g = p ? (this.ghost ?? this.buildGhost()) : null;
+      if (g && p) { g.visible = true; g.position.set(p.x, 0, p.y); }
+    });
+    dom.addEventListener('pointerleave', () => { if (this.ghost) this.ghost.visible = false; });
 
     this.setTimeOfDay('noon');   // initialize lights + background consistently
   }
 
   setFly(on: boolean) { this.fly = on; if (!on) this.pressed.clear(); }
+
+  // raycast the cursor onto the y=0 floor plane → plan coords (x, y), or null
+  private floorPoint(e: PointerEvent): { x: number; y: number } | null {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const hit = new THREE.Vector3();
+    return this.raycaster.ray.intersectPlane(this.groundPlane, hit) ? { x: hit.x, y: hit.z } : null;
+  }
+
+  // Arm/disarm the placement ghost. Pass the furniture item (id + size) to show
+  // a translucent preview that follows the cursor, or null to remove it.
+  setPlacementPreview(item: { id: string; w: number; h: number } | null) {
+    const same = item && this.previewItem && item.id === this.previewItem.id && item.w === this.previewItem.w && item.h === this.previewItem.h;
+    this.previewItem = item;
+    if (!item || !same) this.clearGhost();   // rebuilt for the new item on the next hover
+  }
+
+  private buildGhost(): THREE.Object3D | null {
+    if (!this.previewItem) return null;
+    const g = getFurnitureModel(this.previewItem.id, this.previewItem.w, this.previewItem.h).clone(true);
+    const ghostMat = (m: THREE.Material) => { const c = m.clone(); (c as any).transparent = true; (c as any).opacity = 0.42; (c as any).depthWrite = false; return c; };
+    g.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      m.castShadow = false; m.receiveShadow = false;
+      m.material = Array.isArray(m.material) ? m.material.map(ghostMat) : ghostMat(m.material);
+    });
+    g.renderOrder = 999;
+    this.scene.add(g);
+    this.ghost = g;
+    return g;
+  }
+
+  private clearGhost() {
+    if (!this.ghost) return;
+    this.ghost.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => mm.dispose()); });
+    this.scene.remove(this.ghost);
+    this.ghost = null;
+  }
 
   // ---- lighting ----
   setTimeOfDay(t: TimeKey) {

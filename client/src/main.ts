@@ -3,6 +3,7 @@ import { Doc } from './model/doc';
 import { Editor } from './core/editor';
 import { View3D } from './core/view3d';
 import { bounds } from './core/hit';
+import { FURNITURE_BY_ID } from './data/furniture';
 import { initUI } from './ui/ui';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -28,6 +29,14 @@ editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLT
 let mode: '2d' | '3d' = '2d';
 let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 
+// Show/hide the 3D placement ghost when the furniture tool is (de)activated in 3D.
+function updatePlacementPreview() {
+  const it = (mode === '3d' && editor.toolName === 'furniture') ? FURNITURE_BY_ID[editor.currentFurniture] : null;
+  view3d.setPlacementPreview(it ? { id: it.id, w: it.w, h: it.h } : null);
+}
+const _prevToolChange = editor.hooks.toolChange;
+editor.hooks.toolChange = (name) => { _prevToolChange?.(name); updatePlacementPreview(); };
+
 // fit the whole plan into the (small) 2D pane — used when 2D is the PiP preview
 function fit2D() {
   const vp = editor.vp;
@@ -52,6 +61,7 @@ function applyMode() {
   btnToggle.textContent = twoFull ? '🧊 切換 3D 檢視' : '📐 切換 2D 檢視';
   editor.inputEnabled = twoFull;      // 2D main → edit + WASD pans the 2D view
   view3d.setFly(!twoFull);            // 3D main → WASD flies the 3D camera
+  updatePlacementPreview();           // ghost only makes sense while 3D is the main view
 
   requestAnimationFrame(() => {
     if (twoFull) {
