@@ -13,8 +13,7 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySe
 
 // 常用 = the everyday drawing tools, shown as the first catalog section.
 const COMMON_TOOLS = [
-  { name: 'select', ic: '⬚', label: '選取' },
-  { name: 'pan', ic: '✋', label: '平移' },
+  { name: 'select', ic: '✋', label: '平移' },   // 拖曳物件移動；拖曳空白處平移視角
   { name: 'wall', ic: '▬', label: '直線牆' },
   { name: 'wallCurve', ic: '◠', label: '曲線牆' },
   { name: 'beam', ic: '═', label: '樑' },
