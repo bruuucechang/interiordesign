@@ -117,7 +117,7 @@ export class View3D {
     if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
     const hud = document.createElement('div');
     hud.style.cssText = 'position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:4px;padding:5px 7px;border-radius:8px;background:rgba(17,22,30,0.5);font:600 11px system-ui,sans-serif;pointer-events:none;z-index:6;user-select:none;';
-    for (const [label, key] of [['W', 'w'], ['A', 'a'], ['S', 's'], ['D', 'd'], ['⇧', 'shift'], ['⌃', 'ctrl'], ['Q', 'q'], ['E', 'e']]) {
+    for (const [label, key] of [['W', 'w'], ['A', 'a'], ['S', 's'], ['D', 'd'], ['⇧', 'shift'], ['␣', 'space'], ['Q', 'q'], ['E', 'e']]) {
       const c = document.createElement('div');
       c.textContent = label;
       c.style.cssText = 'min-width:15px;text-align:center;padding:2px 4px;border-radius:4px;background:rgba(255,255,255,0.06);color:#8b93a3;transition:background .07s,color .07s;';
@@ -130,7 +130,6 @@ export class View3D {
     // e.code stays "KeyW". Matching e.key was silently dropping WASD under an active IME.
     const MOVE: Record<string, string> = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
     const isShift = (code: string) => code === 'ShiftLeft' || code === 'ShiftRight';
-    const isCtrl = (code: string) => code === 'ControlLeft' || code === 'ControlRight';
     // Real text entry (project name, labels) must keep the keys; but the property
     // panel's number inputs treat letters as junk, so WASD there should fly instead
     // of getting swallowed — a common "WASD stopped working" trap after editing a value.
@@ -153,19 +152,19 @@ export class View3D {
         this.flashChip(e.code === 'KeyE' ? 'e' : 'q', true);
         return;
       }
-      const mv = MOVE[e.code], up = isShift(e.code), down = isCtrl(e.code);
+      const mv = MOVE[e.code], up = isShift(e.code), down = e.code === 'Space';
       if (!mv && !up && !down) return;
       if (el && el !== document.body) el.blur();    // drop focus off a number field so it stops eating keys
       e.preventDefault();
-      if (up) { this.pressed.add('up'); this.flashChip('shift', true); }        // Shift → rise
-      else if (down) { this.pressed.add('down'); this.flashChip('ctrl', true); } // Ctrl → descend
+      if (up) { this.pressed.add('up'); this.flashChip('shift', true); }         // Shift → rise
+      else if (down) { this.pressed.add('down'); this.flashChip('space', true); } // Space → descend
       else { this.pressed.add(mv); this.flashChip(mv, true); }
     }, { capture: true });
     window.addEventListener('keyup', e => {
       const mv = MOVE[e.code];
       if (mv) { this.pressed.delete(mv); this.flashChip(mv, false); }
       else if (isShift(e.code)) { this.pressed.delete('up'); this.flashChip('shift', false); }
-      else if (isCtrl(e.code)) { this.pressed.delete('down'); this.flashChip('ctrl', false); }
+      else if (e.code === 'Space') { this.pressed.delete('down'); this.flashChip('space', false); }
       else if (e.code === 'KeyQ') this.flashChip('q', false);
       else if (e.code === 'KeyE') this.flashChip('e', false);
     });
@@ -270,7 +269,7 @@ export class View3D {
     if (P.has('d')) strafe += 1;
     if (P.has('a')) strafe -= 1;
     if (P.has('up')) vert += 1;     // Shift → rise
-    if (P.has('down')) vert -= 1;   // Ctrl → descend
+    if (P.has('down')) vert -= 1;   // Space → descend
     if (!fwd && !strafe && !vert) return;
     const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir); dir.y = 0;
     if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
