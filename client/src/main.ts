@@ -4,6 +4,7 @@ import { Editor } from './core/editor';
 import { View3D } from './core/view3d';
 import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
+import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -32,10 +33,23 @@ editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLT
 let mode: '2d' | '3d' = '2d';
 let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 
-// Show/hide the 3D placement ghost when the furniture tool is (de)activated in 3D.
+// Show/hide the 3D placement ghosts as tools change in 3D: furniture ghosts on
+// the floor; a door/window ghost snaps onto the wall the cursor hovers.
 function updatePlacementPreview() {
-  const it = (mode === '3d' && editor.toolName === 'furniture') ? FURNITURE_BY_ID[editor.currentFurniture] : null;
+  const t = mode === '3d' ? editor.toolName : '';
+  const it = t === 'furniture' ? FURNITURE_BY_ID[editor.currentFurniture] : null;
   view3d.setPlacementPreview(it ? { id: it.id, w: it.w, h: it.h } : null);
+  if (t === 'door' || t === 'window') {
+    const kind = t, width = kind === 'door' ? 90 : 120;
+    view3d.onHover = (floor, sceneHit) => {
+      const pt = sceneHit ?? floor;
+      const fit = pt ? fitOpeningToWall(doc, pt, width, kind === 'window', 200) : null;
+      view3d.setOpeningGhost(fit ? { kind, x: fit.pos.x, y: fit.pos.y, angle: fit.angle, width: fit.width } : null);
+    };
+  } else {
+    view3d.onHover = null;
+    view3d.setOpeningGhost(null);
+  }
 }
 const _prevToolChange = editor.hooks.toolChange;
 editor.hooks.toolChange = (name) => { _prevToolChange?.(name); updatePlacementPreview(); };

@@ -55,6 +55,9 @@ export class View3D {
   private downXY: { x: number; y: number } | null = null;
   private previewItem: { id: string; w: number; h: number } | null = null;  // furniture to ghost while placing
   private ghost: THREE.Object3D | null = null;
+  onHover: ((floor: { x: number; y: number } | null, sceneHit: { x: number; y: number } | null) => void) | null = null;  // per-move probe (openings)
+  private openingGhost: THREE.Object3D | null = null;
+  private openingGhostKey = '';
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -182,12 +185,17 @@ export class View3D {
       if (p) this.onFloorClick(p, this.sceneHit(e));
     });
     dom.addEventListener('pointermove', e => {
-      if (!this.previewItem) return;
-      const p = this.floorPoint(e);
-      const g = p ? (this.ghost ?? this.buildGhost()) : null;
-      if (g && p) { g.visible = true; g.position.set(p.x, 0, p.y); }
+      if (this.previewItem) {                        // furniture ghost follows the floor
+        const p = this.floorPoint(e);
+        const g = p ? (this.ghost ?? this.buildGhost()) : null;
+        if (g && p) { g.visible = true; g.position.set(p.x, 0, p.y); }
+      }
+      if (this.onHover) this.onHover(this.floorPoint(e), this.sceneHit(e));   // openings: app computes wall snap
     });
-    dom.addEventListener('pointerleave', () => { if (this.ghost) this.ghost.visible = false; });
+    dom.addEventListener('pointerleave', () => {
+      if (this.ghost) this.ghost.visible = false;
+      if (this.openingGhost) this.openingGhost.visible = false;
+    });
 
     this.setTimeOfDay('noon');   // initialize lights + background consistently
   }
@@ -221,17 +229,22 @@ export class View3D {
     if (!item || !same) this.clearGhost();   // rebuilt for the new item on the next hover
   }
 
-  private buildGhost(): THREE.Object3D | null {
-    if (!this.previewItem) return null;
-    const g = getFurnitureModel(this.previewItem.id, this.previewItem.w, this.previewItem.h).clone(true);
-    const ghostMat = (m: THREE.Material) => { const c = m.clone(); (c as any).transparent = true; (c as any).opacity = 0.42; (c as any).depthWrite = false; return c; };
+  // turn a model into a translucent, non-shadowing ghost (clones its materials)
+  private ghostify(g: THREE.Object3D) {
+    const gm = (m: THREE.Material) => { const c = m.clone(); (c as any).transparent = true; (c as any).opacity = 0.42; (c as any).depthWrite = false; return c; };
     g.traverse(o => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       m.castShadow = false; m.receiveShadow = false;
-      m.material = Array.isArray(m.material) ? m.material.map(ghostMat) : ghostMat(m.material);
+      m.material = Array.isArray(m.material) ? m.material.map(gm) : gm(m.material);
     });
     g.renderOrder = 999;
+  }
+
+  private buildGhost(): THREE.Object3D | null {
+    if (!this.previewItem) return null;
+    const g = getFurnitureModel(this.previewItem.id, this.previewItem.w, this.previewItem.h).clone(true);
+    this.ghostify(g);   // shared cloned geometry — only the materials are cloned
     this.scene.add(g);
     this.ghost = g;
     return g;
@@ -242,6 +255,31 @@ export class View3D {
     this.ghost.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => mm.dispose()); });
     this.scene.remove(this.ghost);
     this.ghost = null;
+  }
+
+  // Show/move a translucent door/window ghost snapped onto a wall. `spec` comes
+  // from the app (it does the wall snapping); null hides it. Geometry is rebuilt
+  // only when the kind/width changes — otherwise just repositioned.
+  setOpeningGhost(spec: { kind: 'door' | 'window'; x: number; y: number; angle: number; width: number } | null) {
+    if (!spec) { if (this.openingGhost) this.openingGhost.visible = false; return; }
+    const key = `${spec.kind}_${Math.round(spec.width)}`;
+    if (this.openingGhostKey !== key) {
+      this.clearOpeningGhost();
+      const g = spec.kind === 'door' ? this.buildDoor3D(spec.width, 210, 0) : this.buildWindow3D(spec.width, 100, 90);
+      this.ghostify(g);
+      this.scene.add(g);
+      this.openingGhost = g; this.openingGhostKey = key;
+    }
+    this.openingGhost!.position.set(spec.x, 0, spec.y);
+    this.openingGhost!.rotation.y = -spec.angle * Math.PI / 180;
+    this.openingGhost!.visible = true;
+  }
+
+  private clearOpeningGhost() {
+    if (!this.openingGhost) return;
+    this.openingGhost.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry?.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => mm.dispose()); } });
+    this.scene.remove(this.openingGhost);
+    this.openingGhost = null; this.openingGhostKey = '';
   }
 
   // ---- lighting ----
