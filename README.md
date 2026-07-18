@@ -1,6 +1,6 @@
 # 室內設計繪圖 · Interior Designer
 
-一套**2D／3D 室內平面圖設計工具**。在 2D 畫布上畫牆、樑、門窗、房間、擺放家具、標註尺寸，隨時切換到即時 **3D 檢視**（Three.js）預覽空間，並可匯出 **PNG／PDF／glTF(.glb)**。內建一個以 **Claude Sonnet 5** 驅動的 AI 助手，可用自然語言直接在圖上加牆、放家具。
+一套**2D／3D 室內平面圖設計工具**。在 2D 畫布上畫牆、樑、門窗、房間、擺放家具、標註尺寸，隨時切換到即時 **3D 檢視**（Three.js）預覽空間，並可匯出 **PNG／PDF／glTF(.glb)**。
 
 前端以**原生 Canvas + TypeScript** 手刻（座標轉換、選取縮放旋轉、圖層、吸附、曲線牆、房間偵測皆自行實作），後端是 **Node + Express + `node:sqlite`** 的輕量存檔服務。
 
@@ -35,7 +35,6 @@
 | **3D 檢視** | 即時 Three.js 渲染：牆體挖洞、擬真 PBR 材質、時段光照（早晨／正午／黃昏／夜晚）、環境光遮蔽（GTAO）、天空、陰影；WASD 飛行 |
 | **編輯** | 選取／框選、拖曳移動、角落縮放、旋轉、端點拖曳、方向鍵微調、對齊/均分、複製貼上、復原/重做 |
 | **匯出** | PNG（Canvas）、PDF（jsPDF）、3D 模型 .glb（glTF，可用 Blender 開啟） |
-| **AI 助手** | 自然語言指令 → 直接在圖上加牆、放家具（伺服器端 Claude Sonnet 5 工具迴圈） |
 | **持久化** | 後端 SQLite 存檔；離線自動降級為 localStorage；每 30 秒自動存檔 |
 | **底圖** | 匯入平面圖底圖描繪，並可自動偵測牆體 |
 
@@ -45,7 +44,6 @@
 
 - **前端**：TypeScript + Vite；2D 用原生 HTML5 Canvas 手刻；3D 用 [Three.js](https://threejs.org/)（含 `EffectComposer` / `GTAOPass` / `RoomEnvironment` IBL）；PDF 用 `jsPDF`。
 - **後端**：Node.js + Express + `node:sqlite`（Node 內建，免裝原生模組）。
-- **AI**：`@anthropic-ai/sdk`（伺服器端），模型 `claude-sonnet-5`。
 - **建置**：npm workspaces（`client` / `server`）、Vite、`tsx`。
 - **測試**：Node 內建 test runner，透過 `tsx --test` 執行。
 - **單位**：公分（cm）。座標系 **x 向右、y 向下**（螢幕座標習慣）。
@@ -57,7 +55,7 @@
 ```mermaid
 flowchart LR
   subgraph Browser["瀏覽器 (client)"]
-    UI["ui.ts<br/>工具列/家具庫/圖層/屬性/AI 面板"]
+    UI["ui.ts<br/>工具列/家具庫/圖層/屬性"]
     Editor["editor.ts<br/>輸入・工具分派・選取"]
     Doc["Doc (model)<br/>單一資料來源 + 復原/重做"]
     R2D["renderer.ts<br/>2D Canvas"]
@@ -68,20 +66,15 @@ flowchart LR
     Doc -- serialize --> API
   end
   subgraph Server["Node 後端 (server)"]
-    API["Express<br/>/api/projects · /api/agent"]
+    API["Express<br/>/api/projects"]
     DB["node:sqlite"]
-    Agent["agent.ts<br/>Claude Sonnet 5 工具迴圈"]
     API --> DB
-    API --> Agent
   end
-  UI -- "訊息 + 目前物件" --> Agent
-  Agent -- "ops (加牆/家具)" --> Doc
-  Agent -- API --> Anthropic["Anthropic API"]
 ```
 
 - **前端**在 `:5180`（Vite），**後端**在 `:8791`（Express）。Vite 設定把 `/api` 代理到 `:8791`。
 - 前端是「**保留式資料 + 即時繪製**」：所有狀態集中在 `Doc`，任何變更觸發 `onChange`，2D 與 3D 各自重繪。
-- 後端只負責**專案存檔**與**代理 AI 呼叫**（金鑰留在伺服器）。
+- 後端只負責**專案存檔**。
 
 ---
 
@@ -103,18 +96,6 @@ npm run build        # server (tsc) + client (tsc --noEmit && vite build)
 npm start            # 以編譯後的後端啟動
 npm test             # 執行 client/test/*.test.ts
 ```
-
-### 啟用 AI 助手（選用）
-
-AI 助手需要 Anthropic API 金鑰，金鑰**只放在伺服器端**：
-
-```bash
-cp server/.env.example server/.env
-# 編輯 server/.env，填入：
-#   ANTHROPIC_API_KEY=sk-ant-...
-```
-
-重啟 `npm run dev` 即可。未設定金鑰時 `/api/agent` 會回傳友善的 503 提示，其餘功能完全不受影響。
 
 > 後端離線時前端仍可用：存檔會自動改用瀏覽器 `localStorage`。
 
@@ -154,9 +135,8 @@ interior-designer/
 │     └─ net/api.ts                # 專案 CRUD（含離線 localStorage 降級）
 ├─ server/                         # 後端（Express + node:sqlite）
 │  └─ src/
-│     ├─ index.ts                  # 路由：/api/health、/api/projects CRUD、/api/agent
-│     ├─ db.ts                     # node:sqlite（DatabaseSync）專案存取
-│     └─ agent.ts                  # AI：Claude Sonnet 5 工具迴圈（add_wall / add_furniture / list_objects）
+│     ├─ index.ts                  # 路由：/api/health、/api/projects CRUD
+│     └─ db.ts                     # node:sqlite（DatabaseSync）專案存取
 └─ client/test/                    # 單元測試（doc / geometry / rooms / place）
 ```
 
@@ -235,16 +215,6 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 
 `net/api.ts` 對後端做 CRUD（`/api/projects`），連不上時自動改用 `localStorage`（`apiState.online` 標記）。自動存檔採 **30 秒心跳**：每次變更只把文件標記為 dirty，30 秒定時器才實際存檔並顯示「已自動儲存 時間」；離開頁面（`beforeunload`）會盡力再存一次，避免遺失最後 <30 秒。後端 `db.ts` 用 `node:sqlite` 的 `DatabaseSync`，把整份專案 JSON 存進 `projects` 表。
 
-### 12. AI 助手
-
-`server/src/agent.ts` 開一條 `POST /api/agent`：瀏覽器送出「使用者訊息 + 目前物件 + 家具目錄（id/名稱/尺寸）」，伺服器用 **Claude Sonnet 5** 跑工具迴圈：
-
-- 工具 `list_objects`（了解現況）、`add_wall`、`add_furniture`（item 必須是目錄 id，會把中心點換算成模型的角落座標，未知 id 直接擋下並回傳可用清單）。
-- 工具**不直接改資料**，而是累積「操作清單（ops）」隨回覆一起傳回。
-- 瀏覽器收到 ops 後透過既有的 `Doc.add` 套用（補上 `id` 與 `layer`），因此**復原、自動存檔、房間偵測全部照常運作**。
-
-金鑰只在伺服器讀取（`server/.env` 的 `ANTHROPIC_API_KEY`），瀏覽器永遠看不到。
-
 ---
 
 ## 操作說明
@@ -264,7 +234,7 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 | 回到選取 / 取消 | `Esc` |
 | 切換 2D / 3D | 頂列「切換 3D 檢視」；3D 中用 **WASD 移動、Q/E 升降、拖曳旋轉、滾輪縮放** |
 
-右側面板可調整選取物件的**屬性**、管理**圖層**（可折疊）與**樓層**，並有 **AI 助手** 對話框。
+右側面板可調整選取物件的**屬性**、管理**圖層**（可折疊）與**樓層**。
 
 ---
 
@@ -317,19 +287,17 @@ npm test
 
 - **Node 版本**：需 **≥ 22**，因為後端用內建 `node:sqlite`（`DatabaseSync`）。
 - **單位固定 cm**：所有座標/尺寸都是公分；AI 工具與匯出皆以此為準。
-- **AI 金鑰安全**：`ANTHROPIC_API_KEY` 只放 `server/.env`（已被 `.gitignore` 排除），絕不進前端或版控。未設定時 AI 面板顯示提示，其餘功能正常。
 - **離線可用**：後端連不上時自動改用 `localStorage`，但那是瀏覽器本機、非跨裝置。
 - **自動存檔是 30 秒週期**：不是即時；離開頁面會盡力補存，但極端情況（當機）可能遺失最後幾秒。手動「儲存」可立即存。
 - **座標系 y 向下**：與螢幕一致；3D 中對應 Z 軸，Y 為上。
 - **曲線牆效能**：3D 曲線牆會細分成密集網格（平滑用），以每次重建為單位處理，一般使用無虞。
 - **開發時的相機鍵**：W/A/S/D 在 2D 平移視圖、在 3D 飛行相機，因此**未**設為工具快捷鍵。
-- **家具 id**：AI 只能放**家具目錄裡存在的 id**；擴充家具請同步更新 `data/furniture.ts`（2D 圖示）與 `furniture3d.ts`（3D 模型）。
+- **家具**：擴充家具請同步更新 `data/furniture.ts`（2D 圖示 + 尺寸）與 `furniture3d.ts`（3D 模型）。
 
 ---
 
 ## 未來可擴充
 
-- AI 助手完整版：門窗、刪除/移動/改樣式、串流回覆、多輪對話記憶。
 - 更多吸附（中點/牆面/平行）、尺寸鏈、對齊輔助線。
 - 白底列印主題、比例尺與圖框、多頁 PDF、家具估價清單。
 - 匯入自訂家具、群組、貼齊網格設定。
