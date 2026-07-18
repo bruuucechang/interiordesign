@@ -1,19 +1,20 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { Obj, Vec } from '../model/types';
 import { handles } from '../core/handles';
-import { hitTest, furnitureCenter, bounds } from '../core/hit';
+import { hitTest, furnitureCenter } from '../core/hit';
 import { rotate, dist, angleDeg, snap, bulgeFrom, nearestWallSnap } from '../core/geometry';
 import { fitOpeningToWall } from './place';
 
-type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'marquee';
+type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'pan';
 
 export class SelectTool implements Tool {
-  name = 'select'; cursor = 'default'; hint = '點選或框選物件；拖曳移動、角落縮放、圓點旋轉；Delete 刪除';
+  name = 'select'; cursor = 'grab'; hint = '拖曳物件移動、角落縮放、圓點旋轉；拖曳空白處平移畫面；Delete 刪除';
   private mode: Mode = 'idle';
   private handleId = '';
   private orig: any = null;      // JSON snapshot of the object at drag start (single-object edits)
   private origMany: { o: Obj; snap: any }[] = [];   // snapshots for moving a multi-selection
-  private marquee: { a: Vec; b: Vec } | null = null; // rubber-band box in world coords
+  private panFrom: Vec = { x: 0, y: 0 };  // screen pos while dragging empty space to pan
+  private panMoved = false;
   private start: Vec = { x: 0, y: 0 };
 
   constructor(private ctx: ToolCtx) {}
@@ -42,21 +43,17 @@ export class SelectTool implements Tool {
       this.start = p.snapped;
       this.mode = 'move';
     } else {
-      this.marquee = { a: p.world, b: p.world };   // start a rubber-band box on empty space
-      this.mode = 'marquee';
+      this.panFrom = p.screen; this.panMoved = false;   // empty space → pan the view
+      this.mode = 'pan';
     }
   }
 
   onMove(p: PointerInfo) {
-    if (this.mode === 'marquee' && this.marquee) {
-      this.marquee.b = p.world;
-      const m = this.marquee, sc = this.ctx.vp.scale;
-      this.ctx.setPreview(ctx => {
-        const x = Math.min(m.a.x, m.b.x), y = Math.min(m.a.y, m.b.y), w = Math.abs(m.b.x - m.a.x), h = Math.abs(m.b.y - m.a.y);
-        ctx.fillStyle = 'rgba(76,141,255,0.08)'; ctx.fillRect(x, y, w, h);
-        ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = 1.5 / sc; ctx.setLineDash([6 / sc, 4 / sc]);
-        ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
-      });
+    if (this.mode === 'pan') {
+      const dx = p.screen.x - this.panFrom.x, dy = p.screen.y - this.panFrom.y;
+      if (Math.hypot(dx, dy) > 2) this.panMoved = true;
+      this.ctx.vp.panBy(dx, dy);
+      this.panFrom = p.screen;
       this.ctx.render();
       return;
     }
@@ -72,23 +69,13 @@ export class SelectTool implements Tool {
   }
 
   onUp() {
-    if (this.mode === 'marquee' && this.marquee) {
-      const { doc } = this.ctx, m = this.marquee;
-      const r = { x: Math.min(m.a.x, m.b.x), y: Math.min(m.a.y, m.b.y), w: Math.abs(m.b.x - m.a.x), h: Math.abs(m.b.y - m.a.y) };
-      if (r.w < 2 && r.h < 2) doc.select(null);          // a plain click on empty space clears the selection
-      else doc.selectMany(doc.objects.filter(o => doc.isLayerVisible(o.layer) && !doc.isLayerLocked(o.layer) && this.rectHits(r, o)).map(o => o.id));
-    }
-    this.mode = 'idle'; this.orig = null; this.origMany = []; this.marquee = null;
-    this.ctx.setPreview();   // clear angle badge / snap ring / marquee box
+    if (this.mode === 'pan' && !this.panMoved) this.ctx.doc.select(null);   // a plain click on empty space clears the selection
+    this.mode = 'idle'; this.orig = null; this.origMany = [];
+    this.ctx.setPreview();   // clear angle badge / snap ring
     this.ctx.render();
   }
 
-  deactivate() { this.mode = 'idle'; this.orig = null; this.origMany = []; this.marquee = null; this.ctx.setPreview(); }
-
-  private rectHits(r: { x: number; y: number; w: number; h: number }, o: Obj): boolean {
-    const b = bounds(o);
-    return r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y;
-  }
+  deactivate() { this.mode = 'idle'; this.orig = null; this.origMany = []; this.ctx.setPreview(); }
 
   private patch(o: Obj, patch: Partial<Obj>) { this.ctx.doc.update(o.id, patch); }
 

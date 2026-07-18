@@ -5,7 +5,7 @@ import { snapPoint, rotate } from './geometry';
 import { bounds, Bounds } from './hit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
-import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool, PanTool } from '../tools/draw';
+import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool, fitOpeningToWall } from '../tools/place';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { Obj, Vec, layerForKind } from '../model/types';
@@ -38,7 +38,6 @@ export class Editor implements ToolCtx {
     this.renderer.onImageLoad = () => this.render();
     this.tools = {
       select: new SelectTool(this),
-      pan: new PanTool(this),
       wall: new WallTool(this),
       wallCurve: new CurvedWallTool(this),
       beam: new BeamTool(this),
@@ -180,7 +179,7 @@ export class Editor implements ToolCtx {
       if (meta && e.key.toLowerCase() === 'v') { this.pasteClipboard(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'd') { this.duplicateSelection(); e.preventDefault(); return; }
       // note: W/A/S/D are reserved for 3D camera movement, so they are NOT tool shortcuts
-      const map: Record<string, string> = { v: 'select', h: 'pan', n: 'window', m: 'dimension' };
+      const map: Record<string, string> = { v: 'select', h: 'select', n: 'window', m: 'dimension' };
       if (!meta && map[e.key.toLowerCase()]) { this.selectTool(map[e.key.toLowerCase()]); return; }
       this.active.onKey?.(e);
     });
