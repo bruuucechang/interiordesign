@@ -1,10 +1,11 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, Vec, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
+import { Obj, ObjKind, Vec, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRoomPolygons } from '../core/rooms';
 import { detectWallsFromImage } from '../core/detect';
+import { fitOpeningToWall } from '../tools/place';
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { listProjects, loadProject, saveProject, deleteProject } from '../net/api';
@@ -107,10 +108,37 @@ function markActiveTool(name: string) {
   if (name !== 'furniture') document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
 }
 
+// Apply one agent operation through Doc (so undo/autosave/room detection fire).
+// Doors/windows are snapped onto the nearest wall via the placement fitter.
+function applyAgentOp(doc: Doc, op: any) {
+  if (op.op === 'add' && op.obj?.kind) {
+    const o = op.obj, k = o.kind as ObjKind;
+    if (k === 'door' || k === 'window') {
+      const w = o.width ?? (k === 'door' ? 90 : 120);
+      const fit = fitOpeningToWall(doc, { x: o.x, y: o.y }, w, k === 'window', 400);
+      const geo = fit ? { x: fit.pos.x, y: fit.pos.y, width: fit.width, angle: fit.angle, bulge: fit.bulge || undefined }
+                      : { x: o.x, y: o.y, width: w, angle: o.angle ?? 0 };
+      doc.add({ ...o, ...geo, id: genId(k), layer: layerForKind(k) } as Obj);
+    } else {
+      doc.add({ ...o, id: genId(k), layer: layerForKind(k) } as Obj);
+    }
+  } else if (op.op === 'delete' && op.id) {
+    doc.remove(op.id);
+  } else if (op.op === 'update' && op.id && op.patch) {
+    doc.update(op.id, op.patch);
+  } else if (op.op === 'move' && op.id) {
+    const o = doc.objects.find(x => x.id === op.id) as any;
+    if (!o) return;
+    const dx = op.dx || 0, dy = op.dy || 0;
+    if (o.a && o.b) doc.update(o.id, { a: { x: o.a.x + dx, y: o.a.y + dy }, b: { x: o.b.x + dx, y: o.b.y + dy } } as any);
+    else if ('x' in o) doc.update(o.id, { x: o.x + dx, y: o.y + dy } as any);
+  }
+}
+
 // ---- AI assistant ----
 // Sends the user's message + current design + furniture catalog to /api/agent;
-// applies the returned add-operations through Doc (so undo/autosave/room
-// detection all fire) and shows the reply.
+// applies the returned operations (add/move/update/delete) through Doc and
+// shows the reply.
 function wireAI(_editor: Editor, doc: Doc) {
   const log = $('#aiLog'), input = $<HTMLInputElement>('#aiInput'), send = $<HTMLButtonElement>('#aiSend');
   const add = (cls: string, text: string) => { const d = document.createElement('div'); d.className = 'ai-msg ' + cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; return d; };
@@ -126,10 +154,10 @@ function wireAI(_editor: Editor, doc: Doc) {
       const r = await fetch('/api/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg, objects: doc.objects, catalog }) });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(data?.error || ('HTTP ' + r.status));
-      const ops: { op: string; obj: any }[] = data.ops ?? [];
+      const ops: any[] = data.ops ?? [];
       if (ops.length) {
         doc.commit();
-        for (const op of ops) if (op.op === 'add' && op.obj?.kind) { const k = op.obj.kind; doc.add({ ...op.obj, id: genId(k), layer: layerForKind(k) }); }
+        for (const op of ops) applyAgentOp(doc, op);
       }
       pending.textContent = (data.reply || '（已完成）') + (ops.length ? `　✏️ ${ops.length} 項變更` : '');
     } catch (e: any) {
