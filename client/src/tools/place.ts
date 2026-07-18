@@ -92,6 +92,7 @@ export class OpeningTool implements Tool {
     this.ctx.doc.add({ id, kind: this.kind, layer: layerForKind(this.kind), x: c.pos.x, y: c.pos.y, width: c.width, angle: c.angle, bulge: c.bulge || undefined });
     this.ctx.doc.select(id);
     this.ctx.setPreview();
+    this.ctx.selectTool('select');   // place one → select it (don't keep placing another)
   }
   onUp() {}
   deactivate() { this.cand = null; this.ctx.setPreview(); }
