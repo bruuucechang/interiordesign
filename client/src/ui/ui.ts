@@ -1,6 +1,6 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, Vec, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
+import { Obj, Vec, Project, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRoomPolygons } from '../core/rooms';
@@ -51,6 +51,13 @@ export function initUI(editor: Editor, doc: Doc) {
     const reader = new FileReader();
     reader.onload = () => { importImage(editor, doc, reader.result as string); imgInput.value = ''; };
     reader.readAsDataURL(file);
+  });
+
+  const projFileInput = $<HTMLInputElement>('#projectFileInput');
+  projFileInput.addEventListener('change', () => {
+    const file = projFileInput.files?.[0]; if (!file) return;
+    importProjectFile(editor, doc, file);
+    projFileInput.value = '';   // allow re-importing the same file
   });
 }
 
@@ -392,21 +399,79 @@ function kindLabel(k: string) {
   return ({ wall: '牆', beam: '樑', room: '房間', door: '門', window: '窗', furniture: '家具', dimension: '尺寸標註', image: '底圖' } as Record<string, string>)[k] ?? k;
 }
 
+// ---- project file (re-editable) ----
+// PNG/PDF/GLB are output formats you can't edit again. This dumps the full
+// editable document (doc.serialize() → Project JSON) to a .floorplan.json file
+// and reads one back, so a plan can leave the app and come back for more editing.
+function exportProjectFile(doc: Doc, name: string) {
+  const json = JSON.stringify(doc.serialize(), null, 2);
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const safe = (name || 'floorplan').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'floorplan';
+  const a = document.createElement('a');
+  a.href = url; a.download = `${safe}.floorplan.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importProjectFile(editor: Editor, doc: Doc, file: File) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let proj: Project;
+    try { proj = JSON.parse(String(reader.result)) as Project; }
+    catch { flash('檔案毀損或不是有效的 JSON'); return; }
+    // accept both the current floors model and older single-list projects (doc.load → normalize migrates them)
+    const ok = proj && typeof proj === 'object' &&
+      (Array.isArray((proj as any).floors) || Array.isArray((proj as any).objects) || Array.isArray(proj.layers));
+    if (!ok) { flash('這不是室內設計專案檔'); return; }
+    doc.load(proj);
+    $<HTMLInputElement>('#projectName').value = doc.project.name;
+    editor.resetView();
+    flash('已從檔案開啟，可繼續編輯');   // the change emit re-enters auto-save, persisting it to the backend
+  };
+  reader.onerror = () => flash('讀取檔案失敗');
+  reader.readAsText(file);
+}
+
 // ---- auto-save ----
-// The document is marked dirty on any change; a 30-second heartbeat persists it
-// (see startAutosave). Kept separate from the change handler so edits don't hit
-// the server on every keystroke.
-const AUTOSAVE_MS = 30_000;
+// Real-time save: every change debounces a persist ~0.7s after the user pauses,
+// so edits reach the backend almost immediately (mirrored to localStorage too).
+// A slow heartbeat retries whatever's still unsaved (e.g. after an offline blip),
+// and a beforeunload flush catches the last few edits. `lastSaved` skips writes
+// when nothing actually changed (e.g. a selection-only change).
+const SAVE_DEBOUNCE_MS = 700;
+const AUTOSAVE_MS = 20_000;      // fallback heartbeat / offline retry
 let dirty = false;
-function scheduleAutosave(_doc: Doc) { dirty = true; }
+let lastSaved = '';
+let saveTimer: number | undefined;
+
+function setSaveStatus(state: 'saving' | 'saved' | 'offline') {
+  const el = document.querySelector('#saveStatus'); if (!el) return;
+  el.className = 'save-status ' + state;
+  el.textContent = state === 'saving' ? '儲存中…'
+    : state === 'offline' ? '離線・已暫存本機'
+    : '已儲存 ✓';
+}
+
+async function flushSave(doc: Doc): Promise<void> {
+  if (!dirty) return;
+  dirty = false;
+  const p = doc.serialize();
+  const json = JSON.stringify(p);
+  if (json === lastSaved) { setSaveStatus('saved'); return; }   // nothing meaningful changed
+  const ok = await saveProject(p);
+  if (ok) { lastSaved = json; setSaveStatus('saved'); }
+  else { dirty = true; setSaveStatus('offline'); }              // heartbeat will retry
+}
+
+function scheduleAutosave(doc: Doc) {
+  dirty = true;
+  setSaveStatus('saving');
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => flushSave(doc), SAVE_DEBOUNCE_MS);
+}
+
 function startAutosave(doc: Doc) {
-  window.setInterval(() => {
-    if (!dirty) return;
-    dirty = false;
-    saveProject(doc.serialize());
-    flash('已自動儲存 ' + new Date().toLocaleTimeString());
-  }, AUTOSAVE_MS);
-  // best-effort save when leaving, so the last (< 30s) of edits aren't lost
+  window.setInterval(() => { if (dirty) flushSave(doc); }, AUTOSAVE_MS);
   window.addEventListener('beforeunload', () => { if (dirty) saveProject(doc.serialize()); });
 }
 
@@ -415,6 +480,7 @@ function startAutosave(doc: Doc) {
 function wireExportMenu(editor: Editor, doc: Doc) {
   const wrap = $('#exportMenu'), toggle = $('#exportToggle');
   const items: { label: string; act: string }[] = [
+    { label: '💾 匯出專案檔（可再編輯）', act: 'export-project' },
     { label: '匯出 PNG', act: 'export-png' },
     { label: '匯出 PDF', act: 'export-pdf' },
     { label: '🧊 匯出 3D 模型', act: 'export-glb' },
@@ -465,8 +531,10 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'new':
       if (!confirm('新建會清空目前畫布，確定？')) return;
       doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView(); break;
-    case 'save': doc.project.name = name(); dirty = false; await saveProject(doc.serialize()); flash('已儲存'); break;
+    case 'save': doc.project.name = name(); dirty = true; await flushSave(doc); flash('已儲存'); break;
     case 'open': await openModal(editor, doc); break;
+    case 'export-project': exportProjectFile(doc, name()); flash('已匯出專案檔（.floorplan.json）'); break;
+    case 'import-project': $<HTMLInputElement>('#projectFileInput').click(); break;
     case 'undo': doc.undo(); break;
     case 'redo': doc.redo(); break;
     case 'export-png': exportPNG(doc, name()); break;
@@ -614,7 +682,12 @@ async function openModal(editor: Editor, doc: Doc) {
   modal.classList.remove('hidden');
   const projects = await listProjects();
   list.innerHTML = '';
-  if (!projects.length) { list.innerHTML = '<div class="muted" style="padding:12px">尚無已儲存的專案</div>'; return; }
+  // import-from-file entry, always available (works even with no saved projects / offline)
+  const imp = document.createElement('button');
+  imp.className = 'import-file'; imp.textContent = '⭱ 從檔案匯入專案檔…';
+  imp.onclick = () => { modal.classList.add('hidden'); $<HTMLInputElement>('#projectFileInput').click(); };
+  list.appendChild(imp);
+  if (!projects.length) { const m = document.createElement('div'); m.className = 'muted'; m.style.padding = '12px'; m.textContent = '尚無已儲存的專案'; list.appendChild(m); return; }
   for (const p of projects) {
     const row = document.createElement('div'); row.className = 'project-row';
     row.innerHTML = `<span class="pname">${p.name}</span><span class="pdate">${p.updatedAt ?? ''}</span>`;

@@ -13,6 +13,7 @@
       <header id="topbar">
         <span class="brand">🏡 室內設計繪圖</span>
         <input id="projectName" class="proj-name" value="未命名平面圖" />
+        <span id="saveStatus" class="save-status" aria-live="polite"></span>
         <div class="spacer"></div>
         <button data-act="new">新建</button>
         <button data-act="save">儲存</button>
@@ -99,6 +100,7 @@
     </div>
 
     <input id="imageInput" type="file" accept="image/*" style="display:none" />
+    <input id="projectFileInput" type="file" accept=".json,application/json" style="display:none" />
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
