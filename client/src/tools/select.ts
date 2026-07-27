@@ -2,7 +2,8 @@ import { Tool, ToolCtx, PointerInfo } from './types';
 import { Obj, Vec } from '../model/types';
 import { handles } from '../core/handles';
 import { hitTest, furnitureCenter } from '../core/hit';
-import { rotate, dist, angleDeg, snap, bulgeFrom, nearestWallSnap } from '../core/geometry';
+import { rotate, dist, angleDeg, snap, bulgeFrom } from '../core/geometry';
+import { computeSnap, drawSnap, WallSeg } from '../core/snap';
 import { fitOpeningToWall } from './place';
 
 type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'pan';
@@ -132,13 +133,12 @@ export class SelectTool implements Tool {
     if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'dimension') {
       let pt = p.snapped;
       this.ctx.setPreview();
-      if ((o.kind === 'wall' || o.kind === 'beam') && this.ctx.snapEnabled) {   // snap the dragged end onto walls
-        const walls = this.ctx.doc.objects.filter(w => w.kind === 'wall') as any[];
-        const s = nearestWallSnap(walls, p.world, 14 / this.ctx.vp.scale, o.id);
+      if ((o.kind === 'wall' || o.kind === 'beam') && this.ctx.snapEnabled) {   // same smart snap as drawing
+        const walls = this.ctx.doc.objects.filter(w => w.kind === 'wall') as unknown as WallSeg[];
+        const s = computeSnap(walls, p.world, 14 / this.ctx.vp.scale, { excludeId: o.id });
         if (s) {
           pt = s.point;
-          const c = this.ctx.vp.toScreen(pt);
-          this.ctx.setPreview(undefined, ctx => { ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); });
+          this.ctx.setPreview(undefined, ctx => drawSnap(ctx, this.ctx.vp, s));
         }
       }
       this.patch(o, (this.handleId === 'a' ? { a: pt } : { b: pt }) as any);

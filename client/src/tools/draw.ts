@@ -1,35 +1,46 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId } from '../model/doc';
 import { layerForKind, Vec } from '../model/types';
-import { fmtLen, dist, angleDeg, alignWallEnd, nearestWallSnap, bulgeFrom } from '../core/geometry';
+import { fmtLen, dist, angleDeg, alignWallEnd, bulgeFrom } from '../core/geometry';
+import { computeSnap, drawSnap, SnapResult, WallSeg } from '../core/snap';
 
 const WALL_THICKNESS = 12;   // cm
 const DIM_OFFSET = 40;       // cm
 const JOIN_PX = 14;          // screen-px radius for snapping onto other walls
+const PLACE_STEP = 1;        // cm — round placed endpoints to a clean grid
+
+// Round a freshly placed endpoint to the nearest cm so lengths/areas don't carry
+// sub-cm float noise (a 10.0015 m wall reads as "10.00 m" yet bloats the room to
+// 100.03 m²). An exact endpoint JOIN is left untouched so the point stays
+// coincident with the node it snapped to — that's what keeps rooms closing.
+export function placePoint(pt: Vec, snap: SnapResult | null): Vec {
+  if (snap && snap.kind === 'end') return pt;
+  return { x: Math.round(pt.x / PLACE_STEP) * PLACE_STEP, y: Math.round(pt.y / PLACE_STEP) * PLACE_STEP };
+}
 
 // Click to place points; each click chains a wall from the previous point.
 // Endpoints snap onto nearby walls (foolproof joining); otherwise they soft-snap
 // to 0/45/90° for grid alignment (Shift = force).
 export class WallTool implements Tool {
-  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；自動貼合鄰近牆體端點，近水平/垂直/45° 對齊格線（Shift 強制）；Esc 結束';
+  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；自動貼合牆體端點/中點/牆面，並顯示水平/垂直對齊輔助線；近軸對齊格線（Shift 強制）；Esc 結束';
   private start: Vec | null = null;
-  private snapAt: Vec | null = null;   // set when the current end is snapped to another wall
+  private snap: SnapResult | null = null;   // set when the current end snapped to a wall / alignment
   constructor(private ctx: ToolCtx) {}
 
-  // endpoint for the current cursor: prefer snapping onto another wall, else grid/angle align
+  // endpoint for the current cursor: prefer a smart wall/alignment snap, else grid/angle align
   private end(p: PointerInfo): Vec {
     if (this.ctx.snapEnabled) {
-      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as any[];
-      const s = nearestWallSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
-      if (s) { this.snapAt = s.point; return s.point; }
+      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as unknown as WallSeg[];
+      const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
+      if (s) { this.snap = s; return s.point; }
     }
-    this.snapAt = null;
+    this.snap = null;
     if (!this.start) return p.snapped;
     return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
   }
 
   onDown(p: PointerInfo) {
-    const end = this.end(p);
+    const end = placePoint(this.end(p), this.snap);   // this.end() sets this.snap
     if (!this.start) { this.start = end; return; }
     if (dist(this.start, end) < 1) return;
     this.ctx.doc.commit();
@@ -37,8 +48,8 @@ export class WallTool implements Tool {
     this.start = end;
   }
   onMove(p: PointerInfo) {
-    const e = this.end(p);           // updates this.snapAt
-    const s = this.start, snapAt = this.snapAt;
+    const e = this.end(p);           // updates this.snap
+    const s = this.start, snap = this.snap;
     const ang = s ? ((Math.round(angleDeg(s, e)) % 360) + 360) % 360 : 0;
     this.ctx.setPreview(
       ctx => {
@@ -48,14 +59,14 @@ export class WallTool implements Tool {
       },
       ctx => {
         if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(`${fmtLen(dist(s, e))} · ${ang}°`, m.x, m.y - 6); }
-        if (snapAt) { const c = this.ctx.vp.toScreen(snapAt); ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); }   // green ring = snapping
+        if (snap) drawSnap(ctx, this.ctx.vp, snap);
       },
     );
     this.ctx.render();
   }
   onUp() {}
-  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); } }
-  deactivate() { this.start = null; this.snapAt = null; this.ctx.setPreview(); }
+  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snap = null; this.ctx.setPreview(); this.ctx.render(); } }
+  deactivate() { this.start = null; this.snap = null; this.ctx.setPreview(); }
 }
 
 // Drag a rectangle to make a room.
@@ -93,23 +104,23 @@ export class CurvedWallTool implements Tool {
   private a: Vec | null = null;          // chain start
   private wallId: string | null = null;  // wall currently being curved
   private b: Vec | null = null;          // its end
-  private snapAt: Vec | null = null;
+  private snapRes: SnapResult | null = null;
   constructor(private ctx: ToolCtx) {}
 
   private snap(p: PointerInfo): Vec {
     if (this.ctx.snapEnabled) {
-      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as any[];
-      const s = nearestWallSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale, this.wallId ?? undefined);
-      if (s) { this.snapAt = s.point; return s.point; }
+      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as unknown as WallSeg[];
+      const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale, { excludeId: this.wallId ?? undefined });
+      if (s) { this.snapRes = s; return s.point; }
     }
-    this.snapAt = null;
+    this.snapRes = null;
     if (this.a && !this.wallId) return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.a, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
     return p.snapped;
   }
 
   onDown(p: PointerInfo) {
-    if (this.wallId) { this.a = this.b; this.wallId = null; this.b = null; this.snapAt = null; return; }   // confirm arc, chain on
-    const end = this.snap(p);
+    if (this.wallId) { this.a = this.b; this.wallId = null; this.b = null; this.snapRes = null; return; }   // confirm arc, chain on
+    const end = placePoint(this.snap(p), this.snapRes);   // this.snap() sets this.snapRes
     if (!this.a) { this.a = end; return; }
     if (dist(this.a, end) < 1) return;
     this.b = end;
@@ -129,12 +140,12 @@ export class CurvedWallTool implements Tool {
       this.ctx.setPreview(); this.ctx.render();
       return;
     }
-    const s = this.a, e = this.snap(p), snapAt = this.snapAt;
+    const s = this.a, e = this.snap(p), snap = this.snapRes;
     this.ctx.setPreview(
       ctx => { if (!s) return; ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = WALL_THICKNESS; ctx.globalAlpha = 0.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.globalAlpha = 1; },
       ctx => {
         if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(fmtLen(dist(s, e)), m.x, m.y - 6); }
-        if (snapAt) { const c = this.ctx.vp.toScreen(snapAt); ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); }
+        if (snap) drawSnap(ctx, this.ctx.vp, snap);
       },
     );
     this.ctx.render();
@@ -143,7 +154,7 @@ export class CurvedWallTool implements Tool {
   onUp() {}
   onKey(e: KeyboardEvent) { if (e.key === 'Escape') this.reset(); }
   deactivate() { this.reset(); }
-  private reset() { this.a = null; this.wallId = null; this.b = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); }
+  private reset() { this.a = null; this.wallId = null; this.b = null; this.snapRes = null; this.ctx.setPreview(); this.ctx.render(); }
 }
 
 // Beam: click endpoints (chains). Snaps to wall endpoints and axes.
@@ -152,22 +163,22 @@ export class BeamTool implements Tool {
   name = 'beam'; cursor = 'crosshair';
   hint = '點擊放置樑的端點；自動貼合牆體，近水平/垂直對齊格線；Esc 結束';
   private start: Vec | null = null;
-  private snapAt: Vec | null = null;
+  private snap: SnapResult | null = null;
   constructor(private ctx: ToolCtx) {}
 
   private end(p: PointerInfo): Vec {
     if (this.ctx.snapEnabled) {
-      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as any[];
-      const s = nearestWallSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
-      if (s) { this.snapAt = s.point; return s.point; }
+      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as unknown as WallSeg[];
+      const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
+      if (s) { this.snap = s; return s.point; }
     }
-    this.snapAt = null;
+    this.snap = null;
     if (!this.start) return p.snapped;
     return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
   }
 
   onDown(p: PointerInfo) {
-    const end = this.end(p);
+    const end = placePoint(this.end(p), this.snap);   // this.end() sets this.snap
     if (!this.start) { this.start = end; return; }
     if (dist(this.start, end) < 1) return;
     this.ctx.doc.ensureLayer('beams', '樑', '#b07de0', 2);
@@ -176,7 +187,7 @@ export class BeamTool implements Tool {
     this.start = end;
   }
   onMove(p: PointerInfo) {
-    const e = this.end(p), s = this.start, snapAt = this.snapAt;
+    const e = this.end(p), s = this.start, snap = this.snap;
     this.ctx.setPreview(
       ctx => {
         if (!s) return;
@@ -185,14 +196,14 @@ export class BeamTool implements Tool {
       },
       ctx => {
         if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#b07de0'; ctx.fillText(fmtLen(dist(s, e)), m.x, m.y - 6); }
-        if (snapAt) { const c = this.ctx.vp.toScreen(snapAt); ctx.strokeStyle = '#5ad19a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c.x, c.y, 7, 0, Math.PI * 2); ctx.stroke(); }
+        if (snap) drawSnap(ctx, this.ctx.vp, snap);
       },
     );
     this.ctx.render();
   }
   onUp() {}
-  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snapAt = null; this.ctx.setPreview(); this.ctx.render(); } }
-  deactivate() { this.start = null; this.snapAt = null; this.ctx.setPreview(); }
+  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snap = null; this.ctx.setPreview(); this.ctx.render(); } }
+  deactivate() { this.start = null; this.snap = null; this.ctx.setPreview(); }
 }
 
 // Grab the canvas with the left mouse button to pan the view.
