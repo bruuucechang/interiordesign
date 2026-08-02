@@ -485,6 +485,7 @@ function wireExportMenu(editor: Editor, doc: Doc) {
     { label: '匯出 PNG', act: 'export-png' },
     { label: '匯出 PDF（快照）', act: 'export-pdf' },
     { label: '📐 匯出施工圖 PDF…', act: 'plot-pdf' },
+    { label: '🌐 匯出 360 全景', act: 'export-pano' },
     { label: '🧊 匯出 3D 模型', act: 'export-glb' },
   ];
   let pop: HTMLElement | null = null;
@@ -544,6 +545,16 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'plot-pdf':
       if (!doc.project.floors.some(f => f.objects.some(o => o.kind !== 'image'))) { flash('尚無可出圖的內容'); break; }
       plotModal(doc, name());
+      break;
+    case 'export-pano':
+      if (!doc.objects.length) { flash('尚無可拍攝的 3D 內容'); break; }
+      flash('正在算全景…');
+      // Yield so the message paints before the capture blocks the main thread.
+      // setTimeout, not requestAnimationFrame: rAF is suspended while the tab is
+      // in the background, which would hang the export instead of delaying it.
+      await new Promise(r => setTimeout(r, 32));
+      try { flash(editor.hooks.exportPano?.(name()) ?? ''); }
+      catch (e) { console.error(e); flash('匯出全景失敗'); }
       break;
     case 'export-glb':
       if (!doc.objects.length) { flash('尚無可匯出的 3D 內容'); break; }
