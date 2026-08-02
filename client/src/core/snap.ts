@@ -2,12 +2,12 @@ import { Vec } from '../model/types';
 import { dist, closestOnSegment } from './geometry';
 import { Viewport } from './viewport';
 
-// Smarter drawing snaps. On top of the foolproof endpoint/segment joining in
-// `nearestWallSnap`, this adds wall MIDPOINTS, wall FACES (perpendicular
-// projection), and ALIGNMENT tracking — when the cursor lines up horizontally or
-// vertically with an existing wall endpoint, we lock that axis and draw a guide
-// line. Two guides crossing snap to their intersection. Pure + viewport-free so
-// it can be unit-tested; drawSnap() renders the marker/guides.
+// Smarter drawing snaps. On top of foolproof endpoint/segment joining, this adds
+// wall MIDPOINTS, wall FACES (perpendicular projection), and ALIGNMENT tracking
+// — when the cursor lines up horizontally or vertically with an existing wall
+// endpoint, we lock that axis and draw a guide line. Two guides crossing snap to
+// their intersection. Pure + viewport-free so it can be unit-tested; drawSnap()
+// renders the marker/guides.
 
 export type SnapKind = 'end' | 'mid' | 'seg' | 'align';
 

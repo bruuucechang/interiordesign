@@ -468,7 +468,7 @@ const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   tall_cabinet: (w, h) => cabinetModel(w, h, 200, { doors: 2, rows: 2, base: 'toekick', handle: 'knob' }), // tall pantry: stacked doors
 };
 
-export function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
+function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
   const b = BUILDERS[item];
   if (b) return b(w, h);
   const g = new THREE.Group();

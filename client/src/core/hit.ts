@@ -9,7 +9,7 @@ export function furnitureCenter(o: Extract<Obj, { kind: 'furniture' }>): Vec {
 }
 
 // four corners of a (possibly rotated) furniture rect, world cm
-export function furnitureCorners(o: Extract<Obj, { kind: 'furniture' }>): Vec[] {
+function furnitureCorners(o: Extract<Obj, { kind: 'furniture' }>): Vec[] {
   const c = furnitureCenter(o);
   const pts = [
     { x: o.x, y: o.y }, { x: o.x + o.w, y: o.y },

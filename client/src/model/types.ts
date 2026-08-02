@@ -71,10 +71,6 @@ export interface Project {
   activeFloorId: string;
 }
 
-export const LAYER_IDS = {
-  walls: 'walls', rooms: 'rooms', openings: 'openings', furniture: 'furniture', dims: 'dims',
-} as const;
-
 export function defaultLayers(): Layer[] {
   return [
     { id: 'underlay', name: '底圖', visible: true, locked: false, color: '#8b93a3' },

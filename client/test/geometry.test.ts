@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, nearestWallSnap, arcOpening } from '../src/core/geometry';
+import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening } from '../src/core/geometry';
 
 const V = (x: number, y: number) => ({ x, y });
 const SQ = [V(0, 0), V(100, 0), V(100, 100), V(0, 100)];
@@ -40,25 +40,6 @@ test('alignWallEnd with Shift forces the nearest 45° diagonal', () => {
   const e = alignWallEnd(V(0, 0), V(300, 200), 10, true);   // ~34° -> nearest step is 45°
   assert.equal(e.x, e.y);                                   // equal legs = 45° diagonal
   assert.equal(e.x, 250);                                   // snapped to grid
-});
-
-test('nearestWallSnap prefers a wall endpoint', () => {
-  const walls = [{ id: 'w1', a: V(0, 0), b: V(100, 0) }];
-  const s = nearestWallSnap(walls, V(3, 3), 10);
-  assert.ok(s && s.kind === 'end');
-  assert.deepEqual(s!.point, V(0, 0));
-});
-
-test('nearestWallSnap falls back to the segment for a mid-wall point', () => {
-  const walls = [{ id: 'w1', a: V(0, 0), b: V(100, 0) }];
-  const s = nearestWallSnap(walls, V(50, 4), 10);
-  assert.ok(s && s.kind === 'seg');
-  assert.deepEqual(s!.point, V(50, 0));
-});
-
-test('nearestWallSnap returns null beyond the radius', () => {
-  const walls = [{ id: 'w1', a: V(0, 0), b: V(100, 0) }];
-  assert.equal(nearestWallSnap(walls, V(50, 40), 10), null);
 });
 
 test('arcOpening fits a window onto a curved wall (bulged apex)', () => {
