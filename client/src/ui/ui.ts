@@ -7,6 +7,7 @@ import { detectRoomPolygons } from '../core/rooms';
 import { detectWallsFromImage } from '../core/detect';
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
+import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
 import { listProjects, loadProject, saveProject, deleteProject } from '../net/api';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -482,7 +483,8 @@ function wireExportMenu(editor: Editor, doc: Doc) {
   const items: { label: string; act: string }[] = [
     { label: '💾 匯出專案檔（可再編輯）', act: 'export-project' },
     { label: '匯出 PNG', act: 'export-png' },
-    { label: '匯出 PDF', act: 'export-pdf' },
+    { label: '匯出 PDF（快照）', act: 'export-pdf' },
+    { label: '📐 匯出施工圖 PDF…', act: 'plot-pdf' },
     { label: '🧊 匯出 3D 模型', act: 'export-glb' },
   ];
   let pop: HTMLElement | null = null;
@@ -539,6 +541,10 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'redo': doc.redo(); break;
     case 'export-png': exportPNG(doc, name()); break;
     case 'export-pdf': exportPDF(doc, name()); break;
+    case 'plot-pdf':
+      if (!doc.project.floors.some(f => f.objects.some(o => o.kind !== 'image'))) { flash('尚無可出圖的內容'); break; }
+      plotModal(doc, name());
+      break;
     case 'export-glb':
       if (!doc.objects.length) { flash('尚無可匯出的 3D 內容'); break; }
       try { await editor.hooks.export3d?.(name()); flash('已匯出 3D 模型 (.glb)'); }
@@ -547,6 +553,66 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
   }
+}
+
+// Scaled-plot dialog. Opens pre-filled with the scale/paper that fits the plan,
+// so the common case is just pressing 匯出; the selects are there for overriding.
+function plotModal(doc: Doc, name: string) {
+  const extent = projectExtent(doc.project);
+  const auto = chooseSheet(extent.w, extent.h);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  wrap.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-head"><span>匯出施工圖 PDF</span><button data-x>✕</button></div>
+      <div class="plot-form">
+        <label>比例 <select data-scale>${SCALES.map(s => `<option value="${s}"${s === auto.scale ? ' selected' : ''}>1:${s}</option>`).join('')}</select></label>
+        <label>紙張 <select data-paper>${['A4', 'A3'].map(p => `<option value="${p}"${p === auto.paper ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
+        <label>方向 <select data-orient>
+          <option value="landscape"${auto.orientation === 'landscape' ? ' selected' : ''}>橫式</option>
+          <option value="portrait"${auto.orientation === 'portrait' ? ' selected' : ''}>直式</option>
+        </select></label>
+        <p class="plot-note" data-note></p>
+        <div class="plot-actions"><button data-go>匯出</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  const sel = <T extends HTMLElement>(q: string) => wrap.querySelector(q) as T;
+  const scaleEl = sel<HTMLSelectElement>('[data-scale]');
+  const paperEl = sel<HTMLSelectElement>('[data-paper]');
+  const orientEl = sel<HTMLSelectElement>('[data-orient]');
+  const note = sel<HTMLParagraphElement>('[data-note]');
+  const close = () => wrap.remove();
+
+  // Live feedback on whether the plan actually fits the chosen sheet — the one
+  // thing a user can get wrong here.
+  const refresh = () => {
+    const scale = +scaleEl.value;
+    const area = planAreaMM(paperEl.value as PaperId, orientEl.value as Orientation);
+    const needW = extent.w * 10 / scale, needH = extent.h * 10 / scale;
+    const fits = needW <= area.w && needH <= area.h;
+    const pages = doc.project.floors.length;
+    note.textContent = fits
+      ? `圖面 ${(extent.w / 100).toFixed(1)} × ${(extent.h / 100).toFixed(1)} m，可完整容納。共 ${pages} 頁（每樓層一頁）。`
+      : `⚠ 裝不下：需要 ${needW.toFixed(0)} × ${needH.toFixed(0)} mm，可用 ${area.w.toFixed(0)} × ${area.h.toFixed(0)} mm。圖面會被裁切。`;
+    note.classList.toggle('warn', !fits);
+  };
+  [scaleEl, paperEl, orientEl].forEach(e => e.onchange = refresh);
+  refresh();
+
+  sel<HTMLButtonElement>('[data-x]').onclick = close;
+  wrap.onclick = (e) => { if (e.target === wrap) close(); };
+  sel<HTMLButtonElement>('[data-go]').onclick = () => {
+    plotPDF(doc, name, {
+      scale: +scaleEl.value,
+      paper: paperEl.value as PaperId,
+      orientation: orientEl.value as Orientation,
+    });
+    close();
+    flash('已匯出施工圖 PDF');
+  };
 }
 
 // Load an image as a traceable underlay: size it to fit, center it, drop it on

@@ -35,8 +35,8 @@
 | **3D 檢視** | 即時 Three.js 渲染：牆體挖洞、擬真 PBR 材質、時段光照（早晨／正午／黃昏／夜晚）、環境光遮蔽（GTAO）、天空、陰影；WASD 飛行 |
 | **編輯** | 選取／框選、拖曳移動、角落縮放、旋轉、端點拖曳、方向鍵微調、對齊/均分、複製貼上、復原/重做 |
 | **智慧吸附** | 畫牆／樑與拖曳端點時貼合牆體**端點／中點／牆面**（不同圖示：圈=端點、三角=中點、菱形=牆面），並在與既有端點**水平／垂直對齊**時顯示橙色虛線輔助線；兩條輔助線交會即吸附至交點 |
-| **匯出** | PNG（Canvas）、PDF（jsPDF）、3D 模型 .glb（glTF，可用 Blender 開啟） |
-| **持久化** | 後端 SQLite 存檔；離線自動降級為 localStorage；每 30 秒自動存檔 |
+| **匯出** | PNG（Canvas）、PDF 快照、**施工圖 PDF**（真實比例＋圖框／標題欄／比例尺／房間面積表，每樓層一頁）、3D 模型 .glb（glTF，可用 Blender 開啟） |
+| **持久化** | 後端 SQLite 存檔；離線自動降級為 localStorage；變更後約 0.7 秒 debounce 自動存檔（另有 20 秒 fallback 心跳） |
 | **底圖** | 匯入平面圖底圖描繪，並可自動偵測牆體 |
 
 ---
@@ -107,7 +107,7 @@ npm test             # 執行 client/test/*.test.ts
 ```
 interior-designer/
 ├─ client/                         # 前端（Vite）
-│  ├─ index.html                   # 版面骨架（工具列、左家具庫、中畫布、右圖層/屬性/AI）
+│  ├─ index.html                   # 版面骨架（工具列、左家具庫、中畫布、右圖層/屬性）
 │  └─ src/
 │     ├─ main.ts                   # 進入點：建立 editor + view3d，2D/3D 切換與子母畫面
 │     ├─ model/
@@ -122,7 +122,8 @@ interior-designer/
 │     │  ├─ editor.ts              # 輸入事件、工具分派、選取、剪貼簿、對齊、縮放
 │     │  ├─ rooms.ts               # 由牆體平面圖偵測房間（含曲線牆弧線細分）
 │     │  ├─ detect.ts              # 從底圖影像自動偵測牆線
-│     │  ├─ exporter.ts            # PNG / PDF 匯出
+│     │  ├─ exporter.ts            # PNG / PDF 快照匯出
+│     │  ├─ plot.ts                # 施工圖出圖：比例／紙張選擇、圖框、標題欄、比例尺、面積表
 │     │  ├─ view3d.ts              # Three.js 3D 場景、牆體挖洞、平滑曲面、光照、GLB 匯出
 │     │  ├─ furniture3d.ts         # 家具 3D 模型（PBR 材質原型、各式櫃體）
 │     │  └─ textures3d.ts          # 木地板 / 磁磚材質
@@ -132,7 +133,7 @@ interior-designer/
 │     │  ├─ place.ts               # OpeningTool（門窗吸附牆體）、FurnitureTool、fitOpeningToWall
 │     │  └─ select.ts              # 選取、移動、縮放、旋轉、端點拖曳
 │     ├─ data/furniture.ts         # 家具目錄（俯視圖示 + 尺寸 + 參考價）
-│     ├─ ui/ui.ts                  # 全部 UI 接線：家具庫、樓層、圖層、屬性、頂列、匯出選單、AI、自動存檔、房間重建
+│     ├─ ui/ui.ts                  # 全部 UI 接線：家具庫、樓層、圖層、屬性、頂列、匯出選單、自動存檔、房間重建
 │     └─ net/api.ts                # 專案 CRUD（含離線 localStorage 降級）
 ├─ server/                         # 後端（Express + node:sqlite）
 │  └─ src/
@@ -185,7 +186,7 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 
 ### 6. 吸附（Snapping）
 
-頂列「吸附」開關控制：畫牆/移動時端點吸附到**格線**，以及吸附到**其他牆的端點或線段**（`geometry.ts` 的 `nearestWallSnap`）—— 這是房間能自動封閉的關鍵（牆角要真的接上）。畫牆時接近水平/垂直會自動拉直；按 **Shift** 可暫時強制軸向。
+頂列「吸附」開關控制：畫牆/移動時端點吸附到**格線**，以及吸附到**其他牆的端點／中點／牆面**（`core/snap.ts`）—— 這是房間能自動封閉的關鍵（牆角要真的接上）。畫牆時接近水平/垂直會自動拉直；按 **Shift** 可暫時強制軸向。
 
 ### 7. 曲線牆與門窗貼合
 
@@ -214,7 +215,7 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 
 ### 11. 持久化與自動存檔
 
-`net/api.ts` 對後端做 CRUD（`/api/projects`），連不上時自動改用 `localStorage`（`apiState.online` 標記）。自動存檔採 **30 秒心跳**：每次變更只把文件標記為 dirty，30 秒定時器才實際存檔並顯示「已自動儲存 時間」；離開頁面（`beforeunload`）會盡力再存一次，避免遺失最後 <30 秒。後端 `db.ts` 用 `node:sqlite` 的 `DatabaseSync`，把整份專案 JSON 存進 `projects` 表。
+`net/api.ts` 對後端做 CRUD（`/api/projects`），連不上時自動改用 `localStorage`（`apiState.online` 標記）。自動存檔採 **~0.7 秒 debounce**：變更停止後就存檔並更新狀態列，另有 20 秒 fallback 心跳補送離線期間未存的內容；離開頁面（`beforeunload`）會盡力再存一次。後端 `db.ts` 用 `node:sqlite` 的 `DatabaseSync`，把整份專案 JSON 存進 `projects` 表。
 
 ---
 
@@ -289,7 +290,7 @@ npm test
 - **Node 版本**：需 **≥ 22**，因為後端用內建 `node:sqlite`（`DatabaseSync`）。
 - **單位固定 cm**：所有座標/尺寸都是公分；AI 工具與匯出皆以此為準。
 - **離線可用**：後端連不上時自動改用 `localStorage`，但那是瀏覽器本機、非跨裝置。
-- **自動存檔是 30 秒週期**：不是即時；離開頁面會盡力補存，但極端情況（當機）可能遺失最後幾秒。手動「儲存」可立即存。
+- **自動存檔是 ~0.7 秒 debounce**：接近即時；離開頁面會盡力補存，但極端情況（當機）可能遺失最後幾秒。手動「儲存」可立即存。
 - **座標系 y 向下**：與螢幕一致；3D 中對應 Z 軸，Y 為上。
 - **曲線牆效能**：3D 曲線牆會細分成密集網格（平滑用），以每次重建為單位處理，一般使用無虞。
 - **開發時的相機鍵**：W/A/S/D 在 2D 平移視圖、在 3D 飛行相機，因此**未**設為工具快捷鍵。
@@ -300,6 +301,6 @@ npm test
 ## 未來可擴充
 
 - 吸附再進化：**平行牆吸附**、尺寸鏈（已完成中點／牆面吸附與水平／垂直對齊輔助線）。
-- 白底列印主題、比例尺與圖框、多頁 PDF、家具估價清單。
+- 家具估價清單／材料表（`data/furniture.ts` 目前無價格欄位）。
 - 匯入自訂家具、群組、貼齊網格設定。
 - 房間內部標註（面積/名稱）自動排版、材料表輸出。
