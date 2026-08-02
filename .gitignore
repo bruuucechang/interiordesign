@@ -6,3 +6,9 @@ server/data/*.db-*
 *.log
 .DS_Store
 .env
+
+# Python backend
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/

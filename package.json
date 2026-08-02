@@ -2,17 +2,24 @@
   "name": "interior-designer",
   "version": "0.1.0",
   "private": true,
-  "description": "室內設計 2D 平面圖繪圖軟體 — Canvas + TypeScript editor with furniture library, layers, export, and a lightweight Node/SQLite backend.",
-  "workspaces": ["client", "server"],
+  "description": "室內設計 2D 平面圖繪圖軟體 — Canvas + TypeScript editor with a FastAPI/PostgreSQL backend for storage, room detection, wall tracing and reports.",
+  "workspaces": [
+    "client"
+  ],
   "scripts": {
     "dev": "concurrently -n server,client -c green,cyan \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:server": "npm --workspace server run dev",
+    "dev:server": "cd server && ../.venv/bin/python -m uvicorn app.main:app --reload --port 8791",
     "dev:client": "npm --workspace client run dev",
-    "build": "npm --workspace server run build && npm --workspace client run build",
-    "start": "npm --workspace server run start",
-    "test": "tsx --test client/test/*.test.ts"
+    "build": "npm --workspace client run build",
+    "start": "cd server && ../.venv/bin/python -m uvicorn app.main:app --port 8791",
+    "setup:py": "python3 -m venv .venv && .venv/bin/pip install -r server/requirements.txt",
+    "migrate": "cd server && ../.venv/bin/python -m scripts.migrate_sqlite_to_pg",
+    "test": "npm run test:client && npm run test:server",
+    "test:client": "tsx --test client/test/*.test.ts",
+    "test:server": "cd server && ../.venv/bin/python -m pytest tests/ -q"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "tsx": "^4.23.4"
   }
 }
