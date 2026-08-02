@@ -98,3 +98,35 @@ def test_a_plan_with_no_objects_is_still_valid(client):
 def test_unicode_names_survive(client):
     client.put("/api/projects/a", json={"name": "客廳・2F 平面圖", "data": PLAN})
     assert client.get("/api/projects/a").json()["name"] == "客廳・2F 平面圖"
+
+
+# ---- compute endpoints ----
+
+SQUARE = [
+    {"a": {"x": 0, "y": 0},     "b": {"x": 400, "y": 0}},
+    {"a": {"x": 400, "y": 0},   "b": {"x": 400, "y": 400}},
+    {"a": {"x": 400, "y": 400}, "b": {"x": 0, "y": 400}},
+    {"a": {"x": 0, "y": 400},   "b": {"x": 0, "y": 0}},
+]
+
+
+def test_rooms_detect_finds_the_enclosed_square(client):
+    r = client.post("/api/rooms/detect", json={"walls": SQUARE})
+    assert r.status_code == 200
+    polys = r.json()["polygons"]
+    assert len(polys) == 1
+    assert {"x", "y"} == set(polys[0][0])
+
+
+def test_rooms_detect_on_an_open_loop_returns_nothing(client):
+    r = client.post("/api/rooms/detect", json={"walls": SQUARE[:3]})
+    assert r.json()["polygons"] == []
+
+
+def test_rooms_detect_accepts_no_walls(client):
+    assert client.post("/api/rooms/detect", json={"walls": []}).json()["polygons"] == []
+
+
+def test_rooms_detect_defaults_bulge_when_absent(client):
+    # the client omits bulge on straight walls
+    assert len(client.post("/api/rooms/detect", json={"walls": SQUARE}).json()["polygons"]) == 1

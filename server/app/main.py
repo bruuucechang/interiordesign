@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from . import db as store
+from .rooms import detect_room_polygons
 
 
 @asynccontextmanager
@@ -80,3 +81,31 @@ def put_project(
 def remove_project(project_id: str, db: Session = Depends(get_db)) -> dict[str, bool]:
     store.delete_project(db, project_id)
     return {"ok": True}
+
+
+# ------------------------------------------------------------------ compute
+
+
+class Point(BaseModel):
+    x: float
+    y: float
+
+
+class WallIn(BaseModel):
+    a: Point
+    b: Point
+    bulge: float = 0.0
+
+
+class DetectRoomsBody(BaseModel):
+    walls: list[WallIn]
+
+
+@app.post("/api/rooms/detect")
+def rooms_detect(body: DetectRoomsBody) -> dict[str, list[list[dict[str, float]]]]:
+    """Bounded faces of the wall network — the rooms."""
+    walls = [
+        {"a": w.a.model_dump(), "b": w.b.model_dump(), "bulge": w.bulge}
+        for w in body.walls
+    ]
+    return {"polygons": detect_room_polygons(walls)}

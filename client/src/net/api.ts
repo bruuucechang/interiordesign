@@ -1,4 +1,4 @@
-import { Project } from '../model/types';
+import { Project, Vec } from '../model/types';
 
 // CRUD for projects. Degrades to localStorage when the backend is unreachable
 // so the editor stays usable offline.
@@ -56,4 +56,26 @@ export async function deleteProject(id: string): Promise<void> {
   const map = lsAll(); delete map[id]; lsWrite(map);
   try { await j(`/api/projects/${id}`, { method: 'DELETE' }); }
   catch { /* local mirror already updated; the backend copy stays until next sync */ }
+}
+
+// ---- compute served by the backend ----
+
+export interface WallInput { a: Vec; b: Vec; bulge?: number; }
+
+/**
+ * Rooms enclosed by the wall network. Runs on the server because it is a
+ * batch step behind a 150 ms debounce, not a per-frame one.
+ *
+ * Returns null — rather than an empty list — when the backend cannot be
+ * reached, so the caller can leave the existing rooms alone instead of
+ * deleting every one of them on a dropped connection.
+ */
+export async function detectRooms(walls: WallInput[]): Promise<Vec[][] | null> {
+  try {
+    const d = await j<{ polygons: Vec[][] }>('/api/rooms/detect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walls: walls.map(w => ({ a: w.a, b: w.b, bulge: w.bulge ?? 0 })) }),
+    }, 5000);
+    return d.polygons;
+  } catch { return null; }
 }

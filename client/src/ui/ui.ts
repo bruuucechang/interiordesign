@@ -3,12 +3,11 @@ import { Doc, genId } from '../model/doc';
 import { Obj, Vec, Project, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
-import { detectRoomPolygons } from '../core/rooms';
 import { detectWallsFromImage } from '../core/detect';
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
-import { listProjects, loadProject, saveProject, deleteProject } from '../net/api';
+import { listProjects, loadProject, saveProject, deleteProject, detectRooms } from '../net/api';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -717,16 +716,20 @@ function scheduleReconcile(doc: Doc) {
     if (sig === lastWallSig) return;          // walls unchanged — nothing to do
     lastWallSig = sig;
     reconciling = true;
-    try { reconcileAutoRooms(doc); } finally { reconciling = false; }
+    reconcileAutoRooms(doc).finally(() => { reconciling = false; });
   }, 150);
 }
 
 // Match detected wall-enclosed regions to existing auto rooms: update ones that
 // still hold, drop ones whose enclosure is gone, and add rooms for new closures.
 // Manual rooms (drawn, renamed, or moved) are left untouched.
-function reconcileAutoRooms(doc: Doc) {
+async function reconcileAutoRooms(doc: Doc) {
   const walls = doc.objects.filter(o => o.kind === 'wall') as WallObj[];
-  const detected = detectRoomPolygons(walls);
+  const detected = await detectRooms(walls);
+  // A null result means the backend is unreachable, which is not the same as
+  // "no rooms". Reconciling against an empty list would delete every auto room
+  // the moment the connection drops, so leave them exactly as they are.
+  if (detected === null) { lastWallSig = ''; return; }
   const cents = detected.map(polygonCentroid);
   const rooms = () => doc.objects.filter(o => o.kind === 'room') as RoomObj[];
   const manual = rooms().filter(r => !r.auto);
