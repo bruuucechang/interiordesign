@@ -6,6 +6,7 @@ import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
+import { savePanorama, isInsidePlan } from './core/panorama';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const hint = document.getElementById('hint') as HTMLElement;
@@ -30,6 +31,18 @@ view3d.onFloorClick = (floor, sceneHit) => {
 };
 view3d.onRotate90 = (deg) => editor.rotateSelection(deg);   // Q/E in 3D rotate the selected object 90°
 editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter
+
+// 匯出 360 全景：從 3D 相機所在位置拍。預設相機停在建築外側，那樣拍只會得到一
+// 張從外面看的空景，所以先確認它真的落在平面圖範圍內再動手。
+editor.hooks.exportPano = (name) => {
+  const pose = view3d.panoramaPose();
+  const boxes = doc.objects.filter(o => o.kind !== 'image').map(bounds);
+  if (!isInsidePlan(pose.position, boxes)) {
+    return '相機在室外 — 請切到 3D 檢視，用 WASD 飛到室內再匯出';
+  }
+  savePanorama(view3d.capturePanorama(), pose.yaw, name);
+  return '已匯出 360 全景（.jpg + 可直接開啟的 .html）';
+};
 let mode: '2d' | '3d' = '2d';
 let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 

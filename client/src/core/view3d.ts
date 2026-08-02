@@ -10,6 +10,7 @@ import { Obj, Vec } from '../model/types';
 import { dist, angleDeg, quadPoints, wallControl, closestOnSegment } from './geometry';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone, tileClone } from './textures3d';
+import { capturePanorama } from './panorama';
 
 const WALL_H = 270; // cm
 
@@ -656,6 +657,32 @@ export class View3D {
       URL.revokeObjectURL(url);
     } finally {
       if (this.ground) this.ground.visible = groundWasVisible;
+    }
+  }
+
+  /** Where the panorama would be shot from, and which way the viewer should first face. */
+  panoramaPose(): { position: THREE.Vector3; yaw: number } {
+    const dir = new THREE.Vector3();
+    this.camera.getWorldDirection(dir);
+    return { position: this.camera.position.clone(), yaw: Math.atan2(dir.x, -dir.z) };
+  }
+
+  /**
+   * Capture a 360° equirectangular panorama from the current camera position.
+   * Placement ghosts are hidden first — they are editing aids, not part of the
+   * design — and the ground plane stays, since a panorama shot indoors sees the
+   * floor. Post-processing (GTAO) does not apply to a cube render, so the
+   * result is the plain lit scene.
+   */
+  capturePanorama(): HTMLCanvasElement {
+    const hidden: THREE.Object3D[] = [];
+    for (const o of [this.ghost, this.openingGhost]) {
+      if (o && o.visible) { o.visible = false; hidden.push(o); }
+    }
+    try {
+      return capturePanorama(this.renderer, this.scene, this.camera.position);
+    } finally {
+      for (const o of hidden) o.visible = true;
     }
   }
 

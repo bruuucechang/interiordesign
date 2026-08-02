@@ -20,7 +20,9 @@ export class Editor implements ToolCtx {
   gridSize = 10; // cm
   inputEnabled = true; // false while the 2D view is just the corner preview
 
-  hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void } = {};
+  // exportPano returns the message to show the user — it can decline (camera
+  // outside the plan) as well as succeed, and both need explaining.
+  hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => string } = {};
 
   private previewW?: DrawFn;
   private previewS?: DrawFn;
