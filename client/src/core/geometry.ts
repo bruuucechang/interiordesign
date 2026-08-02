@@ -105,7 +105,7 @@ export function wallControl(a: Vec, b: Vec, bulge: number): Vec {
   const n = perpUnit(a, b);
   return { x: (a.x + b.x) / 2 + n.x * 2 * bulge, y: (a.y + b.y) / 2 + n.y * 2 * bulge };
 }
-export function quadAt(a: Vec, c: Vec, b: Vec, t: number): Vec {
+function quadAt(a: Vec, c: Vec, b: Vec, t: number): Vec {
   const u = 1 - t;
   return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y };
 }
@@ -165,26 +165,6 @@ export function arcSpan(a: Vec, c: Vec, b: Vec, p0: Vec, p1: Vec):
   const lo = Math.min(n0.bi, n1.bi), hi = Math.max(n0.bi, n1.bi);
   const e0 = pts[lo], e1 = pts[hi], apex = pts[(lo + hi) >> 1];
   return { pos: { x: (e0.x + e1.x) / 2, y: (e0.y + e1.y) / 2 }, angle: angleDeg(e0, e1), bulge: bulgeFrom(e0, e1, apex), width: dist(e0, e1), dist: Math.min(n0.bd, n1.bd) };
-}
-
-// Foolproof wall joining: snap a point to a nearby wall endpoint (preferred) or
-// onto a wall segment (T-junction). `radius` is in world cm; pass excludeId to
-// ignore the wall being edited. Returns the snapped point + which kind, or null.
-export function nearestWallSnap(
-  walls: { id: string; a: Vec; b: Vec }[], p: Vec, radius: number, excludeId?: string,
-): { point: Vec; kind: 'end' | 'seg' } | null {
-  let best: Vec | null = null, bestD = radius;
-  for (const w of walls) {                       // endpoints win — they make clean corners
-    if (w.id === excludeId) continue;
-    for (const e of [w.a, w.b]) { const d = dist(p, e); if (d < bestD) { bestD = d; best = e; } }
-  }
-  if (best) return { point: { x: best.x, y: best.y }, kind: 'end' };
-  for (const w of walls) {                        // otherwise snap onto the wall line
-    if (w.id === excludeId) continue;
-    const { point } = closestOnSegment(p, w.a, w.b);
-    const d = dist(p, point); if (d < bestD) { bestD = d; best = point; }
-  }
-  return best ? { point: best, kind: 'seg' } : null;
 }
 
 // Snap a wall's end so the segment locks to 0/45/90° for easy grid alignment.

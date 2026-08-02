@@ -4,7 +4,6 @@ import { Project } from '../model/types';
 // so the editor stays usable offline.
 
 const LS_KEY = 'interior_projects';
-export const apiState = { online: true };
 
 interface Meta { id: string; name: string; updatedAt: string; }
 
@@ -26,9 +25,8 @@ async function j<T>(url: string, opts?: RequestInit, ms = 2500): Promise<T> {
 export async function listProjects(): Promise<Meta[]> {
   try {
     const d = await j<{ projects: Meta[] }>('/api/projects');
-    apiState.online = true; return d.projects;
+    return d.projects;
   } catch {
-    apiState.online = false;
     return Object.values(lsAll()).map(p => ({ id: p.id, name: p.name, updatedAt: 'local' }));
   }
 }
@@ -36,9 +34,9 @@ export async function listProjects(): Promise<Meta[]> {
 export async function loadProject(id: string): Promise<Project | null> {
   try {
     const d = await j<{ id: string; name: string; data: Project }>(`/api/projects/${id}`);
-    apiState.online = true; return d.data;
+    return d.data;
   } catch {
-    apiState.online = false; return lsAll()[id] ?? null;
+    return lsAll()[id] ?? null;
   }
 }
 
@@ -50,12 +48,12 @@ export async function saveProject(p: Project): Promise<boolean> {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: p.name, data: p }),
     });
-    apiState.online = true; return true;
-  } catch { apiState.online = false; return false; }
+    return true;
+  } catch { return false; }
 }
 
 export async function deleteProject(id: string): Promise<void> {
   const map = lsAll(); delete map[id]; lsWrite(map);
-  try { await j(`/api/projects/${id}`, { method: 'DELETE' }); apiState.online = true; }
-  catch { apiState.online = false; }
+  try { await j(`/api/projects/${id}`, { method: 'DELETE' }); }
+  catch { /* local mirror already updated; the backend copy stays until next sync */ }
 }

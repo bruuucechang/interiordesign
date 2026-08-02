@@ -55,12 +55,3 @@ export function handles(o: Obj): Handle[] {
     }
   }
 }
-
-export function furnitureCornerLocal(id: string, o: { x: number; y: number; w: number; h: number }): Vec {
-  switch (id) {
-    case 'nw': return { x: o.x, y: o.y };
-    case 'ne': return { x: o.x + o.w, y: o.y };
-    case 'se': return { x: o.x + o.w, y: o.y + o.h };
-    default: return { x: o.x, y: o.y + o.h }; // sw
-  }
-}

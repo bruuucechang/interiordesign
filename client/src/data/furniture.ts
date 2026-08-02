@@ -147,18 +147,3 @@ export const FURNITURE_BY_ID: Record<string, FurnitureItem> = Object.fromEntries
 const CAT_ORDER = ['客廳', '餐廳', '臥室', '廚房', '浴室', '書房'];
 export const FURNITURE_CATS = [...new Set(FURNITURE.map(f => f.cat))]
   .sort((a, b) => { const ia = CAT_ORDER.indexOf(a), ib = CAT_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
-
-// Rough reference prices (NT$) for the bill-of-materials estimate.
-const PRICES: Record<string, number> = {
-  sofa: 18000, armchair: 8000, coffee: 4500, tv: 6000, rug: 3500, plant: 1200,
-  dining: 9000, chair: 2500,
-  bed_double: 22000, bed_single: 14000,
-  stove: 15000, fridge: 20000, sink: 6000,
-  toilet: 5000, bathtub: 18000, shower: 12000,
-  desk: 5000,
-  // 櫃子
-  cabinet_storage: 7000, cabinet_side: 10000, dresser: 9000, nightstand: 3500,
-  shoe_cabinet: 6000, cabinet_kitchen: 25000, vanity: 9000, bookshelf: 8000,
-  open_shelf: 5500, display_cabinet: 13000, wardrobe: 12000, tall_cabinet: 11000,
-};
-export function itemPrice(id: string): number { return PRICES[id] ?? 3000; }
