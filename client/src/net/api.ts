@@ -70,6 +70,34 @@ export interface WallInput { a: Vec; b: Vec; bulge?: number; }
  * reached, so the caller can leave the existing rooms alone instead of
  * deleting every one of them on a dropped connection.
  */
+export interface DxfLayer { layer: string; segments: number; length: number; suggested: boolean; }
+export interface DxfInspection {
+  layers: DxfLayer[]; unit: string; unitGuessed: boolean;
+  extent: { w: number; h: number }; dxfversion: string;
+}
+export interface DxfWall { a: Vec; b: Vec; thickness: number; bulge?: number; }
+
+/** What a DXF holds, so the user can choose layers before anything is imported. */
+export async function inspectDxf(file: string): Promise<DxfInspection | { error: string }> {
+  try {
+    return await j<DxfInspection>('/api/dxf/inspect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file }),
+    }, 30000);
+  } catch (e) { return { error: String(e) }; }
+}
+
+/** The chosen layers as editor walls, already in centimetres. */
+export async function importDxf(file: string, layers: string[], unit: string): Promise<DxfWall[] | null> {
+  try {
+    const d = await j<{ walls: DxfWall[] }>('/api/dxf/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file, layers, unit }),
+    }, 60000);
+    return d.walls;
+  } catch { return null; }
+}
+
 export interface TracedWalls { segments: [Vec, Vec][]; w: number; h: number; }
 
 /**

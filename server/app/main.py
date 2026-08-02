@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from . import db as store
 from .detect import DecodeError, detect_walls
+from .dxf import DxfError, convert as convert_dxf, inspect as inspect_dxf
 from .report import build_report, build_workbook
 from .rooms import detect_room_polygons
 
@@ -124,6 +125,33 @@ def walls_detect(body: DetectWallsBody) -> dict[str, Any]:
     try:
         return detect_walls(body.image)
     except DecodeError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+class DxfBody(BaseModel):
+    file: str = Field(min_length=1, description="data URL or bare base64 of a DXF")
+
+
+class DxfImportBody(DxfBody):
+    layers: list[str] | None = None
+    unit: str | None = None
+
+
+@app.post("/api/dxf/inspect")
+def dxf_inspect(body: DxfBody) -> dict[str, Any]:
+    """What the file contains, so the user can pick layers before importing."""
+    try:
+        return inspect_dxf(body.file)
+    except DxfError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.post("/api/dxf/import")
+def dxf_import(body: DxfImportBody) -> dict[str, Any]:
+    """The chosen layers, converted to editor walls in centimetres."""
+    try:
+        return convert_dxf(body.file, body.layers, body.unit)
+    except DxfError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
