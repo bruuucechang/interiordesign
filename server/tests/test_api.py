@@ -153,3 +153,42 @@ def test_xlsx_endpoint_returns_a_spreadsheet_attachment(client):
     assert "spreadsheetml" in r.headers["content-type"]
     assert "attachment" in r.headers["content-disposition"]
     assert r.content[:2] == b"PK"        # xlsx is a zip
+
+
+# ---- DXF import ----
+
+def _dxf_b64() -> str:
+    import base64, io, ezdxf
+    from ezdxf import units
+    doc = ezdxf.new("R2010", setup=True)
+    doc.units = units.MM
+    msp = doc.modelspace()
+    msp.add_lwpolyline([(0, 0), (6000, 0), (6000, 4000), (0, 4000)],
+                       close=True, dxfattribs={"layer": "WALL"})
+    msp.add_line((0, 0), (100, 0), dxfattribs={"layer": "DIM"})
+    stream = io.StringIO(); doc.write(stream)
+    return "data:image/vnd.dxf;base64," + base64.b64encode(stream.getvalue().encode()).decode()
+
+
+def test_dxf_inspect_lists_layers(client):
+    r = client.post("/api/dxf/inspect", json={"file": _dxf_b64()})
+    assert r.status_code == 200
+    names = {layer["layer"] for layer in r.json()["layers"]}
+    assert {"WALL", "DIM"} <= names
+    assert r.json()["unit"] == "mm"
+
+
+def test_dxf_import_returns_walls_for_the_chosen_layers(client):
+    r = client.post("/api/dxf/import",
+                    json={"file": _dxf_b64(), "layers": ["WALL"], "unit": "mm"})
+    assert r.status_code == 200
+    walls = r.json()["walls"]
+    assert len(walls) == 4
+    assert all({"a", "b", "thickness"} <= set(w) for w in walls)
+
+
+def test_dxf_endpoints_reject_a_non_dxf(client):
+    import base64
+    bad = base64.b64encode(b"not a dxf").decode()
+    assert client.post("/api/dxf/inspect", json={"file": bad}).status_code == 400
+    assert client.post("/api/dxf/import", json={"file": bad}).status_code == 400

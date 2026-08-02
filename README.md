@@ -38,14 +38,15 @@
 | **報表** | 各樓層房間面積（m²／坪）、家具數量、物件統計，可匯出 **Excel (.xlsx)** |
 | **匯出** | PNG（Canvas）、PDF 快照、**施工圖 PDF**（真實比例＋圖框／標題欄／比例尺／房間面積表，每樓層一頁）、**360 全景**（4096×2048 equirectangular JPG ＋ 可直接雙擊開啟的自包含 HTML 檢視器）、3D 模型 .glb（glTF，可用 Blender 開啟） |
 | **持久化** | 後端 SQLite 存檔；離線自動降級為 localStorage；變更後約 0.7 秒 debounce 自動存檔（另有 20 秒 fallback 心跳） |
-| **底圖** | 匯入平面圖底圖描繪，並可自動偵測牆體 |
+| **底圖** | 匯入平面圖底圖描繪，並可自動偵測牆體（後端 OpenCV） |
+| **DXF 匯入** | 讀入建商／測繪提供的 DXF：先列出圖層與線段統計供勾選，再轉成牆體（自動合併雙線牆並量出厚度、ARC 與 bulge 轉曲線牆、單位可覆寫） |
 
 ---
 
 ## 技術棧
 
 - **前端**：TypeScript + Vite；2D 用原生 HTML5 Canvas 手刻；3D 用 [Three.js](https://threejs.org/)（含 `EffectComposer` / `GTAOPass` / `RoomEnvironment` IBL）；PDF 用 `jsPDF`。
-- **後端**：Python 3 + FastAPI + SQLAlchemy + PostgreSQL；影像處理用 OpenCV，報表用 openpyxl。
+- **後端**：Python 3 + FastAPI + SQLAlchemy + PostgreSQL；影像處理用 OpenCV，DXF 用 ezdxf，報表用 openpyxl。
 - **建置**：npm workspace（`client`）、Vite、`tsx`；後端用 venv + `requirements.txt`。
 - **測試**：前端用 Node 內建 test runner（`tsx --test`），後端用 pytest；`npm test` 兩套一起跑。
 - **單位**：公分（cm）。座標系 **x 向右、y 向下**（螢幕座標習慣）。
@@ -155,6 +156,7 @@ interior-designer/
 │  │  ├─ db.py                     # SQLAlchemy：floorplans 表（方案存成 JSONB）
 │  │  ├─ rooms.py                  # 半邊繞行的房間偵測（由前端搬來）
 │  │  ├─ detect.py                 # OpenCV 底圖牆體辨識（Otsu + Hough）
+│  │  ├─ dxf.py                    # DXF 匯入（ezdxf）：圖層預覽、單位換算、雙線合併
 │  │  └─ report.py                 # 面積統計與 openpyxl 報表
 │  ├─ scripts/migrate_sqlite_to_pg.py
 │  └─ tests/                       # pytest
@@ -319,6 +321,7 @@ npm test
 ## 未來可擴充
 
 - 吸附再進化：**平行牆吸附**、尺寸鏈（已完成中點／牆面吸附與水平／垂直對齊輔助線）。
+- DWG 匯入（目前僅支援 DXF；DWG 是封閉格式，需要轉檔）。
 - 家具估價清單／材料表（`data/furniture.ts` 目前無價格欄位）。
 - 每個房間自動各出一張全景（目前是從 3D 相機所在位置拍一張）。
 - 匯入自訂家具、群組、貼齊網格設定。

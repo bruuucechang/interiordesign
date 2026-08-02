@@ -6,7 +6,7 @@ import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, pol
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
-import { listProjects, loadProject, saveProject, deleteProject, detectRooms, detectWalls } from '../net/api';
+import { listProjects, loadProject, saveProject, deleteProject, detectRooms, detectWalls, inspectDxf, importDxf } from '../net/api';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -50,6 +50,14 @@ export function initUI(editor: Editor, doc: Doc) {
     const reader = new FileReader();
     reader.onload = () => { importImage(editor, doc, reader.result as string); imgInput.value = ''; };
     reader.readAsDataURL(file);
+  });
+
+  const dxfInput = $<HTMLInputElement>('#dxfInput');
+  dxfInput.addEventListener('change', () => {
+    const file = dxfInput.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { dxfImportModal(editor, doc, reader.result as string); dxfInput.value = ''; };
+    reader.readAsDataURL(file);   // the backend accepts a data URL directly
   });
 
   const projFileInput = $<HTMLInputElement>('#projectFileInput');
@@ -481,6 +489,7 @@ function startAutosave(doc: Doc) {
 function wireExportMenu(editor: Editor, doc: Doc) {
   const wrap = $('#exportMenu'), toggle = $('#exportToggle');
   const items: { label: string; act: string }[] = [
+    { label: '📐 匯入 DXF 圖檔…', act: 'import-dxf' },
     { label: '💾 匯出專案檔（可再編輯）', act: 'export-project' },
     { label: '匯出 PNG', act: 'export-png' },
     { label: '匯出 PDF（快照）', act: 'export-pdf' },
@@ -539,6 +548,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'open': await openModal(editor, doc); break;
     case 'export-project': exportProjectFile(doc, name()); flash('已匯出專案檔（.floorplan.json）'); break;
     case 'import-project': $<HTMLInputElement>('#projectFileInput').click(); break;
+    case 'import-dxf': $<HTMLInputElement>('#dxfInput').click(); break;
     case 'undo': doc.undo(); break;
     case 'redo': doc.redo(); break;
     case 'export-png': exportPNG(doc, name()); break;
@@ -573,6 +583,80 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
   }
+}
+
+// DXF import. Two stages, because a real architectural drawing carries dozens
+// of layers and importing all of them yields hundreds of nonsense walls: the
+// file is inspected first, then only the ticked layers are converted.
+async function dxfImportModal(editor: Editor, doc: Doc, file: string) {
+  flash('正在讀取 DXF…');
+  const info = await inspectDxf(file);
+  if ('error' in info) { flash('無法讀取這個 DXF 檔'); return; }
+  if (!info.layers.length) { flash('這個 DXF 沒有可匯入的線段'); return; }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  const unitRow = ['mm', 'cm', 'm', 'in', 'ft']
+    .map(u => `<option value="${u}"${u === info.unit ? ' selected' : ''}>${u}</option>`).join('');
+  wrap.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-head"><span>匯入 DXF（${info.dxfversion}）</span><button data-x>✕</button></div>
+      <div class="plot-form">
+        <label>單位 <select data-unit>${unitRow}</select></label>
+        <p class="plot-note${info.unitGuessed ? ' warn' : ''}" data-note></p>
+        <div class="dxf-layers" data-layers></div>
+        <div class="plot-actions"><button data-go>匯入勾選圖層</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  const sel = <T extends HTMLElement>(q: string) => wrap.querySelector(q) as T;
+  const unitEl = sel<HTMLSelectElement>('[data-unit]');
+  const host = sel<HTMLDivElement>('[data-layers]');
+  const note = sel<HTMLParagraphElement>('[data-note]');
+  const close = () => wrap.remove();
+
+  for (const l of info.layers) {
+    const row = document.createElement('label');
+    row.className = 'dxf-layer';
+    row.innerHTML = `<input type="checkbox" value="${l.layer}"${l.suggested ? ' checked' : ''}>
+      <span class="lname">${l.layer || '(未命名)'}</span>
+      <span class="lmeta">${l.segments} 段</span>`;
+    host.appendChild(row);
+  }
+
+  // The plan's real-world size is the fastest way to spot a wrong unit: a
+  // 6 m flat read as metres comes out 600 m across.
+  const refresh = () => {
+    const cm = { mm: 0.1, cm: 1, m: 100, in: 2.54, ft: 30.48 }[unitEl.value] ?? 1;
+    const w = info.extent.w * cm / 100, h = info.extent.h * cm / 100;
+    note.textContent = `${info.unitGuessed ? '⚠ 檔案未標示單位，以下為推測 — ' : ''}`
+      + `依此單位，圖面約 ${w.toFixed(1)} × ${h.toFixed(1)} m`;
+  };
+  unitEl.onchange = refresh;
+  refresh();
+
+  sel<HTMLButtonElement>('[data-x]').onclick = close;
+  wrap.onclick = (e) => { if (e.target === wrap) close(); };
+  sel<HTMLButtonElement>('[data-go]').onclick = async () => {
+    const layers = [...host.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value);
+    if (!layers.length) { flash('請至少勾選一個圖層'); return; }
+    close();
+    flash('正在轉換…');
+    const walls = await importDxf(file, layers, unitEl.value);
+    if (!walls) { flash('匯入失敗 — 後端未連線'); return; }
+    if (!walls.length) { flash('勾選的圖層裡沒有可用的線段'); return; }
+    doc.commit();
+    for (const w of walls) {
+      doc.add({
+        id: genId('wall'), kind: 'wall', layer: layerForKind('wall'),
+        a: w.a, b: w.b, thickness: w.thickness, ...(w.bulge ? { bulge: w.bulge } : {}),
+      } as Obj);
+    }
+    editor.selectTool('select');
+    editor.resetView();
+    flash(`已從 DXF 匯入 ${walls.length} 道牆`);
+  };
 }
 
 // Scaled-plot dialog. Opens pre-filled with the scale/paper that fits the plan,
