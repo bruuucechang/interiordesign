@@ -7,15 +7,17 @@ the compute endpoints that used to run in the browser.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 from typing import Any, AsyncIterator, Iterator
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from . import db as store
 from .detect import DecodeError, detect_walls
+from .report import build_report, build_workbook
 from .rooms import detect_room_polygons
 
 
@@ -123,3 +125,27 @@ def walls_detect(body: DetectWallsBody) -> dict[str, Any]:
         return detect_walls(body.image)
     except DecodeError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.get("/api/projects/{project_id}/report")
+def project_report(project_id: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Room areas and furniture counts per floor."""
+    project = store.get_project(db, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="not found")
+    return build_report({**project["data"], "name": project["name"]})
+
+
+@app.get("/api/projects/{project_id}/report.xlsx")
+def project_report_xlsx(project_id: str, db: Session = Depends(get_db)) -> Response:
+    """The same report as a spreadsheet, ready to price up."""
+    project = store.get_project(db, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="not found")
+    data = build_workbook({**project["data"], "name": project["name"]})
+    filename = quote(f"{project['name']}_面積報表.xlsx")
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+    )

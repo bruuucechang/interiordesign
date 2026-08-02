@@ -451,15 +451,17 @@ function setSaveStatus(state: 'saving' | 'saved' | 'offline') {
     : '已儲存 ✓';
 }
 
-async function flushSave(doc: Doc): Promise<void> {
-  if (!dirty) return;
+/** Returns whether the stored copy is now up to date — the report export needs to know. */
+async function flushSave(doc: Doc): Promise<boolean> {
+  if (!dirty) return true;
   dirty = false;
   const p = doc.serialize();
   const json = JSON.stringify(p);
-  if (json === lastSaved) { setSaveStatus('saved'); return; }   // nothing meaningful changed
+  if (json === lastSaved) { setSaveStatus('saved'); return true; }   // nothing meaningful changed
   const ok = await saveProject(p);
   if (ok) { lastSaved = json; setSaveStatus('saved'); }
-  else { dirty = true; setSaveStatus('offline'); }              // heartbeat will retry
+  else { dirty = true; setSaveStatus('offline'); }                  // heartbeat will retry
+  return ok;
 }
 
 function scheduleAutosave(doc: Doc) {
@@ -484,6 +486,7 @@ function wireExportMenu(editor: Editor, doc: Doc) {
     { label: '匯出 PDF（快照）', act: 'export-pdf' },
     { label: '📐 匯出施工圖 PDF…', act: 'plot-pdf' },
     { label: '🌐 匯出 360 全景', act: 'export-pano' },
+    { label: '📊 匯出面積報表 (Excel)', act: 'export-report' },
     { label: '🧊 匯出 3D 模型', act: 'export-glb' },
   ];
   let pop: HTMLElement | null = null;
@@ -543,6 +546,14 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'plot-pdf':
       if (!doc.project.floors.some(f => f.objects.some(o => o.kind !== 'image'))) { flash('尚無可出圖的內容'); break; }
       plotModal(doc, name());
+      break;
+    case 'export-report':
+      // The report is built from the stored copy, so make sure what is on
+      // screen has actually reached the database first.
+      doc.project.name = name(); dirty = true;
+      if (!await flushSave(doc)) { flash('無法匯出報表 — 後端未連線'); break; }
+      window.location.href = `/api/projects/${doc.project.id}/report.xlsx`;
+      flash('已匯出面積報表 (.xlsx)');
       break;
     case 'export-pano':
       if (!doc.objects.length) { flash('尚無可拍攝的 3D 內容'); break; }

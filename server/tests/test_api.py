@@ -130,3 +130,26 @@ def test_rooms_detect_accepts_no_walls(client):
 def test_rooms_detect_defaults_bulge_when_absent(client):
     # the client omits bulge on straight walls
     assert len(client.post("/api/rooms/detect", json={"walls": SQUARE}).json()["polygons"]) == 1
+
+
+def test_report_endpoint_summarises_the_saved_plan(client):
+    client.put("/api/projects/a", json={"name": "報表測試", "data": PLAN})
+    r = client.get("/api/projects/a/report")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["project"] == "報表測試"
+    assert body["floors"][0]["counts"]["wall"] == 1
+
+
+def test_report_endpoint_404s_for_a_missing_project(client):
+    assert client.get("/api/projects/nope/report").status_code == 404
+    assert client.get("/api/projects/nope/report.xlsx").status_code == 404
+
+
+def test_xlsx_endpoint_returns_a_spreadsheet_attachment(client):
+    client.put("/api/projects/a", json={"name": "報表測試", "data": PLAN})
+    r = client.get("/api/projects/a/report.xlsx")
+    assert r.status_code == 200
+    assert "spreadsheetml" in r.headers["content-type"]
+    assert "attachment" in r.headers["content-disposition"]
+    assert r.content[:2] == b"PK"        # xlsx is a zip

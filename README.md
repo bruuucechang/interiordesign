@@ -2,7 +2,7 @@
 
 一套**2D／3D 室內平面圖設計工具**。在 2D 畫布上畫牆、樑、門窗、房間、擺放家具、標註尺寸，隨時切換到即時 **3D 檢視**（Three.js）預覽空間，並可匯出 **PNG／PDF／glTF(.glb)**。
 
-前端以**原生 Canvas + TypeScript** 手刻（座標轉換、選取縮放旋轉、圖層、吸附、曲線牆、房間偵測皆自行實作），後端是 **Node + Express + `node:sqlite`** 的輕量存檔服務。
+前端以**原生 Canvas + TypeScript** 手刻（座標轉換、選取縮放旋轉、圖層、吸附、曲線牆皆自行實作），後端是 **Python + FastAPI + PostgreSQL**，負責存檔、房間偵測、底圖牆體辨識與報表。
 
 ---
 
@@ -35,6 +35,7 @@
 | **3D 檢視** | 即時 Three.js 渲染：牆體挖洞、擬真 PBR 材質、時段光照（早晨／正午／黃昏／夜晚）、環境光遮蔽（GTAO）、天空、陰影；WASD 飛行 |
 | **編輯** | 選取／框選、拖曳移動、角落縮放、旋轉、端點拖曳、方向鍵微調、對齊/均分、複製貼上、復原/重做 |
 | **智慧吸附** | 畫牆／樑與拖曳端點時貼合牆體**端點／中點／牆面**（不同圖示：圈=端點、三角=中點、菱形=牆面），並在與既有端點**水平／垂直對齊**時顯示橙色虛線輔助線；兩條輔助線交會即吸附至交點 |
+| **報表** | 各樓層房間面積（m²／坪）、家具數量、物件統計，可匯出 **Excel (.xlsx)** |
 | **匯出** | PNG（Canvas）、PDF 快照、**施工圖 PDF**（真實比例＋圖框／標題欄／比例尺／房間面積表，每樓層一頁）、**360 全景**（4096×2048 equirectangular JPG ＋ 可直接雙擊開啟的自包含 HTML 檢視器）、3D 模型 .glb（glTF，可用 Blender 開啟） |
 | **持久化** | 後端 SQLite 存檔；離線自動降級為 localStorage；變更後約 0.7 秒 debounce 自動存檔（另有 20 秒 fallback 心跳） |
 | **底圖** | 匯入平面圖底圖描繪，並可自動偵測牆體 |
@@ -44,9 +45,9 @@
 ## 技術棧
 
 - **前端**：TypeScript + Vite；2D 用原生 HTML5 Canvas 手刻；3D 用 [Three.js](https://threejs.org/)（含 `EffectComposer` / `GTAOPass` / `RoomEnvironment` IBL）；PDF 用 `jsPDF`。
-- **後端**：Node.js + Express + `node:sqlite`（Node 內建，免裝原生模組）。
-- **建置**：npm workspaces（`client` / `server`）、Vite、`tsx`。
-- **測試**：Node 內建 test runner，透過 `tsx --test` 執行。
+- **後端**：Python 3 + FastAPI + SQLAlchemy + PostgreSQL；影像處理用 OpenCV，報表用 openpyxl。
+- **建置**：npm workspace（`client`）、Vite、`tsx`；後端用 venv + `requirements.txt`。
+- **測試**：前端用 Node 內建 test runner（`tsx --test`），後端用 pytest；`npm test` 兩套一起跑。
 - **單位**：公分（cm）。座標系 **x 向右、y 向下**（螢幕座標習慣）。
 
 ---
@@ -66,14 +67,20 @@ flowchart LR
     Doc -- onChange --> V3D
     Doc -- serialize --> API
   end
-  subgraph Server["Node 後端 (server)"]
-    API["Express<br/>/api/projects"]
-    DB["node:sqlite"]
+  subgraph Server["Python 後端 (server)"]
+    API["FastAPI<br/>/api/projects · /api/rooms/detect<br/>/api/walls/detect · /report.xlsx"]
+    ROOMS["rooms.py<br/>房間偵測"]
+    DETECT["detect.py<br/>OpenCV 牆體辨識"]
+    REPORT["report.py<br/>面積統計 · Excel"]
+    DB[("PostgreSQL<br/>floorplans (JSONB)")]
+    API --> ROOMS
+    API --> DETECT
+    API --> REPORT
     API --> DB
   end
 ```
 
-- **前端**在 `:5180`（Vite），**後端**在 `:8791`（Express）。Vite 設定把 `/api` 代理到 `:8791`。
+- **前端**在 `:5180`（Vite），**後端**在 `:8791`（FastAPI/uvicorn）。Vite 設定把 `/api` 代理到 `:8791`。
 - 前端是「**保留式資料 + 即時繪製**」：所有狀態集中在 `Doc`，任何變更觸發 `onChange`，2D 與 3D 各自重繪。
 - 後端只負責**專案存檔**。
 
@@ -81,24 +88,32 @@ flowchart LR
 
 ## 安裝與執行
 
-需求：**Node.js ≥ 22**（`node:sqlite` 的 `DatabaseSync` 需要）。
+需求：**Node.js ≥ 20**、**Python ≥ 3.11**、**PostgreSQL**（預設連線 `postgresql+psycopg://localhost/interior_design`，可用 `DATABASE_URL` 覆寫）。
 
 ```bash
 cd interior-designer
 npm install
-npm run dev          # 同時起：後端 :8791 + 前端 :5180
+npm run setup:py     # 建立 .venv 並安裝後端依賴
+createdb interior_design
+npm run dev          # 同時起：FastAPI :8791 + Vite :5180
 # 打開 http://localhost:5180
+```
+
+若要從舊的 SQLite 存檔搬資料到 PostgreSQL：
+
+```bash
+npm run migrate      # 可重複執行；加 --dry-run 先看會寫什麼
 ```
 
 其他指令：
 
 ```bash
-npm run build        # server (tsc) + client (tsc --noEmit && vite build)
-npm start            # 以編譯後的後端啟動
-npm test             # 執行 client/test/*.test.ts
+npm run build        # client (tsc --noEmit && vite build)
+npm start            # 以正式模式啟動 FastAPI
+npm test             # 前端 tsx --test + 後端 pytest
 ```
 
-> 後端離線時前端仍可用：存檔會自動改用瀏覽器 `localStorage`。
+> 後端離線時前端仍可**繪圖與存檔**（自動改用瀏覽器 `localStorage`），但房間偵測、底圖牆體辨識與報表需要後端。房間偵測失敗時會保留現有房間而不是刪除它們。
 
 ---
 
@@ -120,8 +135,6 @@ interior-designer/
 │     │  ├─ hit.ts                 # 命中測試與包圍盒
 │     │  ├─ handles.ts             # 選取控制點
 │     │  ├─ editor.ts              # 輸入事件、工具分派、選取、剪貼簿、對齊、縮放
-│     │  ├─ rooms.ts               # 由牆體平面圖偵測房間（含曲線牆弧線細分）
-│     │  ├─ detect.ts              # 從底圖影像自動偵測牆線
 │     │  ├─ exporter.ts            # PNG / PDF 快照匯出
 │     │  ├─ plot.ts                # 施工圖出圖：比例／紙張選擇、圖框、標題欄、比例尺、面積表
 │     │  ├─ panorama.ts            # 360 全景：CubeCamera → equirectangular、自包含 HTML 檢視器
@@ -136,10 +149,15 @@ interior-designer/
 │     ├─ data/furniture.ts         # 家具目錄（俯視圖示 + 尺寸 + 參考價）
 │     ├─ ui/ui.ts                  # 全部 UI 接線：家具庫、樓層、圖層、屬性、頂列、匯出選單、自動存檔、房間重建
 │     └─ net/api.ts                # 專案 CRUD（含離線 localStorage 降級）
-├─ server/                         # 後端（Express + node:sqlite）
-│  └─ src/
-│     ├─ index.ts                  # 路由：/api/health、/api/projects CRUD
-│     └─ db.ts                     # node:sqlite（DatabaseSync）專案存取
+├─ server/                         # 後端（FastAPI + PostgreSQL）
+│  ├─ app/
+│  │  ├─ main.py                   # 路由：專案 CRUD、房間偵測、牆體辨識、報表
+│  │  ├─ db.py                     # SQLAlchemy：floorplans 表（方案存成 JSONB）
+│  │  ├─ rooms.py                  # 半邊繞行的房間偵測（由前端搬來）
+│  │  ├─ detect.py                 # OpenCV 底圖牆體辨識（Otsu + Hough）
+│  │  └─ report.py                 # 面積統計與 openpyxl 報表
+│  ├─ scripts/migrate_sqlite_to_pg.py
+│  └─ tests/                       # pytest
 └─ client/test/                    # 單元測試（doc / geometry / rooms / place）
 ```
 
@@ -197,7 +215,7 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 
 ### 8. 房間自動偵測
 
-`rooms.ts` 把牆體視為**平面圖（planar graph）**：合併相近端點成節點、建立無向邊，再用**半邊（half-edge）繞行**找出所有被牆圍住的有界面，捨棄最外圈的無界面。分隔牆會正確切出兩個房間。回傳的多邊形會把**曲線牆沿弧線細分**，因此房間面積（與 3D 地板）能正確跟隨曲線。牆體一有變動就以 150ms debounce 重新偵測，並保留使用者手動命名/移動過的房間。
+後端的 `app/rooms.py` 把牆體視為**平面圖（planar graph）**：合併相近端點成節點、建立無向邊，再用**半邊（half-edge）繞行**找出所有被牆圍住的有界面，捨棄最外圈的無界面。分隔牆會正確切出兩個房間。回傳的多邊形會把**曲線牆沿弧線細分**，因此房間面積（與 3D 地板）能正確跟隨曲線。牆體一有變動就以 150ms debounce 呼叫 `POST /api/rooms/detect` 重新偵測（本機往返約 20ms），並保留使用者手動命名/移動過的房間。**後端連不上時回傳 null 而非空陣列**，前端據此保留現有房間——若當成「沒有房間」處理，一斷線就會把所有自動房間刪光。
 
 ### 9. 3D 檢視（Three.js）
 
@@ -216,7 +234,7 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 
 ### 11. 持久化與自動存檔
 
-`net/api.ts` 對後端做 CRUD（`/api/projects`），連不上時自動改用 `localStorage`（`apiState.online` 標記）。自動存檔採 **~0.7 秒 debounce**：變更停止後就存檔並更新狀態列，另有 20 秒 fallback 心跳補送離線期間未存的內容；離開頁面（`beforeunload`）會盡力再存一次。後端 `db.ts` 用 `node:sqlite` 的 `DatabaseSync`，把整份專案 JSON 存進 `projects` 表。
+`net/api.ts` 對後端做 CRUD（`/api/projects`），連不上時自動改用 `localStorage`。自動存檔採 **~0.7 秒 debounce**：變更停止後就存檔並更新狀態列，另有 20 秒 fallback 心跳補送離線期間未存的內容；離開頁面（`beforeunload`）會盡力再存一次。後端 `app/db.py` 用 SQLAlchemy 把整份專案存進 PostgreSQL 的 `floorplans` 表，方案本身放在 **JSONB** 欄位——前端擁有文件結構且會隨功能演進（先加 `bulge`、再加 `style`、再加樓層），拆成資料表等於每加一個功能就要一次 migration。
 
 ---
 
@@ -280,7 +298,6 @@ npm test
 ```
 
 - `geometry.test.ts` — 向量/弧線/多邊形數學
-- `rooms.test.ts` — 房間偵測（含曲線牆面積）
 - `place.test.ts` — 門窗貼合曲線牆
 - `doc.test.ts` — 文件與復原/重做
 
@@ -288,7 +305,7 @@ npm test
 
 ## 須知與注意事項
 
-- **Node 版本**：需 **≥ 22**，因為後端用內建 `node:sqlite`（`DatabaseSync`）。
+- **執行環境**：Node ≥ 20、Python ≥ 3.11、PostgreSQL。後端依賴裝在 `.venv`（`npm run setup:py`）。
 - **單位固定 cm**：所有座標/尺寸都是公分；AI 工具與匯出皆以此為準。
 - **離線可用**：後端連不上時自動改用 `localStorage`，但那是瀏覽器本機、非跨裝置。
 - **自動存檔是 ~0.7 秒 debounce**：接近即時；離開頁面會盡力補存，但極端情況（當機）可能遺失最後幾秒。手動「儲存」可立即存。
