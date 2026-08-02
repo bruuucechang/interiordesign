@@ -70,6 +70,23 @@ export interface WallInput { a: Vec; b: Vec; bulge?: number; }
  * reached, so the caller can leave the existing rooms alone instead of
  * deleting every one of them on a dropped connection.
  */
+export interface TracedWalls { segments: [Vec, Vec][]; w: number; h: number; }
+
+/**
+ * Wall centrelines traced out of an underlay image, in the processed pixel
+ * space whose size comes back as w/h. One-shot and user-initiated, so the
+ * round trip costs nothing that matters — and OpenCV finds walls at any angle,
+ * which the scanline detector this replaced could not.
+ */
+export async function detectWalls(imageDataUrl: string): Promise<TracedWalls | null> {
+  try {
+    return await j<TracedWalls>('/api/walls/detect', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageDataUrl }),
+    }, 30000);   // large scans take a while to decode and transform
+  } catch { return null; }
+}
+
 export async function detectRooms(walls: WallInput[]): Promise<Vec[][] | null> {
   try {
     const d = await j<{ polygons: Vec[][] }>('/api/rooms/detect', {
