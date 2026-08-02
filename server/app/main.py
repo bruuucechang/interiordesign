@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from . import db as store
+from .detect import DecodeError, detect_walls
 from .rooms import detect_room_polygons
 
 
@@ -109,3 +110,16 @@ def rooms_detect(body: DetectRoomsBody) -> dict[str, list[list[dict[str, float]]
         for w in body.walls
     ]
     return {"polygons": detect_room_polygons(walls)}
+
+
+class DetectWallsBody(BaseModel):
+    image: str = Field(min_length=1, description="data URL or bare base64")
+
+
+@app.post("/api/walls/detect")
+def walls_detect(body: DetectWallsBody) -> dict[str, Any]:
+    """Trace wall centrelines out of an underlay image."""
+    try:
+        return detect_walls(body.image)
+    except DecodeError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

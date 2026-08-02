@@ -3,11 +3,10 @@ import { Doc, genId } from '../model/doc';
 import { Obj, Vec, Project, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
-import { detectWallsFromImage } from '../core/detect';
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
-import { listProjects, loadProject, saveProject, deleteProject, detectRooms } from '../net/api';
+import { listProjects, loadProject, saveProject, deleteProject, detectRooms, detectWalls } from '../net/api';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -655,10 +654,12 @@ function importImage(editor: Editor, doc: Doc, src: string) {
 }
 
 // Auto-generate walls from an underlay image, then let room detection fill in rooms.
-function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { kind: 'image' }>) {
-  const img = new Image();
-  img.onload = () => {
-    const { segments, w: iw, h: ih } = detectWallsFromImage(img);
+async function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { kind: 'image' }>) {
+  flash('正在辨識牆體…');
+  const traced = await detectWalls(o.src);
+  if (!traced) { flash('無法辨識牆體 — 後端未連線'); return; }
+  {
+    const { segments, w: iw, h: ih } = traced;
     const grid = editor.gridSize || 10;
     const toWorld = (p: Vec) => ({ x: snap(o.x + (p.x / iw) * o.w, grid), y: snap(o.y + (p.y / ih) * o.h, grid) });
     const raw = segments
@@ -686,8 +687,7 @@ function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { kind: 'i
     for (const [a, b] of walls) doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a, b, thickness: 12 } as Obj);
     editor.selectTool('select');
     flash(`已從底圖生成 ${walls.length} 道牆（封閉區域會自動成為房間，可再手動調整）`);
-  };
-  img.src = o.src;
+  }
 }
 
 // ---- automatic room recognition from closed walls ----
