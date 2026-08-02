@@ -1,6 +1,6 @@
 import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
-import { Obj, Vec } from '../model/types';
+import { Obj, ObjKind, Vec } from '../model/types';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment } from './geometry';
 import { handles } from './handles';
@@ -12,6 +12,50 @@ export interface RenderOpts {
   background?: string;   // canvas fill (default dark theme)
   grid?: boolean;        // draw grid (default true)
   selection?: boolean;   // draw selection handles (default true)
+  mono?: boolean;        // monochrome plot theme (see monoContext)
+  skipKinds?: ObjKind[]; // object kinds to leave out entirely (e.g. the underlay image when plotting)
+}
+
+const INK = '#000000';
+const PAPER = '#ffffff';
+
+/**
+ * Wrap a 2D context so it draws as black-on-white line art, without the
+ * renderer or the 29 furniture draw() functions knowing anything about
+ * plotting. The screen theme is light ink on a dark ground, so simply forcing
+ * every colour to black floods the sheet — the room fill alone covers the whole
+ * plan. Drawing code here follows one consistent shape:
+ *
+ *   fill()      = an object's body   → paper, so shapes read as outlines
+ *   stroke()    = its outline        → ink  (walls are thick strokes, so they
+ *                                     still come out as solid poché)
+ *   fillText()  = a label            → ink, overriding the fill rule
+ *
+ * Reads and geometry pass through untouched.
+ */
+export function monoContext(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
+  // Both traps use the real context as the receiver: the canvas accessors are
+  // native and throw "Illegal invocation" if `this` is the proxy.
+  return new Proxy(ctx, {
+    get(t, k) {
+      const v = Reflect.get(t, k, t);
+      if (typeof v !== 'function') return v;
+      if (k === 'fillText') {
+        return (...args: unknown[]) => {
+          const keep = t.fillStyle;
+          t.fillStyle = INK;
+          (v as Function).apply(t, args);
+          t.fillStyle = keep;
+        };
+      }
+      return v.bind(t);
+    },
+    set(t, k, v) {
+      if (k === 'strokeStyle') return Reflect.set(t, k, INK, t);
+      if (k === 'fillStyle') return Reflect.set(t, k, PAPER, t);
+      return Reflect.set(t, k, v, t);
+    },
+  }) as CanvasRenderingContext2D;
 }
 
 export class Renderer {
@@ -35,12 +79,29 @@ export class Renderer {
   private setScreen() { this.ctx.setTransform(this.vp.dpr, 0, 0, this.vp.dpr, 0, 0); }
 
   render(opts: RenderOpts = {}) {
+    const real = this.ctx;
+    // Swap in the ink-remapping context before anything draws, so drawObject,
+    // labelObject and every furniture draw() get it without knowing.
+    if (opts.mono) this.ctx = monoContext(real);
+    try {
+      this.renderInto(opts);
+    } finally {
+      this.ctx = real;
+    }
+  }
+
+  private renderInto(opts: RenderOpts) {
     const { ctx, vp } = this;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.setScreen();
-    ctx.fillStyle = opts.background ?? '#171a20';
-    ctx.fillRect(0, 0, vp.width, vp.height);
+    const skip = opts.skipKinds?.length ? new Set<ObjKind>(opts.skipKinds) : null;
+    const visible = (o: Obj) => !skip || !skip.has(o.kind);
+
+    // The background is paper, not ink, so it bypasses the mono remap.
+    const bg = this.canvas.getContext('2d')!;
+    bg.setTransform(1, 0, 0, 1, 0, 0);
+    bg.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    bg.setTransform(vp.dpr, 0, 0, vp.dpr, 0, 0);
+    bg.fillStyle = opts.background ?? '#171a20';
+    bg.fillRect(0, 0, vp.width, vp.height);
 
     this.setWorld();
     if (opts.grid !== false) this.drawGrid();
@@ -48,7 +109,7 @@ export class Renderer {
     // objects grouped by layer order (index 0 = bottom)
     for (const layer of this.doc.project.layers) {
       if (!layer.visible) continue;
-      for (const o of this.doc.objects) if (o.layer === layer.id) this.drawObject(o, layer.color);
+      for (const o of this.doc.objects) if (o.layer === layer.id && visible(o)) this.drawObject(o, layer.color);
     }
     if (opts.world) { ctx.save(); opts.world(ctx); ctx.restore(); }
 
@@ -56,7 +117,7 @@ export class Renderer {
     this.setScreen();
     for (const layer of this.doc.project.layers) {
       if (!layer.visible) continue;
-      for (const o of this.doc.objects) if (o.layer === layer.id) this.labelObject(o);
+      for (const o of this.doc.objects) if (o.layer === layer.id && visible(o)) this.labelObject(o);
     }
     if (opts.selection !== false) { const sel = this.doc.selectedObjects; for (const s of sel) this.drawSelection(s, sel.length === 1); }
     if (opts.screen) { ctx.save(); opts.screen(ctx); ctx.restore(); }
