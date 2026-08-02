@@ -626,7 +626,7 @@ const roomContains = (r: RoomObj, c: Vec) =>
 
 let reconcileTimer: number | undefined;
 let reconciling = false;
-let lastWallSig = ' ';
+let lastWallSig = '';
 function wallSig(doc: Doc): string {
   return (doc.objects.filter(o => o.kind === 'wall') as WallObj[])
     .map(w => `${w.a.x},${w.a.y},${w.b.x},${w.b.y}`).join(';');
