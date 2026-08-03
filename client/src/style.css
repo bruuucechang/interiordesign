@@ -143,6 +143,12 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .plot-note { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .plot-note.warn { color: var(--danger); }
 .plot-actions { display: flex; justify-content: flex-end; }
+.swatches { display: flex; flex-wrap: wrap; gap: 4px; width: 110px; }
+.swatch { width: 22px; height: 22px; padding: 0; border: 2px solid var(--line); border-radius: 5px; cursor: pointer; }
+.swatch:hover { border-color: var(--accent); }
+.swatch.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.swatch.reset { background: var(--panel2); color: var(--muted); font-size: 13px; line-height: 1; }
+
 .dxf-layers { max-height: 34vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
 .dxf-layer { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
 .dxf-layer:hover { background: var(--panel2); }

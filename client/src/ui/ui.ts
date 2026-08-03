@@ -263,6 +263,36 @@ function refreshProps(editor: Editor, doc: Doc) {
     inp.addEventListener('change', () => { committed = false; });
     row.append(l, inp); parent.appendChild(row);
   };
+  // Common interior finishes, the way a consumer product offers them: a strip of
+  // swatches for the usual answers, with the colour picker for anything else.
+  const FINISHES: { hex: string; label: string }[] = [
+    { hex: '#3a4150', label: '原色' },   // the catalogue's own dark body
+    { hex: '#8a6a4a', label: '胡桃木' },
+    { hex: '#c9a884', label: '橡木' },
+    { hex: '#e8e4dd', label: '象牙白' },
+    { hex: '#4a5a6a', label: '灰藍' },
+    { hex: '#6b7f6e', label: '橄欖綠' },
+    { hex: '#8d5a5a', label: '磚紅' },
+    { hex: '#2c2f36', label: '碳黑' },
+  ];
+  const swatchRow = (parent: HTMLElement, current: string | undefined, set: (v: string | undefined) => void) => {
+    const row = document.createElement('div'); row.className = 'prop';
+    const l = document.createElement('label'); l.textContent = '材質';
+    const wrap = document.createElement('div'); wrap.className = 'swatches';
+    for (const f of FINISHES) {
+      const b = document.createElement('button');
+      b.className = 'swatch' + (current?.toLowerCase() === f.hex ? ' active' : '');
+      b.style.background = f.hex; b.title = f.label;
+      b.onclick = () => { doc.commit(); set(f.hex); };
+      wrap.appendChild(b);
+    }
+    const reset = document.createElement('button');
+    reset.className = 'swatch reset' + (current ? '' : ' active');
+    reset.textContent = '↺'; reset.title = '恢復目錄預設';
+    reset.onclick = () => { doc.commit(); set(undefined); };
+    wrap.appendChild(reset);
+    row.append(l, wrap); parent.appendChild(row);
+  };
   const floorRow = (parent: HTMLElement, current: string, set: (v: string) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
     const l = document.createElement('label'); l.textContent = '地板';
@@ -391,6 +421,10 @@ function refreshProps(editor: Editor, doc: Doc) {
   if (o.kind === 'room') {
     floorRow(material.body, o.floor && !o.floor.startsWith('#') ? o.floor : 'wood', v => up({ floor: v, auto: false } as any));
     colorRow(material.body, '自訂色', o.floor && o.floor.startsWith('#') ? o.floor : '#b0895e', v => up({ floor: v, auto: false } as any));
+  }
+  if (o.kind === 'furniture') {
+    swatchRow(material.body, o.color, v => up({ color: v } as any));
+    colorRow(material.body, '自訂色', o.color ?? '#8a6a4a', v => up({ color: v } as any));
   }
   if (material.body.children.length) host.appendChild(material.el);
 

@@ -33,6 +33,50 @@ const PAPER = '#ffffff';
  *
  * Reads and geometry pass through untouched.
  */
+/** Split '#rrggbbaa' into the colour and its alpha suffix, if it has one. */
+function splitAlpha(c: string): { hex: string; alpha: string } {
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})$/i.exec(c.trim());
+  return m ? { hex: '#' + m[1], alpha: m[2] } : { hex: c, alpha: '' };
+}
+
+/** Mix a hex colour towards white; used to derive an outline from a body colour. */
+export function lighten(hex: string, amount: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  const r = mix((n >> 16) & 255), g = mix((n >> 8) & 255), b = mix(n & 255);
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Wrap a 2D context so a furniture pictogram draws in a chosen colour.
+ *
+ * Every catalogue item paints its body with fillStyle and its outline and
+ * detail lines with strokeStyle, so recolouring at the context boundary tints
+ * all 29 of them without any of them knowing. Alpha suffixes are preserved,
+ * which is what keeps the lighter detail lines (#e0b45a88) reading as detail.
+ */
+export function tintContext(ctx: CanvasRenderingContext2D, color: string): CanvasRenderingContext2D {
+  const outline = lighten(color, 0.45);
+  const remap = (v: unknown, to: string): unknown => {
+    if (typeof v !== 'string') return to;
+    const { alpha } = splitAlpha(v);
+    return alpha ? to + alpha : to;
+  };
+  return new Proxy(ctx, {
+    get(t, k) {
+      const v = Reflect.get(t, k, t);
+      return typeof v === 'function' ? v.bind(t) : v;
+    },
+    set(t, k, v) {
+      if (k === 'fillStyle') return Reflect.set(t, k, remap(v, color), t);
+      if (k === 'strokeStyle') return Reflect.set(t, k, remap(v, outline), t);
+      return Reflect.set(t, k, v, t);
+    },
+  }) as CanvasRenderingContext2D;
+}
+
 export function monoContext(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
   // Both traps use the real context as the receiver: the canvas accessors are
   // native and throw "Illegal invocation" if `this` is the proxy.
@@ -227,7 +271,9 @@ export class Renderer {
         const c = furnitureCenter(o);
         ctx.save();
         ctx.translate(c.x, c.y); ctx.rotate(o.angle * Math.PI / 180); ctx.translate(-o.w / 2, -o.h / 2);
-        if (item) item.draw(ctx, o.w, o.h);
+        // A custom colour is applied at the context boundary so the catalogue's
+        // draw() functions stay unaware of it.
+        if (item) item.draw(o.color ? tintContext(ctx, o.color) : ctx, o.w, o.h);
         else { ctx.fillStyle = '#3a4150'; ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.fillRect(0, 0, o.w, o.h); ctx.strokeRect(0, 0, o.w, o.h); }
         ctx.restore();
         break;
