@@ -11,6 +11,7 @@ import { dist, angleDeg, quadPoints, wallControl, closestOnSegment } from './geo
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone, tileClone } from './textures3d';
 import { capturePanorama } from './panorama';
+import { nextResolution, onWorkloadChange, initialState, ResolutionState } from './resolution';
 
 const WALL_H = 270; // cm
 
@@ -65,7 +66,7 @@ export class View3D {
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(this.pixelRatio);   // adaptive from here on — see adaptResolution
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.shadowMap.autoUpdate = false;   // we refresh shadows only on rebuild
@@ -770,12 +771,52 @@ export class View3D {
 
   resize() {
     const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
+    // A different canvas size is a different workload, so what was too slow before
+    // says nothing now — but do not clear it when resize() is the adapter's own
+    // doing, or the ceiling it just learned would be erased immediately.
+    if (w !== this.lastSize.w || h !== this.lastSize.h) {
+      this.lastSize = { w, h };
+      this.res = onWorkloadChange(this.res);
+    }
+    if (this.res.ratio > this.maxPixelRatio) this.res = { ...this.res, ratio: this.maxPixelRatio, goodWindows: 0 };
+    this.renderer.setPixelRatio(this.pixelRatio);
+    this.composer.setPixelRatio(this.pixelRatio);   // it keeps its own copy, set at construction
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);   // resizes the render/AO passes too
     this.renderer.domElement.style.width = w + 'px';
     this.renderer.domElement.style.height = h + 'px';
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+  }
+
+  // Adaptive render resolution — the decision lives in ./resolution, this just
+  // measures frames and applies the answer.
+  //
+  // Read live rather than captured once: dragging the window from a Retina screen
+  // to an ordinary one halves devicePixelRatio, and a ratio fixed at construction
+  // would keep paying for four times the pixels the display can show.
+  private get maxPixelRatio() { return Math.min(2, window.devicePixelRatio || 1); }
+  private res: ResolutionState = initialState(Math.min(2, window.devicePixelRatio || 1));
+  private frameTimes: number[] = [];
+  private lastFrameAt = 0;
+  private lastSize = { w: 0, h: 0 };
+
+  private static readonly SAMPLE = 45;   // ~0.75 s at 60 fps: long enough to be steady, short enough to react
+
+  private get pixelRatio() { return this.res.ratio; }
+
+  private adaptResolution(now: number) {
+    if (this.lastFrameAt) this.frameTimes.push(now - this.lastFrameAt);
+    this.lastFrameAt = now;
+    if (this.frameTimes.length < View3D.SAMPLE) return;
+
+    const sorted = this.frameTimes.slice().sort((a, b) => a - b);
+    const median = sorted[sorted.length >> 1];
+    this.frameTimes.length = 0;
+
+    const before = this.res.ratio;
+    this.res = nextResolution(this.res, median, this.maxPixelRatio);
+    if (this.res.ratio !== before) this.resize();
   }
 
   private loop = () => {
@@ -785,6 +826,7 @@ export class View3D {
     this.controls.update();
     this.updateCeilingVisibility();
     this.composer.render();
+    this.adaptResolution(performance.now());
     this.raf = requestAnimationFrame(this.loop);
   };
   start() { if (this.running) return; this.running = true; this.resize(); this.loop(); }
