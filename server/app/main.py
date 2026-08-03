@@ -7,11 +7,13 @@ the compute endpoints that used to run in the browser.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from urllib.parse import quote
 from typing import Any, AsyncIterator, Iterator
 
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -192,3 +194,15 @@ def project_report_xlsx(project_id: str, db: Session = Depends(get_db)) -> Respo
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
     )
+
+
+# ---------------------------------------------------------------- static site
+#
+# The container image drops the built client into ./static. Serving it from the
+# same origin as the API means the browser needs no CORS or proxy setup — and
+# net/api.ts already uses relative /api paths. Mounted last so it cannot shadow
+# an API route. Absent in development, where Vite serves the client instead.
+
+_STATIC = Path(__file__).resolve().parent.parent / "static"
+if _STATIC.is_dir():
+    app.mount("/", StaticFiles(directory=_STATIC, html=True), name="static")

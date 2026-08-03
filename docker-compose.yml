@@ -1,0 +1,38 @@
+# Run the whole thing:
+#
+#   docker compose up --build
+#   open http://localhost:8791
+#
+# Two services: PostgreSQL, and one container holding the API and the built
+# front end. Plans live in the `pgdata` volume, so they survive a rebuild and
+# are removed only by `docker compose down -v`.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: interior
+      POSTGRES_PASSWORD: interior
+      POSTGRES_DB: interior_design
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U interior -d interior_design"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://interior:interior@db:5432/interior_design
+    ports:
+      - "8791:8791"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

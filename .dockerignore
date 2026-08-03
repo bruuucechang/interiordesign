@@ -1,0 +1,15 @@
+# Keep the build context small and the image free of host-specific state.
+.git
+.venv
+node_modules
+**/node_modules
+client/dist
+server/static
+server/data
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.DS_Store
+*.log
+.env

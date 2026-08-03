@@ -1,0 +1,14 @@
+# Normalise line endings so the repo is identical on macOS and Windows.
+* text=auto eol=lf
+
+# These must stay LF or they break inside a Linux container.
+*.sh          text eol=lf
+Dockerfile    text eol=lf
+*.yml         text eol=lf
+
+# Binary — never touched.
+*.png binary
+*.jpg binary
+*.glb binary
+*.xlsx binary
+*.db  binary
