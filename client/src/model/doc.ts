@@ -120,8 +120,57 @@ export class Doc {
     Object.assign(o, patch);
     this.emit();
   }
-  select(id: string | null) { this.selectedIds = id ? [id] : []; this.emit(); }
-  selectMany(ids: string[]) { this.selectedIds = Array.from(new Set(ids)); this.emit(); }
+  select(id: string | null) { this.selectedIds = id ? this.withGroupMates([id]) : []; this.emit(); }
+  selectMany(ids: string[]) { this.selectedIds = this.withGroupMates(ids); this.emit(); }
+
+  // ---- groups ----
+
+  /**
+   * Widen a selection to whole groups.
+   *
+   * Doing it here, at the one place a selection is set, is what makes grouping
+   * work everywhere: moving, scaling, rotating, duplicating and deleting all
+   * read selectedObjects, so none of them needed to learn about groups.
+   */
+  private withGroupMates(ids: string[]): string[] {
+    const groups = new Set<string>();
+    for (const id of ids) {
+      const g = this.get(id)?.group;
+      if (g) groups.add(g);
+    }
+    const out = new Set(ids);
+    if (groups.size) {
+      for (const o of this.objects) if (o.group && groups.has(o.group)) out.add(o.id);
+    }
+    return [...out];
+  }
+
+  /** True when the selection is worth grouping — two or more objects. */
+  get canGroup(): boolean { return this.selectedIds.length > 1; }
+  /** True when anything selected already belongs to a group. */
+  get canUngroup(): boolean { return this.selectedObjects.some(o => !!o.group); }
+
+  /**
+   * Tie the selection together. Objects already in other groups are absorbed
+   * whole — that is what a user means by grouping a selection that happens to
+   * contain a group, and it keeps groups flat rather than nested.
+   */
+  groupSelection(): string | null {
+    if (!this.canGroup) return null;
+    this.commit();
+    const gid = genId('grp');
+    for (const o of this.selectedObjects) o.group = gid;
+    this.emit();
+    return gid;
+  }
+
+  ungroupSelection(): boolean {
+    if (!this.canUngroup) return false;
+    this.commit();
+    for (const o of this.selectedObjects) delete o.group;
+    this.emit();
+    return true;
+  }
 
   // ---- layers ----
   layer(id: LayerId): Layer | undefined { return this.project.layers.find(l => l.id === id); }
