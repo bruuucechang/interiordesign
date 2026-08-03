@@ -34,6 +34,8 @@ export class View3D {
   private sky!: THREE.Mesh;
   private gtao: GTAOPass;
   private tintCache = new Map<string, THREE.Material>();   // (material, colour) → recoloured clone
+  private ceilingGroup = new THREE.Group();   // per-room ceilings, shown only from inside
+  private _ceilMat?: THREE.Material;
   private staticGroup = new THREE.Group();   // walls/floors/openings — rebuilt+disposed each time
   private furnGroup = new THREE.Group();      // cloned cached furniture — cleared without disposing
   private ground?: THREE.Mesh;                // the infinite ground plane (excluded from 3D export)
@@ -102,7 +104,7 @@ export class View3D {
     this.dir.shadow.intensity = 0.92;    // strong, clearly-read cast shadows
     const fill = new THREE.DirectionalLight(0xdfe8ff, 0.45);
     fill.position.set(-1, 0.6, -0.8);
-    this.scene.add(this.dir, this.dir.target, fill, this.staticGroup, this.furnGroup);
+    this.scene.add(this.dir, this.dir.target, fill, this.staticGroup, this.furnGroup, this.ceilingGroup);
 
     // Post-processing: ground-truth ambient occlusion for object-to-floor and
     // object-to-object contact darkening — the main recognizability boost.
@@ -380,6 +382,9 @@ export class View3D {
       if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => { const s = mm as THREE.MeshStandardMaterial; if (s.map) s.map.dispose(); mm.dispose(); });
     });
     this.staticGroup.clear();
+    // Ceilings share one material, so only their geometry is released.
+    this.ceilingGroup.traverse(o => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
+    this.ceilingGroup.clear();
   }
 
   build(doc: Doc, reframe = false) {
@@ -600,6 +605,49 @@ export class View3D {
     return g;
   }
 
+  /**
+   * A ceiling over one room, at wall height.
+   *
+   * Kept in its own group because it cannot simply always be drawn: seen from
+   * the usual orbit position — outside and above — a ceiling hides the entire
+   * plan underneath it. So the group's visibility follows the camera, on in an
+   * interior eye-level view and off when looking down from outside. That also
+   * makes the 360° panorama read as a room rather than a roofless set.
+   */
+  private addCeiling(shape: THREE.Shape, yBase: number) {
+    const geo = new THREE.ShapeGeometry(shape);
+    const mesh = new THREE.Mesh(geo, this.ceilingMaterial());
+    mesh.rotation.x = Math.PI / 2;    // plan XY -> world XZ, facing down
+    mesh.position.y = yBase + WALL_H;
+    mesh.receiveShadow = true;
+    this.ceilingGroup.add(mesh);
+  }
+
+  private ceilingMaterial(): THREE.Material {
+    if (!this._ceilMat) {
+      this._ceilMat = new THREE.MeshStandardMaterial({
+        color: 0xf4f5f7, roughness: 0.92, metalness: 0, side: THREE.DoubleSide,
+      });
+    }
+    return this._ceilMat;
+  }
+
+  /**
+   * Show the ceilings only when the camera is under them and inside the plan —
+   * i.e. when the view is one a person standing in the room would have.
+   */
+  private updateCeilingVisibility() {
+    const g = this.ceilingGroup;
+    if (!g.children.length) return;
+    const cam = this.camera.position;
+    const box = new THREE.Box3().setFromObject(this.staticGroup);
+    const inside = cam.x >= box.min.x && cam.x <= box.max.x
+                && cam.z >= box.min.z && cam.z <= box.max.z;
+    let lowest = Infinity;
+    for (const c of g.children) lowest = Math.min(lowest, c.position.y);
+    g.visible = inside && cam.y < lowest;
+  }
+
   private buildObject(o: Obj, yBase = 0) {
     switch (o.kind) {
       case 'room': {
@@ -615,6 +663,7 @@ export class View3D {
           floor.rotation.x = Math.PI / 2;   // shape lies in plan XY -> lay flat on world XZ
           floor.position.y = 4 + yBase;
           this.staticGroup.add(floor);
+          this.addCeiling(shape, yBase);
         } else {
           const fm = this.floorMaterial(o.floor, Math.max(1, Math.round(o.w / 120)), Math.max(1, Math.round(o.h / 120)));
           const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), fm);
@@ -734,6 +783,7 @@ export class View3D {
     const dt = this.clock.getDelta();
     if (this.fly) this.applyFly(dt);
     this.controls.update();
+    this.updateCeilingVisibility();
     this.composer.render();
     this.raf = requestAnimationFrame(this.loop);
   };
