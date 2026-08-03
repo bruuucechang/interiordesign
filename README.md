@@ -131,7 +131,9 @@ cd interiordesign
 docker compose up --build
 ```
 
-開 <http://localhost:8791>。第一次建置要幾分鐘（下載 Node 與 Python 映像、安裝依賴、建置前端），之後就很快。
+開 <http://localhost:8791>。第一次建置約 2～3 分鐘（下載 Node 與 Python 映像、安裝依賴、建置前端），之後有快取就很快；容器啟動到可用約 3 秒。
+
+已在 **linux/arm64** 與 **linux/amd64** 兩種架構實際建置並執行驗證過（Windows 筆電通常是 amd64）。
 
 包含兩個服務：**PostgreSQL**，以及一個同時提供 API 與已建置前端的容器。前端全部使用相對路徑 `/api/...`，同源提供服務所以不需要任何 proxy 或 CORS 設定。
 
