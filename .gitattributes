@@ -12,3 +12,4 @@ Dockerfile    text eol=lf
 *.glb binary
 *.xlsx binary
 *.db  binary
+build-desktop.bat text eol=crlf
