@@ -149,6 +149,9 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .swatch.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .swatch.reset { background: var(--panel2); color: var(--muted); font-size: 13px; line-height: 1; }
 
+.dwg-ways { margin: 0; padding-left: 20px; color: var(--text); font-size: 13px; line-height: 1.9; }
+.dwg-ways b { color: var(--accent); font-weight: 600; }
+
 .dxf-layers { max-height: 34vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px; }
 .dxf-layer { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
 .dxf-layer:hover { background: var(--panel2); }
