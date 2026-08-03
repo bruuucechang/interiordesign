@@ -33,6 +33,7 @@ export class View3D {
   private renderPass!: RenderPass;
   private sky!: THREE.Mesh;
   private gtao: GTAOPass;
+  private tintCache = new Map<string, THREE.Material>();   // (material, colour) → recoloured clone
   private staticGroup = new THREE.Group();   // walls/floors/openings — rebuilt+disposed each time
   private furnGroup = new THREE.Group();      // cloned cached furniture — cleared without disposing
   private ground?: THREE.Mesh;                // the infinite ground plane (excluded from 3D export)
@@ -231,6 +232,37 @@ export class View3D {
   }
 
   // turn a model into a translucent, non-shadowing ghost (clones its materials)
+  /**
+   * Recolour a furniture instance without disturbing the shared cache.
+   *
+   * getFurnitureModel caches one model per (item, size) and clone() shares its
+   * materials, so tinting in place would repaint every copy in the scene. Each
+   * distinct (material, colour) pair therefore gets one cloned material, reused
+   * across instances so a room full of matching chairs still shares them.
+   *
+   * Only the base colour changes: roughness, metalness and clearcoat stay, so a
+   * fabric sofa still reads as fabric and a glazed basin still reads as glazed.
+   */
+  private recolour(root: THREE.Object3D, hex: string) {
+    const tint = new THREE.Color(hex);
+    const swap = (m: THREE.Material): THREE.Material => {
+      const key = `${m.uuid}|${hex}`;
+      let c = this.tintCache.get(key);
+      if (!c) {
+        c = m.clone();
+        const col = (c as THREE.MeshStandardMaterial).color;
+        if (col) col.copy(tint);
+        this.tintCache.set(key, c);
+      }
+      return c;
+    };
+    root.traverse(o => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || !m.material) return;
+      m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
+    });
+  }
+
   private ghostify(g: THREE.Object3D) {
     const gm = (m: THREE.Material) => { const c = m.clone(); (c as any).transparent = true; (c as any).opacity = 0.42; (c as any).depthWrite = false; return c; };
     g.traverse(o => {
@@ -631,6 +663,7 @@ export class View3D {
       }
       case 'furniture': {
         const inst = getFurnitureModel(o.item, o.w, o.h).clone();
+        if (o.color) this.recolour(inst, o.color);
         inst.position.set(o.x + o.w / 2, (o.elevation ?? 0) + yBase, o.y + o.h / 2);
         if (o.height) inst.scale.y = o.height / getModelHeight(o.item, o.w, o.h);   // stretch to the set height
         inst.rotation.y = -o.angle * Math.PI / 180;

@@ -47,7 +47,8 @@ export const WINDOW_STYLES = [
   { id: 'picture', label: '景觀窗' },
 ];
 // `height` (cm) overrides the model's natural 3D height; `elevation` (cm) lifts it off the floor.
-export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; height?: number; elevation?: number; }
+// `color` (hex) recolours the piece in both views; unset keeps the catalogue's own finish.
+export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; height?: number; elevation?: number; color?: string; }
 export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; offset: number; }
 // A traceable background image (floor-plan underlay). `src` is a data URL.
 export interface ImageObj extends Base { kind: 'image'; x: number; y: number; w: number; h: number; src: string; opacity: number; }
