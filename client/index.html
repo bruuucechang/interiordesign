@@ -102,7 +102,9 @@
 
     <input id="imageInput" type="file" accept="image/*" style="display:none" />
     <input id="projectFileInput" type="file" accept=".json,application/json" style="display:none" />
-    <input id="dxfInput" type="file" accept=".dxf" style="display:none" />
+    <!-- .dwg is accepted so the picker does not grey it out; the handler then
+         explains that it has to be converted, which beats a silent dead end. -->
+    <input id="dxfInput" type="file" accept=".dxf,.dwg" style="display:none" />
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

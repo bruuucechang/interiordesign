@@ -56,8 +56,10 @@ export function initUI(editor: Editor, doc: Doc) {
   const dxfInput = $<HTMLInputElement>('#dxfInput');
   dxfInput.addEventListener('change', () => {
     const file = dxfInput.files?.[0]; if (!file) return;
+    dxfInput.value = '';
+    if (/\.dwg$/i.test(file.name)) { dwgNotSupportedModal(); return; }
     const reader = new FileReader();
-    reader.onload = () => { dxfImportModal(editor, doc, reader.result as string); dxfInput.value = ''; };
+    reader.onload = () => { dxfImportModal(editor, doc, reader.result as string); };
     reader.readAsDataURL(file);   // the backend accepts a data URL directly
   });
 
@@ -678,6 +680,41 @@ async function addDimensionChain(doc: Doc, wall: Extract<Obj, { kind: 'wall' }>)
               a: d.a, b: d.b, offset: d.offset, group: gid } as Obj);
   }
   flash(`已加入 ${dims.length} 段尺寸標註`);
+}
+
+/**
+ * DWG cannot be read here, and says so plainly.
+ *
+ * DWG is Autodesk's closed format. The one open implementation, LibreDWG, was
+ * tested against this: it cannot read R2010 or R2018 at all, and an R2000 file
+ * it did "convert" came back with every entity missing. An importer that
+ * silently loses all the walls is worse than no importer, so this explains the
+ * one-step conversion instead.
+ */
+function dwgNotSupportedModal() {
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  wrap.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-head"><span>DWG 需要先轉成 DXF</span><button data-x>✕</button></div>
+      <div class="plot-form">
+        <p class="plot-note">DWG 是 Autodesk 的封閉格式，沒有可靠的開源讀取方式，
+          所以這裡只吃 <b>DXF</b>。轉檔是一步的事，任選一種：</p>
+        <ul class="dwg-ways">
+          <li><b>AutoCAD／BricsCAD</b>：開啟後「另存新檔」選 DXF</li>
+          <li><b>ODA File Converter</b>（免費，Autodesk 官方格式聯盟出品）：批次 DWG → DXF</li>
+          <li><b>FreeCAD / LibreCAD</b>（免費開源）：開啟後匯出成 DXF</li>
+          <li>線上轉檔服務 —— 但圖面若涉及業主資料，別上傳</li>
+        </ul>
+        <p class="plot-note">存成 <b>R2010 或更早</b>的 DXF 相容性最好。</p>
+        <div class="plot-actions"><button data-x2>知道了</button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  wrap.querySelector('[data-x]')!.addEventListener('click', close);
+  wrap.querySelector('[data-x2]')!.addEventListener('click', close);
+  wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
 }
 
 // DXF import. Two stages, because a real architectural drawing carries dozens
