@@ -7,7 +7,10 @@ import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, pol
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
-import { listProjects, loadProject, saveProject, deleteProject, detectRooms, detectWalls, inspectDxf, importDxf, dimensionChain } from '../net/api';
+import { listProjects, loadProject, saveProject, deleteProject, detectWalls, inspectDxf, importDxf, dimensionChain } from '../net/api';
+import { flash } from './feedback';
+import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
+import { scheduleReconcile } from './rooms-sync';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -519,51 +522,6 @@ function importProjectFile(editor: Editor, doc: Doc, file: File) {
   reader.readAsText(file);
 }
 
-// ---- auto-save ----
-// Real-time save: every change debounces a persist ~0.7s after the user pauses,
-// so edits reach the backend almost immediately (mirrored to localStorage too).
-// A slow heartbeat retries whatever's still unsaved (e.g. after an offline blip),
-// and a beforeunload flush catches the last few edits. `lastSaved` skips writes
-// when nothing actually changed (e.g. a selection-only change).
-const SAVE_DEBOUNCE_MS = 700;
-const AUTOSAVE_MS = 20_000;      // fallback heartbeat / offline retry
-let dirty = false;
-let lastSaved = '';
-let saveTimer: number | undefined;
-
-function setSaveStatus(state: 'saving' | 'saved' | 'offline') {
-  const el = document.querySelector('#saveStatus'); if (!el) return;
-  el.className = 'save-status ' + state;
-  el.textContent = state === 'saving' ? '儲存中…'
-    : state === 'offline' ? '離線・已暫存本機'
-    : '已儲存 ✓';
-}
-
-/** Returns whether the stored copy is now up to date — the report export needs to know. */
-async function flushSave(doc: Doc): Promise<boolean> {
-  if (!dirty) return true;
-  dirty = false;
-  const p = doc.serialize();
-  const json = JSON.stringify(p);
-  if (json === lastSaved) { setSaveStatus('saved'); return true; }   // nothing meaningful changed
-  const ok = await saveProject(p);
-  if (ok) { lastSaved = json; setSaveStatus('saved'); }
-  else { dirty = true; setSaveStatus('offline'); }                  // heartbeat will retry
-  return ok;
-}
-
-function scheduleAutosave(doc: Doc) {
-  dirty = true;
-  setSaveStatus('saving');
-  clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => flushSave(doc), SAVE_DEBOUNCE_MS);
-}
-
-function startAutosave(doc: Doc) {
-  window.setInterval(() => { if (dirty) flushSave(doc); }, AUTOSAVE_MS);
-  window.addEventListener('beforeunload', () => { if (dirty) saveProject(doc.serialize()); });
-}
-
 // Collapsible 匯出 menu: its items are built only while open and removed on
 // close (dynamic rendering — no idle DOM), keeping the topbar light.
 function wireExportMenu(editor: Editor, doc: Doc) {
@@ -624,7 +582,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'new':
       if (!confirm('新建會清空目前畫布，確定？')) return;
       doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView(); break;
-    case 'save': doc.project.name = name(); dirty = true; await flushSave(doc); flash('已儲存'); break;
+    case 'save': doc.project.name = name(); markDirty(); await flushSave(doc); flash('已儲存'); break;
     case 'open': await openModal(editor, doc); break;
     case 'export-project': exportProjectFile(doc, name()); flash('已匯出專案檔（.floorplan.json）'); break;
     case 'import-project': $<HTMLInputElement>('#projectFileInput').click(); break;
@@ -640,7 +598,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'export-report':
       // The report is built from the stored copy, so make sure what is on
       // screen has actually reached the database first.
-      doc.project.name = name(); dirty = true;
+      doc.project.name = name(); markDirty();
       if (!await flushSave(doc)) { flash('無法匯出報表 — 後端未連線'); break; }
       window.location.href = `/api/projects/${doc.project.id}/report.xlsx`;
       flash('已匯出面積報表 (.xlsx)');
@@ -917,72 +875,6 @@ async function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { ki
   }
 }
 
-// ---- automatic room recognition from closed walls ----
-type RoomObj = Extract<Obj, { kind: 'room' }>;
-type WallObj = Extract<Obj, { kind: 'wall' }>;
-const bboxOf = (poly: Vec[]) => {
-  const xs = poly.map(p => p.x), ys = poly.map(p => p.y), x = Math.min(...xs), y = Math.min(...ys);
-  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
-};
-const roomContains = (r: RoomObj, c: Vec) =>
-  (r.poly && r.poly.length >= 3) ? pointInPolygon(c, r.poly) : pointInRect(c, r.x, r.y, r.w, r.h);
-
-let reconcileTimer: number | undefined;
-let reconciling = false;
-let lastWallSig = '';
-function wallSig(doc: Doc): string {
-  return (doc.objects.filter(o => o.kind === 'wall') as WallObj[])
-    .map(w => `${w.a.x},${w.a.y},${w.b.x},${w.b.y}`).join(';');
-}
-// Debounced: whenever the walls change, re-derive the auto rooms.
-function scheduleReconcile(doc: Doc) {
-  if (reconciling) return;
-  clearTimeout(reconcileTimer);
-  reconcileTimer = window.setTimeout(() => {
-    const sig = wallSig(doc);
-    if (sig === lastWallSig) return;          // walls unchanged — nothing to do
-    lastWallSig = sig;
-    reconciling = true;
-    reconcileAutoRooms(doc).finally(() => { reconciling = false; });
-  }, 150);
-}
-
-// Match detected wall-enclosed regions to existing auto rooms: update ones that
-// still hold, drop ones whose enclosure is gone, and add rooms for new closures.
-// Manual rooms (drawn, renamed, or moved) are left untouched.
-async function reconcileAutoRooms(doc: Doc) {
-  const walls = doc.objects.filter(o => o.kind === 'wall') as WallObj[];
-  const detected = await detectRooms(walls);
-  // A null result means the backend is unreachable, which is not the same as
-  // "no rooms". Reconciling against an empty list would delete every auto room
-  // the moment the connection drops, so leave them exactly as they are.
-  if (detected === null) { lastWallSig = ''; return; }
-  const cents = detected.map(polygonCentroid);
-  const rooms = () => doc.objects.filter(o => o.kind === 'room') as RoomObj[];
-  const manual = rooms().filter(r => !r.auto);
-  const consumed = new Set<number>();
-
-  for (const ar of rooms().filter(r => r.auto)) {
-    const arC = ar.poly && ar.poly.length >= 3 ? polygonCentroid(ar.poly) : { x: ar.x + ar.w / 2, y: ar.y + ar.h / 2 };
-    let idx = -1;
-    for (let i = 0; i < detected.length; i++) {
-      if (consumed.has(i)) continue;
-      if ((ar.poly && ar.poly.length >= 3 && pointInPolygon(cents[i], ar.poly)) || pointInPolygon(arC, detected[i])) { idx = i; break; }
-    }
-    if (idx < 0) { doc.remove(ar.id); continue; }                       // enclosure gone
-    consumed.add(idx);
-    const poly = detected[idx];
-    if (JSON.stringify(ar.poly) !== JSON.stringify(poly)) doc.update(ar.id, { poly, ...bboxOf(poly) } as any);
-  }
-
-  for (let i = 0; i < detected.length; i++) {
-    if (consumed.has(i)) continue;
-    if (manual.some(r => roomContains(r, cents[i]))) continue;          // already a manual room here
-    const poly = detected[i];
-    doc.add({ id: genId('room'), kind: 'room', layer: layerForKind('room'), name: '房間', poly, auto: true, ...bboxOf(poly) } as any);
-  }
-}
-
 async function openModal(editor: Editor, doc: Doc) {
   const modal = $('#modal'); const list = $('#projectList');
   list.innerHTML = '<div class="muted" style="padding:12px">載入中…</div>';
@@ -1008,9 +900,4 @@ async function openModal(editor: Editor, doc: Doc) {
     };
     list.appendChild(row);
   }
-}
-
-function flash(msg: string) {
-  const el = $('#hint'); const prev = el.textContent; el.textContent = msg;
-  setTimeout(() => { if (el.textContent === msg) el.textContent = prev; }, 1200);
 }
