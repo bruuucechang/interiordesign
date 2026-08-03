@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from . import db as store
 from .detect import DecodeError, detect_walls
+from .dimensions import dimension_chain, outward_offset
 from .dxf import DxfError, convert as convert_dxf, inspect as inspect_dxf
 from .report import build_report, build_workbook
 from .rooms import detect_room_polygons
@@ -113,6 +114,20 @@ def rooms_detect(body: DetectRoomsBody) -> dict[str, list[list[dict[str, float]]
         for w in body.walls
     ]
     return {"polygons": detect_room_polygons(walls)}
+
+
+class DimensionChainBody(BaseModel):
+    wall: WallIn
+    objects: list[dict[str, Any]] = []
+    offset: float | None = None
+
+
+@app.post("/api/dimensions/chain")
+def dimensions_chain(body: DimensionChainBody) -> dict[str, list[dict[str, Any]]]:
+    """A run of consecutive dimensions along one wall, broken at its openings."""
+    wall = {"a": body.wall.a.model_dump(), "b": body.wall.b.model_dump()}
+    offset = body.offset if body.offset is not None else outward_offset(wall, body.objects)
+    return {"dimensions": dimension_chain(wall, body.objects, offset)}
 
 
 class DetectWallsBody(BaseModel):
