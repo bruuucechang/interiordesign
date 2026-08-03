@@ -200,7 +200,10 @@ build-desktop.bat         # Windows
 - **沒有程式碼簽章**，macOS Gatekeeper 會擋（右鍵「打開」可略過），Windows SmartScreen
   會跳警告。要消掉這些警告需要付費憑證（Apple Developer 年費 99 美元、Windows 簽章憑證
   約年費 200 美元）。
-- 冷啟動約 5 秒（實測），之後跟開發模式一樣快。
+- **macOS 第一次啟動要等 30 秒左右**，之後降到 1.5 秒。原因不是磁碟或程式本身：把檔案
+  預先讀進快取沒有改善，而取樣顯示 `XprotectService` 在那段時間吃滿一顆核心——macOS 內建
+  的惡意軟體掃描在逐一檢查包裡 284 個未簽章的動態函式庫。每份新解壓的複本都會再掃一次。
+  簽章與公證（notarization）可以免除，但需要付費的開發者憑證。
 
 ---
 
@@ -316,6 +319,7 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 - **門窗樣式**：`buildDoor3D / buildWindow3D` 依 `style` 建出雙葉門、推拉門、玻璃門、格窗/中挺/整片玻璃等不同形體。
 - **光照**：四段時段預設（早晨／正午／黃昏／夜晚）調整太陽方向/強度、半球光、環境光、曝光與天空色；`RoomEnvironment` 提供 IBL 反射；`GTAOPass` 加環境光遮蔽；`PCFSoftShadowMap` 柔和陰影（只在重建時更新一次以省效能）。
 - **GLB 匯出**：動態載入 `GLTFExporter`，把牆/地板/門窗/家具（不含無限地板與天空）輸出成 `.glb`。
+- **自適應解析度**（`resolution.ts`）：GTAO 要對畫面上每個像素做運算，Retina 螢幕上放大視窗等於一幀要算 480 萬像素。實測這台機器在 0.5 MP 有 60 fps、2.7 MP 剩 32 fps、4.8 MP 只剩 18 fps，而且幀時間精準落在 16.7 / 33.3 / 50 ms —— 是漏掉整個 vsync 週期的填充率瓶頸。固定畫素比一定會在某處出錯（2 在大視窗跑不動，1 又浪費了獨顯的餘裕），所以改成量測幀時間後動態調整：慢了就立刻降一階，要升回去則需連續四個取樣窗都有餘裕（否則會在剛好跑不動的那一階來回震盪）。畫素比也改為每次 `resize()` 重讀，因為把視窗從 Retina 螢幕拖到普通螢幕時 `devicePixelRatio` 會減半，只在建構時取值會一直多算四倍的像素。
 
 ### 10. 家具 3D 模型
 

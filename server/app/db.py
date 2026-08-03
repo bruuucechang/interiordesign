@@ -12,9 +12,10 @@ Two backends, chosen by DATABASE_URL:
               option and a single file next to the user's documents is what a
               standalone application should use
 
-JSON is the portable column type; JSONB is Postgres-only. Using the generic one
-keeps a single model working on both, and the difference does not matter here —
-nothing queries inside the document, it is only ever read and written whole.
+JSONB is Postgres-only, so the column is declared as portable JSON with a
+Postgres variant. Declaring plain JSON would work everywhere, but a freshly
+created Postgres database would then get a `json` column while every database
+created before this change has `jsonb` — a schema difference for no gain.
 """
 from __future__ import annotations
 
@@ -24,7 +25,10 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import JSON, DateTime, String, create_engine, func, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+PLAN_JSON = JSON().with_variant(JSONB(), "postgresql")
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql+psycopg://localhost/interior_design"
@@ -58,7 +62,7 @@ class Floorplan(Base):
     # across the offline localStorage fallback and the server.
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(PLAN_JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
