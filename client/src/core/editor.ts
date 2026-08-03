@@ -6,7 +6,7 @@ import { bounds, Bounds } from './hit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool } from '../tools/draw';
-import { OpeningTool, FurnitureTool, fitOpeningToWall } from '../tools/place';
+import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall } from '../tools/place';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { Obj, Vec, layerForKind } from '../model/types';
 
@@ -15,6 +15,7 @@ export class Editor implements ToolCtx {
   renderer: Renderer;
   tools: Record<string, Tool> = {};
   active!: Tool;
+  currentElectrical = 'socket';
   currentFurniture = 'sofa';
   snapEnabled = true;
   gridSize = 10; // cm
@@ -48,6 +49,7 @@ export class Editor implements ToolCtx {
       window: new OpeningTool(this, 'window'),
       dimension: new DimensionTool(this),
       furniture: new FurnitureTool(this),
+      electrical: new ElectricalTool(this),
     };
     this.active = this.tools.select;
 

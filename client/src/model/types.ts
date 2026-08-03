@@ -12,7 +12,7 @@ export interface Layer {
   color: string;
 }
 
-export type ObjKind = 'wall' | 'beam' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image';
+export type ObjKind = 'wall' | 'beam' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image' | 'electrical';
 
 // `group`, when set, ties objects together: selecting any one of them selects
 // them all, so every operation that already works on a multi-selection —
@@ -56,7 +56,56 @@ export interface Dimension extends Base { kind: 'dimension'; a: Vec; b: Vec; off
 // A traceable background image (floor-plan underlay). `src` is a data URL.
 export interface ImageObj extends Base { kind: 'image'; x: number; y: number; w: number; h: number; src: string; opacity: number; }
 
-export type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
+// An electrical fitting: socket, switch or luminaire. Drawn with the symbols a
+// Taiwanese 配置圖 uses. `angle` orients wall-mounted items so they read as
+// facing into the room; ceiling items ignore it.
+export interface Electrical extends Base {
+  kind: 'electrical';
+  item: ElectricalId;
+  x: number; y: number;
+  angle: number;
+  /** Height above the floor (cm). Sockets sit low, switches at handle height. */
+  elevation?: number;
+  label?: string;
+}
+
+export type ElectricalId =
+  | 'socket' | 'socket2' | 'socketWater' | 'tv' | 'network'
+  | 'switch1' | 'switch2' | 'switch3'
+  | 'ceilingLight' | 'downlight' | 'spotlight' | 'pendant' | 'wallLight' | 'exhaust';
+
+export interface ElectricalSpec {
+  id: ElectricalId;
+  name: string;
+  /** 'wall' items snap onto a wall; 'ceiling' items are placed anywhere in a room. */
+  mount: 'wall' | 'ceiling';
+  /** Default height above the floor, in cm — the values Taiwanese practice uses. */
+  elevation: number;
+  cat: string;
+}
+
+// Defaults follow common Taiwanese practice: general sockets at 30 cm, sockets
+// over a counter at 110 cm, switches at 120 cm.
+export const ELECTRICAL: ElectricalSpec[] = [
+  { id: 'socket',      name: '單插座',   mount: 'wall',    elevation: 30,  cat: '插座' },
+  { id: 'socket2',     name: '雙插座',   mount: 'wall',    elevation: 30,  cat: '插座' },
+  { id: 'socketWater', name: '防水插座', mount: 'wall',    elevation: 110, cat: '插座' },
+  { id: 'tv',          name: '電視出線', mount: 'wall',    elevation: 60,  cat: '插座' },
+  { id: 'network',     name: '網路出線', mount: 'wall',    elevation: 30,  cat: '插座' },
+  { id: 'switch1',     name: '單切開關', mount: 'wall',    elevation: 120, cat: '開關' },
+  { id: 'switch2',     name: '雙切開關', mount: 'wall',    elevation: 120, cat: '開關' },
+  { id: 'switch3',     name: '三切開關', mount: 'wall',    elevation: 120, cat: '開關' },
+  { id: 'ceilingLight', name: '吸頂燈',  mount: 'ceiling', elevation: 270, cat: '燈具' },
+  { id: 'downlight',   name: '崁燈',     mount: 'ceiling', elevation: 270, cat: '燈具' },
+  { id: 'spotlight',   name: '投射燈',   mount: 'ceiling', elevation: 270, cat: '燈具' },
+  { id: 'pendant',     name: '吊燈',     mount: 'ceiling', elevation: 200, cat: '燈具' },
+  { id: 'wallLight',   name: '壁燈',     mount: 'wall',    elevation: 180, cat: '燈具' },
+  { id: 'exhaust',     name: '排風扇',   mount: 'ceiling', elevation: 270, cat: '燈具' },
+];
+export const ELECTRICAL_BY_ID: Record<string, ElectricalSpec> =
+  Object.fromEntries(ELECTRICAL.map(e => [e.id, e]));
+
+export type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj | Electrical;
 
 // A building level: its own objects, stacked in 3D at `elevation` (cm).
 export interface Floor {
@@ -83,6 +132,7 @@ export function defaultLayers(): Layer[] {
     { id: 'rooms', name: '房間', visible: true, locked: false, color: '#6d7890' },
     { id: 'openings', name: '門窗', visible: true, locked: false, color: '#7bc6ff' },
     { id: 'furniture', name: '家具', visible: true, locked: false, color: '#e0b45a' },
+    { id: 'electrical', name: '水電配置', visible: true, locked: false, color: '#ffd166' },
     { id: 'dims', name: '尺寸標註', visible: true, locked: false, color: '#8bffb0' },
   ];
 }
@@ -95,5 +145,6 @@ export function layerForKind(kind: ObjKind): LayerId {
   if (kind === 'room') return 'rooms';
   if (kind === 'door' || kind === 'window') return 'openings';
   if (kind === 'furniture') return 'furniture';
+  if (kind === 'electrical') return 'electrical';
   return 'dims';
 }

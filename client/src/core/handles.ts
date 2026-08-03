@@ -7,6 +7,10 @@ export interface Handle { id: string; pos: Vec; kind: HandleKind; }
 
 export function handles(o: Obj): Handle[] {
   switch (o.kind) {
+    // A fitting has a position and a facing, but no size — so a rotate handle
+    // and nothing else.
+    case 'electrical':
+      return [{ id: 'rot', pos: rotate({ x: o.x, y: o.y - 34 }, { x: o.x, y: o.y }, o.angle), kind: 'rotate' }];
     case 'furniture': {
       const c = furnitureCenter(o);
       const base: Handle[] = [

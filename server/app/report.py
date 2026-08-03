@@ -49,8 +49,17 @@ def build_report(project: dict[str, Any]) -> dict[str, Any]:
 
         tally = {
             kind: sum(1 for o in objects if o.get("kind") == kind)
-            for kind in ("wall", "beam", "door", "window", "furniture", "room")
+            for kind in ("wall", "beam", "door", "window", "furniture", "room", "electrical")
         }
+
+        # Electrical fittings are counted by type, because that is the schedule
+        # a contractor prices — "8 雙插座, 3 單切開關" not "11 fittings".
+        elec: dict[str, int] = {}
+        for o in objects:
+            if o.get("kind") == "electrical":
+                label = o.get("label") or o.get("item") or "配件"
+                elec[label] = elec.get(label, 0) + 1
+        electrical = [{"item": k, "count": v} for k, v in sorted(elec.items())]
 
         floors_out.append(
             {
@@ -60,6 +69,7 @@ def build_report(project: dict[str, Any]) -> dict[str, Any]:
                 "roomTotalM2": sum(r["m2"] for r in rooms),
                 "roomTotalPing": sum(r["ping"] for r in rooms),
                 "furniture": furniture,
+                "electrical": electrical,
                 "counts": tally,
             }
         )
@@ -128,11 +138,19 @@ def build_workbook(project: dict[str, Any]) -> bytes:
             _write_row(ws, r, [item["item"], item["count"]])
             r += 1
 
+        if f["electrical"]:
+            r += 1
+            _write_row(ws, r, ["水電配置", "數量"], head=True)
+            r += 1
+            for item in f["electrical"]:
+                _write_row(ws, r, [item["item"], item["count"]])
+                r += 1
+
         r += 1
         _write_row(ws, r, ["物件統計", ""], head=True)
         r += 1
-        labels = {"wall": "牆", "beam": "樑", "door": "門",
-                  "window": "窗", "furniture": "家具", "room": "房間"}
+        labels = {"wall": "牆", "beam": "樑", "door": "門", "window": "窗",
+                  "furniture": "家具", "room": "房間", "electrical": "水電"}
         for kind, label in labels.items():
             _write_row(ws, r, [label, f["counts"].get(kind, 0)])
             r += 1
