@@ -180,6 +180,10 @@ export class Editor implements ToolCtx {
       if (meta && e.key.toLowerCase() === 'c') { this.copySelection(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'v') { this.pasteClipboard(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'd') { this.duplicateSelection(); e.preventDefault(); return; }
+      if (meta && e.key.toLowerCase() === 'g') {
+        e.shiftKey ? this.doc.ungroupSelection() : this.doc.groupSelection();
+        e.preventDefault(); return;
+      }
       // note: W/A/S/D are reserved for 3D camera movement, so they are NOT tool shortcuts
       const map: Record<string, string> = { v: 'select', h: 'select', n: 'window', m: 'dimension' };
       if (!meta && map[e.key.toLowerCase()]) { this.selectTool(map[e.key.toLowerCase()]); return; }
@@ -238,7 +242,18 @@ export class Editor implements ToolCtx {
     return o;
   }
   private cloneWithOffset(objs: Obj[], dx: number, dy: number): Obj[] {
-    return objs.map(o => { const c = JSON.parse(JSON.stringify(o)); c.id = genId(o.kind); return this.offsetObj(c, dx, dy); });
+    // Group ids are remapped, not copied: a duplicated group must be its own
+    // group, or moving the copy would drag the original along with it.
+    const remap = new Map<string, string>();
+    return objs.map(o => {
+      const c = JSON.parse(JSON.stringify(o));
+      c.id = genId(o.kind);
+      if (c.group) {
+        if (!remap.has(c.group)) remap.set(c.group, genId('grp'));
+        c.group = remap.get(c.group);
+      }
+      return this.offsetObj(c, dx, dy);
+    });
   }
   copySelection() { const s = this.doc.selectedObjects; if (s.length) this.clipboard = s.map(o => JSON.parse(JSON.stringify(o))); }
   pasteClipboard() {

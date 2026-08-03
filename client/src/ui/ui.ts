@@ -198,6 +198,11 @@ function refreshProps(editor: Editor, doc: Doc) {
     }
     host.appendChild(grid);
 
+    const grp = document.createElement('button'); grp.className = 'prop-action';
+    if (doc.canUngroup) { grp.textContent = '解散群組 (⇧⌘G)'; grp.onclick = () => doc.ungroupSelection(); }
+    else { grp.textContent = '組成群組 (⌘G)'; grp.onclick = () => doc.groupSelection(); }
+    host.appendChild(grp);
+
     const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = '複製 (⌘D)';
     dup.onclick = () => editor.duplicateSelection();
     host.appendChild(dup);

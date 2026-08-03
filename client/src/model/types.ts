@@ -14,7 +14,10 @@ export interface Layer {
 
 export type ObjKind = 'wall' | 'beam' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image';
 
-interface Base { id: string; layer: LayerId; }
+// `group`, when set, ties objects together: selecting any one of them selects
+// them all, so every operation that already works on a multi-selection —
+// moving, scaling, duplicating, deleting — works on the group for free.
+interface Base { id: string; layer: LayerId; group?: string; }
 
 // `bulge` (cm) curves the wall into an arc — signed apex offset from the chord; 0/undefined = straight.
 // `height` (cm) is the 3D wall height (defaults to WALL_H). `color` is the wall finish (hex).
