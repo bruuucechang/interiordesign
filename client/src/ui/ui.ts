@@ -6,7 +6,7 @@ import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, pol
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
-import { listProjects, loadProject, saveProject, deleteProject, detectRooms, detectWalls, inspectDxf, importDxf } from '../net/api';
+import { listProjects, loadProject, saveProject, deleteProject, detectRooms, detectWalls, inspectDxf, importDxf, dimensionChain } from '../net/api';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -352,6 +352,13 @@ function refreshProps(editor: Editor, doc: Doc) {
       }, 1);
       dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
       dim(size.body, '高度', o.height ?? 270, v => up({ height: Math.max(10, v) } as any), 10);
+      {
+        const b = document.createElement('button');
+        b.className = 'prop-action'; b.textContent = '📏 自動標註這道牆';
+        b.title = '沿牆產生連續尺寸鏈，在門窗與牆交會處斷開';
+        b.onclick = () => addDimensionChain(doc, o);
+        basics.appendChild(b);
+      }
       break;
     case 'beam':
       dim(size.body, '長度', dist(o.a, o.b), v => {   // resize by moving the far end along the beam
@@ -622,6 +629,23 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
   }
+}
+
+// Dimension one wall the way a plan does it: a run of measurements broken at
+// the openings and junctions along it, rather than a single overall figure.
+async function addDimensionChain(doc: Doc, wall: Extract<Obj, { kind: 'wall' }>) {
+  flash('正在計算尺寸鏈…');
+  const dims = await dimensionChain(wall, doc.objects);
+  if (!dims) { flash('無法計算 — 後端未連線'); return; }
+  if (!dims.length) { flash('這道牆太短，沒有可標註的區段'); return; }
+  doc.commit();
+  // Grouped, so the whole chain can be moved or deleted in one go.
+  const gid = genId('grp');
+  for (const d of dims) {
+    doc.add({ id: genId('dimension'), kind: 'dimension', layer: layerForKind('dimension'),
+              a: d.a, b: d.b, offset: d.offset, group: gid } as Obj);
+  }
+  flash(`已加入 ${dims.length} 段尺寸標註`);
 }
 
 // DXF import. Two stages, because a real architectural drawing carries dozens

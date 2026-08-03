@@ -192,3 +192,26 @@ def test_dxf_endpoints_reject_a_non_dxf(client):
     bad = base64.b64encode(b"not a dxf").decode()
     assert client.post("/api/dxf/inspect", json={"file": bad}).status_code == 400
     assert client.post("/api/dxf/import", json={"file": bad}).status_code == 400
+
+
+# ---- dimension chains ----
+
+def test_dimension_chain_breaks_at_an_opening(client):
+    w = {"a": {"x": 0, "y": 0}, "b": {"x": 500, "y": 0}}
+    objs = [{"kind": "wall", **w},
+            {"kind": "door", "x": 250, "y": 0, "width": 90, "angle": 0}]
+    r = client.post("/api/dimensions/chain", json={"wall": w, "objects": objs, "offset": 60})
+    assert r.status_code == 200
+    dims = r.json()["dimensions"]
+    assert len(dims) == 3
+    assert all(d["offset"] == 60 for d in dims)
+
+
+def test_dimension_chain_picks_a_side_when_none_is_given(client):
+    w = {"a": {"x": 0, "y": 0}, "b": {"x": 600, "y": 0}}
+    room = [{"kind": "wall", "a": {"x": 0, "y": 0}, "b": {"x": 600, "y": 0}},
+            {"kind": "wall", "a": {"x": 600, "y": 0}, "b": {"x": 600, "y": 400}},
+            {"kind": "wall", "a": {"x": 600, "y": 400}, "b": {"x": 0, "y": 400}},
+            {"kind": "wall", "a": {"x": 0, "y": 400}, "b": {"x": 0, "y": 0}}]
+    dims = client.post("/api/dimensions/chain", json={"wall": w, "objects": room}).json()["dimensions"]
+    assert dims and dims[0]["offset"] != 0

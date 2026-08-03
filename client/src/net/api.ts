@@ -70,6 +70,26 @@ export interface WallInput { a: Vec; b: Vec; bulge?: number; }
  * reached, so the caller can leave the existing rooms alone instead of
  * deleting every one of them on a dropped connection.
  */
+export interface DimensionOut { a: Vec; b: Vec; offset: number; }
+
+/**
+ * A run of consecutive dimensions along one wall, broken where its openings and
+ * any T-junctions fall — the way a plan is actually dimensioned. `objects` is
+ * the floor's contents, which is how the backend finds those breaks and which
+ * side of the plan is outside.
+ */
+export async function dimensionChain(
+  wall: { a: Vec; b: Vec }, objects: unknown[], offset?: number,
+): Promise<DimensionOut[] | null> {
+  try {
+    const d = await j<{ dimensions: DimensionOut[] }>('/api/dimensions/chain', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wall: { a: wall.a, b: wall.b }, objects, ...(offset !== undefined ? { offset } : {}) }),
+    }, 8000);
+    return d.dimensions;
+  } catch { return null; }
+}
+
 export interface DxfLayer { layer: string; segments: number; length: number; suggested: boolean; }
 export interface DxfInspection {
   layers: DxfLayer[]; unit: string; unitGuessed: boolean;
