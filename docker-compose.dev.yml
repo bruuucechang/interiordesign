@@ -1,0 +1,68 @@
+# Development stack — edit on the host, both halves reload.
+#
+#   docker compose -f docker-compose.dev.yml up --build
+#   open http://localhost:5180
+#
+# Unlike the production compose this runs the two halves separately: Vite on
+# :5180 with hot reload, uvicorn on :8791 with --reload, and the source
+# bind-mounted so edits on the host take effect without a rebuild.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: interior
+      POSTGRES_PASSWORD: interior
+      POSTGRES_DB: interior_design
+    ports:
+      - "5432:5432"      # exposed so psql/GUI tools on the host can reach it
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U interior -d interior_design"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: python:3.13-slim
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql+psycopg://interior:interior@db:5432/interior_design
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./server:/app
+      - pipcache:/root/.cache/pip
+    ports:
+      - "8791:8791"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "apt-get update -qq
+             && apt-get install -y -qq --no-install-recommends libgl1 libglib2.0-0
+             && pip install --quiet -r requirements.txt
+             && uvicorn app.main:app --host 0.0.0.0 --port 8791 --reload"
+
+  web:
+    image: node:22-slim
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+      - nodemodules:/repo/node_modules
+    ports:
+      - "5180:5180"
+    depends_on:
+      - api
+    # --host binds beyond the container's loopback; without it Vite is
+    # unreachable from the Windows host. The proxy target is the api service.
+    environment:
+      VITE_API_TARGET: http://api:8791
+    command: >
+      sh -c "npm ci
+             && npm run --workspace client dev -- --host 0.0.0.0"
+
+volumes:
+  pgdata_dev:
+  nodemodules:
+  pipcache:

@@ -12,13 +12,14 @@
 2. [技術棧](#技術棧)
 3. [系統架構](#系統架構)
 4. [安裝與執行](#安裝與執行)
-5. [目錄結構](#目錄結構)
-6. [核心原理（詳解）](#核心原理詳解)
-7. [操作說明](#操作說明)
-8. [資料格式](#資料格式)
-9. [測試](#測試)
-10. [須知與注意事項](#須知與注意事項)
-11. [未來可擴充](#未來可擴充)
+5. [用 Docker 執行](#用-docker-執行windows--macos--linux)
+6. [目錄結構](#目錄結構)
+7. [核心原理（詳解）](#核心原理詳解)
+8. [操作說明](#操作說明)
+9. [資料格式](#資料格式)
+10. [測試](#測試)
+11. [須知與注意事項](#須知與注意事項)
+12. [未來可擴充](#未來可擴充)
 
 ---
 
@@ -117,6 +118,46 @@ npm test             # 前端 tsx --test + 後端 pytest
 ```
 
 > 後端離線時前端仍可**繪圖與存檔**（自動改用瀏覽器 `localStorage`），但房間偵測、底圖牆體辨識與報表需要後端。房間偵測失敗時會保留現有房間而不是刪除它們。
+
+---
+
+## 用 Docker 執行（Windows / macOS / Linux）
+
+只要有 Docker Desktop，不需要在機器上裝 Node、Python 或 PostgreSQL。
+
+```bash
+git clone https://github.com/bruuucechang/interiordesign.git
+cd interiordesign
+docker compose up --build
+```
+
+開 <http://localhost:8791>。第一次建置要幾分鐘（下載 Node 與 Python 映像、安裝依賴、建置前端），之後就很快。
+
+包含兩個服務：**PostgreSQL**，以及一個同時提供 API 與已建置前端的容器。前端全部使用相對路徑 `/api/...`，同源提供服務所以不需要任何 proxy 或 CORS 設定。
+
+平面圖存在 `pgdata` volume，重新建置不會消失；要清空資料是 `docker compose down -v`。
+
+### 開發模式（改程式碼會熱重載）
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+開 <http://localhost:5180>。原始碼從主機掛載進容器，前端走 Vite dev server、後端 `uvicorn --reload`，兩邊改了都會自動重載。PostgreSQL 另外開在 `localhost:5432`（帳密皆為 `interior`），方便用 psql 或 GUI 工具連。
+
+> 容器內的 Vite 用輪詢偵測檔案變更 —— Windows 與 macOS 的 bind mount 不保證把 inotify 事件送進容器。
+
+### 常見狀況
+
+| 狀況 | 原因與處理 |
+|---|---|
+| `port is already allocated` | 本機已有服務佔用 8791／5180／5432。停掉它，或改 compose 檔裡的對外埠號 |
+| 前端改了沒反應 | 確認你用的是 `docker-compose.dev.yml`；production compose 的前端是建置好的靜態檔，要改就得重新 `--build` |
+| 想從頭來過 | `docker compose down -v` 會連資料庫 volume 一起刪除 |
+
+### 不用 Docker（原生執行）
+
+見上方的「安裝與執行」；需要自行準備 Node ≥ 20、Python ≥ 3.11 與 PostgreSQL。
 
 ---
 

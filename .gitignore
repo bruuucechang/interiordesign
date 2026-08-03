@@ -12,3 +12,6 @@ server/data/*.db-*
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Built client copied into the image; never committed
+server/static/
