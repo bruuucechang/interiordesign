@@ -1,25 +1,49 @@
-"""PostgreSQL access for saved floor plans.
+"""Storage for saved floor plans.
 
-One table, one row per project. The plan itself is stored as JSONB rather than
-being decomposed into tables: the client owns the document schema and evolves it
-freely (objects gained `bulge`, then `style`, then floors), so pinning it to
-columns would mean a migration for every editor feature.
+One table, one row per project. The plan itself is stored as a JSON column
+rather than being decomposed into tables: the client owns the document schema
+and evolves it freely (objects gained `bulge`, then `style`, then floors), so
+pinning it to columns would mean a migration for every editor feature.
+
+Two backends, chosen by DATABASE_URL:
+
+  PostgreSQL  the server deployment, including the Docker compose stack
+  SQLite      the desktop build, where bundling a database server is not an
+              option and a single file next to the user's documents is what a
+              standalone application should use
+
+JSON is the portable column type; JSONB is Postgres-only. Using the generic one
+keeps a single model working on both, and the difference does not matter here —
+nothing queries inside the document, it is only ever read and written whole.
 """
 from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from sqlalchemy import DateTime, String, create_engine, func, select
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, DateTime, String, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql+psycopg://localhost/interior_design"
 )
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+if DATABASE_URL.startswith("sqlite"):
+    # A file path in the URL may point somewhere that does not exist yet.
+    path = DATABASE_URL.split("///", 1)[-1]
+    if path and path != ":memory:":
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+    # check_same_thread: uvicorn serves requests from a thread pool, and each
+    # request opens its own session, so the connection legitimately moves
+    # between threads.
+    engine = create_engine(
+        DATABASE_URL, future=True, connect_args={"check_same_thread": False}
+    )
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 
@@ -34,7 +58,7 @@ class Floorplan(Base):
     # across the offline localStorage fallback and the server.
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

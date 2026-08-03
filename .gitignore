@@ -15,3 +15,4 @@ __pycache__/
 
 # Built client copied into the image; never committed
 server/static/
+build/

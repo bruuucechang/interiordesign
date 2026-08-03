@@ -13,13 +13,14 @@
 3. [系統架構](#系統架構)
 4. [安裝與執行](#安裝與執行)
 5. [用 Docker 執行](#用-docker-執行windows--macos--linux)
-6. [目錄結構](#目錄結構)
-7. [核心原理（詳解）](#核心原理詳解)
-8. [操作說明](#操作說明)
-9. [資料格式](#資料格式)
-10. [測試](#測試)
-11. [須知與注意事項](#須知與注意事項)
-12. [未來可擴充](#未來可擴充)
+6. [打包成單機軟體](#打包成單機軟體)
+7. [目錄結構](#目錄結構)
+8. [核心原理（詳解）](#核心原理詳解)
+9. [操作說明](#操作說明)
+10. [資料格式](#資料格式)
+11. [測試](#測試)
+12. [須知與注意事項](#須知與注意事項)
+13. [未來可擴充](#未來可擴充)
 
 ---
 
@@ -160,6 +161,46 @@ docker compose -f docker-compose.dev.yml up --build
 ### 不用 Docker（原生執行）
 
 見上方的「安裝與執行」；需要自行準備 Node ≥ 20、Python ≥ 3.11 與 PostgreSQL。
+
+---
+
+## 打包成單機軟體
+
+給不想碰 Docker、Node 或 Python 的人：一個資料夾，點兩下就開。程式會在本機起一個
+伺服器、用預設瀏覽器打開它，並把圖存到使用者自己的目錄。
+
+```bash
+./build-desktop.sh        # macOS / Linux
+build-desktop.bat         # Windows
+```
+
+產出在 `dist/InteriorDesigner/`（約 165 MB，含 OpenCV 與 Python 直譯器）。
+把整個資料夾壓縮起來就是可下載的軟體；使用者解壓後執行裡面的 `InteriorDesigner`
+（Windows 是 `InteriorDesigner.exe`）。
+
+**必須在目標平台上建置。** PyInstaller 是把當下這台機器的直譯器和二進位擴充模組凍結
+起來，不能交叉編譯——Windows 版要在 Windows 上跑 `build-desktop.bat`。
+
+### 單機版與伺服器版的差異
+
+| | 單機版 | Docker / 伺服器版 |
+|---|---|---|
+| 資料庫 | SQLite 單一檔案 | PostgreSQL |
+| 資料位置 | macOS `~/Library/Application Support/InteriorDesigner/`<br>Windows `%APPDATA%\InteriorDesigner\` | 容器磁碟區 |
+| 埠 | 8791，被占用時自動改用其他埠 | 8791 |
+| 多人共用 | 否 | 是 |
+
+由 `DATABASE_URL` 決定走哪一邊，`server/app/db.py` 兩種都支援；資料欄位用通用的 JSON
+型別而非 PostgreSQL 專屬的 JSONB，同一份模型才能兩邊通用。
+
+### 已知限制
+
+- **視窗就是瀏覽器分頁**，關掉主控台視窗才是結束程式。要做成原生視窗得改用 Tauri 或
+  Electron，那是另一套建置流程。
+- **沒有程式碼簽章**，macOS Gatekeeper 會擋（右鍵「打開」可略過），Windows SmartScreen
+  會跳警告。要消掉這些警告需要付費憑證（Apple Developer 年費 99 美元、Windows 簽章憑證
+  約年費 200 美元）。
+- 冷啟動約 5 秒（實測），之後跟開發模式一樣快。
 
 ---
 

@@ -6,6 +6,7 @@ the compute endpoints that used to run in the browser.
 """
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -203,6 +204,10 @@ def project_report_xlsx(project_id: str, db: Session = Depends(get_db)) -> Respo
 # net/api.ts already uses relative /api paths. Mounted last so it cannot shadow
 # an API route. Absent in development, where Vite serves the client instead.
 
-_STATIC = Path(__file__).resolve().parent.parent / "static"
+
+# INTERIOR_STATIC_DIR lets the desktop build point at the bundle, where the
+# files are unpacked somewhere unrelated to this module's location.
+_STATIC = Path(os.environ.get("INTERIOR_STATIC_DIR")
+               or Path(__file__).resolve().parent.parent / "static")
 if _STATIC.is_dir():
     app.mount("/", StaticFiles(directory=_STATIC, html=True), name="static")
