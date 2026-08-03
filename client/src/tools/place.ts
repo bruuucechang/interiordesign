@@ -1,8 +1,9 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId, Doc } from '../model/doc';
-import { layerForKind, Vec } from '../model/types';
+import { layerForKind, Vec, Obj, ELECTRICAL_BY_ID } from '../model/types';
 import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, arcSpan, wallControl } from '../core/geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
+import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 
 const WALL_SNAP = 40; // cm — how close to a wall to snap an opening onto it
 
@@ -121,6 +122,84 @@ export class FurnitureTool implements Tool {
     this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: p.snapped.x - item.w / 2, y: p.snapped.y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name });
     this.ctx.doc.select(id);
     this.ctx.selectTool('select');
+  }
+  onUp() {}
+  deactivate() { this.ctx.setPreview(); }
+}
+
+/**
+ * Place an electrical fitting.
+ *
+ * Wall-mounted items (sockets, switches) snap onto the nearest wall and turn to
+ * face into the room, because that is how they are drawn and how they are
+ * installed — a socket floating mid-room is always a mistake. Ceiling items go
+ * wherever they are put.
+ */
+export class ElectricalTool implements Tool {
+  name = 'electrical'; cursor = 'crosshair';
+  hint = '點擊放置；插座／開關會自動貼牆並轉向，燈具可放在任意位置';
+  constructor(private ctx: ToolCtx) {}
+
+  private spec() { return ELECTRICAL_BY_ID[this.ctx.currentElectrical]; }
+
+  /** Snap onto a wall and face into the room, or null if none is close enough. */
+  private fitToWall(p: Vec): { pos: Vec; angle: number } | null {
+    const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as Extract<Obj, { kind: 'wall' }>[];
+    let best: { pos: Vec; angle: number; d: number } | null = null;
+    for (const w of walls) {
+      const { point } = closestOnSegment(p, w.a, w.b);
+      const d = dist(p, point);
+      if (d > WALL_SNAP) continue;
+      // The symbol's "up" is -y, so face it along the wall normal that points
+      // towards the cursor — i.e. into the room the user is working in.
+      const ang = angleDeg(w.a, w.b);
+      const nx = -Math.sin(ang * Math.PI / 180), ny = Math.cos(ang * Math.PI / 180);
+      const side = (p.x - point.x) * nx + (p.y - point.y) * ny >= 0 ? 1 : -1;
+      const facing = ang + (side > 0 ? 0 : 180);
+      if (!best || d < best.d) best = { pos: point, angle: facing, d };
+    }
+    return best ? { pos: best.pos, angle: best.angle } : null;
+  }
+
+  private place(p: Vec): { pos: Vec; angle: number } {
+    const spec = this.spec();
+    if (spec?.mount === 'wall') {
+      const fit = this.fitToWall(p);
+      if (fit) return fit;
+    }
+    return { pos: p, angle: 0 };
+  }
+
+  onMove(p: PointerInfo) {
+    const spec = this.spec();
+    if (!spec) { this.ctx.setPreview(); return; }
+    const { pos, angle } = this.place(p.world);
+    const sym = ELECTRICAL_SYMBOLS[spec.id];
+    this.ctx.setPreview(ctx => {
+      ctx.save(); ctx.globalAlpha = 0.6;
+      ctx.translate(pos.x, pos.y); ctx.rotate(angle * Math.PI / 180);
+      ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166';
+      ctx.lineWidth = 2; ctx.lineCap = 'round';
+      sym(ctx);
+      ctx.restore();
+    });
+    this.ctx.render();
+  }
+
+  onDown(p: PointerInfo) {
+    const spec = this.spec();
+    if (!spec) return;
+    const { pos, angle } = this.place(p.world);
+    this.ctx.doc.commit();
+    const id = genId('elec');
+    this.ctx.doc.add({
+      id, kind: 'electrical', layer: layerForKind('electrical'),
+      item: spec.id, x: pos.x, y: pos.y, angle,
+      elevation: spec.elevation, label: spec.name,
+    } as Obj);
+    this.ctx.doc.select(id);
+    // Stay on the tool: a plan needs many fittings, and re-picking the tool
+    // between every socket would be its own kind of tedium.
   }
   onUp() {}
   deactivate() { this.ctx.setPreview(); }

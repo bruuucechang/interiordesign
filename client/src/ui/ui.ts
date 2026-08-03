@@ -1,7 +1,8 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, Vec, Project, layerForKind, DOOR_STYLES, WINDOW_STYLES } from '../model/types';
+import { Obj, Vec, Project, layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL, ELECTRICAL_BY_ID } from '../model/types';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
+import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { getModelHeight } from '../core/furniture3d';
 import { exportPNG, exportPDF } from '../core/exporter';
@@ -113,10 +114,41 @@ function buildCatalog(editor: Editor) {
     }
     host.appendChild(grid);
   }
+
+  // 水電 — the electrical schedule a Taiwanese handover needs
+  for (const cat of ['插座', '開關', '燈具']) {
+    const items = ELECTRICAL.filter(e => e.cat === cat);
+    if (!items.length) continue;
+    title(cat);
+    const grid = document.createElement('div'); grid.className = 'furniture-grid';
+    for (const spec of items) {
+      const b = document.createElement('button');
+      b.className = 'furn-btn'; b.dataset.elec = spec.id;
+      b.title = `${spec.name}　安裝高度 ${spec.elevation} cm`;
+      const cv = document.createElement('canvas');
+      cv.width = 60; cv.height = 34;
+      const ctx = cv.getContext('2d')!;
+      ctx.translate(30, 22); ctx.scale(0.85, 0.85);
+      ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166';
+      ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ELECTRICAL_SYMBOLS[spec.id](ctx);
+      b.appendChild(cv);
+      b.appendChild(document.createTextNode(spec.name));
+      b.onclick = () => {
+        editor.currentElectrical = spec.id;
+        editor.selectTool('electrical');
+        document.querySelectorAll('.furn-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
+      };
+      grid.appendChild(b);
+    }
+    host.appendChild(grid);
+  }
 }
 function markActiveTool(name: string) {
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.tool === name));
-  if (name !== 'furniture') document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
+  if (name !== 'furniture' && name !== 'electrical') document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
 }
 
 function updateUndoRedo(doc: Doc) {

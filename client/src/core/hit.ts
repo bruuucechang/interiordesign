@@ -39,6 +39,10 @@ export function bounds(o: Obj): Bounds {
       return { x: o.x - o.width / 2, y: o.y - o.width / 2, w: o.width, h: o.width };
     case 'image':
       return { x: o.x, y: o.y, w: o.w, h: o.h };
+    case 'electrical': {
+      const r = 16;   // a little larger than the drawn symbol, so it is easy to grab
+      return { x: o.x - r, y: o.y - r, w: r * 2, h: r * 2 };
+    }
   }
 }
 
@@ -73,5 +77,8 @@ function hitObject(o: Obj, p: Vec, tol: number): boolean {
       const local = rotate(p, c, -o.angle);
       return pointInRect(local, o.x, o.y, o.w, o.h);
     }
+    // Symbols are small and drawn around their point, so a generous radius
+    // keeps them clickable without zooming in.
+    case 'electrical': return dist(p, { x: o.x, y: o.y }) <= 18 + tol;
   }
 }

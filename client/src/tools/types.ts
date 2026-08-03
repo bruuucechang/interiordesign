@@ -18,6 +18,7 @@ export interface ToolCtx {
   snapEnabled: boolean;
   gridSize: number;
   currentFurniture: string;
+  currentElectrical: string;
   render(): void;
   setPreview(world?: DrawFn, screen?: DrawFn): void;
   setHint(s: string): void;

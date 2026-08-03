@@ -109,3 +109,35 @@ def test_workbook_sheet_names_are_made_legal_for_excel():
 def test_workbook_survives_a_plan_with_no_rooms():
     wb = load_workbook(io.BytesIO(build_workbook(plan(floor("1F", [furn("sofa")])))))
     assert "1F" in wb.sheetnames
+
+
+def elec(item: str, label: str = ""):
+    return {"id": "e", "kind": "electrical", "layer": "electrical",
+            "item": item, "label": label or item, "x": 0, "y": 0, "angle": 0}
+
+
+def test_electrical_fittings_are_counted_by_type():
+    r = build_report(plan(floor("1F", [
+        elec("socket2", "雙插座"), elec("socket2", "雙插座"),
+        elec("switch1", "單切開關"), elec("downlight", "崁燈"),
+    ])))
+    assert r["floors"][0]["electrical"] == [
+        {"item": "單切開關", "count": 1},
+        {"item": "崁燈", "count": 1},
+        {"item": "雙插座", "count": 2},
+    ]
+    assert r["floors"][0]["counts"]["electrical"] == 4
+
+
+def test_the_workbook_lists_the_electrical_schedule():
+    data = build_workbook(plan(floor("1F", [room("客廳", 400, 300), elec("socket2", "雙插座")])))
+    wb = load_workbook(io.BytesIO(data))
+    values = [c.value for row in wb["1F"].iter_rows(values_only=True) for c in
+              [type("C", (), {"value": v})() for v in row]]
+    assert "水電配置" in values
+    assert "雙插座" in values
+
+
+def test_a_plan_with_no_fittings_omits_the_electrical_block():
+    r = build_report(plan(floor("1F", [room("客廳", 400, 300)])))
+    assert r["floors"][0]["electrical"] == []

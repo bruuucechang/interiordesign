@@ -37,6 +37,15 @@ export class Doc {
   private normalize() {
     const p = this.project as any;
     if (!p.layers?.length) p.layers = defaultLayers();
+    // Projects saved before a layer existed have no entry for it, and the
+    // renderer only draws objects whose layer it can find — so back-fill any
+    // that are missing rather than leaving them invisible.
+    for (const def of defaultLayers()) {
+      if (!p.layers.some((l: Layer) => l.id === def.id)) {
+        const before = p.layers.findIndex((l: Layer) => l.id === 'dims');
+        p.layers.splice(before < 0 ? p.layers.length : before, 0, def);
+      }
+    }
     if (!Array.isArray(p.floors) || !p.floors.length) {
       const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: 280, objects: p.objects ?? [] };
       p.floors = [floor];

@@ -2,6 +2,7 @@ import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
 import { Obj, ObjKind, Vec } from '../model/types';
 import { FURNITURE_BY_ID } from '../data/furniture';
+import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment } from './geometry';
 import { handles } from './handles';
 import { furnitureCenter, bounds } from './hit';
@@ -275,6 +276,18 @@ export class Renderer {
         // draw() functions stay unaware of it.
         if (item) item.draw(o.color ? tintContext(ctx, o.color) : ctx, o.w, o.h);
         else { ctx.fillStyle = '#3a4150'; ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.fillRect(0, 0, o.w, o.h); ctx.strokeRect(0, 0, o.w, o.h); }
+        ctx.restore();
+        break;
+      }
+      case 'electrical': {
+        const sym = ELECTRICAL_SYMBOLS[o.item];
+        if (!sym) break;
+        ctx.save();
+        ctx.translate(o.x, o.y);
+        ctx.rotate(o.angle * Math.PI / 180);
+        ctx.strokeStyle = color; ctx.fillStyle = color;
+        ctx.lineWidth = 2; ctx.lineCap = 'round';
+        sym(ctx);
         ctx.restore();
         break;
       }
