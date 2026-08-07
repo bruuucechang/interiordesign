@@ -13,58 +13,71 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from .plan_schema import Electrical, Furniture, Project, Room
 from .rooms import polygon_signed_area
 
 PING_PER_M2 = 1 / 3.30579   # 1 坪 = 3.30579 m²
 
+#: What the object statistics table lists, and the label each row gets.
+COUNTED_KINDS = {
+    "wall": "牆", "beam": "樑", "door": "門", "window": "窗",
+    "furniture": "家具", "room": "房間", "electrical": "水電",
+}
 
-def _area_m2(room: dict[str, Any]) -> float:
-    poly = room.get("poly")
-    if poly and len(poly) >= 3:
+
+def _area_m2(room: Room) -> float:
+    if room.poly and len(room.poly) >= 3:
+        poly = [{"x": p.x, "y": p.y} for p in room.poly]
         return abs(polygon_signed_area(poly)) / 10000
-    return float(room.get("w", 0)) * float(room.get("h", 0)) / 10000
+    return room.w * room.h / 10000
 
 
-def build_report(project: dict[str, Any]) -> dict[str, Any]:
-    """Per-floor room and furniture tallies, plus a project total."""
+def build_report(project: Project, name: str = "") -> dict[str, Any]:
+    """Per-floor room and furniture tallies, plus a project total.
+
+    `name` heads the report. It comes from the stored row rather than the plan
+    because renaming a project updates that column, and the client does not
+    always write the new name back into the document; empty falls back to the
+    plan's own name.
+    """
     floors_out = []
-    for floor in project.get("floors") or []:
-        objects = floor.get("objects") or []
+    for floor in project.floors:
+        objects = floor.objects
 
         rooms = []
         for o in objects:
-            if o.get("kind") != "room":
+            if not isinstance(o, Room):
                 continue
             m2 = _area_m2(o)
             if m2 <= 0:
                 continue
-            rooms.append({"name": o.get("name") or "房間", "m2": m2, "ping": m2 * PING_PER_M2})
+            rooms.append({"name": o.name or "房間", "m2": m2, "ping": m2 * PING_PER_M2})
 
         counts: dict[str, int] = {}
         for o in objects:
-            if o.get("kind") == "furniture":
-                label = o.get("label") or o.get("item") or "家具"
+            if isinstance(o, Furniture):
+                label = o.label or o.item or "家具"
                 counts[label] = counts.get(label, 0) + 1
         furniture = [{"item": k, "count": v} for k, v in sorted(counts.items())]
 
-        tally = {
-            kind: sum(1 for o in objects if o.get("kind") == kind)
-            for kind in ("wall", "beam", "door", "window", "furniture", "room", "electrical")
-        }
+        tally = {kind: 0 for kind in COUNTED_KINDS}
+        for o in objects:
+            if o.kind in tally:
+                tally[o.kind] += 1
 
         # Electrical fittings are counted by type, because that is the schedule
         # a contractor prices — "8 雙插座, 3 單切開關" not "11 fittings".
         elec: dict[str, int] = {}
         for o in objects:
-            if o.get("kind") == "electrical":
-                label = o.get("label") or o.get("item") or "配件"
+            if isinstance(o, Electrical):
+                label = o.label or o.item.value or "配件"
                 elec[label] = elec.get(label, 0) + 1
         electrical = [{"item": k, "count": v} for k, v in sorted(elec.items())]
 
         floors_out.append(
             {
-                "id": floor.get("id"),
-                "name": floor.get("name") or "",
+                "id": floor.id,
+                "name": floor.name or "",
                 "rooms": rooms,
                 "roomTotalM2": sum(r["m2"] for r in rooms),
                 "roomTotalPing": sum(r["ping"] for r in rooms),
@@ -75,7 +88,7 @@ def build_report(project: dict[str, Any]) -> dict[str, Any]:
         )
 
     return {
-        "project": project.get("name") or "未命名平面圖",
+        "project": name or project.name or "未命名平面圖",
         "floors": floors_out,
         "totalM2": sum(f["roomTotalM2"] for f in floors_out),
         "totalPing": sum(f["roomTotalPing"] for f in floors_out),
@@ -104,9 +117,9 @@ def _write_row(ws, row: int, values: list[Any], *, head: bool = False, bold: boo
             cell.alignment = Alignment(horizontal="right")
 
 
-def build_workbook(project: dict[str, Any]) -> bytes:
+def build_workbook(project: Project, name: str = "") -> bytes:
     """The report as a .xlsx: one sheet per floor, plus a summary."""
-    report = build_report(project)
+    report = build_report(project, name)
     wb = Workbook()
 
     summary = wb.active
@@ -149,9 +162,7 @@ def build_workbook(project: dict[str, Any]) -> bytes:
         r += 1
         _write_row(ws, r, ["物件統計", ""], head=True)
         r += 1
-        labels = {"wall": "牆", "beam": "樑", "door": "門", "window": "窗",
-                  "furniture": "家具", "room": "房間", "electrical": "水電"}
-        for kind, label in labels.items():
+        for kind, label in COUNTED_KINDS.items():
             _write_row(ws, r, [label, f["counts"].get(kind, 0)])
             r += 1
 

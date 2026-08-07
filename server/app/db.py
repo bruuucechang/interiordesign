@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from sqlalchemy import JSON, DateTime, String, create_engine, func, select
 from sqlalchemy.dialects.postgresql import JSONB
@@ -73,6 +73,15 @@ class Floorplan(Base):
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
+
+
+def get_db() -> Iterator[Session]:
+    """One session per request; the routers take this as a dependency."""
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 def list_projects(db: Session) -> list[dict[str, Any]]:
