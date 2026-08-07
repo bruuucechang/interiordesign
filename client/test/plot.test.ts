@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chooseSheet, drawAreaMM, planAreaMM, projectExtent, roomSchedule, scaleBarMetres, SCALES } from '../src/core/plot';
 import { Project, Floor, Obj } from '../src/model/schema';
+import { SCHEMA_VERSION } from '../src/model/migrate';
 
 const V = (x: number, y: number) => ({ x, y });
 const wall = (id: string, a: [number, number], b: [number, number]): Obj =>
@@ -9,6 +10,7 @@ const wall = (id: string, a: [number, number], b: [number, number]): Obj =>
 
 function proj(floors: Partial<Floor>[]): Project {
   return {
+    schemaVersion: SCHEMA_VERSION,
     id: 'p', name: 'test', activeFloorId: 'f0', layers: [],
     floors: floors.map((f, i) => ({ id: `f${i}`, name: `${i + 1}F`, elevation: 0, height: 280, objects: [], ...f })),
   } as Project;

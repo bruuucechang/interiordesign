@@ -23,7 +23,7 @@ def furn(item: str, label: str = "") -> Furniture:
 
 
 def plan(*floors: Floor) -> Project:
-    return Project(id="p", name="測試案", layers=[Layer(id="rooms", name="房間",
+    return Project(schemaVersion=1, id="p", name="測試案", layers=[Layer(id="rooms", name="房間",
                    visible=True, locked=False, color="#fff")],
                    floors=list(floors), activeFloorId=floors[0].id if floors else "")
 

@@ -21,6 +21,7 @@ def test_the_object_union_matches_the_generated_schema():
 
 def valid_plan() -> dict:
     return {
+        "schemaVersion": 1,
         "id": "p1",
         "name": "案子",
         "layers": [{"id": "walls", "name": "牆體", "visible": True,
@@ -95,8 +96,9 @@ def test_parse_objects_is_silent_when_everything_parses(caplog):
 
 def test_a_room_keeps_its_polygon_through_validation():
     p = Project(
-        id="p", name="n", layers=[Layer(id="rooms", name="房間", visible=True,
-                                        locked=False, color="#fff")],
+        schemaVersion=1, id="p", name="n",
+        layers=[Layer(id="rooms", name="房間", visible=True,
+                      locked=False, color="#fff")],
         activeFloorId="f",
         floors=[Floor(id="f", name="1F", elevation=0, height=280, objects=[
             Room(id="r", kind="room", layer="rooms", x=0, y=0, w=1, h=1,

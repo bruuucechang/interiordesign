@@ -1,11 +1,11 @@
 import { Project, Obj, Layer, LayerId, Floor } from './schema';
 import { defaultLayers } from './catalogue';
+import { migrate, SCHEMA_VERSION } from './migrate';
+import { genId } from './ids';
 
-let counter = 0;
-export function genId(prefix = 'o'): string {
-  counter++;
-  return `${prefix}_${Date.now().toString(36)}_${counter}`;
-}
+// Re-exported: genId lives in ids.ts so migrate.ts can use it without a cycle,
+// but every caller already reaches for it here.
+export { genId };
 
 // The editor document: project data + selection + undo/redo history.
 export class Doc {
@@ -25,35 +25,18 @@ export class Doc {
   private listeners = new Set<() => void>();
 
   constructor(project?: Project) {
-    this.project = project ?? Doc.blank();
-    this.normalize();
+    // Everything that arrives here goes through the migration ladder, whether
+    // it came from the backend, the offline mirror or an import.
+    this.project = migrate(project ?? Doc.blank());
   }
 
   static blank(): Project {
     const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: 280, objects: [] };
-    return { id: genId('proj'), name: '未命名平面圖', layers: defaultLayers(), floors: [floor], activeFloorId: floor.id };
-  }
-
-  // migrate older single-list projects into the floors model
-  private normalize() {
-    const p = this.project as any;
-    if (!p.layers?.length) p.layers = defaultLayers();
-    // Projects saved before a layer existed have no entry for it, and the
-    // renderer only draws objects whose layer it can find — so back-fill any
-    // that are missing rather than leaving them invisible.
-    for (const def of defaultLayers()) {
-      if (!p.layers.some((l: Layer) => l.id === def.id)) {
-        const before = p.layers.findIndex((l: Layer) => l.id === 'dims');
-        p.layers.splice(before < 0 ? p.layers.length : before, 0, def);
-      }
-    }
-    if (!Array.isArray(p.floors) || !p.floors.length) {
-      const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: 280, objects: p.objects ?? [] };
-      p.floors = [floor];
-      p.activeFloorId = floor.id;
-    }
-    delete p.objects;
-    if (!p.floors.find((f: Floor) => f.id === p.activeFloorId)) p.activeFloorId = p.floors[0].id;
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      id: genId('proj'), name: '未命名平面圖',
+      layers: defaultLayers(), floors: [floor], activeFloorId: floor.id,
+    };
   }
 
   onChange(fn: () => void) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
@@ -203,8 +186,7 @@ export class Doc {
   // ---- serialize ----
   serialize(): Project { return this.project; }
   load(project: Project) {
-    this.project = project;
-    this.normalize();   // migrate older single-list projects into floors
+    this.project = migrate(project);
     this.selectedIds = [];
     this.past = []; this.future = [];
     this.emit();
