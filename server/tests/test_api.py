@@ -7,6 +7,9 @@ silently breaks the editor.
 from __future__ import annotations
 
 PLAN = {
+    # schemaVersion is required: the client stamps every plan it saves, and the
+    # backfill script put it on the ones stored before it existed.
+    "schemaVersion": 1,
     "id": "proj_x",
     "name": "測試平面圖",
     "activeFloorId": "f1",

@@ -171,6 +171,10 @@ class Project(BaseModel):
     id: str
     layers: list[Layer]
     name: str
+    schemaVersion: float = Field(
+        ...,
+        description='Which revision of this schema the plan was written against. Bumped only by a change that older plans cannot satisfy; migrate.ts holds the step that moves a plan up to it, and the backend can then assume one shape.',
+    )
 
 
 class Plan(RootModel[Project]):

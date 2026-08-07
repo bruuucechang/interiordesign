@@ -83,6 +83,12 @@ export interface Floor {
 }
 
 export interface Project {
+  /**
+   * Which revision of this schema the plan was written against. Bumped only by
+   * a change that older plans cannot satisfy; migrate.ts holds the step that
+   * moves a plan up to it, and the backend can then assume one shape.
+   */
+  schemaVersion: number;
   id: string;
   name: string;
   layers: Layer[];
