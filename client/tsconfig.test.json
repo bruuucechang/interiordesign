@@ -1,0 +1,10 @@
+// The tests run under node:test, so they need node's globals — which the
+// browser code must not have. Keeping them in a second project means `process`
+// and friends stay unavailable in src/ while test/ is still type-checked.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "test"]
+}

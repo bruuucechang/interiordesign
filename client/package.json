@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 5180"
   },
@@ -14,6 +15,7 @@
     "three": "^0.171.0"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   }

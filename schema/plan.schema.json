@@ -1,0 +1,545 @@
+{
+  "$ref": "#/definitions/Project",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "Beam": {
+      "properties": {
+        "a": {
+          "$ref": "#/definitions/Vec"
+        },
+        "b": {
+          "$ref": "#/definitions/Vec"
+        },
+        "elevation": {
+          "type": "number"
+        },
+        "group": {
+          "type": "string"
+        },
+        "height": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "beam",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "elevation",
+        "height",
+        "id",
+        "kind",
+        "layer",
+        "width"
+      ],
+      "type": "object"
+    },
+    "Dimension": {
+      "properties": {
+        "a": {
+          "$ref": "#/definitions/Vec"
+        },
+        "b": {
+          "$ref": "#/definitions/Vec"
+        },
+        "group": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "dimension",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "offset": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "id",
+        "kind",
+        "layer",
+        "offset"
+      ],
+      "type": "object"
+    },
+    "Electrical": {
+      "properties": {
+        "angle": {
+          "type": "number"
+        },
+        "elevation": {
+          "description": "Height above the floor (cm). Sockets sit low, switches at handle height.",
+          "type": "number"
+        },
+        "group": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "item": {
+          "$ref": "#/definitions/ElectricalId"
+        },
+        "kind": {
+          "const": "electrical",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "angle",
+        "id",
+        "item",
+        "kind",
+        "layer",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ElectricalId": {
+      "enum": [
+        "socket",
+        "socket2",
+        "socketWater",
+        "tv",
+        "network",
+        "switch1",
+        "switch2",
+        "switch3",
+        "ceilingLight",
+        "downlight",
+        "spotlight",
+        "pendant",
+        "wallLight",
+        "exhaust"
+      ],
+      "type": "string"
+    },
+    "Floor": {
+      "properties": {
+        "elevation": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "objects": {
+          "items": {
+            "$ref": "#/definitions/Obj"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "elevation",
+        "height",
+        "objects"
+      ],
+      "type": "object"
+    },
+    "Furniture": {
+      "properties": {
+        "angle": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "elevation": {
+          "type": "number"
+        },
+        "group": {
+          "type": "string"
+        },
+        "h": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "item": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "furniture",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "w": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "angle",
+        "h",
+        "id",
+        "item",
+        "kind",
+        "label",
+        "layer",
+        "w",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ImageObj": {
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "h": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "image",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "src": {
+          "type": "string"
+        },
+        "w": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "h",
+        "id",
+        "kind",
+        "layer",
+        "opacity",
+        "src",
+        "w",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "Layer": {
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "visible",
+        "locked",
+        "color"
+      ],
+      "type": "object"
+    },
+    "LayerId": {
+      "type": "string"
+    },
+    "Obj": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Wall"
+        },
+        {
+          "$ref": "#/definitions/Beam"
+        },
+        {
+          "$ref": "#/definitions/Room"
+        },
+        {
+          "$ref": "#/definitions/Opening"
+        },
+        {
+          "$ref": "#/definitions/Furniture"
+        },
+        {
+          "$ref": "#/definitions/Dimension"
+        },
+        {
+          "$ref": "#/definitions/ImageObj"
+        },
+        {
+          "$ref": "#/definitions/Electrical"
+        }
+      ]
+    },
+    "Opening": {
+      "properties": {
+        "angle": {
+          "type": "number"
+        },
+        "bulge": {
+          "type": "number"
+        },
+        "elevation": {
+          "type": "number"
+        },
+        "group": {
+          "type": "string"
+        },
+        "height": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "door",
+            "window"
+          ],
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "style": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "angle",
+        "id",
+        "kind",
+        "layer",
+        "width",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "Project": {
+      "properties": {
+        "activeFloorId": {
+          "type": "string"
+        },
+        "floors": {
+          "items": {
+            "$ref": "#/definitions/Floor"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "layers": {
+          "items": {
+            "$ref": "#/definitions/Layer"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "layers",
+        "floors",
+        "activeFloorId"
+      ],
+      "type": "object"
+    },
+    "Room": {
+      "properties": {
+        "auto": {
+          "type": "boolean"
+        },
+        "floor": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "h": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "room",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "poly": {
+          "items": {
+            "$ref": "#/definitions/Vec"
+          },
+          "type": "array"
+        },
+        "w": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "h",
+        "id",
+        "kind",
+        "layer",
+        "name",
+        "w",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "Vec": {
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "Wall": {
+      "properties": {
+        "a": {
+          "$ref": "#/definitions/Vec"
+        },
+        "b": {
+          "$ref": "#/definitions/Vec"
+        },
+        "bulge": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "height": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "wall",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "thickness": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "id",
+        "kind",
+        "layer",
+        "thickness"
+      ],
+      "type": "object"
+    }
+  }
+}

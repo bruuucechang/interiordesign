@@ -5,28 +5,31 @@ import io
 
 from openpyxl import load_workbook
 
+from app.plan_schema import (Electrical, Floor, Furniture, Layer, Opening,
+                             Project, Room, Vec, Wall)
 from app.report import PING_PER_M2, build_report, build_workbook
 
 
-def room(name: str, w: float, h: float, poly=None):
-    o = {"id": "r_" + name, "kind": "room", "layer": "rooms",
-         "x": 0, "y": 0, "w": w, "h": h, "name": name}
-    if poly:
-        o["poly"] = poly
-    return o
+def room(name: str, w: float, h: float, poly=None) -> Room:
+    return Room(id="r_" + name, kind="room", layer="rooms",
+                x=0, y=0, w=w, h=h, name=name,
+                poly=[Vec(**p) for p in poly] if poly else None)
 
 
-def furn(item: str, label: str = ""):
-    return {"id": "f", "kind": "furniture", "layer": "furniture",
-            "item": item, "label": label or item, "x": 0, "y": 0, "w": 10, "h": 10, "angle": 0}
+def furn(item: str, label: str = "") -> Furniture:
+    return Furniture(id="f", kind="furniture", layer="furniture",
+                     item=item, label=label or item,
+                     x=0, y=0, w=10, h=10, angle=0)
 
 
-def plan(*floors):
-    return {"name": "測試案", "floors": list(floors)}
+def plan(*floors: Floor) -> Project:
+    return Project(id="p", name="測試案", layers=[Layer(id="rooms", name="房間",
+                   visible=True, locked=False, color="#fff")],
+                   floors=list(floors), activeFloorId=floors[0].id if floors else "")
 
 
-def floor(name: str, objects: list):
-    return {"id": "f_" + name, "name": name, "elevation": 0, "height": 280, "objects": objects}
+def floor(name: str, objects: list) -> Floor:
+    return Floor(id="f_" + name, name=name, elevation=0, height=280, objects=objects)
 
 
 def test_room_area_uses_the_polygon_when_present():
@@ -72,7 +75,10 @@ def test_furniture_is_counted_by_label():
 
 def test_object_counts_cover_every_kind():
     objects = [room("客廳", 400, 300), furn("sofa"),
-               {"id": "w", "kind": "wall"}, {"id": "d", "kind": "door"}]
+               Wall(id="w", kind="wall", layer="walls",
+                    a=Vec(x=0, y=0), b=Vec(x=100, y=0), thickness=12),
+               Opening(id="d", kind="door", layer="openings",
+                       x=50, y=0, width=90, angle=0)]
     counts = build_report(plan(floor("1F", objects)))["floors"][0]["counts"]
     assert counts["wall"] == 1 and counts["door"] == 1
     assert counts["furniture"] == 1 and counts["room"] == 1
@@ -111,9 +117,9 @@ def test_workbook_survives_a_plan_with_no_rooms():
     assert "1F" in wb.sheetnames
 
 
-def elec(item: str, label: str = ""):
-    return {"id": "e", "kind": "electrical", "layer": "electrical",
-            "item": item, "label": label or item, "x": 0, "y": 0, "angle": 0}
+def elec(item: str, label: str = "") -> Electrical:
+    return Electrical(id="e", kind="electrical", layer="electrical",
+                      item=item, label=label or item, x=0, y=0, angle=0)
 
 
 def test_electrical_fittings_are_counted_by_type():

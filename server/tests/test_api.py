@@ -141,6 +141,23 @@ def test_report_endpoint_summarises_the_saved_plan(client):
     assert body["floors"][0]["counts"]["wall"] == 1
 
 
+def test_a_plan_the_schema_cannot_read_is_still_saved(client):
+    # The client owns the schema and may run ahead of us; refusing the write
+    # would lose work the user can see on screen.
+    legacy = {"id": "proj_old", "name": "舊檔", "layers": [], "objects": []}
+    assert client.put("/api/projects/old", json={"name": "舊檔", "data": legacy}).status_code == 200
+    assert client.get("/api/projects/old").json()["data"] == legacy
+
+
+def test_a_report_on_an_unreadable_plan_says_so_instead_of_coming_back_empty(client):
+    # Regression: pre-floors saves used to produce a report with no rooms and
+    # no error — indistinguishable from a plan that genuinely has none.
+    legacy = {"id": "proj_old", "name": "舊檔", "layers": [], "objects": []}
+    client.put("/api/projects/old", json={"name": "舊檔", "data": legacy})
+    assert client.get("/api/projects/old/report").status_code == 422
+    assert client.get("/api/projects/old/report.xlsx").status_code == 422
+
+
 def test_report_endpoint_404s_for_a_missing_project(client):
     assert client.get("/api/projects/nope/report").status_code == 404
     assert client.get("/api/projects/nope/report.xlsx").status_code == 404
@@ -195,11 +212,21 @@ def test_dxf_endpoints_reject_a_non_dxf(client):
 
 
 # ---- dimension chains ----
+#
+# `objects` carries the floor's real contents — the client sends doc.objects —
+# so these fixtures are whole plan objects, not bare segments. Anything the
+# schema cannot read is dropped before the geometry runs.
+
+def a_wall(oid, ax, ay, bx, by):
+    return {"id": oid, "kind": "wall", "layer": "walls", "thickness": 12,
+            "a": {"x": ax, "y": ay}, "b": {"x": bx, "y": by}}
+
 
 def test_dimension_chain_breaks_at_an_opening(client):
     w = {"a": {"x": 0, "y": 0}, "b": {"x": 500, "y": 0}}
-    objs = [{"kind": "wall", **w},
-            {"kind": "door", "x": 250, "y": 0, "width": 90, "angle": 0}]
+    objs = [a_wall("w1", 0, 0, 500, 0),
+            {"id": "d1", "kind": "door", "layer": "openings",
+             "x": 250, "y": 0, "width": 90, "angle": 0}]
     r = client.post("/api/dimensions/chain", json={"wall": w, "objects": objs, "offset": 60})
     assert r.status_code == 200
     dims = r.json()["dimensions"]
@@ -209,9 +236,15 @@ def test_dimension_chain_breaks_at_an_opening(client):
 
 def test_dimension_chain_picks_a_side_when_none_is_given(client):
     w = {"a": {"x": 0, "y": 0}, "b": {"x": 600, "y": 0}}
-    room = [{"kind": "wall", "a": {"x": 0, "y": 0}, "b": {"x": 600, "y": 0}},
-            {"kind": "wall", "a": {"x": 600, "y": 0}, "b": {"x": 600, "y": 400}},
-            {"kind": "wall", "a": {"x": 600, "y": 400}, "b": {"x": 0, "y": 400}},
-            {"kind": "wall", "a": {"x": 0, "y": 400}, "b": {"x": 0, "y": 0}}]
+    room = [a_wall("t", 0, 0, 600, 0), a_wall("r", 600, 0, 600, 400),
+            a_wall("b", 600, 400, 0, 400), a_wall("l", 0, 400, 0, 0)]
     dims = client.post("/api/dimensions/chain", json={"wall": w, "objects": room}).json()["dimensions"]
     assert dims and dims[0]["offset"] != 0
+
+
+def test_dimension_chain_ignores_objects_it_cannot_read(client):
+    w = {"a": {"x": 0, "y": 0}, "b": {"x": 500, "y": 0}}
+    objs = [a_wall("w1", 0, 0, 500, 0), {"id": "?", "kind": "not-a-kind"}]
+    r = client.post("/api/dimensions/chain", json={"wall": w, "objects": objs})
+    assert r.status_code == 200
+    assert len(r.json()["dimensions"]) == 1

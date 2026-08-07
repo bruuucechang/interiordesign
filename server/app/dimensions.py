@@ -6,11 +6,19 @@ figure for the whole wall. Placing those by hand, one at a time, is exactly the
 tedium the drawing tools are supposed to remove.
 
 Pure geometry, so it lives here with tests rather than in the editor's hot path.
+
+The wall being dimensioned arrives as a plain segment from the request, while
+the surrounding objects come through the generated plan schema — they are the
+floor's real contents, and reading them by attribute is what keeps this file
+honest when the editor renames a field.
 """
 from __future__ import annotations
 
 import math
 from typing import Any, Iterable
+
+from .plan_schema import Opening, Wall
+from .plan_schema import Vec as ObjVec
 
 Vec = dict[str, float]
 
@@ -39,29 +47,36 @@ def _at(a: Vec, b: Vec, t: float) -> Vec:
     return {"x": a["x"] + dx * t, "y": a["y"] + dy * t}
 
 
-def _breaks_from_openings(wall: dict, openings: Iterable[dict], length: float) -> list[float]:
+def _pt(v: ObjVec) -> Vec:
+    """A schema point in the dict form the helpers above work in."""
+    return {"x": v.x, "y": v.y}
+
+
+def _breaks_from_openings(wall: dict, openings: Iterable[Opening], length: float) -> list[float]:
     """Both edges of every door or window sitting on this wall."""
     out: list[float] = []
     for o in openings:
-        centre = {"x": float(o["x"]), "y": float(o["y"])}
+        centre = {"x": o.x, "y": o.y}
         t, dist = _project(centre, wall["a"], wall["b"])
         if dist > ON_WALL_TOL or not (0 <= t <= 1):
             continue
-        half = float(o.get("width", 0)) / 2
+        half = o.width / 2
         for edge in (t - half / length, t + half / length):
             if 0 < edge < 1:
                 out.append(edge)
     return out
 
 
-def _breaks_from_junctions(wall: dict, walls: Iterable[dict]) -> list[float]:
-    """Where another wall's end lands on this one — a T-junction."""
+def _breaks_from_junctions(wall: dict, walls: Iterable[Wall]) -> list[float]:
+    """Where another wall's end lands on this one — a T-junction.
+
+    The wall being dimensioned is normally in `walls` too. It needs no special
+    case: its own ends project to t=0 and t=1, which fall outside 0<t<1.
+    """
     out: list[float] = []
     for w in walls:
-        if w is wall:
-            continue
-        for end in (w["a"], w["b"]):
-            t, dist = _project(end, wall["a"], wall["b"])
+        for end in (w.a, w.b):
+            t, dist = _project(_pt(end), wall["a"], wall["b"])
             if dist <= ON_WALL_TOL and 0 < t < 1:
                 out.append(t)
     return out
@@ -69,7 +84,7 @@ def _breaks_from_junctions(wall: dict, walls: Iterable[dict]) -> list[float]:
 
 def dimension_chain(
     wall: dict[str, Any],
-    objects: Iterable[dict[str, Any]] = (),
+    objects: Iterable[Any] = (),
     offset: float = DEFAULT_OFFSET,
 ) -> list[dict[str, Any]]:
     """One dimension per run along `wall`, broken at openings and junctions.
@@ -83,8 +98,8 @@ def dimension_chain(
         return []
 
     objects = list(objects)
-    openings = [o for o in objects if o.get("kind") in ("door", "window")]
-    walls = [o for o in objects if o.get("kind") == "wall"]
+    openings = [o for o in objects if isinstance(o, Opening)]
+    walls = [o for o in objects if isinstance(o, Wall)]
 
     ts = [0.0, 1.0]
     ts += _breaks_from_openings(wall, openings, length)
@@ -109,7 +124,7 @@ def dimension_chain(
     ]
 
 
-def outward_offset(wall: dict[str, Any], objects: Iterable[dict[str, Any]],
+def outward_offset(wall: dict[str, Any], objects: Iterable[Any],
                    distance: float = DEFAULT_OFFSET) -> float:
     """Signed offset that puts the chain on the outside of the plan.
 
@@ -118,8 +133,8 @@ def outward_offset(wall: dict[str, Any], objects: Iterable[dict[str, Any]],
     """
     pts: list[tuple[float, float]] = []
     for o in objects:
-        if o.get("kind") == "wall":
-            pts += [(o["a"]["x"], o["a"]["y"]), (o["b"]["x"], o["b"]["y"])]
+        if isinstance(o, Wall):
+            pts += [(o.a.x, o.a.y), (o.b.x, o.b.y)]
     if not pts:
         return distance
 

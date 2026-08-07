@@ -14,12 +14,16 @@
     "start": "cd server && ../.venv/bin/python -m uvicorn app.main:app --port 8791",
     "setup:py": "python3 -m venv .venv && .venv/bin/pip install -r server/requirements.txt",
     "migrate": "cd server && ../.venv/bin/python -m scripts.migrate_sqlite_to_pg",
-    "test": "npm run test:client && npm run test:server",
+    "codegen": "node scripts/codegen.mjs",
+    "codegen:check": "node scripts/codegen.mjs --check",
+    "typecheck": "npm --workspace client run typecheck",
+    "test": "npm run typecheck && npm run codegen:check && npm run test:client && npm run test:server",
     "test:client": "tsx --test client/test/*.test.ts",
     "test:server": "cd server && ../.venv/bin/python -m pytest tests/ -q"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "ts-json-schema-generator": "^2.9.0",
     "tsx": "^4.23.4"
   }
 }
