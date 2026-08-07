@@ -34,7 +34,7 @@ def get_project(project_id: str, db: Session = Depends(store.get_db)) -> dict[st
 @router.put("/projects/{project_id}")
 def put_project(
     project_id: str, body: SaveBody, db: Session = Depends(store.get_db)
-) -> dict[str, str]:
+) -> dict[str, Any]:
     if body.data is None:
         raise HTTPException(status_code=400, detail="name and data required")
     # Checked, not enforced: a save that does not match the schema is still the

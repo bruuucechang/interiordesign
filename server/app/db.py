@@ -90,7 +90,9 @@ def list_projects(db: Session) -> list[dict[str, Any]]:
             Floorplan.updated_at.desc()
         )
     ).all()
-    return [{"id": r.id, "name": r.name, "updatedAt": _iso(r.updated_at)} for r in rows]
+    return [
+        {"id": r.id, "name": r.name, **_times(r.updated_at)} for r in rows
+    ]
 
 
 def get_project(db: Session, project_id: str) -> dict[str, Any] | None:
@@ -101,11 +103,11 @@ def get_project(db: Session, project_id: str) -> dict[str, Any] | None:
         "id": row.id,
         "name": row.name,
         "data": row.data,
-        "updatedAt": _iso(row.updated_at),
+        **_times(row.updated_at),
     }
 
 
-def save_project(db: Session, project_id: str, name: str, data: Any) -> dict[str, str]:
+def save_project(db: Session, project_id: str, name: str, data: Any) -> dict[str, Any]:
     row = db.get(Floorplan, project_id)
     now = datetime.now(timezone.utc)
     if row is None:
@@ -116,7 +118,9 @@ def save_project(db: Session, project_id: str, name: str, data: Any) -> dict[str
         row.data = data
         row.updated_at = now
     db.commit()
-    return {"id": project_id, "name": name}
+    # The stored time comes back so the client can file its local mirror under
+    # the server's clock rather than its own, and stop the two disagreeing.
+    return {"id": project_id, "name": name, **_times(row.updated_at)}
 
 
 def delete_project(db: Session, project_id: str) -> None:
@@ -126,7 +130,19 @@ def delete_project(db: Session, project_id: str) -> None:
         db.commit()
 
 
-def _iso(dt: datetime | None) -> str:
-    # The client only ever displays this, and the old Node backend sent
-    # "YYYY-MM-DD HH:MM:SS", so keep that shape rather than full ISO-8601.
-    return dt.strftime("%Y-%m-%d %H:%M:%S") if dt else ""
+def _times(dt: datetime | None) -> dict[str, str]:
+    """Both forms of a timestamp: one to show, one to compare.
+
+    `updatedAt` is what the project list prints and the old Node backend sent —
+    "YYYY-MM-DD HH:MM:SS", in whatever zone the database hands back, with no
+    marker saying which. That is fine to display and useless to compare, and
+    the offline mirror has to compare: a plan saved locally while the backend
+    was unreachable is only newer if the two times mean the same thing.
+    `updatedAtIso` is therefore the same instant in UTC, spelled out.
+    """
+    if dt is None:
+        return {"updatedAt": "", "updatedAtIso": ""}
+    return {
+        "updatedAt": dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "updatedAtIso": dt.astimezone(timezone.utc).isoformat(),
+    }
