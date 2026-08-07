@@ -41,7 +41,7 @@
 | **智慧吸附** | 畫牆／樑與拖曳端點時貼合牆體**端點／中點／牆面**（不同圖示：圈=端點、三角=中點、菱形=牆面），並在與既有端點**水平／垂直對齊**時顯示橙色虛線輔助線；兩條輔助線交會即吸附至交點 |
 | **報表** | 各樓層房間面積（m²／坪）、家具數量、**水電配件數量**、物件統計，可匯出 **Excel (.xlsx)** |
 | **匯出** | PNG（Canvas）、PDF 快照、**施工圖 PDF**（真實比例＋圖框／標題欄／比例尺／房間面積表，每樓層一頁）、**360 全景**（4096×2048 equirectangular JPG ＋ 可直接雙擊開啟的自包含 HTML 檢視器）、3D 模型 .glb（glTF，可用 Blender 開啟） |
-| **持久化** | 後端 SQLite 存檔；離線自動降級為 localStorage；變更後約 0.7 秒 debounce 自動存檔（另有 20 秒 fallback 心跳） |
+| **持久化** | 後端 PostgreSQL 存檔（JSONB）；離線寫入本機鏡像並在連線後補送；變更後約 0.7 秒 debounce 自動存檔（另有 20 秒 fallback 心跳兼補送） |
 | **底圖** | 匯入平面圖底圖描繪，並可自動偵測牆體（後端 OpenCV） |
 | **DXF 匯入** | 讀入建商／測繪提供的 DXF：先列出圖層與線段統計供勾選，再轉成牆體（自動合併雙線牆並量出厚度、ARC 與 bulge 轉曲線牆、單位可覆寫）。選到 `.dwg` 會顯示轉檔指引 —— 見下方說明 |
 
@@ -115,10 +115,10 @@ npm run migrate      # 可重複執行；加 --dry-run 先看會寫什麼
 ```bash
 npm run build        # client (tsc --noEmit && vite build)
 npm start            # 以正式模式啟動 FastAPI
-npm test             # 前端 tsx --test + 後端 pytest
+npm test             # 型別檢查 + codegen 新鮮度 + 前端 tsx --test + 後端 pytest
 ```
 
-> 後端離線時前端仍可**繪圖與存檔**（自動改用瀏覽器 `localStorage`），但房間偵測、底圖牆體辨識與報表需要後端。房間偵測失敗時會保留現有房間而不是刪除它們。
+> 後端離線時前端仍可**繪圖與存檔**（寫進瀏覽器的本機鏡像，連線後自動補送），但房間偵測、底圖牆體辨識與報表需要後端。房間偵測失敗時會保留現有房間而不是刪除它們。
 
 ---
 
@@ -216,8 +216,11 @@ interior-designer/
 │  └─ src/
 │     ├─ main.ts                   # 進入點：建立 editor + view3d，2D/3D 切換與子母畫面
 │     ├─ model/
-│     │  ├─ types.ts               # Obj 聯集型別、Project/Floor、圖層、門窗樣式常數
-│     │  └─ doc.ts                 # Doc：多樓層文件、CRUD、復原/重做、genId
+│     │  ├─ schema.ts              # 存檔的形狀（唯一真相，codegen 的輸入；只放型別）
+│     │  ├─ catalogue.ts           # 門窗樣式、電氣配件、預設圖層、kind→圖層對照
+│     │  ├─ migrate.ts             # schemaVersion 與遷移階梯（唯一一份遷移實作）
+│     │  ├─ ids.ts                 # genId
+│     │  └─ doc.ts                 # Doc：多樓層文件、CRUD、復原/重做
 │     ├─ core/
 │     │  ├─ viewport.ts            # 世界↔螢幕座標、平移/縮放
 │     │  ├─ renderer.ts            # 2D Canvas 繪製（物件、標籤、尺寸）
@@ -239,10 +242,15 @@ interior-designer/
 │     ├─ data/furniture.ts         # 家具目錄（俯視圖示 + 尺寸）
 │     ├─ data/electrical.ts        # 電氣符號（插座／開關／燈具的慣用畫法）
 │     ├─ ui/ui.ts                  # 全部 UI 接線：家具庫、樓層、圖層、屬性、頂列、匯出選單、自動存檔、房間重建
-│     └─ net/api.ts                # 專案 CRUD（含離線 localStorage 降級）
+│     ├─ net/api.ts                # 專案 CRUD 與 syncPending（離線補送）
+│     └─ net/store.ts              # 離線鏡像：時間戳、tombstone、較新者勝
 ├─ server/                         # 後端（FastAPI + PostgreSQL）
 │  ├─ app/
-│  │  ├─ main.py                   # 路由：專案 CRUD、房間偵測、牆體辨識、報表
+│  │  ├─ main.py                   # app 建立、middleware、lifespan、靜態掛載
+│  │  ├─ routers/                  # projects / reports / compute / dxf
+│  │  ├─ schemas.py                # request/response body（手寫）
+│  │  ├─ plan_schema.py            # 存檔的形狀（由 schema.ts 產生，勿改）
+│  │  ├─ plan.py                   # 透過 plan_schema 讀存檔：寬鬆寫入、嚴格讀取
 │  │  ├─ db.py                     # SQLAlchemy：floorplans 表（方案存成 JSONB）
 │  │  ├─ rooms.py                  # 半邊繞行的房間偵測（由前端搬來）
 │  │  ├─ detect.py                 # OpenCV 底圖牆體辨識（Otsu + Hough）
@@ -259,7 +267,7 @@ interior-designer/
 
 ### 1. 資料模型：`Doc` 是唯一真相來源
 
-所有畫面上的東西都是 `Obj` 聯集型別的一員（`client/src/model/types.ts`）：
+所有畫面上的東西都是 `Obj` 聯集型別的一員（`client/src/model/schema.ts`）：
 
 ```ts
 type ObjKind = 'wall' | 'beam' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image';
@@ -327,7 +335,7 @@ type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj;
 
 ### 11. 持久化與自動存檔
 
-`net/api.ts` 對後端做 CRUD（`/api/projects`），連不上時自動改用 `localStorage`。自動存檔採 **~0.7 秒 debounce**：變更停止後就存檔並更新狀態列，另有 20 秒 fallback 心跳補送離線期間未存的內容；離開頁面（`beforeunload`）會盡力再存一次。後端 `app/db.py` 用 SQLAlchemy 把整份專案存進 PostgreSQL 的 `floorplans` 表，方案本身放在 **JSONB** 欄位——前端擁有文件結構且會隨功能演進（先加 `bulge`、再加 `style`、再加樓層），拆成資料表等於每加一個功能就要一次 migration。
+`net/api.ts` 對後端做 CRUD（`/api/projects`），連不上時改寫本機鏡像（`net/store.ts`）：每筆存時間戳、較新者勝、刪除留 tombstone，連線後由 `syncPending()` 補送。自動存檔採 **~0.7 秒 debounce**：變更停止後就存檔並更新狀態列，另有 20 秒 fallback 心跳補送離線期間未存的內容；離開頁面（`beforeunload`）會盡力再存一次。後端 `app/db.py` 用 SQLAlchemy 把整份專案存進 PostgreSQL 的 `floorplans` 表，方案本身放在 **JSONB** 欄位——前端擁有文件結構且會隨功能演進（先加 `bulge`、再加 `style`、再加樓層），拆成資料表等於每加一個功能就要一次 migration。
 
 ---
 

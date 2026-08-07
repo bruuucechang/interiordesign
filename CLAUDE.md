@@ -20,9 +20,13 @@ remote：`https://github.com/bruuucechang/interiordesign.git`。**全部開發�
 ```bash
 npm run setup:py     # 建 .venv 並安裝後端依賴（第一次才需要）
 npm run dev          # server :8791 + client :5180
-npm test             # client tsx --test + server pytest 兩套
+npm test             # 型別檢查 + codegen 新鮮度 + client tsx --test + server pytest
+npm run codegen      # schema.ts → plan.schema.json → plan_schema.py
+npm run backfill     # 把 DB 裡的存檔升到目前的 schemaVersion（預設 dry run）
 npm run migrate      # SQLite → PostgreSQL 遷移
 ```
+
+`npm test` 跑四關，任何一關紅就是紅。**型別檢查與 codegen 檢查掛在這裡不是裝飾**——這個 repo 沒有 CI，檢查只有掛在會被看到的地方才有用。`tsc` 之前只在 `npm run build` 裡跑，而且不涵蓋 `test/`。
 
 **Docker**：`docker compose up --build` → http://localhost:8791（單一容器，FastAPI 同時發 API 與已建置前端，另加 postgres）。`docker-compose.dev.yml` 是熱重載開發模式 → :5180。arm64 與 amd64 都實際建置驗證過。
 
@@ -34,19 +38,25 @@ npm run migrate      # SQLite → PostgreSQL 遷移
 
 分界原則：**在滑鼠移動或每幀路徑上、或需要 Canvas/WebGL 的留在前端；其餘搬到後端。**
 
+`plot.ts`／`exporter.ts`（PDF/PNG 出圖）在前端**不是例外**——它們要 Canvas（jsPDF 畫中文得先光柵化）。`report.py` 是純資料彙總所以在後端。同一條規則。
+
 **前端 `client/src/`**
 ```
 core/   geometry hit snap viewport handles renderer view3d plot panorama
         exporter furniture3d textures3d resolution editor
-model/  doc types
+model/  schema catalogue migrate ids doc
 tools/  draw place select
 ui/     ui.ts modals properties autosave feedback rooms-sync
-net/    api.ts
+net/    api.ts store.ts
 data/   furniture electrical
 ```
 
 **後端 `server/app/`**
 ```
+routers/       HTTP 路由：projects reports compute dxf
+schemas.py     request/response body（手寫）
+plan_schema.py 存檔的形狀（codegen 產物，勿改）
+plan.py        透過 plan_schema 讀存檔的那一層
 rooms.py       房間偵測
 detect.py      底圖牆體辨識（OpenCV）
 report.py      面積報表（openpyxl）
@@ -54,6 +64,44 @@ dxf.py         DXF 匯入（ezdxf）
 dimensions.py  尺寸標註
 db.py main.py
 ```
+
+**新東西放哪**：新 API 進對應的 `routers/*.py`；它的 request body 進 `schemas.py`；實際運算另開一支平級模組（像 `rooms.py`）。`main.py` 只放 app 建立、middleware、lifespan、靜態掛載。**不要加 `services/` 層**——那五支運算模組本來就是純函式，再包一層只是轉發。
+
+## 存檔 schema：單一真相來源
+
+`client/src/model/schema.ts` 是唯一真相，`npm run codegen` 把它變成 `schema/plan.schema.json` 再變成 `server/app/plan_schema.py`。兩個產物都 commit 進 repo，讀的人不需要工具鏈。
+
+- **`schema.ts` 只放型別**。常數、catalogue、函式放 `catalogue.ts`——產生器只吃型別，值會被靜默丟掉。
+- **後端不用 dict 存取讀存檔**。`report.py`／`dimensions.py` 走產出的 model，改 schema 忘了改後端會在 `npm test` 當場爆。
+- `plan.Obj` 是手寫的 union（產生器把它 inline 進 `Floor.objects` 所以沒有名字）。`test_plan.py` 有一條測試把它釘在產出的型別上，加 kind 忘了同步會紅。
+
+**寫寬鬆、讀嚴格。** PUT 用產出的 model 驗但**失敗照存只記 log**（`interior.plan` logger）——前端擁有 schema、本來就可能跑在前面，擋下來會弄丟使用者看得到的成果。讀取端相反：報表解析不了直接 422，因為空報表看起來像個答案。這個 bug 真的發生過。
+
+### 版本與遷移
+
+`Project.schemaVersion`（整數，現在是 1）。**遷移邏輯只有一份，在 `client/src/model/migrate.ts`**：
+
+- `STEPS[v]` 把存檔從 v 升到 v+1，版本閘控、只跑一次
+- `repair()` 每次載入都跑，處理「損壞」而不是「舊版本」——新增的預設圖層、指向已刪樓層的 `activeFloorId`
+- 遷移步驟裡的歷史常數要**凍結**（例如 `LEGACY_CEILING_H = 270`），不要引用現在的值。遷移描述的是資料當時的意思。
+
+改 schema 改到會 break 舊檔的流程：加一個 STEP → `SCHEMA_VERSION` +1 → `npm run codegen` → `pg_dump` 備份 → `npm run backfill`（先看 dry run）→ `npm run backfill -- --apply`。
+
+回填腳本（`server/scripts/backfill_schema_version.py`）**不重寫遷移**，它把存檔餵給 `scripts/migrate-plans.ts` 跑同一份 TypeScript。它刻意不動 `updated_at`——遷移不是使用者在編輯，而專案列表是照這個排序的。
+
+桌面版的 SQLite 檔回填腳本碰不到，靠前端載入時遷移，下次存檔寫回去。
+
+## 離線鏡像不是快取
+
+`client/src/net/store.ts` 是規則、`api.ts` 是流量。localStorage 每筆存 `savedAt`，**較新者勝**。
+
+成立的前提是：**存檔成功時，鏡像記的是伺服器的時間不是瀏覽器的**，所以「本機比較新」精確等於「這次寫入沒送到」。刪除寫 tombstone，連線時由 `syncPending()` 補送——沒有 tombstone 的話，下次同步會把伺服器上那份當成別處新建的而復活。
+
+`syncPending()` 從鏡像重播而不是從記憶體，所以上個 session 沒送出去的東西也會補送。掛在啟動時與 autosave 的 20 秒心跳。
+
+- 沒有時間戳的舊鏡像（第一版的格式）一律判定為比伺服器舊，維持原本行為。
+- API 的 `updatedAt` 是資料庫給的時區、**沒有標記**（這台機器差 UTC 八小時），只能顯示不能比較。要比較用 `updatedAtIso`。
+- 已知限制：依賴兩端的 wall clock。單人單機成立。
 
 ## 這些坑踩過了，別重犯
 
@@ -105,6 +153,7 @@ LibreDWG 0.13.3 實測：R2010/R2018 完全讀不了（READ ERROR 0x100），R20
 
 ## 待辦與已知限制
 
-- `ui.ts` 與 `view3d.ts` 仍偏大，測試覆蓋稀薄（已陸續把 modals／properties 拆出去）
+- `view3d.ts`（834 行）仍偏大且零測試覆蓋。`ui.ts` 已拆到 363 行
+- `renderer.ts` 與 ui 層仍無測試
 - 底圖牆體辨識：文字會殘留短碎片、虛線牆會斷成多段。**這兩者互相衝突**（修一個會惡化另一個），程式與測試中都已註明
 - 電氣迴路連線是市場缺口，但使用者明確表示**不做估價，也暫不做迴路**
