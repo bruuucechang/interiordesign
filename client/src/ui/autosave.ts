@@ -1,5 +1,5 @@
 import { Doc } from '../model/doc';
-import { saveProject } from '../net/api';
+import { saveProject, syncPending } from '../net/api';
 
 // Saving is debounced rather than periodic, so edits reach the backend almost
 // immediately (mirrored to localStorage too). A slow heartbeat retries whatever
@@ -55,6 +55,14 @@ export function scheduleAutosave(doc: Doc) {
 }
 
 export function startAutosave(doc: Doc) {
-  window.setInterval(() => { if (dirty) flushSave(doc); }, AUTOSAVE_MS);
+  // `dirty` only lives as long as the tab. Anything saved offline and then
+  // closed is remembered by the mirror instead, which is what syncPending
+  // reads — so the heartbeat retries work from previous sessions too, not just
+  // this one's.
+  void syncPending();
+  window.setInterval(() => {
+    if (dirty) flushSave(doc);
+    else void syncPending();
+  }, AUTOSAVE_MS);
   window.addEventListener('beforeunload', () => { if (dirty) saveProject(doc.serialize()); });
 }

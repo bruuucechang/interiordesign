@@ -40,7 +40,8 @@ def test_list_is_empty_to_start(client):
 def test_put_then_get_round_trips_the_plan_unchanged(client):
     r = client.put("/api/projects/proj_x", json={"name": "測試平面圖", "data": PLAN})
     assert r.status_code == 200
-    assert r.json() == {"id": "proj_x", "name": "測試平面圖"}
+    assert r.json()["id"] == "proj_x"
+    assert r.json()["name"] == "測試平面圖"
 
     got = client.get("/api/projects/proj_x").json()
     assert got["id"] == "proj_x"
@@ -53,7 +54,24 @@ def test_list_returns_id_name_updatedAt(client):
     client.put("/api/projects/a", json={"name": "A", "data": PLAN})
     rows = client.get("/api/projects").json()["projects"]
     assert len(rows) == 1
-    assert set(rows[0]) == {"id", "name", "updatedAt"}   # no data blob in the list
+    assert set(rows[0]) == {"id", "name", "updatedAt", "updatedAtIso"}   # no data blob
+
+
+def test_timestamps_come_in_both_a_readable_and_a_comparable_form(client):
+    # updatedAt is whatever zone the database hands back, unmarked — fine to
+    # show, useless to compare. The offline mirror compares, so it reads
+    # updatedAtIso, which is the same instant spelled out in UTC.
+    from datetime import datetime, timezone
+
+    body = client.put("/api/projects/a", json={"name": "甲", "data": PLAN}).json()
+    for source in (body, client.get("/api/projects/a").json(),
+                   client.get("/api/projects").json()["projects"][0]):
+        iso = source["updatedAtIso"]
+        parsed = datetime.fromisoformat(iso)
+        assert parsed.tzinfo is not None, iso
+        assert parsed.utcoffset().total_seconds() == 0, iso
+        assert abs((datetime.now(timezone.utc) - parsed).total_seconds()) < 60
+        assert len(source["updatedAt"]) == len("YYYY-MM-DD HH:MM:SS")
 
 
 def test_list_is_newest_first(client):
