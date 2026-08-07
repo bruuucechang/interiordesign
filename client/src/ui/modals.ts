@@ -1,6 +1,7 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, layerForKind } from '../model/types';
+import { Obj } from '../model/schema';
+import { layerForKind } from '../model/catalogue';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
 import { listProjects, loadProject, deleteProject, inspectDxf, importDxf } from '../net/api';
 import { flash } from './feedback';

@@ -1,6 +1,7 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, Vec, layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL_BY_ID } from '../model/types';
+import { Obj, Vec } from '../model/schema';
+import { layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL_BY_ID } from '../model/catalogue';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea } from '../core/geometry';
 import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';

@@ -1,4 +1,4 @@
-import { Project, Vec } from '../model/types';
+import { Project, Vec } from '../model/schema';
 
 // CRUD for projects. Degrades to localStorage when the backend is unreachable
 // so the editor stays usable offline.

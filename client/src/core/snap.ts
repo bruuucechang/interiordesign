@@ -1,4 +1,4 @@
-import { Vec } from '../model/types';
+import { Vec } from '../model/schema';
 import { dist, closestOnSegment } from './geometry';
 import { Viewport } from './viewport';
 

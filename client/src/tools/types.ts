@@ -1,6 +1,6 @@
 import { Doc } from '../model/doc';
 import { Viewport } from '../core/viewport';
-import { Vec } from '../model/types';
+import { Vec } from '../model/schema';
 
 export interface PointerInfo {
   world: Vec;    // raw world (cm)

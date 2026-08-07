@@ -1,6 +1,6 @@
 import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
-import { Obj, ObjKind, Vec } from '../model/types';
+import { Obj, ObjKind, Vec } from '../model/schema';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment } from './geometry';

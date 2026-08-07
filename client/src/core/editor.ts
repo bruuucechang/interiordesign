@@ -8,7 +8,8 @@ import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall } from '../tools/place';
 import { FURNITURE_BY_ID } from '../data/furniture';
-import { Obj, Vec, layerForKind } from '../model/types';
+import { Obj, Vec } from '../model/schema';
+import { layerForKind } from '../model/catalogue';
 
 export class Editor implements ToolCtx {
   vp: Viewport;

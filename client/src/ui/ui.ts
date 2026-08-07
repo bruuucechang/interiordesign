@@ -1,6 +1,7 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, Project, ELECTRICAL } from '../model/types';
+import { Obj, Project } from '../model/schema';
+import { ELECTRICAL } from '../model/catalogue';
 import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 import { snap } from '../core/geometry';

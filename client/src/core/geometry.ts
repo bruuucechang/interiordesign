@@ -1,4 +1,4 @@
-import { Vec } from '../model/types';
+import { Vec } from '../model/schema';
 
 export const v = (x: number, y: number): Vec => ({ x, y });
 export const sub = (a: Vec, b: Vec): Vec => ({ x: a.x - b.x, y: a.y - b.y });

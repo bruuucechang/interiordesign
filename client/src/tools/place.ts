@@ -1,6 +1,7 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId, Doc } from '../model/doc';
-import { layerForKind, Vec, Obj, ELECTRICAL_BY_ID } from '../model/types';
+import { Vec, Obj } from '../model/schema';
+import { layerForKind, ELECTRICAL_BY_ID } from '../model/catalogue';
 import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, arcSpan, wallControl } from '../core/geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';

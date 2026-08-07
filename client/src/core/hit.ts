@@ -1,4 +1,4 @@
-import { Obj, Vec } from '../model/types';
+import { Obj, Vec } from '../model/schema';
 import { Doc } from '../model/doc';
 import { dist, distToSegment, distToQuad, wallControl, pointInRect, pointInPolygon, rotate } from './geometry';
 

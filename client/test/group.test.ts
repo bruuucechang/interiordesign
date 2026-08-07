@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Doc, genId } from '../src/model/doc';
-import { Obj } from '../src/model/types';
+import { Obj } from '../src/model/schema';
 
 const furn = (id: string, x: number): Obj =>
   ({ id, kind: 'furniture', layer: 'furniture', item: 'sofa',

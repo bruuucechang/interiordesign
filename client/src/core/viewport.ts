@@ -1,4 +1,4 @@
-import { Vec } from '../model/types';
+import { Vec } from '../model/schema';
 
 // Maps world coordinates (cm) to screen pixels. scale = pixels per cm.
 export class Viewport {

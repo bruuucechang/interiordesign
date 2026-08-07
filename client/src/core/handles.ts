@@ -1,4 +1,4 @@
-import { Obj, Vec } from '../model/types';
+import { Obj, Vec } from '../model/schema';
 import { rotate, wallApex } from './geometry';
 import { furnitureCenter } from './hit';
 
