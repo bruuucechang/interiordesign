@@ -1,5 +1,5 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
-import { Obj, Vec } from '../model/types';
+import { Obj, Vec } from '../model/schema';
 import { handles } from '../core/handles';
 import { hitTest, furnitureCenter } from '../core/hit';
 import { rotate, dist, angleDeg, snap, bulgeFrom } from '../core/geometry';

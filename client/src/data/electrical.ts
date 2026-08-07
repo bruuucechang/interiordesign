@@ -8,7 +8,7 @@
 // socket, a circle with a switched arm for a switch, a cross-in-circle for a
 // ceiling light, a filled dot for a downlight.
 
-import { ElectricalId } from '../model/types';
+import { ElectricalId } from '../model/schema';
 
 const R = 11;   // cm — nominal symbol radius, so symbols read at 1:50
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chooseSheet, drawAreaMM, planAreaMM, projectExtent, roomSchedule, scaleBarMetres, SCALES } from '../src/core/plot';
-import { Project, Floor, Obj } from '../src/model/types';
+import { Project, Floor, Obj } from '../src/model/schema';
 
 const V = (x: number, y: number) => ({ x, y });
 const wall = (id: string, a: [number, number], b: [number, number]): Obj =>

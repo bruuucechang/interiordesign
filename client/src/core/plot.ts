@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { Doc } from '../model/doc';
-import { Project, Floor } from '../model/types';
+import { Project, Floor } from '../model/schema';
 import { Viewport } from './viewport';
 import { Renderer } from './renderer';
 import { bounds } from './hit';

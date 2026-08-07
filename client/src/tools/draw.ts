@@ -1,6 +1,7 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId } from '../model/doc';
-import { layerForKind, Vec } from '../model/types';
+import { Vec } from '../model/schema';
+import { layerForKind } from '../model/catalogue';
 import { fmtLen, dist, angleDeg, alignWallEnd, bulgeFrom } from '../core/geometry';
 import { computeSnap, drawSnap, SnapResult, WallSeg } from '../core/snap';
 

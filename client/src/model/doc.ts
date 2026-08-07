@@ -1,4 +1,5 @@
-import { Project, Obj, Layer, LayerId, Floor, defaultLayers } from './types';
+import { Project, Obj, Layer, LayerId, Floor } from './schema';
+import { defaultLayers } from './catalogue';
 
 let counter = 0;
 export function genId(prefix = 'o'): string {

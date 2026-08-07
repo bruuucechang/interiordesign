@@ -6,7 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Doc } from '../model/doc';
-import { Obj, Vec } from '../model/types';
+import { Obj, Vec } from '../model/schema';
 import { dist, angleDeg, quadPoints, wallControl, closestOnSegment } from './geometry';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone, tileClone } from './textures3d';

@@ -1,5 +1,6 @@
 import { Doc, genId } from '../model/doc';
-import { Obj, Vec, layerForKind } from '../model/types';
+import { Obj, Vec } from '../model/schema';
+import { layerForKind } from '../model/catalogue';
 import { polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
 import { detectRooms } from '../net/api';
 
