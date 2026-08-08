@@ -1,7 +1,7 @@
 # Run the whole thing:
 #
 #   docker compose up --build
-#   open http://localhost:8791
+#   open http://localhost:18791
 #
 # Two services: PostgreSQL, and one container holding the API and the built
 # front end. Plans live in the `pgdata` volume, so they survive a rebuild and
@@ -28,7 +28,11 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://interior:interior@db:5432/interior_design
     ports:
-      - "8791:8791"
+      # Host port 8791 falls inside Windows/Hyper-V's dynamic port exclusion
+      # range on some machines (e.g. 8712-8811) and silently fails to bind
+      # with an unrelated permissions error. See palrogue's DOCKER.md for the
+      # same issue. Container-internal port stays 8791.
+      - "18791:8791"
     depends_on:
       db:
         condition: service_healthy

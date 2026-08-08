@@ -6,6 +6,10 @@
 # Unlike the production compose this runs the two halves separately: Vite on
 # :5180 with hot reload, uvicorn on :8791 with --reload, and the source
 # bind-mounted so edits on the host take effect without a rebuild.
+#
+# Host-side uvicorn port is remapped to 18791 (container stays 8791): 8791
+# falls inside this machine's Windows/Hyper-V dynamic port exclusion range
+# (8712-8811) and silently fails to bind with an unrelated permissions error.
 
 services:
   db:
@@ -34,7 +38,7 @@ services:
       - ./server:/app
       - pipcache:/root/.cache/pip
     ports:
-      - "8791:8791"
+      - "18791:8791"
     depends_on:
       db:
         condition: service_healthy
