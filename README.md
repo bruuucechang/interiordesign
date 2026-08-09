@@ -132,7 +132,7 @@ cd interiordesign
 docker compose up --build
 ```
 
-開 <http://localhost:8791>。第一次建置約 2～3 分鐘（下載 Node 與 Python 映像、安裝依賴、建置前端），之後有快取就很快；容器啟動到可用約 3 秒。
+開 <http://localhost:18791>（對外埠刻意避開 8791，見下方常見狀況）。第一次建置約 2～3 分鐘（下載 Node 與 Python 映像、安裝依賴、建置前端），之後有快取就很快；容器啟動到可用約 3 秒。
 
 已在 **linux/arm64** 與 **linux/amd64** 兩種架構實際建置並執行驗證過（Windows 筆電通常是 amd64）。
 
@@ -154,7 +154,8 @@ docker compose -f docker-compose.dev.yml up --build
 
 | 狀況 | 原因與處理 |
 |---|---|
-| `port is already allocated` | 本機已有服務佔用 8791／5180／5432。停掉它，或改 compose 檔裡的對外埠號 |
+| `port is already allocated` | 本機已有服務佔用 18791／5180／5432。停掉它，或改 compose 檔裡的對外埠號 |
+| Windows 上綁埠失敗且錯誤看起來無關 | 8791 落在 Hyper-V 的動態保留範圍（如 8712–8811），會**靜默失敗**。對外埠因此改成 18791；`netsh interface ipv4 show excludedportrange protocol=tcp` 可看保留段 |
 | 前端改了沒反應 | 確認你用的是 `docker-compose.dev.yml`；production compose 的前端是建置好的靜態檔，要改就得重新 `--build` |
 | 想從頭來過 | `docker compose down -v` 會連資料庫 volume 一起刪除 |
 
@@ -187,7 +188,7 @@ build-desktop.bat         # Windows
 |---|---|---|
 | 資料庫 | SQLite 單一檔案 | PostgreSQL |
 | 資料位置 | macOS `~/Library/Application Support/InteriorDesigner/`<br>Windows `%APPDATA%\InteriorDesigner\` | 容器磁碟區 |
-| 埠 | 8791，被占用時自動改用其他埠 | 8791 |
+| 埠 | 8791，被占用時自動改用其他埠 | 18791（容器內 8791） |
 | 多人共用 | 否 | 是 |
 
 由 `DATABASE_URL` 決定走哪一邊，`server/app/db.py` 兩種都支援；資料欄位用通用的 JSON
