@@ -39,6 +39,53 @@ export interface MaterialDef {
   height?(c: CanvasRenderingContext2D, size: number, rnd: () => number): void;
   /** Bump strength for the normal map. Larger is more pronounced. */
   bump?: number;
+  /**
+   * The plan-view hatch, drawn into a `size × size` context in black on
+   * transparent. The renderer tints and fades it.
+   *
+   * A separate drawing from `albedo` on purpose: a floor plan is line work, and
+   * pasting a photographic wood texture onto it makes it a picture of a floor
+   * rather than a drawing of one. What a plan needs is the conventional hatch —
+   * enough to tell tile from timber at a glance, faint enough to draw
+   * dimensions over.
+   */
+  hatch?(c: CanvasRenderingContext2D, size: number): void;
+  /** Centimetres one hatch repeat covers. Defaults to `tileCm`. */
+  hatchCm?: number;
+}
+
+/** Parallel lines at `deg`, spaced `gap` px. The workhorse of plan hatching. */
+export function hatchLines(c: CanvasRenderingContext2D, size: number, deg: number, gap: number, w = 1) {
+  c.save();
+  c.translate(size / 2, size / 2);
+  c.rotate(deg * Math.PI / 180);
+  c.strokeStyle = '#000'; c.lineWidth = w;
+  const r = size;   // over-length so the rotation still covers the corners
+  for (let x = -r; x <= r; x += gap) { c.beginPath(); c.moveTo(x, -r); c.lineTo(x, r); c.stroke(); }
+  c.restore();
+}
+
+/** A rectangular grid, optionally offset every other row (brick bond). */
+export function hatchGrid(c: CanvasRenderingContext2D, size: number, cols: number, rows: number, offset: boolean, w = 1) {
+  c.strokeStyle = '#000'; c.lineWidth = w;
+  const cw = size / cols, ch = size / rows;
+  for (let j = 0; j <= rows; j++) { c.beginPath(); c.moveTo(0, j * ch); c.lineTo(size, j * ch); c.stroke(); }
+  for (let j = 0; j < rows; j++) {
+    const off = offset && j % 2 ? cw / 2 : 0;
+    for (let i = 0; i <= cols; i++) {
+      const x = i * cw + off;
+      c.beginPath(); c.moveTo(x, j * ch); c.lineTo(x, (j + 1) * ch); c.stroke();
+    }
+  }
+}
+
+/** Scattered dots — stone, terrazzo, concrete. */
+export function hatchStipple(c: CanvasRenderingContext2D, size: number, n: number, seed: number, rad = 1.2) {
+  const r = rng(seed);
+  c.fillStyle = '#000';
+  for (let i = 0; i < n; i++) {
+    c.beginPath(); c.arc(r() * size, r() * size, rad * (0.5 + r()), 0, 6.29); c.fill();
+  }
 }
 
 // ---------------------------------------------------------------- randomness
@@ -244,6 +291,8 @@ export const MATERIALS: MaterialDef[] = [
         c.fillStyle = '#303030'; c.fillRect(r() * s, i * ph, 2, ph);
       }
     },
+    hatch(c, s) { hatchLines(c, s, 0, s / 6); },
+    hatchCm: 180,
   },
   {
     id: 'walnut', label: '胡桃木地板', category: 'floor', tileCm: 240,
@@ -257,6 +306,8 @@ export const MATERIALS: MaterialDef[] = [
       const ph = s / 5;
       for (let i = 0; i < 5; i++) { c.fillStyle = '#1e1e1e'; c.fillRect(0, i * ph, s, 2); c.fillStyle = '#2c2c2c'; c.fillRect(r() * s, i * ph, 2, ph); }
     },
+    hatch(c, s) { hatchLines(c, s, 0, s / 6); },
+    hatchCm: 180,
   },
   {
     id: 'herringbone', label: '人字拼木', category: 'floor', tileCm: 160,
@@ -287,6 +338,8 @@ export const MATERIALS: MaterialDef[] = [
         }
       }
     },
+    hatch(c, s) { hatchLines(c, s, 45, s / 5); hatchLines(c, s, -45, s / 5); },
+    hatchCm: 120,
   },
   {
     id: 'tile', label: '拋光石英磚', category: 'floor', tileCm: 240,
@@ -298,6 +351,8 @@ export const MATERIALS: MaterialDef[] = [
     height(c, s, r) {
       grid(c, s, r, 4, 4, false, () => '#e8e8e8', '#1a1a1a', 6);
     },
+    hatch(c, s) { hatchGrid(c, s, 2, 2, false); },
+    hatchCm: 120,
   },
   {
     id: 'marble', label: '大理石', category: 'floor', tileCm: 300,
@@ -316,6 +371,8 @@ export const MATERIALS: MaterialDef[] = [
       grain(c, s, r, 0.1);
     },
     height(c, s, r) { c.fillStyle = '#808080'; c.fillRect(0, 0, s, s); grain(c, s, r, 0.5); },
+    hatch(c, s) { hatchLines(c, s, 20, s / 2, 1.4); },
+    hatchCm: 300,
   },
   {
     id: 'terrazzo', label: '磨石子', category: 'floor', tileCm: 200,
@@ -333,6 +390,8 @@ export const MATERIALS: MaterialDef[] = [
       }
       c.globalAlpha = 1;
     },
+    hatch(c, s) { hatchStipple(c, s, 90, 11); },
+    hatchCm: 120,
   },
   {
     id: 'carpet', label: '地毯', category: 'floor', tileCm: 120,
@@ -346,6 +405,8 @@ export const MATERIALS: MaterialDef[] = [
       }
     },
     height(c, s, r) { c.fillStyle = '#888'; c.fillRect(0, 0, s, s); grain(c, s, r, 2.4); },
+    hatch(c, s) { hatchStipple(c, s, 260, 23, 0.7); },
+    hatchCm: 60,
   },
   {
     id: 'concrete', label: '水泥粉光', category: 'floor', tileCm: 400,
@@ -360,6 +421,8 @@ export const MATERIALS: MaterialDef[] = [
       grain(c, s, r, 0.7);
     },
     height(c, s, r) { c.fillStyle = '#888'; c.fillRect(0, 0, s, s); grain(c, s, r, 1.1); },
+    hatch(c, s) { hatchStipple(c, s, 40, 31, 1.6); },
+    hatchCm: 200,
   },
 
   // ---- walls ----
@@ -368,6 +431,8 @@ export const MATERIALS: MaterialDef[] = [
     roughness: 0.94, metalness: 0, swatch: '#eceff4', bump: 0.35,
     albedo(c, s, r) { c.fillStyle = '#eceff4'; c.fillRect(0, 0, s, s); grain(c, s, r, 0.25); },
     height(c, s, r) { c.fillStyle = '#888'; c.fillRect(0, 0, s, s); grain(c, s, r, 0.8); },
+    hatch(c, s) { hatchLines(c, s, 45, s / 3); },
+    hatchCm: 200,
   },
   {
     id: 'plaster', label: '藝術塗料', category: 'wall', tileCm: 300,
@@ -388,6 +453,8 @@ export const MATERIALS: MaterialDef[] = [
         c.fillRect(-14 - r() * 20, -3, 28 + r() * 40, 5 + r() * 5); c.restore();
       }
     },
+    hatch(c, s) { hatchLines(c, s, 45, s / 4); hatchLines(c, s, -45, s / 4); },
+    hatchCm: 200,
   },
   {
     // 3 across and 10 down over a 64 cm patch puts a brick at about 21 × 6 cm,
@@ -401,12 +468,16 @@ export const MATERIALS: MaterialDef[] = [
       grain(c, s, r, 0.5);
     },
     height(c, s, r) { grid(c, s, r, 3, 10, true, () => '#e0e0e0', '#141414', 4); },
+    hatch(c, s) { hatchGrid(c, s, 2, 6, true); },
+    hatchCm: 128,
   },
   {
     id: 'walltile', label: '壁磚', category: 'wall', tileCm: 120,
     roughness: 0.2, metalness: 0.02, swatch: '#e7eef2', bump: 2.6,
     albedo(c, s, r) { grid(c, s, r, 4, 8, true, () => mix('#eef4f7', '#d5e0e6', r() * 0.6), '#b6c0c7', 5); },
     height(c, s, r) { grid(c, s, r, 4, 8, true, () => '#e8e8e8', '#181818', 5); },
+    hatch(c, s) { hatchGrid(c, s, 2, 4, true); },
+    hatchCm: 120,
   },
   {
     id: 'wallpaper', label: '壁紙', category: 'wall', tileCm: 100,
@@ -421,6 +492,8 @@ export const MATERIALS: MaterialDef[] = [
       c.fillStyle = '#888'; c.fillRect(0, 0, s, s);
       for (let x = 0; x < s; x += 8) { c.fillStyle = '#b8b8b8'; c.fillRect(x, 0, 3, s); }
     },
+    hatch(c, s) { hatchLines(c, s, 90, s / 5); },
+    hatchCm: 100,
   },
 ];
 
