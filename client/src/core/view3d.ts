@@ -7,7 +7,9 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Doc } from '../model/doc';
 import { Obj, Vec } from '../model/schema';
-import { dist, angleDeg, quadPoints, wallControl, closestOnSegment } from './geometry';
+import { dist, angleDeg, quadPoints, wallControl } from './geometry';
+import { wallPieces, curvedWallBands } from './wallGeometry';
+import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone, tileClone } from './textures3d';
 import { capturePanorama } from './panorama';
@@ -301,7 +303,7 @@ export class View3D {
     const key = `${spec.kind}_${Math.round(spec.width)}`;
     if (this.openingGhostKey !== key) {
       this.clearOpeningGhost();
-      const g = spec.kind === 'door' ? this.buildDoor3D(spec.width, 210, 0) : this.buildWindow3D(spec.width, 100, 90);
+      const g = spec.kind === 'door' ? buildDoor3D(spec.width, 210, 0) : buildWindow3D(spec.width, 100, 90);
       this.ghostify(g);
       this.scene.add(g);
       this.openingGhost = g; this.openingGhostKey = key;
@@ -476,157 +478,29 @@ export class View3D {
   private buildWall(o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[], yBase: number) {
     const wallMat = this.mat(o.color ? new THREE.Color(o.color).getHex() : 0xeceff4, { roughness: 0.92 });
     const wh = o.height ?? WALL_H;
-    if (o.bulge) {   // curved wall: one smooth swept band, with sill/header where openings sit
+
+    if (o.bulge) {   // curved wall: swept bands, cut where openings sit
       const pts = quadPoints(o.a, wallControl(o.a, o.b, o.bulge), o.b, 48);   // dense sampling → smooth curve
-      const N = pts.length;
-      const nearestIdx = (p: Vec) => { let bi = 0, bd = Infinity; for (let i = 0; i < N; i++) { const d = dist(p, pts[i]); if (d < bd) { bd = d; bi = i; } } return { bi, bd }; };
-      // map each opening on this wall to an arc-index span (its endpoints lie on the arc)
-      type Hole = { lo: number; hi: number; elev: number; oh: number };
-      const holes: Hole[] = openings.map(op => {
-        const half = op.width / 2, ca = Math.cos(op.angle * Math.PI / 180), sa = Math.sin(op.angle * Math.PI / 180);
-        const r0 = nearestIdx({ x: op.x - half * ca, y: op.y - half * sa }), r1 = nearestIdx({ x: op.x + half * ca, y: op.y + half * sa });
-        return { lo: Math.min(r0.bi, r1.bi), hi: Math.max(r0.bi, r1.bi), d: Math.max(r0.bd, r1.bd), elev: op.elevation ?? (op.kind === 'door' ? 0 : 90), oh: op.height ?? (op.kind === 'door' ? 210 : 100) };
-      }).filter(h => h.d <= o.thickness / 2 + 15 && h.hi > h.lo);
-      const holeAt = (i: number) => holes.find(hl => i - 1 < hl.hi && i > hl.lo);   // opening spanning segment i (pts[i-1]->pts[i])
-      // group consecutive segments with the same state (same hole / solid) into ranges
-      let from = 0, cur = holeAt(1);
-      const flush = (to: number, hole?: Hole) => {
-        const band = pts.slice(from, to + 1);
-        if (!hole) this.sweptWall(band, 0, wh, o.thickness, yBase, wallMat);
-        else { this.sweptWall(band, 0, hole.elev, o.thickness, yBase, wallMat); this.sweptWall(band, hole.elev + hole.oh, wh, o.thickness, yBase, wallMat); }
-      };
-      for (let i = 2; i < N; i++) { const h = holeAt(i); if (h !== cur) { flush(i - 1, cur); from = i - 1; cur = h; } }
-      flush(N - 1, cur);
+      for (const band of curvedWallBands(pts, o, openings, wh)) {
+        this.sweptWall(pts.slice(band.from, band.to + 1), band.yLo, band.yHi, o.thickness, yBase, wallMat);
+      }
       return;
     }
+
     const a = o.a, b = o.b, L = dist(a, b);
     if (L < 1) return;
     const dir = { x: (b.x - a.x) / L, y: (b.y - a.y) / L }, ang = -angleDeg(a, b) * Math.PI / 180;
-    // a solid wall block from distance s0..s1 along the wall, spanning height yLo..yHi
-    const piece = (s0: number, s1: number, yLo: number, yHi: number) => {
-      if (s1 - s0 <= 0.5 || yHi - yLo <= 0.5) return;
-      const mid = (s0 + s1) / 2;
-      const box = new THREE.Mesh(new THREE.BoxGeometry(s1 - s0, yHi - yLo, o.thickness), wallMat);
-      box.position.set(a.x + dir.x * mid, yBase + (yLo + yHi) / 2, a.y + dir.y * mid);
+    for (const p of wallPieces(o, openings, wh)) {
+      const mid = (p.s0 + p.s1) / 2;
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(p.s1 - p.s0, p.yHi - p.yLo, o.thickness), wallMat,
+      );
+      box.position.set(a.x + dir.x * mid, yBase + (p.yLo + p.yHi) / 2, a.y + dir.y * mid);
       box.rotation.y = ang;
       this.staticGroup.add(box);
-    };
-    const holes = openings
-      .map(op => { const cs = closestOnSegment({ x: op.x, y: op.y }, a, b); return { op, cs, d: dist({ x: op.x, y: op.y }, cs.point) }; })
-      .filter(h => h.d <= o.thickness / 2 + 10 && h.cs.t >= -0.001 && h.cs.t <= 1.001)
-      .map(h => { const dc = h.cs.t * L; return { op: h.op, s: Math.max(0, dc - h.op.width / 2), e: Math.min(L, dc + h.op.width / 2) }; })
-      .sort((x, y) => x.s - y.s);
-    let cursor = 0;
-    for (const h of holes) {
-      piece(cursor, h.s, 0, wh);                                    // solid wall before the opening
-      const oh = h.op.height ?? (h.op.kind === 'door' ? 210 : 100);
-      const elev = h.op.elevation ?? (h.op.kind === 'door' ? 0 : 90);
-      piece(h.s, h.e, 0, elev);                                     // sill under the opening (0 for doors)
-      piece(h.s, h.e, elev + oh, wh);                               // header above the opening
-      cursor = Math.max(cursor, h.e);
     }
-    piece(cursor, L, 0, wh);                                        // remaining solid wall
   }
 
-  // A framed door in one of several styles (single / double / sliding / glass).
-  // Built in local coords: X along the opening (width), Z = wall normal, Y up.
-  private buildDoor3D(width: number, h: number, elev: number, style = 'single'): THREE.Group {
-    const g = new THREE.Group();
-    const d = 12, fw = 7;
-    const frameM = this.mat(0x6b4a2a, { roughness: 0.6 });
-    const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.4, envMapIntensity: 1.1 });
-    const panelM = new THREE.MeshPhysicalMaterial({ color: 0x7a4e2c, roughness: 0.45, metalness: 0, clearcoat: 0.25, envMapIntensity: 1.0 });
-    const metalM = this.mat(0xc2c7cf, { roughness: 0.28, metalness: 0.92, envMapIntensity: 1.35 });
-    const glassM = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
-    const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
-      const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
-    };
-    bx(fw, h, d, frameM, -width / 2 + fw / 2, elev + h / 2, 0);           // jambs + header
-    bx(fw, h, d, frameM, width / 2 - fw / 2, elev + h / 2, 0);
-    bx(width, fw, d, frameM, 0, elev + h - fw / 2, 0);
-    const lw = width - 2 * fw, lh = h - fw, ld = d * 0.55;
-    const putHandle = (hx: number) => {                                   // rose + lever, both faces, pointing inward
-      const hy = elev + h * 0.45, inward = hx >= 0 ? -1 : 1;
-      for (const zs of [1, -1]) {
-        bx(3, 3, 5, metalM, hx, hy, zs * (ld / 2 + 1));
-        const lever = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 11, 10), metalM);
-        lever.rotation.z = Math.PI / 2; lever.position.set(hx + inward * 6, hy, zs * (ld / 2 + 3)); g.add(lever);
-      }
-    };
-    const panelLeaf = (cx: number, cw: number) => {                       // wood leaf with two recessed panels
-      bx(cw, lh, ld, leafM, cx, elev + lh / 2, 0);
-      for (const zs of [1, -1]) { const zz = zs * (ld / 2 + 0.6); bx(cw * 0.66, lh * 0.36, 1.2, panelM, cx, elev + lh * 0.7, zz); bx(cw * 0.66, lh * 0.34, 1.2, panelM, cx, elev + lh * 0.3, zz); }
-    };
-    if (style === 'double') {
-      const cw = lw / 2 - 0.5;
-      for (const s of [-1, 1]) { const cx = s * (lw / 4 + 0.25); panelLeaf(cx, cw); putHandle(cx - s * (cw / 2 - 5)); }  // handles at the meeting stile
-    } else if (style === 'sliding') {
-      for (const s of [-1, 1]) {                                          // two panels in a track, offset in depth
-        const cx = s * (lw / 4 - 1), pw = lw / 2 + 3, pz = s * ld * 0.32;
-        bx(pw, lh, ld * 0.6, leafM, cx, elev + lh / 2, pz);
-        bx(2.6, lh * 0.42, 3, metalM, cx - s * (pw / 2 - 6), elev + lh * 0.5, pz + s * 2);   // flush pull
-      }
-    } else if (style === 'glass') {
-      // Stiles and rails around an opening, not a slab with glass laid over it.
-      // Boxes add, they do not subtract, so the previous version's glazed panel
-      // — two units deeper than the leaf and centred on it — enclosed the solid
-      // wood instead of replacing it. Geometry sitting inside a `transmission`
-      // volume made the whole 3D view render black: one glass door and nothing
-      // drew at all, while every other door style and every window (same glass
-      // material) was fine.
-      const sw = 8, br = 14, tr = 8;                    // stile / bottom rail / top rail
-      const ow = lw - 2 * sw, oh = lh - br - tr;        // the opening the glass fills
-      for (const s of [-1, 1]) bx(sw, lh, ld, leafM, s * (lw - sw) / 2, elev + lh / 2, 0);
-      bx(lw, br, ld, leafM, 0, elev + br / 2, 0);
-      bx(lw, tr, ld, leafM, 0, elev + lh - tr / 2, 0);
-      bx(lw - 12, 5, ld, leafM, 0, elev + lh * 0.34, 0);                 // lock rail
-      // Thinner than the leaf so it sits in the opening rather than around it.
-      bx(ow, oh, ld * 0.4, glassM, 0, elev + br + oh / 2, 0);
-      putHandle(lw / 2 - 7);
-    } else {                                                              // single
-      panelLeaf(0, lw); putHandle(lw / 2 - 7);
-    }
-    return g;
-  }
-
-  // A framed window in one of several styles (single grid / casement / sliding /
-  // picture). Same local coords as buildDoor3D.
-  private buildWindow3D(width: number, h: number, elev: number, style = 'single'): THREE.Group {
-    const g = new THREE.Group();
-    const d = 10, fw = 6, iw = width - 2 * fw, ih = h - 2 * fw;
-    const frameM = this.mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
-    const sillM = this.mat(0xe7eaee, { roughness: 0.6 });
-    const glass = () => new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
-    const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
-      const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
-    };
-    bx(fw, h, d, frameM, -width / 2 + fw / 2, elev + h / 2, 0);           // outer sash
-    bx(fw, h, d, frameM, width / 2 - fw / 2, elev + h / 2, 0);
-    bx(width, fw, d, frameM, 0, elev + h - fw / 2, 0);
-    bx(width, fw, d, frameM, 0, elev + fw / 2, 0);
-    bx(width + 6, 4, d + 7, sillM, 0, elev - 1, 2);                       // sill
-    if (style === 'sliding') {                                           // two sashes offset in depth + meeting stile
-      bx(iw / 2 + 3, ih, 2, glass(), -iw / 4, elev + h / 2, 2.5);
-      bx(iw / 2 + 3, ih, 2, glass(), iw / 4, elev + h / 2, -2.5);
-      bx(4, ih, d * 0.7, frameM, 0, elev + h / 2, 0);
-    } else {
-      bx(iw, ih, 2, glass(), 0, elev + h / 2, 0);                        // single pane
-      if (style === 'single') { bx(3, ih, d * 0.7, frameM, 0, elev + h / 2, 0); bx(iw, 3, d * 0.7, frameM, 0, elev + h / 2, 0); }  // grid cross
-      else if (style === 'casement') bx(3, ih, d * 0.7, frameM, 0, elev + h / 2, 0);   // centre mullion
-      // picture: no mullion
-    }
-    return g;
-  }
-
-  /**
-   * A ceiling over one room, at wall height.
-   *
-   * Kept in its own group because it cannot simply always be drawn: seen from
-   * the usual orbit position — outside and above — a ceiling hides the entire
-   * plan underneath it. So the group's visibility follows the camera, on in an
-   * interior eye-level view and off when looking down from outside. That also
-   * makes the 360° panorama read as a room rather than a roofless set.
-   */
   private addCeiling(shape: THREE.Shape, yBase: number) {
     const geo = new THREE.ShapeGeometry(shape);
     const mesh = new THREE.Mesh(geo, this.ceilingMaterial());
@@ -716,7 +590,7 @@ export class View3D {
             this.sweptWall(plan, elev - 4, elev, d + 6, yBase, this.mat(0xe7eaee, { roughness: 0.6 }));  // sill
           }
         } else {
-          const grp = isDoor ? this.buildDoor3D(o.width, h, elev, o.style) : this.buildWindow3D(o.width, h, elev, o.style);
+          const grp = isDoor ? buildDoor3D(o.width, h, elev, o.style) : buildWindow3D(o.width, h, elev, o.style);
           grp.position.set(o.x, yBase, o.y);
           grp.rotation.y = -o.angle * Math.PI / 180;
           this.staticGroup.add(grp);
