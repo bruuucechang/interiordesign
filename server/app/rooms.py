@@ -55,8 +55,32 @@ def _quad_points(a: Vec, c: Vec, b: Vec, n: int = 20) -> list[Vec]:
     return pts
 
 
+def _crossing_t(w: dict[str, Any], other: dict[str, Any]) -> float | None:
+    """Where `other` crosses `w`, as a parameter along `w`, or None.
+
+    Proper crossings only — both parameters strictly inside both segments.
+    Touching at an end is already handled by the endpoint pass, and a shared
+    corner must not be treated as a cut.
+    """
+    ax, ay = w["a"]["x"], w["a"]["y"]
+    bx, by = w["b"]["x"], w["b"]["y"]
+    cx, cy = other["a"]["x"], other["a"]["y"]
+    dx2, dy2 = other["b"]["x"], other["b"]["y"]
+
+    rx, ry = bx - ax, by - ay
+    sx, sy = dx2 - cx, dy2 - cy
+    denom = rx * sy - ry * sx
+    if denom == 0:
+        return None                       # parallel or collinear
+    t = ((cx - ax) * sy - (cy - ay) * sx) / denom
+    u = ((cx - ax) * ry - (cy - ay) * rx) / denom
+    if 0 < t < 1 and 0 < u < 1:
+        return t
+    return None
+
+
 def _split_at_junctions(walls: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Cut a wall wherever another wall's endpoint lands part-way along it.
+    """Cut a wall wherever another wall meets it part-way along.
 
     The face walk below reads nodes off wall *endpoints*, so a partition whose
     ends stop against the middle of another wall never joins the graph — it is
@@ -69,6 +93,20 @@ def _split_at_junctions(walls: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for DXF import, which produces exactly this shape — CAD partitions are drawn
     against the face of the walls they meet, never split for us — but the
     editor's drawing tools do not split either.
+
+    Two kinds of meeting, and both are needed.
+
+    An **endpoint** landing on the interior is the editor's shape, and the
+    shape a DXF has once dxf.py has pulled its loose ends onto the wall they
+    stop against. It needs a tolerance, MERGE_EPS, the same one the node merge
+    uses.
+
+    A **crossing** is what tracing an underlay produces: the lines Hough finds
+    overshoot each other by a few pixels, so nothing touches end to end and
+    nothing lands on an interior either — every junction is an X. Traced walls
+    gave zero rooms for a plan that plainly has two. A crossing needs no
+    tolerance at all: two segments either intersect or they do not, and a
+    planar graph is by definition split where they do.
 
     Curved walls are left whole. Cutting an arc means recomputing the bulge of
     each half, and no partition in practice is an arc.
@@ -85,6 +123,12 @@ def _split_at_junctions(walls: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
 
         cuts: list[float] = []
+        for other in walls:
+            if other is w or other.get("bulge"):
+                continue
+            t_cross = _crossing_t(w, other)
+            if t_cross is not None:
+                cuts.append(t_cross)
         for p in ends:
             t = ((p["x"] - a["x"]) * dx + (p["y"] - a["y"]) * dy) / (length * length)
             px, py = a["x"] + dx * t, a["y"] + dy * t
