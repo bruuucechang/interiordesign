@@ -98,3 +98,64 @@ def test_duplicate_walls_do_not_create_extra_rooms():
 
 def test_no_walls_returns_nothing():
     assert detect_room_polygons([]) == []
+
+
+# ---------------------------------------------------------------- T 型接點
+
+def test_a_partition_ending_mid_wall_divides_the_room():
+    """房間偵測的節點是從牆端點來的，所以端點停在別道牆中段的隔間牆
+    原本會變成懸空的邊——它分隔的兩個房間會合成一個回來。
+
+    實測：不切 22.81 m² 一個；切開後 13.58 + 9.23，總和不變。
+    """
+    walls = [
+        {"a": {"x": 6, "y": 394}, "b": {"x": 594, "y": 394}, "bulge": 0},
+        {"a": {"x": 594, "y": 394}, "b": {"x": 594, "y": 6}, "bulge": 0},
+        {"a": {"x": 594, "y": 6}, "b": {"x": 6, "y": 6}, "bulge": 0},
+        {"a": {"x": 6, "y": 6}, "b": {"x": 6, "y": 394}, "bulge": 0},
+        {"a": {"x": 356, "y": 394}, "b": {"x": 356, "y": 6}, "bulge": 0},
+    ]
+    polys = detect_room_polygons(walls)
+    areas = sorted(abs(polygon_signed_area(p)) / 10000 for p in polys)
+    assert len(polys) == 2
+    assert abs(areas[0] - 9.23) < 0.05
+    assert abs(areas[1] - 13.58) < 0.05
+    assert abs(sum(areas) - 22.81) < 0.05, "切開不該改變總面積"
+
+
+def test_a_wall_that_stops_short_is_still_a_dangling_edge():
+    """只有真的碰到才切。差太遠的端點不該被當成接點——那會無中生有。"""
+    walls = [
+        {"a": {"x": 6, "y": 394}, "b": {"x": 594, "y": 394}, "bulge": 0},
+        {"a": {"x": 594, "y": 394}, "b": {"x": 594, "y": 6}, "bulge": 0},
+        {"a": {"x": 594, "y": 6}, "b": {"x": 6, "y": 6}, "bulge": 0},
+        {"a": {"x": 6, "y": 6}, "b": {"x": 6, "y": 394}, "bulge": 0},
+        # 兩端各差 50cm，遠超過 MERGE_EPS
+        {"a": {"x": 356, "y": 344}, "b": {"x": 356, "y": 56}, "bulge": 0},
+    ]
+    assert len(detect_room_polygons(walls)) == 1
+
+
+def test_splitting_leaves_a_plain_rectangle_alone():
+    """沒有接點時不該多切出任何東西。"""
+    walls = [
+        {"a": {"x": 0, "y": 0}, "b": {"x": 400, "y": 0}, "bulge": 0},
+        {"a": {"x": 400, "y": 0}, "b": {"x": 400, "y": 300}, "bulge": 0},
+        {"a": {"x": 400, "y": 300}, "b": {"x": 0, "y": 300}, "bulge": 0},
+        {"a": {"x": 0, "y": 300}, "b": {"x": 0, "y": 0}, "bulge": 0},
+    ]
+    polys = detect_room_polygons(walls)
+    assert len(polys) == 1
+    assert abs(abs(polygon_signed_area(polys[0])) / 10000 - 12) < 1e-6
+
+
+def test_a_curved_wall_is_never_cut():
+    """切弧要重算子弧的 bulge，而實務上沒有隔間牆是弧形的。"""
+    walls = [
+        {"a": {"x": 0, "y": 0}, "b": {"x": 400, "y": 0}, "bulge": 40},
+        {"a": {"x": 400, "y": 0}, "b": {"x": 400, "y": 300}, "bulge": 0},
+        {"a": {"x": 400, "y": 300}, "b": {"x": 0, "y": 300}, "bulge": 0},
+        {"a": {"x": 0, "y": 300}, "b": {"x": 0, "y": 0}, "bulge": 0},
+        {"a": {"x": 200, "y": 0}, "b": {"x": 200, "y": 300}, "bulge": 0},
+    ]
+    detect_room_polygons(walls)   # 不該拋例外

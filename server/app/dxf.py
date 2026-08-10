@@ -248,7 +248,67 @@ def convert(payload: str, layers: Iterable[str] | None = None,
     ]
 
     walls, merged = _merge_parallel_pairs(scaled)
+    _connect_ends(walls)
     return {"walls": walls, "unit": unit or "auto", "merged": merged}
+
+
+def _connect_ends(walls: list[dict[str, Any]]) -> None:
+    """Pull a wall's loose ends onto the centreline of the wall it stops against.
+
+    Merging the two drawn faces moves every centreline inward by half a
+    thickness, and that is enough to disconnect the network. A partition drawn
+    against the *inner faces* of the walls it meets — which is how partitions
+    are drawn — ends up half a thickness short of their centrelines at both
+    ends. Drawn through instead, it overshoots by the same amount and crosses
+    them. Either way the ends are near the other wall but not on it, so the
+    room finder sees a dangling edge and returns the outer boundary as a single
+    room: a 6×4 m plan with one partition came back as 22.81 m² instead of
+    13.58 and 9.23.
+
+    The tolerance is the wall's own thickness. Half of it is what the merge
+    just introduced; the whole of it covers the two ends being different
+    thicknesses without reaching far enough to invent a junction that is not
+    there. Ends are moved onto the target's centreline, never along it, so a
+    wall's length changes by at most that half-thickness.
+
+    rooms.py then cuts the target at the point we landed on — this function
+    only makes the two touch.
+    """
+    for w in walls:
+        if w.get("bulge"):
+            continue                      # an arc's end is not a straight extension
+        for key in ("a", "b"):
+            end = w[key]
+            best: tuple[float, dict[str, float]] | None = None
+            for other in walls:
+                if other is w or other.get("bulge"):
+                    continue
+                foot = _foot_on(end, other)
+                if foot is None:
+                    continue
+                gap = math.hypot(end["x"] - foot["x"], end["y"] - foot["y"])
+                tol = max(w["thickness"], other["thickness"])
+                if gap <= tol and (best is None or gap < best[0]):
+                    best = (gap, foot)
+            if best is not None:
+                w[key] = best[1]
+
+
+def _foot_on(p: dict[str, float], seg: dict[str, Any]) -> dict[str, float] | None:
+    """Where p lands on seg's centreline, or None if it is past either end.
+
+    The interior only: an end that reaches another wall's *end* is already a
+    shared node and needs no help.
+    """
+    a, b = seg["a"], seg["b"]
+    dx, dy = b["x"] - a["x"], b["y"] - a["y"]
+    length = math.hypot(dx, dy)
+    if length == 0:
+        return None
+    t = ((p["x"] - a["x"]) * dx + (p["y"] - a["y"]) * dy) / (length * length)
+    if not (0 < t < 1):
+        return None
+    return {"x": a["x"] + dx * t, "y": a["y"] + dy * t}
 
 
 def _merge_parallel_pairs(segs: list) -> tuple[list[dict[str, Any]], int]:

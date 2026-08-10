@@ -201,3 +201,31 @@ def test_an_empty_selection_imports_nothing():
     doc = new_doc()
     doc.modelspace().add_line((0, 0), (5000, 0), dxfattribs={"layer": "WALL"})
     assert convert(as_b64(doc), [], "mm")["walls"] == []
+
+
+def test_a_partition_drawn_against_the_faces_still_reaches_the_centrelines():
+    """雙線合併會把中心線各往內移半個厚度，於是隔間牆兩端各差半個厚度
+    構不到外牆——那正是隔間牆的畫法。匯入後必須是連通的網。
+    """
+    import ezdxf  # noqa: F401 — 這一條要自己造圖
+    from app.rooms import detect_room_polygons
+
+    doc = ezdxf.new("R2010", setup=True)
+    doc.header["$INSUNITS"] = 4                     # mm
+    msp = doc.modelspace()
+    T, W, H = 120, 6000, 4000
+    for off in (0, T):
+        msp.add_lwpolyline(
+            [(off, off), (W - off, off), (W - off, H - off), (off, H - off), (off, off)],
+            close=True, dxfattribs={"layer": "WALL"},
+        )
+    for off in (0, T):                              # 畫在內面之間，兩端不到中心線
+        msp.add_line((3500 + off, T), (3500 + off, H - T), dxfattribs={"layer": "WALL"})
+
+    walls = convert(as_b64(doc), ["WALL"], "mm")["walls"]
+    assert len(walls) == 5, "12 段雙線要合成 5 道中心線"
+
+    rooms = detect_room_polygons(
+        [{"a": w["a"], "b": w["b"], "bulge": w.get("bulge", 0)} for w in walls]
+    )
+    assert len(rooms) == 2, "隔間牆要把空間分成兩間"
