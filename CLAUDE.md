@@ -119,7 +119,26 @@ db.py main.py
 
 ### jsPDF
 
-預設 `compress: false`——單張 A4 21.9MB，開壓縮後 89KB。內建字型**不支援中文**，中文要畫成光柵再貼上。
+預設 `compress: false`——單張 A4 21.9MB，開壓縮後 89KB。**兩條匯出路徑都要記得開**：
+`plot.ts` 一直有，`exporter.ts` 漏了，實測快照 PDF 是 20,864,540 bytes（同一張畫布
+存成 PNG 只有 130KB），加上旗標後 48,529。
+
+內建字型**不支援中文**，中文要畫成光柵再貼上（`plot.ts` 的 `textTile()`）。驗證方式是
+看產出的 PDF 裡有沒有 `Tj`／`TJ` 文字指令——施工圖 PDF 一個都沒有，全部是影像物件，
+所以中文不可能走到不支援它的字型那條路。
+
+### 要看 PDF 產出長怎樣，不要靠瀏覽器
+
+Chrome 的 PDF 檢視器是獨立程序，視窗被遮住時不合成，截圖只會拿到一片空白（同
+[rAF 那一節](#在這台機器上驗-3d-一定要先確認-raf-有在跑) 的根源）。把檔案寫到磁碟後用
+macOS 內建的 Quick Look 轉圖最快：
+
+```bash
+qlmanage -t -s 2000 -o <輸出目錄> plot.pdf     # 產出 plot.pdf.png
+```
+
+（我曾試著在頁面裡手刻 PDF 的 inflate ＋ PNG predictor 解碼去挖出內嵌影像，走到一半
+就卡住，而且完全沒必要。）
 
 ### three.js
 
