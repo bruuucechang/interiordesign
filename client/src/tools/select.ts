@@ -2,7 +2,8 @@ import { Tool, ToolCtx, PointerInfo } from './types';
 import { Obj, Vec } from '../model/schema';
 import { handles } from '../core/handles';
 import { hitTest, furnitureCenter } from '../core/hit';
-import { rotate, dist, angleDeg, snap, bulgeFrom } from '../core/geometry';
+import { snap, dist } from '../core/geometry';
+import { resizeBox, resizeFurniture, curveBulge, rotateAngle, openingEndpoint, Corner } from '../core/transform';
 import { computeSnap, drawSnap, WallSeg } from '../core/snap';
 import { fitOpeningToWall } from './place';
 
@@ -99,33 +100,17 @@ export class SelectTool implements Tool {
 
   private doResize(o: Obj, p: PointerInfo) {
     const g = this.orig;
-    if (o.kind === 'furniture') {
-      const c = furnitureCenter(g);
-      const local = rotate(p.world, c, -g.angle);
-      let w = Math.max(10, Math.abs(local.x - c.x) * 2);
-      let h = Math.max(10, Math.abs(local.y - c.y) * 2);
-      if (this.ctx.snapEnabled) { w = Math.max(10, snap(w, this.ctx.gridSize)); h = Math.max(10, snap(h, this.ctx.gridSize)); }
-      this.patch(o, { w, h, x: c.x - w / 2, y: c.y - h / 2 } as any);
-    } else if (o.kind === 'room' || o.kind === 'image') {
-      const opp: Record<string, Vec> = {
-        nw: { x: g.x + g.w, y: g.y + g.h }, se: { x: g.x, y: g.y },
-        ne: { x: g.x, y: g.y + g.h }, sw: { x: g.x + g.w, y: g.y },
-      };
-      const f = opp[this.handleId];
-      const q = p.snapped;
-      const x = Math.min(f.x, q.x), y = Math.min(f.y, q.y);
-      this.patch(o, { x, y, w: Math.max(10, Math.abs(q.x - f.x)), h: Math.max(10, Math.abs(q.y - f.y)) } as any);
+    const grid = this.ctx.snapEnabled ? this.ctx.gridSize : 0;
+    if (o.kind === 'furniture') this.patch(o, resizeFurniture(g, p.world, grid) as any);
+    else if (o.kind === 'room' || o.kind === 'image') {
+      this.patch(o, resizeBox(g, this.handleId as Corner, p.snapped) as any);
     }
   }
 
   private doCurve(o: Obj, p: PointerInfo) {
     if (o.kind !== 'wall') return;
     const g = this.orig;
-    let bulge = bulgeFrom(g.a, g.b, p.world);
-    const grid = this.ctx.gridSize;
-    if (this.ctx.snapEnabled) bulge = Math.round(bulge / grid) * grid;   // tidy arc depths
-    if (Math.abs(bulge) < grid) bulge = 0;                               // snaps back to straight near zero
-    this.patch(o, { bulge } as any);
+    this.patch(o, { bulge: curveBulge(g.a, g.b, p.world, this.ctx.gridSize, this.ctx.snapEnabled) } as any);
   }
 
   private doEndpoint(o: Obj, p: PointerInfo) {
@@ -143,39 +128,28 @@ export class SelectTool implements Tool {
       }
       this.patch(o, (this.handleId === 'a' ? { a: pt } : { b: pt }) as any);
     } else if (o.kind === 'door' || o.kind === 'window') {
-      const center = { x: g.x, y: g.y };
-      const otherLocal = this.handleId === 'a' ? { x: g.x + g.width / 2, y: g.y } : { x: g.x - g.width / 2, y: g.y };
-      const other = rotate(otherLocal, center, g.angle);
-      const nc = { x: (other.x + p.world.x) / 2, y: (other.y + p.world.y) / 2 };
-      const width = Math.max(10, dist(other, p.world));
+      const e = openingEndpoint(g, this.handleId as 'a' | 'b', p.world);
       // Keep the resized opening glued to its wall (position + angle + curvature).
       // Pass the span (fixed end + dragged end) so a curved wall is fit *between*
       // those points along the arc — the fixed end sits on the arc (dist ~0) so it
       // always snaps, and the window can stretch to the wall's full extent without
       // the arc-length walk shrinking or capping it early.
-      const fit = fitOpeningToWall(this.ctx.doc, nc, width, o.kind === 'window', Math.max(120, width), { p0: other, p1: p.world });
+      const fit = fitOpeningToWall(this.ctx.doc, e.centre, e.width, o.kind === 'window',
+        Math.max(120, e.width), { p0: e.fixed, p1: p.world });
       if (fit) this.patch(o, { x: fit.pos.x, y: fit.pos.y, width: Math.max(10, fit.width), angle: fit.angle, bulge: fit.bulge || undefined } as any);
-      else this.patch(o, { x: nc.x, y: nc.y, width, angle: this.handleId === 'b' ? angleDeg(other, p.world) : angleDeg(p.world, other) } as any);
+      else this.patch(o, { x: e.centre.x, y: e.centre.y, width: e.width, angle: e.angle } as any);
     }
   }
 
   private doRotate(o: Obj, p: PointerInfo) {
     const g = this.orig;
     const c = 'w' in g ? furnitureCenter(g) : { x: g.x, y: g.y };
-    let ang = angleDeg(c, p.world) + 90;
-    if (p.shift) {
-      ang = Math.round(ang / 15) * 15;            // Shift: fixed 15° steps
-    } else {
-      const near90 = Math.round(ang / 90) * 90;   // magnetic to 0/90/180/270 for easy alignment
-      ang = Math.abs(ang - near90) <= 8 ? near90 : Math.round(ang);
-    }
+    const ang = rotateAngle(c, p.world, !!p.shift);
     this.patch(o, { angle: ang } as any);
 
     // live angle readout above the object; green when snapped to a right angle
-    const deg = (((Math.round(ang)) % 360) + 360) % 360;
-    const at = this.ctx.vp.toScreen(c);
-    const cardinal = deg % 90 === 0;
-    this.ctx.setPreview(undefined, ctx => this.drawAngleBadge(ctx, at, deg, cardinal));
+    const deg = ((Math.round(ang) % 360) + 360) % 360;
+    this.ctx.setPreview(undefined, ctx => this.drawAngleBadge(ctx, this.ctx.vp.toScreen(c), deg, deg % 90 === 0));
   }
 
   private drawAngleBadge(ctx: CanvasRenderingContext2D, at: Vec, deg: number, cardinal: boolean) {
