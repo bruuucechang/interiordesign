@@ -34,6 +34,7 @@ export class Editor implements ToolCtx {
   private lastPan: Vec = { x: 0, y: 0 };
   private panKeys = new Set<string>();   // WASD held keys for 2D view panning
   private panRaf = 0;
+  private drawRaf = 0;
   private panShift = false;
   private clipboard: Obj[] = [];
 
@@ -64,7 +65,37 @@ export class Editor implements ToolCtx {
   }
 
   // ---- ToolCtx ----
+
+  /**
+   * Ask for a redraw. At most one happens per frame.
+   *
+   * It used to draw immediately, and everything called it: every tool's
+   * onMove, and `doc.onChange`, which `doc.update()` fires. So dragging a
+   * selection of five objects redrew the whole canvas six times per pointermove
+   * — five from the updates, one from the tool — and a trackpad sends
+   * pointermove far faster than the display refreshes. All but the last of
+   * those frames were thrown away before anything reached the screen, and they
+   * were thrown away *synchronously inside the event handler*, which is what
+   * made dragging feel heavy: the work blocked the very frame it was for.
+   *
+   * Coalescing here rather than at each call site because there are 37 of them
+   * and the next one added would have to remember.
+   */
   render() {
+    if (this.drawRaf) return;
+    this.drawRaf = requestAnimationFrame(() => { this.drawRaf = 0; this.renderNow(); });
+  }
+
+  /**
+   * Draw now, on this stack.
+   *
+   * For the paths that cannot wait for a frame: anything that reads the canvas
+   * back straight afterwards, and anything running while the tab is hidden —
+   * where rAF fires zero times a second and a scheduled draw simply never
+   * happens.
+   */
+  renderNow() {
+    if (this.drawRaf) { cancelAnimationFrame(this.drawRaf); this.drawRaf = 0; }
     this.renderer.render({ world: this.previewW, screen: this.previewS });
   }
   setPreview(world?: DrawFn, screen?: DrawFn) { this.previewW = world; this.previewS = screen; }
@@ -222,7 +253,7 @@ export class Editor implements ToolCtx {
       if (this.panKeys.has('w')) dy += 1; if (this.panKeys.has('s')) dy -= 1;
       const speed = 750 * dt * (this.panShift ? 2.4 : 1);   // px/s, screen-space so it feels the same at any zoom
       this.vp.panBy(dx * speed, dy * speed);
-      this.render();
+      this.renderNow();   // already inside a frame — scheduling would land one late
       this.panRaf = requestAnimationFrame(loop);
     };
     this.panRaf = requestAnimationFrame(loop);

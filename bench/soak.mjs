@@ -123,25 +123,54 @@ function plan(n) {
  * object, zoom in and out. Pointer events go through Chromium's real input
  * pipeline, so coalescing and event rates behave as they do in a browser.
  */
-async function exercise(page, w, h) {
-  const cx = w / 2, cy = h / 2;
-  // pan
+async function exercise(page) {
+  // Page coordinates, not canvas ones. vp.toScreen is relative to the canvas,
+  // which sits below a toolbar and beside a sidebar; feeding those numbers to
+  // page.mouse puts every event outside the canvas, and the drag quietly
+  // becomes a pan. This exercise did exactly that until it was measured.
+  const geo = await page.evaluate(() => {
+    const r = document.getElementById('canvas').getBoundingClientRect();
+    return { l: r.left, t: r.top, w: r.width, h: r.height };
+  });
+  const cx = geo.l + geo.w / 2, cy = geo.t + geo.h / 2;
+
+  // pan around empty space
   await page.mouse.move(cx, cy);
   await page.mouse.down();
-  for (let k = 0; k < 40; k++) {
-    await page.mouse.move(cx + Math.sin(k / 6) * 260, cy + Math.cos(k / 5) * 180);
+  for (let k = 0; k < 30; k++) {
+    await page.mouse.move(cx + Math.sin(k / 6) * (geo.w / 4), cy + Math.cos(k / 5) * (geo.h / 4));
   }
   await page.mouse.up();
+
   // zoom out and back in
-  for (let k = 0; k < 12; k++) await page.mouse.wheel(0, 120);
-  for (let k = 0; k < 12; k++) await page.mouse.wheel(0, -120);
-  // drag whatever is under the middle
-  await page.mouse.move(cx, cy);
-  await page.mouse.down();
-  for (let k = 0; k < 40; k++) {
-    await page.mouse.move(cx + k * 3, cy + Math.sin(k / 4) * 60);
+  for (let k = 0; k < 10; k++) await page.mouse.wheel(0, 120);
+  for (let k = 0; k < 10; k++) await page.mouse.wheel(0, -120);
+
+  // drag a multi-selection — the expensive path, and the one a roaming pointer
+  // never finds on its own
+  const at = await page.evaluate((n) => {
+    const objs = window.__app.doc.objects.filter((o) => o.kind === 'furniture').slice(0, n);
+    if (!objs.length) return null;
+    window.__app.doc.selectMany(objs.map((o) => o.id));
+    const o = objs[0];
+    const p = window.__app.editor.vp.toScreen({ x: o.x + o.w / 2, y: o.y + o.h / 2 });
+    const r = document.getElementById('canvas').getBoundingClientRect();
+    return { x: r.left + p.x, y: r.top + p.y };
+  }, 8);
+  if (at) {
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.down();
+    for (let k = 0; k < 30; k++) await page.mouse.move(at.x + (k % 20) * 5, at.y + Math.sin(k / 4) * 40);
+    await page.mouse.up();
+    await page.evaluate(() => window.__app.doc.select(null));
   }
-  await page.mouse.up();
+
+  // switch to 3D and back: exercises build(), the resolution ladder and the
+  // primary/preview swap, which is where a leak would hide
+  await page.evaluate(() => document.getElementById('btnToggle')?.click());
+  await page.waitForTimeout(400);
+  await page.evaluate(() => document.getElementById('btnToggle')?.click());
+  await page.waitForTimeout(400);
 }
 
 // ---------------------------------------------------------------- run
@@ -193,7 +222,7 @@ while (Date.now() < deadline) {
   const t0 = Date.now();
   await page.evaluate(() => window.__perf.reset());
   while (Date.now() - t0 < CYCLE_MS && Date.now() < deadline) {
-    await exercise(page, 1600, 1000);
+    await exercise(page);
   }
   const sample = await page.evaluate(() => ({
     perf: window.__perf.snapshot(),
