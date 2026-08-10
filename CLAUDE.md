@@ -124,7 +124,29 @@ db.py main.py
 ### three.js
 
 - tone mapping **只在輸出到畫布時套用**，render target 不會
-- `transmission` 材質（玻璃）會讓整個 cube face 變黑，全景拍攝時要暫時換成 alpha
+- `transmission` 材質（玻璃）碰到**被它包住的幾何**會整片變黑。玻璃門原本是一整塊
+  實心門扇外面套一個更深的玻璃盒，結果不是門變黑而是**整個 3D 檢視什麼都不畫**。
+  盒子只相加不相減，要挖洞就得把門扇做成框料（見 `buildDoor3D` 的 glass 分支）。
+  同一個材質在窗戶上沒事，因為那是薄片、沒有包住東西。
+
+### 在這台機器上驗 3D 一定要先確認 rAF 有在跑
+
+**四宮格終端機會把 Chrome 完全遮住 → `visibilityState === 'hidden'` → rAF 一秒 0 次。**
+於是渲染迴圈整個凍結：WASD 的按鍵**有**進到 `pressed`（指示燈會亮，那是 DOM 事件），
+但 `applyFly` 從來沒被呼叫；連切到 3D 時的自動框景也不會跑，相機一直停在 (0,0,0)。
+
+這個坑會偽裝成程式錯誤。實測時先跑這一行，0 就別再往下推論：
+
+```js
+let n = 0; const t0 = performance.now();
+(function tick(){ n++; if (performance.now() - t0 < 1000) requestAnimationFrame(tick); })();
+setTimeout(() => console.log(n, document.visibilityState), 1200);
+```
+
+**繞法**：全景拍攝、GLB 匯出這類「明確的繪製呼叫」不靠 rAF，凍結也照跑。把
+view3d 實例臨時掛上 window、直接設 `camera.position` 再呼叫 `capturePanorama()`，
+就能驗到室內全景——實測可行（四面牆、地板、家具、玻璃門透光都在）。要驗動畫、
+轉場、手感則非請使用者把 Chrome 點到前景不可。
 
 ### OpenCV 5
 
