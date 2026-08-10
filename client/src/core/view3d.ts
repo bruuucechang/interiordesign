@@ -567,9 +567,21 @@ export class View3D {
         bx(2.6, lh * 0.42, 3, metalM, cx - s * (pw / 2 - 6), elev + lh * 0.5, pz + s * 2);   // flush pull
       }
     } else if (style === 'glass') {
-      bx(lw, lh, ld, leafM, 0, elev + lh / 2, 0);                         // wood stile-and-rail
-      bx(lw - 12, lh - 16, ld + 2, glassM, 0, elev + lh / 2 + 3, 0);      // glazed panel
-      bx(lw - 12, 5, ld + 2.2, leafM, 0, elev + lh * 0.34, 0);           // lock rail
+      // Stiles and rails around an opening, not a slab with glass laid over it.
+      // Boxes add, they do not subtract, so the previous version's glazed panel
+      // — two units deeper than the leaf and centred on it — enclosed the solid
+      // wood instead of replacing it. Geometry sitting inside a `transmission`
+      // volume made the whole 3D view render black: one glass door and nothing
+      // drew at all, while every other door style and every window (same glass
+      // material) was fine.
+      const sw = 8, br = 14, tr = 8;                    // stile / bottom rail / top rail
+      const ow = lw - 2 * sw, oh = lh - br - tr;        // the opening the glass fills
+      for (const s of [-1, 1]) bx(sw, lh, ld, leafM, s * (lw - sw) / 2, elev + lh / 2, 0);
+      bx(lw, br, ld, leafM, 0, elev + br / 2, 0);
+      bx(lw, tr, ld, leafM, 0, elev + lh - tr / 2, 0);
+      bx(lw - 12, 5, ld, leafM, 0, elev + lh * 0.34, 0);                 // lock rail
+      // Thinner than the leaf so it sits in the opening rather than around it.
+      bx(ow, oh, ld * 0.4, glassM, 0, elev + br + oh / 2, 0);
       putHandle(lw / 2 - 7);
     } else {                                                              // single
       panelLeaf(0, lw); putHandle(lw / 2 - 7);
