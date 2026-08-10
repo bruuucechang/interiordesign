@@ -59,3 +59,19 @@ test('the viewer escapes the project name into its title', () => {
 test('panorama dimensions are a 2:1 equirectangular frame', () => {
   assert.equal(PANO_WIDTH, PANO_HEIGHT * 2);
 });
+
+test('a camera above the ceiling is refused, however well its plan position lines up', () => {
+  // The default 3D framing sits above the plan looking down, so its X/Z land
+  // inside the bounding box while the camera is nowhere near being in a room.
+  // The export used to accept that and produce a 4096×2048 sphere of flat sky
+  // with one small patch of floor in it.
+  const boxes = [{ x: 0, y: 0, w: 500, h: 400 }];
+  assert.equal(isInsidePlan({ x: 250, y: 140, z: 200 }, boxes, 280), true, '室內應該接受');
+  assert.equal(isInsidePlan({ x: 250, y: 900, z: 200 }, boxes, 280), false, '天花板之上要拒絕');
+  assert.equal(isInsidePlan({ x: 250, y: 280, z: 200 }, boxes, 280), true, '正好在天花板高度仍算室內');
+});
+
+test('the height check is opt-in, so callers that do not know the storey still work', () => {
+  const boxes = [{ x: 0, y: 0, w: 500, h: 400 }];
+  assert.equal(isInsidePlan({ x: 250, y: 9999, z: 200 }, boxes), true);
+});

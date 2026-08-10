@@ -257,13 +257,22 @@ resize();
  * outside by default, and a panorama from out there is a picture of an empty
  * sky, so the export declines rather than hand back something useless.
  *
- * Plan coordinates (x, y) map to 3D (X, Z); the vertical axis is not checked,
- * since standing above the walls still looks down into the rooms.
+ * Plan coordinates (x, y) map to 3D (X, Z), and `ceiling` is the storey height.
+ *
+ * The height matters, which an earlier version said it did not — its reasoning
+ * was that standing above the walls still looks down into the rooms. True for a
+ * normal view, false for a full sphere: from the default framing the camera
+ * sits above the plan, well clear of the walls, and its X/Z land inside the
+ * bounding box, so the check passed and the export handed back a 4096×2048
+ * image that was flat sky apart from one small patch of floor. Measured on a
+ * 5×4 m room.
  */
 export function isInsidePlan(
-  pos: { x: number; z: number },
+  pos: { x: number; y?: number; z: number },
   boxes: { x: number; y: number; w: number; h: number }[],
+  ceiling?: number,
 ): boolean {
+  if (ceiling !== undefined && pos.y !== undefined && pos.y > ceiling) return false;
   if (!boxes.length) return true;                     // nothing drawn — nothing to be outside of
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const b of boxes) {

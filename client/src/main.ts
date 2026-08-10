@@ -32,18 +32,26 @@ view3d.onFloorClick = (floor, sceneHit) => {
 view3d.onRotate90 = (deg) => editor.rotateSelection(deg);   // Q/E in 3D rotate the selected object 90°
 editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter
 
-// 匯出 360 全景：從 3D 相機所在位置拍。預設相機停在建築外側，那樣拍只會得到一
-// 張從外面看的空景，所以先確認它真的落在平面圖範圍內再動手。
+let mode: '2d' | '3d' = '2d';
+
+// 匯出 360 全景：從 3D 相機所在位置拍。
+//
+// 在 2D 模式下按這個，拍到的是**原點**——3D 相機還停在建構時的 (0,0,0)，從來
+// 沒有被定位過。那是平面圖的角落、地板高度，於是半個球在建築外面：實測產出的
+// 是一張 4096×2048、除了一小塊地板以外全是天空的圖。而 (0,0,0) 落在平面範圍
+// 內又低於天花板，所以座標檢查放行了。它擋得住「飛到室外」，擋不住「還沒進去過」。
 editor.hooks.exportPano = (name) => {
+  if (mode !== '3d') {
+    return '請先切到 3D 檢視 — 全景是從 3D 相機的位置拍的，還沒進去過就沒有位置可拍';
+  }
   const pose = view3d.panoramaPose();
   const boxes = doc.objects.filter(o => o.kind !== 'image').map(bounds);
-  if (!isInsidePlan(pose.position, boxes)) {
-    return '相機在室外 — 請切到 3D 檢視，用 WASD 飛到室內再匯出';
+  if (!isInsidePlan(pose.position, boxes, doc.activeFloor.height)) {
+    return '相機在室外 — 用 WASD 飛到室內再匯出';
   }
   savePanorama(view3d.capturePanorama(), pose.yaw, name);
   return '已匯出 360 全景（.jpg + 可直接開啟的 .html）';
 };
-let mode: '2d' | '3d' = '2d';
 let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 
 // Show/hide the 3D placement ghosts as tools change in 3D: furniture ghosts on
