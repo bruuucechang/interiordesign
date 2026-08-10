@@ -28,6 +28,10 @@ const LIGHTING: Record<TimeKey, { sun: number; intensity: number; hemi: number; 
 };
 
 // plan coords (x, y) map to 3D (X = x, Z = y, Y = up)
+/** Frames per second for the 3D view while it is only the sidebar preview. */
+const PREVIEW_FPS = 12;
+const PREVIEW_FRAME_MS = 1000 / PREVIEW_FPS;
+
 export class View3D {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
@@ -694,7 +698,19 @@ export class View3D {
 
   private get pixelRatio() { return this.res.ratio; }
 
+  /**
+   * Only ever fed frames the view was actually trying to draw fast.
+   *
+   * It decides the pixel ratio from the wall-clock gap between frames, so a
+   * deliberately throttled preview at 12 fps reads as 83 ms — four times
+   * TOO_SLOW_MS. It would give back a step of resolution every sample window
+   * down to the floor, and because a ratio measured as too slow becomes a
+   * ceiling that is never retried, the view would stay pinned there after
+   * switching back to 3D as the main view. Nothing would look broken; it would
+   * just be permanently soft.
+   */
   private adaptResolution(now: number) {
+    if (!this.primary) return;
     if (this.lastFrameAt) this.frameTimes.push(now - this.lastFrameAt);
     this.lastFrameAt = now;
     if (this.frameTimes.length < View3D.SAMPLE) return;
@@ -708,17 +724,49 @@ export class View3D {
     if (this.res.ratio !== before) this.resize();
   }
 
+  /**
+   * How much of a frame the view is worth right now.
+   *
+   * The 3D view stays alive in both modes so switching to it is instant and the
+   * plan is always current. But as the sidebar preview it is a thumbnail a few
+   * hundred pixels wide, and it was still running the full composer — ambient
+   * occlusion and all — at whatever rate the display asked for, on the same
+   * main thread as the 2D canvas the user is actually dragging on. Two things
+   * competing for one thread is exactly what "卡頓" is.
+   *
+   * As the preview it therefore draws at PREVIEW_FPS and skips post-processing.
+   * At thumbnail size the AO it skips is a pixel or two of contact shadow;
+   * what it gives back is the frame.
+   */
+  private primary = true;
+  private lastDraw = 0;
+  setPrimary(on: boolean) {
+    if (this.primary === on) return;
+    this.primary = on;
+    this.lastDraw = 0;         // draw the next frame, do not wait out the interval
+    // Throw away the timing either side of the switch: the gap that spans it
+    // measures the mode change, not the machine.
+    this.frameTimes.length = 0;
+    this.lastFrameAt = 0;
+  }
+
   private loop = () => {
     if (!this.running) return;
+    this.raf = requestAnimationFrame(this.loop);
+
+    const now = performance.now();
+    if (!this.primary && now - this.lastDraw < PREVIEW_FRAME_MS) return;
+    this.lastDraw = now;
+
     const t0 = mark();
     const dt = this.clock.getDelta();
     if (this.fly) this.applyFly(dt);
     this.controls.update();
     this.updateCeilingVisibility();
-    this.composer.render();
-    this.adaptResolution(performance.now());
+    if (this.primary) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);   // no AO pass for a thumbnail
+    this.adaptResolution(now);
     done('render3d', t0);
-    this.raf = requestAnimationFrame(this.loop);
   };
   start() { if (this.running) return; this.running = true; this.resize(); this.loop(); }
   stop() { this.running = false; if (this.raf) cancelAnimationFrame(this.raf); }

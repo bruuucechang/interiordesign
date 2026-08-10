@@ -100,6 +100,7 @@ function applyMode() {
   btnToggle.textContent = twoFull ? '🧊 切換 3D 檢視' : '📐 切換 2D 檢視';
   editor.inputEnabled = twoFull;      // 2D main → edit + WASD pans the 2D view
   view3d.setFly(!twoFull);            // 3D main → WASD flies the 3D camera
+  view3d.setPrimary(!twoFull);        // as the sidebar preview it drops to a thumbnail budget
   updatePlacementPreview();           // ghost only makes sense while 3D is the main view
 
   requestAnimationFrame(() => {
