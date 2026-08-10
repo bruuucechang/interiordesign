@@ -11,7 +11,8 @@ import { dist, angleDeg, quadPoints, wallControl } from './geometry';
 import { wallPieces, curvedWallBands } from './wallGeometry';
 import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
-import { woodClone, tileClone } from './textures3d';
+import { surfaceMaterial } from './textures3d';
+import { material as materialDef } from './materials';
 import { capturePanorama } from './panorama';
 import { nextResolution, onWorkloadChange, initialState, ResolutionState } from './resolution';
 import { mark, done } from './perf';
@@ -376,18 +377,39 @@ export class View3D {
     return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.04, envMapIntensity: 1.1, ...opts });
   }
 
-  // floor finish: hex color, 'tile', or wood (default)
-  private floorMaterial(floor: string | undefined, u: number, v: number): THREE.MeshStandardMaterial {
-    if (floor && floor.startsWith('#')) return new THREE.MeshStandardMaterial({ color: new THREE.Color(floor).getHex(), roughness: 0.8, metalness: 0.02, envMapIntensity: 1.1 });
-    const map = floor === 'tile' ? tileClone(u, v) : woodClone(u, v);
-    return new THREE.MeshStandardMaterial({ map, roughness: 0.6, metalness: 0.02, envMapIntensity: 1.2 });   // slightly polished floor
+  /**
+   * The floor finish for a room: a material id, or a hex colour for a plain
+   * fill. Sized in centimetres so the material tiles at its real scale rather
+   * than a fixed number of repeats — a 2 m bathroom and an 8 m living room get
+   * the same size of tile, which is the whole point of a scale.
+   */
+  private floorMaterial(floor: string | undefined, wCm: number, hCm: number): THREE.MeshStandardMaterial {
+    if (floor && floor.startsWith('#')) {
+      return new THREE.MeshStandardMaterial({ color: new THREE.Color(floor).getHex(), roughness: 0.8, metalness: 0.02, envMapIntensity: 1.1 });
+    }
+    return surfaceMaterial(floor, 'floor', wCm, hCm, { envMapIntensity: 1.2 });
+  }
+
+  /** The wall finish: a material id, or a hex colour for plain paint. */
+  private wallMaterial(o: { color?: string; finish?: string }, wCm: number, hCm: number): THREE.MeshStandardMaterial {
+    if (o.color) {
+      return new THREE.MeshStandardMaterial({ color: new THREE.Color(o.color).getHex(), roughness: 0.92, envMapIntensity: 1 });
+    }
+    return surfaceMaterial(o.finish, 'wall', wCm, hCm, { envMapIntensity: 1 });
   }
 
   private clearStatic() {
     this.staticGroup.traverse(o => {
       const m = o as THREE.Mesh;
       if (m.geometry) m.geometry.dispose();
-      if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => { const s = mm as THREE.MeshStandardMaterial; if (s.map) s.map.dispose(); mm.dispose(); });
+      if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => {
+        const s = mm as THREE.MeshStandardMaterial;
+        // Both maps: these are per-surface clones. Missing the normal map here
+        // leaks one 512² upload per wall per rebuild, and a rebuild happens
+        // after every edit.
+        s.map?.dispose(); s.normalMap?.dispose();
+        mm.dispose();
+      });
     });
     this.staticGroup.clear();
     // Ceilings share one material, so only their geometry is released.
@@ -483,7 +505,7 @@ export class View3D {
 
   // Build a wall, cutting real holes for its doors/windows (straight walls).
   private buildWall(o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[], yBase: number) {
-    const wallMat = this.mat(o.color ? new THREE.Color(o.color).getHex() : 0xeceff4, { roughness: 0.92 });
+    const wallMat = this.wallMaterial(o, dist(o.a, o.b), o.height ?? WALL_H);
     const wh = o.height ?? WALL_H;
 
     if (o.bulge) {   // curved wall: swept bands, cut where openings sit
@@ -551,15 +573,18 @@ export class View3D {
           for (let i = 1; i < o.poly.length; i++) shape.lineTo(o.poly[i].x, o.poly[i].y);
           shape.closePath();
           const geo = new THREE.ExtrudeGeometry(shape, { depth: 4, bevelEnabled: false });
-          const fm = this.floorMaterial(o.floor, 1, 1);
-          if (fm.map) fm.map.repeat.set(1 / 240, 1 / 240);   // ExtrudeGeometry UVs are world cm
+          // ExtrudeGeometry lays UVs out in world centimetres, so the repeat is
+          // the inverse of the material's tile size rather than a count.
+          const def = materialDef(o.floor, 'floor');
+          const fm = this.floorMaterial(o.floor, def.tileCm, def.tileCm);
+          for (const m of [fm.map, fm.normalMap]) if (m) m.repeat.set(1 / def.tileCm, 1 / def.tileCm);
           const floor = new THREE.Mesh(geo, fm);
           floor.rotation.x = Math.PI / 2;   // shape lies in plan XY -> lay flat on world XZ
           floor.position.y = 4 + yBase;
           this.staticGroup.add(floor);
           this.addCeiling(shape, yBase);
         } else {
-          const fm = this.floorMaterial(o.floor, Math.max(1, Math.round(o.w / 120)), Math.max(1, Math.round(o.h / 120)));
+          const fm = this.floorMaterial(o.floor, o.w, o.h);
           const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), fm);
           floor.position.set(o.x + o.w / 2, 2 + yBase, o.y + o.h / 2);
           this.staticGroup.add(floor);
