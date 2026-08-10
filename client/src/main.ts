@@ -2,6 +2,7 @@ import './style.css';
 import { Doc } from './model/doc';
 import { Editor } from './core/editor';
 import { View3D } from './core/view3d';
+import { PERF_ON } from './core/perf';
 import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
@@ -133,3 +134,9 @@ doc.onChange(() => {
 window.addEventListener('resize', () => { view3d.resize(); if (mode === '3d') fit2D(); });
 
 requestAnimationFrame(() => { editor.vp.resize(); editor.render(); applyMode(); });
+
+// With ?perf=1, hand the soak driver a way in. It needs to load a plan and read
+// the 3D view without a backend, and reaching in through the DOM cannot do
+// either. Gated on the same flag as the instrumentation, so a normal load
+// exposes nothing.
+if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D };

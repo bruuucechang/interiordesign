@@ -30,12 +30,34 @@ async function put(p: Project): Promise<string> {
   return d.updatedAtIso;
 }
 
+/**
+ * The named field of a response, but only if it is really an array.
+ *
+ * Every reader below declares `Promise<X | null>`, where null means "could not
+ * ask". None of them used to honour it: `j<T>()` is typed as returning T, so
+ * `d.walls` type-checks as `DxfWall[]` even when the body has no `walls` at
+ * all, and what came out was `undefined` — neither the value nor the null the
+ * signature promised. The caller then did `.map` on it and threw inside an
+ * async function, which is an unhandled rejection: nothing on screen, nothing
+ * in the network tab, just a feature that stopped working.
+ *
+ * A 200 carrying the wrong shape is not an answer, so it comes back as null and
+ * takes the same path as unreachable. This is the "讀嚴格" half of the project's
+ * own rule; the types alone cannot enforce it because the input is untrusted.
+ */
+function arrayField<T>(d: unknown, key: string): T[] | null {
+  const v = (d as Record<string, unknown> | null | undefined)?.[key];
+  return Array.isArray(v) ? (v as T[]) : null;
+}
+
 export async function listProjects(): Promise<Meta[]> {
   const local = allPlans();
   const deleted = tombstones();
   try {
     const d = await j<{ projects: ServerMeta[] }>('/api/projects');
-    const listed = d.projects.filter(m => !(m.id in deleted));
+    const projects = arrayField<ServerMeta>(d, 'projects');
+    if (!projects) throw new Error('/api/projects 的回應沒有 projects 陣列');
+    const listed = projects.filter(m => !(m.id in deleted));
     const seen = new Set(listed.map(m => m.id));
     // Plans created while the backend was unreachable exist only here, and
     // still have to be openable.
@@ -60,6 +82,9 @@ export async function loadProject(id: string): Promise<Project | null> {
       void saveProject(mine.plan);
       return mine.plan;
     }
+    // Same rule as the array readers: a body without a usable `data` is not a
+    // plan, and opening `undefined` as one blanks the editor.
+    if (!d?.data || typeof d.data !== 'object') throw new Error('回應沒有 data');
     putPlan(id, d.data, d.updatedAtIso);
     return d.data;
   } catch {
@@ -99,7 +124,14 @@ export async function syncPending(): Promise<{ pushed: number; deleted: number }
   let pushed = 0, deleted = 0;
   let listed: ServerMeta[];
   try {
-    listed = (await j<{ projects: ServerMeta[] }>('/api/projects')).projects;
+    const got = arrayField<ServerMeta>(await j<{ projects: ServerMeta[] }>('/api/projects'), 'projects');
+    // Treated as offline rather than as an empty server. This one runs on the
+    // 20-second autosave heartbeat, so getting it wrong is not a one-off: a
+    // backend answering 200 with an unexpected body made every beat throw, for
+    // ever, and offline edits were never pushed — with the save indicator
+    // still showing 已儲存.
+    if (!got) return { pushed, deleted };
+    listed = got;
   } catch {
     return { pushed, deleted };   // still offline; the next beat tries again
   }
@@ -159,7 +191,7 @@ export async function dimensionChain(
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wall: { a: wall.a, b: wall.b }, objects, ...(offset !== undefined ? { offset } : {}) }),
     }, 8000);
-    return d.dimensions;
+    return arrayField<DimensionOut>(d, 'dimensions');
   } catch { return null; }
 }
 
@@ -187,7 +219,7 @@ export async function importDxf(file: string, layers: string[], unit: string): P
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file, layers, unit }),
     }, 60000);
-    return d.walls;
+    return arrayField<DxfWall>(d, 'walls');
   } catch { return null; }
 }
 
@@ -201,10 +233,11 @@ export interface TracedWalls { segments: [Vec, Vec][]; w: number; h: number; }
  */
 export async function detectWalls(imageDataUrl: string): Promise<TracedWalls | null> {
   try {
-    return await j<TracedWalls>('/api/walls/detect', {
+    const d = await j<TracedWalls>('/api/walls/detect', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: imageDataUrl }),
     }, 30000);   // large scans take a while to decode and transform
+    return arrayField<[Vec, Vec]>(d, 'segments') ? d : null;
   } catch { return null; }
 }
 
@@ -214,6 +247,13 @@ export async function detectRooms(walls: WallInput[]): Promise<Vec[][] | null> {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ walls: walls.map(w => ({ a: w.a, b: w.b, bulge: w.bulge ?? 0 })) }),
     }, 5000);
-    return d.polygons;
+    // A 200 whose body is not the shape we asked for is not an answer. It has
+    // to come back as null — the same as unreachable — because the caller's
+    // whole reason for distinguishing null from an empty list is that acting on
+    // "no rooms" deletes every auto room on the plan. Returning undefined here
+    // instead made the caller throw inside an async function: an unhandled
+    // rejection, invisible unless the console is open, and it left the walls
+    // marked as already-reconciled so the same plan was never retried.
+    return arrayField<Vec[]>(d, 'polygons');
   } catch { return null; }
 }

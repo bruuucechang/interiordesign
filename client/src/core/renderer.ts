@@ -1,3 +1,4 @@
+import { mark, done } from './perf';
 import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
 import { Obj, ObjKind, Vec } from '../model/schema';
@@ -124,6 +125,7 @@ export class Renderer {
   private setScreen() { this.ctx.setTransform(this.vp.dpr, 0, 0, this.vp.dpr, 0, 0); }
 
   render(opts: RenderOpts = {}) {
+    const t0 = mark();
     const real = this.ctx;
     // Swap in the ink-remapping context before anything draws, so drawObject,
     // labelObject and every furniture draw() get it without knowing.
@@ -132,6 +134,7 @@ export class Renderer {
       this.renderInto(opts);
     } finally {
       this.ctx = real;
+      done('render2d', t0);
     }
   }
 
