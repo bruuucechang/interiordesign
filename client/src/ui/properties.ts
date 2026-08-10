@@ -6,6 +6,7 @@ import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea } fr
 import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
+import { Unit, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
 
 // The properties panel: everything shown for the current selection, plus the
 // two actions reachable only from it (dimension a wall, trace walls from the
@@ -14,13 +15,7 @@ import { flash } from './feedback';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
-type Unit = 'cm' | 'm';
 let unit: Unit = 'cm';   // shared across selections; toggled from the panel header
-const uLabel = () => (unit === 'm' ? 'm' : 'cm');
-const toU = (cm: number) => (unit === 'm' ? cm / 100 : cm);
-const fromU = (v: number) => (unit === 'm' ? v * 100 : v);
-const fmtLenU = (cm: number) => (unit === 'm' ? (cm / 100).toFixed(2) + ' m' : Math.round(cm) + ' cm');
-const fmtAreaU = (cm2: number) => (unit === 'm' ? (cm2 / 10000).toFixed(2) + ' m²' : Math.round(cm2) + ' cm²');
 
 export function refreshProps(editor: Editor, doc: Doc) {
   const host = $('#properties'); host.innerHTML = '';
@@ -64,11 +59,11 @@ export function refreshProps(editor: Editor, doc: Doc) {
   // field builders (append to a given parent)
   const dim = (parent: HTMLElement, label: string, cm: number, setCm: (v: number) => void, min = 0) => {
     const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = `${label} (${uLabel()})`;
+    const l = document.createElement('label'); l.textContent = `${label} (${unitLabel(unit)})`;
     const inp = document.createElement('input'); inp.type = 'number';
-    const d = toU(cm); inp.value = unit === 'm' ? d.toFixed(2) : String(Math.round(d)); inp.step = unit === 'm' ? '0.01' : '1';
+    inp.value = fieldValue(cm, unit); inp.step = stepFor(unit);
     inp.addEventListener('focus', () => doc.commit());
-    inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (!isNaN(v)) setCm(Math.max(min, fromU(v))); });
+    inp.addEventListener('input', () => { const v = parseLength(inp.value, unit, min); if (v !== null) setCm(v); });
     row.append(l, inp); parent.appendChild(row);
   };
   const deg = (parent: HTMLElement, label: string, value: number, set: (v: number) => void) => {
@@ -181,7 +176,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
     case 'room': {
       text(basics, '名稱', o.name, v => up({ name: v, auto: false } as any));   // renaming adopts an auto room
       const poly = o.poly && o.poly.length >= 3 ? o.poly : null;
-      info(basics, '面積', fmtAreaU(poly ? polygonArea(poly) : o.w * o.h));
+      info(basics, '面積', formatArea(poly ? polygonArea(poly) : o.w * o.h, unit));
       if (!poly) {
         dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
         dim(size.body, '深', o.h, v => up({ h: Math.max(10, v) } as any), 10);
@@ -254,7 +249,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
       break;
     }
     case 'dimension':
-      info(basics, '長度', fmtLenU(dist(o.a, o.b)));
+      info(basics, '長度', formatLength(dist(o.a, o.b), unit));
       dim(pos.body, '偏移', o.offset, v => up({ offset: v } as any));
       break;
     case 'electrical': {

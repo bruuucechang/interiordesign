@@ -1,3 +1,4 @@
+import { areaToDisplay } from './units';
 import { jsPDF } from 'jspdf';
 import { Doc } from '../model/doc';
 import { Project, Floor } from '../model/schema';
@@ -116,7 +117,7 @@ export function roomSchedule(floor: Floor): RoomRow[] {
   const rows: RoomRow[] = [];
   for (const o of floor.objects) {
     if (o.kind !== 'room') continue;
-    const m2 = (o.poly && o.poly.length >= 3 ? polygonArea(o.poly) : o.w * o.h) / 10000;
+    const m2 = areaToDisplay(o.poly && o.poly.length >= 3 ? polygonArea(o.poly) : o.w * o.h, 'm');
     if (m2 <= 0) continue;
     rows.push({ name: o.name || '房間', m2, ping: m2 / 3.30579 });
   }
