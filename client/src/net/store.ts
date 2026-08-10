@@ -111,15 +111,25 @@ export function nowIso(): string {
 /**
  * Whether the mirrored copy is ahead of the server's.
  *
- * An entry with no timestamp is never ahead. A server with no timestamp — a
- * plan it does not have at all — is always behind.
+ * The two guards have to be in this order.
+ *
+ * "The server does not have this plan at all" comes first, because there is
+ * nothing to overwrite and sending it is unconditionally safe. "The entry has
+ * no timestamp, so let the server win" comes second — that rule exists only to
+ * stop a stale mirror clobbering a newer stored copy, which needs a stored copy
+ * to exist.
+ *
+ * Reversed, the two rules cancel each other exactly where it matters: entries
+ * written before timestamps existed have no `savedAt`, and the plans that live
+ * only in the mirror are precisely those old ones. Seven of them were sitting
+ * on this machine — six with real work in them — listed as 尚未上傳 and never
+ * uploaded, because the no-timestamp guard answered first every time.
  */
 export function isNewer(savedAt: string, serverIso: string): boolean {
-  if (!savedAt) return false;
-  if (!serverIso) return true;
-  const local = Date.parse(savedAt);
   const server = Date.parse(serverIso);
+  if (!serverIso || Number.isNaN(server)) return true;
+  if (!savedAt) return false;
+  const local = Date.parse(savedAt);
   if (Number.isNaN(local)) return false;
-  if (Number.isNaN(server)) return true;
   return local > server;
 }

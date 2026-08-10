@@ -1,4 +1,5 @@
 import { Project, Vec } from '../model/schema';
+import { migrate } from '../model/migrate';
 import {
   allPlans, clearTombstone, dropPlan, getPlan, isNewer, markDeleted, nowIso,
   putPlan, tombstones,
@@ -117,7 +118,13 @@ export async function syncPending(): Promise<{ pushed: number; deleted: number }
     if (id in stillDeleted) continue;
     if (!isNewer(mine.savedAt, onServer.get(id) ?? '')) continue;
     try {
-      putPlan(id, mine.plan, await put(mine.plan));
+      // Migrate on the way out. The mirror holds whatever shape was current
+      // when it was written, and the oldest entries predate schemaVersion
+      // entirely — pushing them raw put plans on the server that the backend
+      // then refused to build a report from, with a 422. Everything the editor
+      // opens goes through the same ladder; this path had been skipping it.
+      const plan = migrate(mine.plan);
+      putPlan(id, plan, await put(plan));
       pushed++;
     } catch { /* next beat */ }
   }
