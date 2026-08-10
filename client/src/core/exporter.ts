@@ -47,7 +47,14 @@ export function exportPDF(doc: Doc, name: string) {
   const canvas = renderToCanvas(doc);
   const img = canvas.toDataURL('image/png');
   const landscape = canvas.width >= canvas.height;
-  const pdf = new jsPDF({ orientation: landscape ? 'l' : 'p', unit: 'pt', format: 'a4' });
+  // compress: jsPDF stores streams raw unless told otherwise, so the plan image
+  // goes in as uncompressed pixels — measured at 19.9 MB for a single A4 page
+  // holding one room and five pieces of furniture, from a canvas that is 130 KB
+  // as a PNG. plot.ts has carried this flag since the same thing was found
+  // there; this path was missed.
+  const pdf = new jsPDF({
+    orientation: landscape ? 'l' : 'p', unit: 'pt', format: 'a4', compress: true,
+  });
   const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
   const m = 24;
   const scale = Math.min((pw - m * 2) / canvas.width, (ph - m * 2) / canvas.height);
