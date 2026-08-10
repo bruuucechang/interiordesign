@@ -159,3 +159,39 @@ def test_a_curved_wall_is_never_cut():
         {"a": {"x": 200, "y": 0}, "b": {"x": 200, "y": 300}, "bulge": 0},
     ]
     detect_room_polygons(walls)   # 不該拋例外
+
+
+def test_crossing_walls_are_cut_at_the_intersection():
+    """描底圖抓出來的線會互相穿過幾個像素——每個接點都是 X，沒有端點相接，
+    也沒有端點落在別條線的中段。那組牆原本一個房間都找不到。
+    """
+    walls = [
+        {"a": {"x": 825, "y": 80}, "b": {"x": 75, "y": 82}, "bulge": 0},
+        {"a": {"x": 825, "y": 520}, "b": {"x": 75, "y": 520}, "bulge": 0},
+        {"a": {"x": 80, "y": 78}, "b": {"x": 79, "y": 523}, "bulge": 0},
+        {"a": {"x": 819, "y": 79}, "b": {"x": 819, "y": 523}, "bulge": 0},
+        {"a": {"x": 451, "y": 78}, "b": {"x": 450, "y": 523}, "bulge": 0},   # 兩端都穿出去
+    ]
+    assert len(detect_room_polygons(walls)) == 2
+
+
+def test_walls_sharing_a_corner_are_not_cut():
+    """共用轉角是端點相接，不是交叉。切下去會多出零長度的邊。"""
+    walls = [
+        {"a": {"x": 0, "y": 0}, "b": {"x": 400, "y": 0}, "bulge": 0},
+        {"a": {"x": 400, "y": 0}, "b": {"x": 400, "y": 300}, "bulge": 0},
+        {"a": {"x": 400, "y": 300}, "b": {"x": 0, "y": 300}, "bulge": 0},
+        {"a": {"x": 0, "y": 300}, "b": {"x": 0, "y": 0}, "bulge": 0},
+    ]
+    polys = detect_room_polygons(walls)
+    assert len(polys) == 1
+    assert abs(abs(polygon_signed_area(polys[0])) / 10000 - 12) < 1e-6
+
+
+def test_two_walls_that_only_look_like_they_cross_are_left_alone():
+    """延長線會相交但線段本身沒有——不該切。"""
+    walls = [
+        {"a": {"x": 0, "y": 0}, "b": {"x": 100, "y": 0}, "bulge": 0},
+        {"a": {"x": 300, "y": -50}, "b": {"x": 300, "y": 50}, "bulge": 0},
+    ]
+    assert detect_room_polygons(walls) == []
