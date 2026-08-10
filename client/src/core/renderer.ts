@@ -1,3 +1,4 @@
+import { material as materialDef } from './materials';
 import { mark, done } from './perf';
 import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
@@ -129,6 +130,7 @@ export class Renderer {
     const real = this.ctx;
     // Swap in the ink-remapping context before anything draws, so drawObject,
     // labelObject and every furniture draw() get it without knowing.
+    this.monoInk = !!opts.mono;
     if (opts.mono) this.ctx = monoContext(real);
     try {
       this.renderInto(opts);
@@ -187,6 +189,57 @@ export class Renderer {
     draw(500, 'rgba(255,255,255,0.11)');                        // 5m
   }
 
+  /**
+   * The plan hatch for a floor finish, as a canvas pattern.
+   *
+   * A pattern rather than drawn line work: the fill is one call whatever the
+   * zoom, where hatching a room by looping over lines in world coordinates
+   * costs more the further out you zoom — exactly when there are most rooms on
+   * screen. `setTransform` maps the tile into world centimetres so the hatch
+   * keeps a real-world scale instead of a fixed pixel one.
+   *
+   * Null for a plain colour fill, and for anything without a hatch.
+   */
+  private monoInk = false;
+  private hatchCache = new Map<string, CanvasPattern | null>();
+  private hatchFor(floor: string | undefined): CanvasPattern | null {
+    if (floor && floor.startsWith('#')) return null;
+    const def = materialDef(floor, 'floor');
+    if (!def.hatch) return null;
+    // A pattern is pixels, so the mono remap that rewrites every other colour
+    // on the plot path cannot touch it — the ink has to be chosen here. The
+    // editor draws on a near-black canvas and the plot on white paper, and
+    // hatching in one ink for both means it is invisible in the other. It was:
+    // the first version drew black on #171a20 and nothing showed up at all
+    // except the densest cross-hatch.
+    const ink = this.monoInk ? '#000' : '#dfe5f0';
+    const key = def.id + ink;
+    let pat = this.hatchCache.get(key);
+    if (pat === undefined) {
+      const S = 64;
+      const cv = document.createElement('canvas'); cv.width = cv.height = S;
+      const c = cv.getContext('2d')!;
+      c.globalAlpha = this.monoInk ? 0.5 : 0.30;   // faint enough to dimension over
+      c.fillStyle = c.strokeStyle = ink;
+      // The material draws in whatever colour it likes; overriding both here
+      // after the fact would not work, so materials draw in black and this
+      // recolours the result.
+      def.hatch(c, S);
+      c.globalCompositeOperation = 'source-in';
+      c.globalAlpha = 1;
+      c.fillStyle = ink;
+      c.fillRect(0, 0, S, S);
+      c.globalCompositeOperation = 'source-over';
+      pat = this.ctx.createPattern(cv, 'repeat');
+      if (pat) {
+        const cm = def.hatchCm ?? def.tileCm;
+        pat.setTransform(new DOMMatrix().scaleSelf(cm / S));
+      }
+      this.hatchCache.set(key, pat);
+    }
+    return pat;
+  }
+
   private drawObject(o: Obj, color: string) {
     const { ctx, vp } = this;
     const line = 1 / vp.scale;
@@ -197,20 +250,28 @@ export class Renderer {
         else { ctx.strokeStyle = color; ctx.lineWidth = line; ctx.strokeRect(o.x, o.y, o.w, o.h); }
         break;
       }
-      case 'room':
+      case 'room': {
+        // The room outline, then the finish hatch inside it, so the plan says
+        // what the floor is without having to open the 3D view.
+        const trace = () => {
+          if (o.poly && o.poly.length >= 3) {
+            ctx.beginPath();
+            ctx.moveTo(o.poly[0].x, o.poly[0].y);
+            for (let i = 1; i < o.poly.length; i++) ctx.lineTo(o.poly[i].x, o.poly[i].y);
+            ctx.closePath();
+          } else {
+            ctx.beginPath();
+            ctx.rect(o.x, o.y, o.w, o.h);
+          }
+        };
         ctx.fillStyle = 'rgba(76,141,255,0.06)';
+        trace(); ctx.fill();
+        const pat = this.hatchFor(o.floor);
+        if (pat) { ctx.save(); ctx.fillStyle = pat; trace(); ctx.fill(); ctx.restore(); }
         ctx.strokeStyle = color; ctx.lineWidth = 2 * line;
-        if (o.poly && o.poly.length >= 3) {
-          ctx.beginPath();
-          ctx.moveTo(o.poly[0].x, o.poly[0].y);
-          for (let i = 1; i < o.poly.length; i++) ctx.lineTo(o.poly[i].x, o.poly[i].y);
-          ctx.closePath();
-          ctx.fill(); ctx.stroke();
-        } else {
-          ctx.fillRect(o.x, o.y, o.w, o.h);
-          ctx.strokeRect(o.x, o.y, o.w, o.h);
-        }
+        trace(); ctx.stroke();
         break;
+      }
       case 'beam': {
         const dx = o.b.x - o.a.x, dy = o.b.y - o.a.y, L = Math.hypot(dx, dy) || 1;
         const nx = -dy / L * o.width / 2, ny = dx / L * o.width / 2;

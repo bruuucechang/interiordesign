@@ -220,3 +220,60 @@ test('往下一列，整個圖案會位移——不位移就變成格子而不�
   const startsIn = (j: number) => ps.filter(p => p.j === j).map(p => p.i).sort((a, b) => a - b);
   assert.notDeepEqual(startsIn(0), startsIn(1));
 });
+
+// ---------------------------------------------------------------- 平面圖填充
+
+test('每個材質都有平面圖的填充樣式', () => {
+  // 沒有的話那個房間在平面圖上看不出鋪的是什麼，而且不會有任何提示。
+  for (const m of MATERIALS) assert.ok(m.hatch, m.id);
+});
+
+test('填充的尺度是真實尺寸，而且合理', () => {
+  for (const m of MATERIALS) {
+    const cm = m.hatchCm ?? m.tileCm;
+    assert.ok(cm >= 30 && cm <= 400, `${m.id}: ${cm}cm`);
+  }
+});
+
+test('填充樣式畫出來確實有東西——空的等於沒填充', () => {
+  // 用一個假的 2D context 記下有幾次描邊／填色。
+  let ops = 0;
+  const fake = new Proxy({} as any, {
+    get: (_, k) => {
+      if (k === 'stroke' || k === 'fill') return () => { ops++; };
+      if (typeof k === 'string' && /^(save|restore|translate|rotate|beginPath|moveTo|lineTo|arc|fillRect)$/.test(k)) return () => {};
+      return undefined;
+    },
+    set: () => true,
+  });
+  for (const m of MATERIALS) {
+    ops = 0;
+    m.hatch!(fake, 64);
+    assert.ok(ops > 0, `${m.id} 沒有畫出任何東西`);
+  }
+});
+
+test('不同材質的填充不會長得一模一樣', () => {
+  // 全都用同一種斜線的話，平面圖上磁磚跟地毯分不出來。
+  const sig = (m: typeof MATERIALS[number]) => {
+    const calls: string[] = [];
+    const fake = new Proxy({} as any, {
+      get: (_, k) => (typeof k === 'string' && /^(stroke|fill|moveTo|lineTo|arc|fillRect|rotate)$/.test(k)
+        ? (...a: unknown[]) => { calls.push(k + a.map(n => typeof n === 'number' ? n.toFixed(1) : '').join(',')); }
+        : () => {}),
+      set: () => true,
+    });
+    m.hatch!(fake, 64);
+    return calls.join('|');
+  };
+  const seen = new Map<string, string>();
+  for (const m of MATERIALS) {
+    const s = sig(m);
+    const prev = seen.get(s);
+    // 木頭與胡桃木共用同一種板線是刻意的——製圖慣例上兩者都是木地板。
+    if (prev && !(['wood', 'walnut'].includes(m.id) && ['wood', 'walnut'].includes(prev))) {
+      assert.fail(`${m.id} 與 ${prev} 的填充完全相同`);
+    }
+    seen.set(s, m.id);
+  }
+});
