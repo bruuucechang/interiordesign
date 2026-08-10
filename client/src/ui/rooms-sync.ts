@@ -36,7 +36,15 @@ export function scheduleReconcile(doc: Doc) {
     if (sig === lastWallSig) return;          // walls unchanged — nothing to do
     lastWallSig = sig;
     reconciling = true;
-    reconcileAutoRooms(doc).finally(() => { reconciling = false; });
+    reconcileAutoRooms(doc)
+      .catch((e) => {
+        // Never let a failed reconcile poison the signature: leaving it set
+        // means this exact set of walls is never tried again, and auto rooms
+        // just quietly stop appearing.
+        lastWallSig = '';
+        console.error('[rooms-sync] reconcile 失敗', e);
+      })
+      .finally(() => { reconciling = false; });
   }, 150);
 }
 

@@ -14,6 +14,7 @@ import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { woodClone, tileClone } from './textures3d';
 import { capturePanorama } from './panorama';
 import { nextResolution, onWorkloadChange, initialState, ResolutionState } from './resolution';
+import { mark, done } from './perf';
 
 const WALL_H = 270; // cm
 
@@ -391,6 +392,7 @@ export class View3D {
   }
 
   build(doc: Doc, reframe = false) {
+    const _t0 = mark();
     this.clearStatic();
     this.furnGroup.clear();               // clones share cached geometry/materials — do NOT dispose
 
@@ -430,6 +432,7 @@ export class View3D {
       this.camera.position.set(cx + span * 0.7, span * 0.8, cz + span * 0.9);
       this.controls.update();
     }
+    done('build3d', _t0);
   }
 
   private growObject(o: Obj, grow: (x: number, z: number) => void) {
@@ -707,12 +710,14 @@ export class View3D {
 
   private loop = () => {
     if (!this.running) return;
+    const t0 = mark();
     const dt = this.clock.getDelta();
     if (this.fly) this.applyFly(dt);
     this.controls.update();
     this.updateCeilingVisibility();
     this.composer.render();
     this.adaptResolution(performance.now());
+    done('render3d', t0);
     this.raf = requestAnimationFrame(this.loop);
   };
   start() { if (this.running) return; this.running = true; this.resize(); this.loop(); }
