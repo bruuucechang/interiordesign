@@ -1,3 +1,4 @@
+import { formatArea, formatLength } from './units';
 import { Vec } from '../model/schema';
 
 export const v = (x: number, y: number): Vec => ({ x, y });
@@ -61,8 +62,9 @@ export function pointInPolygon(p: Vec, pts: Vec[]): boolean {
   return inside;
 }
 
-// format an area (cm²) as m²
-export function fmtArea(cm2: number): string { return (cm2 / 10000).toFixed(2) + ' m²'; }
+// format an area (cm²) as m² — on-canvas labels are always m², whatever the
+// properties panel's unit toggle is set to
+export const fmtArea = (cm2: number) => formatArea(cm2, 'm');
 
 // is point p within `tol` of segment a-b? returns distance
 export function distToSegment(p: Vec, a: Vec, b: Vec): number {
@@ -83,11 +85,11 @@ export function closestOnSegment(p: Vec, a: Vec, b: Vec): { point: Vec; t: numbe
   return { point: { x: a.x + t * abx, y: a.y + t * aby }, t };
 }
 
-// format cm as human string (meters when large)
+// format cm as human string (meters when large) — unlike the properties panel,
+// canvas labels pick the unit per value, so a 5 cm gap stays readable next to a
+// 4 m wall
 export function fmtLen(cm: number): string {
-  const a = Math.abs(cm);
-  if (a >= 100) return (cm / 100).toFixed(2) + ' m';
-  return Math.round(cm) + ' cm';
+  return formatLength(cm, Math.abs(cm) >= 100 ? 'm' : 'cm');
 }
 
 // ---- curved walls (quadratic-bezier arc; `bulge` = signed apex offset in cm) ----

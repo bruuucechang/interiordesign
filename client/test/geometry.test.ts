@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening } from '../src/core/geometry';
+import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening, fmtLen, fmtArea } from '../src/core/geometry';
 
 const V = (x: number, y: number) => ({ x, y });
 const SQ = [V(0, 0), V(100, 0), V(100, 100), V(0, 100)];
@@ -49,4 +49,27 @@ test('arcOpening fits a window onto a curved wall (bulged apex)', () => {
   assert.ok(r.width > 0 && r.width <= 60);
   assert.ok(Math.abs(r.bulge) > 0);                         // it curves
   assert.ok(r.dist < 5);                                    // cursor is on the arc
+});
+
+// ---------------------------------------------------------------- 畫布上的標示
+
+test('畫布標示逐值挑單位——短的用公分，長的用公尺', () => {
+  // 跟屬性面板的切換不同：一道 4 m 的牆旁邊有個 5 cm 的縫，兩者要同時讀得懂。
+  assert.equal(fmtLen(5), '5 cm');
+  assert.equal(fmtLen(420), '4.20 m');
+});
+
+test('切換點在 100 cm，兩側都要對', () => {
+  assert.equal(fmtLen(99.4), '99 cm');
+  assert.equal(fmtLen(100), '1.00 m');
+});
+
+test('負值看的是絕對值', () => {
+  assert.equal(fmtLen(-250), '-2.50 m');
+  assert.equal(fmtLen(-50), '-50 cm');
+});
+
+test('面積標示一律 m²，不跟著長度那套走', () => {
+  assert.equal(fmtArea(10000), '1.00 m²');
+  assert.equal(fmtArea(500), '0.05 m²');
 });
