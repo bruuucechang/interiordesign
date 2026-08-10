@@ -211,4 +211,43 @@ test('isNewer', () => {
   assert.equal(store.isNewer('', '2026-08-07T00:00:01Z'), false, 'no local stamp never wins');
   assert.equal(store.isNewer('2026-08-07T00:00:01Z', ''), true, 'absent on the server means push it');
   assert.equal(store.isNewer('rubbish', '2026-08-07T00:00:01Z'), false);
+  assert.equal(store.isNewer('', ''), true,
+    'absent on the server wins over having no local stamp — nothing can be overwritten');
+});
+
+test('a plan the mirror alone has is uploaded even though it predates timestamps', async () => {
+  // Found by opening the app rather than by a test: seven plans on this machine
+  // existed only in the mirror, six with real work in them, all written before
+  // savedAt existed. They listed as 尚未上傳 and syncPending pushed none of
+  // them, because "no local stamp never wins" was answering before "the server
+  // does not have it".
+  storage.setItem('interior_projects', JSON.stringify({ p1: plan('p1', '只在本機') }));
+  const { pushed } = await syncPending();
+  assert.equal(pushed, 1);
+  assert.equal(server.plans.get('p1')?.data.name, '只在本機');
+});
+
+test('what syncPending pushes has been migrated first', async () => {
+  // The mirror keeps whatever shape was current when it was written. Pushing
+  // that raw put seven plans on this machine's server with no schemaVersion,
+  // and the report endpoint answered 422 for every one of them.
+  const legacy: any = { id: 'p1', name: '舊鏡像', layers: [],
+                        objects: [{ id: 'w1', kind: 'wall', layer: 'walls',
+                                    a: { x: 0, y: 0 }, b: { x: 400, y: 0 }, thickness: 12 }] };
+  storage.setItem('interior_projects', JSON.stringify({ p1: legacy }));
+
+  assert.equal((await syncPending()).pushed, 1);
+  const sent: any = server.plans.get('p1')?.data;
+  assert.equal(sent.schemaVersion, SCHEMA_VERSION);
+  assert.equal(sent.objects, undefined, 'the pre-floors list must not survive the trip');
+  assert.equal(sent.floors[0].objects.length, 1, 'and its contents must');
+});
+
+test('an untimestamped entry still loses to a copy the server does have', async () => {
+  // The reordering must not weaken the original rule.
+  storage.setItem('interior_projects', JSON.stringify({ p1: plan('p1', '舊鏡像') }));
+  server.plans.set('p1', { name: '伺服器', data: plan('p1', '伺服器'),
+                           at: '2026-08-07T00:00:01.000Z' });
+  assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0 });
+  assert.equal((await loadProject('p1'))?.name, '伺服器');
 });
