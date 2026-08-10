@@ -103,6 +103,22 @@ db.py main.py
 - API 的 `updatedAt` 是資料庫給的時區、**沒有標記**（這台機器差 UTC 八小時），只能顯示不能比較。要比較用 `updatedAtIso`。
 - 已知限制：依賴兩端的 wall clock。單人單機成立。
 
+## 重構 3D 之後怎麼證明沒改壞
+
+單元測試釘得住 `wallGeometry` 的分段座標，但釘不住「畫出來一不一樣」。做法是把
+同一份平面圖在改動前後各截一張圖，用像素比：
+
+```bash
+git stash / git checkout <檔案>    # 切回舊版，重載頁面，截圖
+# 還原新版，重載，再截一張
+.venv/bin/python -c "
+import cv2; a=cv2.imread('after.jpg'); b=cv2.imread('before.jpg')
+d=cv2.absdiff(a,b); print(d.mean(), (d.max(axis=2)>8).mean()*100)"
+```
+
+拆 `wallGeometry` 那次量到平均絕對差 0.005／差異 >8 的像素 0.003%——那是 JPEG 雜訊的
+量級。WebGL 截圖**不可能逐位元組相同**，所以別用雜湊比。
+
 ## 這些坑踩過了，別重犯
 
 ### 量效能之前先讓機器安靜下來
@@ -194,7 +210,9 @@ LibreDWG 0.13.3 實測：R2010/R2018 完全讀不了（READ ERROR 0x100），R20
 
 ## 待辦與已知限制
 
-- `view3d.ts`（834 行）仍偏大且零測試覆蓋。`ui.ts` 已拆到 363 行
+- `view3d.ts` 已從 834 拆到 720。牆體開口的分段抽成 `core/wallGeometry.ts`（純函式、
+  18 個測試），門窗模型抽成 `core/openings3d.ts`。剩下的是場景、相機、渲染迴圈——
+  那些沒有可以單獨測的東西，要驗只能實際看
 - `renderer.ts` 與 ui 層仍無測試
 - 底圖牆體辨識：文字會殘留短碎片、虛線牆會斷成多段。**這兩者互相衝突**（修一個會惡化另一個），程式與測試中都已註明
 - 電氣迴路連線是市場缺口，但使用者明確表示**不做估價，也暫不做迴路**
