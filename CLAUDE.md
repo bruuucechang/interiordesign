@@ -42,7 +42,8 @@ npm run migrate      # SQLite → PostgreSQL 遷移
 
 **前端 `client/src/`**
 ```
-core/   geometry hit snap viewport handles renderer view3d plot panorama
+core/   geometry units hit snap viewport handles arrange transform
+        renderer view3d wallGeometry openings3d plot panorama
         exporter furniture3d textures3d resolution editor
 model/  schema catalogue migrate ids doc
 tools/  draw place select
@@ -50,6 +51,10 @@ ui/     ui.ts modals properties autosave feedback rooms-sync
 net/    api.ts store.ts
 data/   furniture electrical
 ```
+
+`core/` 裡的純函式模組（`geometry` `units` `arrange` `transform` `wallGeometry`
+`openings3d` `snap`）**不碰 DOM、Canvas、document 或 doc**，所以能直接測。改到它們
+就把測試一起改，不要為了省事把狀態塞回去。
 
 **後端 `server/app/`**
 ```
@@ -210,9 +215,15 @@ LibreDWG 0.13.3 實測：R2010/R2018 完全讀不了（READ ERROR 0x100），R20
 
 ## 待辦與已知限制
 
-- `view3d.ts` 已從 834 拆到 720。牆體開口的分段抽成 `core/wallGeometry.ts`（純函式、
-  18 個測試），門窗模型抽成 `core/openings3d.ts`。剩下的是場景、相機、渲染迴圈——
-  那些沒有可以單獨測的東西，要驗只能實際看
-- `renderer.ts` 與 ui 層仍無測試
+- 進行中的模式：**把「錯了不會有錯誤訊息」的運算從有狀態的類別裡抽成純函式再測**。
+  已抽出 `core/wallGeometry.ts`（牆體開口分段）、`core/openings3d.ts`（門窗模型）、
+  `core/arrange.ts`（複製／對齊／均分）、`core/transform.ts`（拖曳把手的幾何）、
+  `core/units.ts`（公分／公尺換算）。判準是失敗長什麼樣：**照樣跑完、看起來合理、
+  沒有例外、結果是錯的**——對齊往反方向靠、複製出來的群組拖到原件、面積差 100 倍。
+  純粹「行數多」不是理由
+- `view3d.ts` 834 → 720、`editor.ts` 312 → 265、`select.ts` 221 → 195
+- 仍無測試：`renderer.ts`、`furniture3d.ts`、`view3d.ts` 剩下的部分、ui 層。
+  前三者剩下的是場景、相機、渲染迴圈與貼圖，沒有可以單獨測的東西，要驗只能實際看
+- 目前 client 212 個測試、server 108 個
 - 底圖牆體辨識：文字會殘留短碎片、虛線牆會斷成多段。**這兩者互相衝突**（修一個會惡化另一個），程式與測試中都已註明
 - 電氣迴路連線是市場缺口，但使用者明確表示**不做估價，也暫不做迴路**
