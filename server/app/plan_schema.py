@@ -56,6 +56,7 @@ class Wall(BaseModel):
     b: Vec
     bulge: float | None = None
     color: str | None = None
+    finish: str | None = None
     group: str | None = None
     height: float | None = None
     id: str

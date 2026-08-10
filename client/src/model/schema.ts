@@ -32,15 +32,22 @@ export type ObjKind = 'wall' | 'beam' | 'room' | 'door' | 'window' | 'furniture'
 interface Base { id: string; layer: LayerId; group?: string; }
 
 // `bulge` (cm) curves the wall into an arc — signed apex offset from the chord; 0/undefined = straight.
-// `height` (cm) is the 3D wall height (defaults to WALL_H). `color` is the wall finish (hex).
-export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; color?: string; }
+// `height` (cm) is the 3D wall height (defaults to WALL_H).
+// `finish` names a material from core/materials.ts (paint, brick, walltile…).
+// `color` is a plain hex fill and *wins over* `finish` — it is the older field
+// and plans in the wild carry it; a wall that has both was painted a colour on
+// purpose, and silently switching it to a texture would repaint the plan.
+export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; color?: string; finish?: string; }
 // A beam: `width` across, `height` tall, its underside `elevation` cm off the floor.
 export interface Beam extends Base { kind: 'beam'; a: Vec; b: Vec; width: number; height: number; elevation: number; }
 // x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
 // makes the room an arbitrary polygon auto-closed from surrounding walls.
 // `auto` marks rooms created by wall-loop detection (they track the walls until
 // the user renames/moves them, which detaches them into normal rooms).
-// `floor` picks the floor finish: 'wood' | 'tile' | a hex color (default wood).
+// `floor` picks the floor finish: a material id from core/materials.ts
+// ('wood' | 'walnut' | 'tile' | 'marble' | …) or a hex colour. Unknown ids fall
+// back to the first floor material, so an old plan naming a removed one still
+// renders — as the wrong floor, but never as nothing.
 export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; auto?: boolean; floor?: string; }
 // `height` (cm) = opening height; `elevation` (cm) = sill height above the floor.
 // `bulge` (cm) curves the opening to follow a curved wall (windows).

@@ -237,10 +237,12 @@ while (Date.now() < deadline) {
     errors: errors.splice(0, errors.length),
   };
   await appendFile(out, JSON.stringify(row) + '\n');
-  const r2 = row.perf.render2d, r3 = row.perf.render3d;
+  const r2 = row.perf.render2d, r3 = row.perf.render3d, b3 = row.perf.build3d;
   console.log(
-    `#${row.cycle} ${row.elapsedMin}min  2D ${r2.count}幀 p50 ${r2.p50.toFixed(2)}ms p95 ${r2.p95.toFixed(2)}  ` +
-    `3D ${r3.count}幀 p50 ${r3.p50.toFixed(2)}ms  heap ${row.heap ? (row.heap / 1048576).toFixed(0) + 'MB' : '—'}` +
+    `#${row.cycle} ${row.elapsedMin}min  2D ${r2.count}幀 p50 ${r2.p50.toFixed(2)} p95 ${r2.p95.toFixed(2)}ms  ` +
+    `3D ${r3.count}幀 p50 ${r3.p50.toFixed(2)}ms  ` +
+    `build ${b3.count}次 p50 ${b3.p50.toFixed(1)} max ${b3.max.toFixed(1)}ms  ` +
+    `heap ${row.heap ? (row.heap / 1048576).toFixed(0) + 'MB' : '—'}` +
     (row.errors.length ? `  ⚠︎ ${row.errors.length} 個錯誤` : ''),
   );
 }

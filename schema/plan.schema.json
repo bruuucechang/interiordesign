@@ -516,6 +516,9 @@
         "color": {
           "type": "string"
         },
+        "finish": {
+          "type": "string"
+        },
         "group": {
           "type": "string"
         },

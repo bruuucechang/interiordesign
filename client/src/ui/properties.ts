@@ -6,6 +6,7 @@ import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea } fr
 import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
+import { MaterialDef, floorMaterials, wallMaterials } from '../core/materials';
 import { Unit, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
 
 // The properties panel: everything shown for the current selection, plus the
@@ -140,12 +141,28 @@ export function refreshProps(editor: Editor, doc: Doc) {
     wrap.appendChild(reset);
     row.append(l, wrap); parent.appendChild(row);
   };
-  const floorRow = (parent: HTMLElement, current: string, set: (v: string) => void) => {
-    const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = '地板';
-    const wrap = document.createElement('div'); wrap.className = 'mat-btns';
-    const mk = (val: string, label: string) => { const b = document.createElement('button'); b.className = 'mat-btn' + (current === val ? ' active' : ''); b.textContent = label; b.onclick = () => { doc.commit(); set(val); }; wrap.appendChild(b); };
-    mk('wood', '木地板'); mk('tile', '磁磚');
+  /**
+   * The material picker: one swatch per material in the category.
+   *
+   * The swatch is the material's own representative colour rather than a
+   * rendered thumbnail — a thumbnail would mean building the 512² texture for
+   * every material just to open the panel, and the panel opens on every
+   * selection change.
+   */
+  const matRow = (parent: HTMLElement, label: string, defs: MaterialDef[], current: string, set: (v: string) => void) => {
+    const row = document.createElement('div'); row.className = 'prop prop-mat';
+    const l = document.createElement('label'); l.textContent = label;
+    const wrap = document.createElement('div'); wrap.className = 'mat-grid';
+    for (const d of defs) {
+      const b = document.createElement('button');
+      b.className = 'mat-swatch' + (current === d.id ? ' active' : '');
+      b.title = d.label;
+      b.style.background = d.swatch;
+      const cap = document.createElement('span'); cap.textContent = d.label;
+      b.appendChild(cap);
+      b.onclick = () => { doc.commit(); set(d.id); };
+      wrap.appendChild(b);
+    }
     row.append(l, wrap); parent.appendChild(row);
   };
 
@@ -285,9 +302,16 @@ export function refreshProps(editor: Editor, doc: Doc) {
 
   // material / finish
   const material = section('材質');
-  if (o.kind === 'wall') colorRow(material.body, '顏色', o.color ?? '#eceff4', v => up({ color: v } as any));
+  if (o.kind === 'wall') {
+    // Picking a finish clears `color`, because colour wins in the renderer —
+    // leaving it set would mean choosing 文化石 and seeing nothing change.
+    matRow(material.body, '牆面', wallMaterials(), o.color ? '' : (o.finish ?? 'paint'),
+           v => up({ finish: v, color: undefined } as any));
+    colorRow(material.body, '自訂色', o.color ?? '#eceff4', v => up({ color: v } as any));
+  }
   if (o.kind === 'room') {
-    floorRow(material.body, o.floor && !o.floor.startsWith('#') ? o.floor : 'wood', v => up({ floor: v, auto: false } as any));
+    matRow(material.body, '地板', floorMaterials(), o.floor && !o.floor.startsWith('#') ? o.floor : 'wood',
+           v => up({ floor: v, auto: false } as any));
     colorRow(material.body, '自訂色', o.floor && o.floor.startsWith('#') ? o.floor : '#b0895e', v => up({ floor: v, auto: false } as any));
   }
   if (o.kind === 'furniture') {
