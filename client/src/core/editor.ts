@@ -4,6 +4,7 @@ import { Renderer } from './renderer';
 import { snapPoint, rotate } from './geometry';
 import { bounds } from './hit';
 import { cloneWithOffset, alignMoves, distributeMoves, Move, Edge, Axis } from './arrange';
+import { Reference, alignWalls, splitWallAt, Wall } from './wallEdit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, RoomTool, DimensionTool } from '../tools/draw';
@@ -20,12 +21,21 @@ export class Editor implements ToolCtx {
   currentElectrical = 'socket';
   currentFurniture = 'sofa';
   snapEnabled = true;
+  /**
+   * Which line of a wall the numbers refer to while drawing.
+   *
+   * Site measurements are taken against a face, not a centreline, so this is
+   * what makes a traced plan the right size. Kept on the editor rather than in
+   * the tool because it survives switching tools — you measure a whole flat
+   * against the inside faces, not one wall at a time.
+   */
+  wallRef: Reference = 'center';
   gridSize = 10; // cm
   inputEnabled = true; // false while the 2D view is just the corner preview
 
   // exportPano returns the message to show the user — it can decline (camera
   // outside the plan) as well as succeed, and both need explaining.
-  hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => string } = {};
+  hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => string; wallRef?: (r: Reference) => void } = {};
 
   private previewW?: DrawFn;
   private previewS?: DrawFn;
@@ -260,6 +270,14 @@ export class Editor implements ToolCtx {
   }
 
   setSnap(on: boolean) { this.snapEnabled = on; }
+
+  /** Cycle 中心 → 左緣 → 右緣. `hooks.wallRef` lets the topbar follow along. */
+  cycleWallRef() {
+    const order: Reference[] = ['center', 'left', 'right'];
+    this.wallRef = order[(order.indexOf(this.wallRef) + 1) % order.length];
+    this.hooks.wallRef?.(this.wallRef);
+  }
+  setWallRef(r: Reference) { this.wallRef = r; this.hooks.wallRef?.(r); }
   resetView() { this.vp.scale = 0.4; this.vp.centerOn(0, 0, 800, 600); this.hooks.zoom?.(100); this.render(); }
 
   // Zoom in/out about the canvas centre — used by the topbar − / + buttons.
@@ -292,5 +310,33 @@ export class Editor implements ToolCtx {
     for (const m of moves) this.doc.update(m.id, m.obj);
   }
   align(edge: Edge) { this.apply(alignMoves(this.doc.selectedObjects, edge)); }
+
+  /**
+   * Bring the selected walls' faces onto one line. Returns what it refused to
+   * touch so the panel can say so — walls that were silently left out would
+   * look aligned everywhere the eye happens to land.
+   */
+  alignWallFaces(ref: Reference): { moved: number; skipped: number } {
+    const walls = this.doc.selectedObjects.filter(o => o.kind === 'wall') as Wall[];
+    const r = alignWalls(walls, ref);
+    if (r.moves.length) {
+      this.doc.commit();
+      for (const m of r.moves) this.doc.update(m.id, { a: m.a, b: m.b } as any);
+    }
+    return { moved: r.moves.length, skipped: r.skipped.length };
+  }
+
+  /** Cut the selected wall `atCm` from its a end. False when it declined. */
+  splitSelectedWall(atCm: number): boolean {
+    const w = this.doc.selected;
+    if (!w || w.kind !== 'wall') return false;
+    const out = splitWallAt(w as Wall, atCm);
+    if (!out) return false;
+    this.doc.commit();
+    const [first, second] = out;
+    this.doc.update(w.id, { a: first.a, b: first.b } as any);
+    this.doc.add({ ...second, id: genId('wall') });
+    return true;
+  }
   distribute(axis: Axis) { this.apply(distributeMoves(this.doc.selectedObjects, axis)); }
 }

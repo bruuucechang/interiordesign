@@ -1,3 +1,4 @@
+import { Reference } from '../core/wallEdit';
 import { Doc } from '../model/doc';
 import { Viewport } from '../core/viewport';
 import { Vec } from '../model/schema';
@@ -16,6 +17,8 @@ export interface ToolCtx {
   doc: Doc;
   vp: Viewport;
   snapEnabled: boolean;
+  wallRef: Reference;
+  cycleWallRef(): void;
   gridSize: number;
   currentFurniture: string;
   currentElectrical: string;
