@@ -321,6 +321,9 @@
           "$ref": "#/definitions/Beam"
         },
         {
+          "$ref": "#/definitions/Partition"
+        },
+        {
           "$ref": "#/definitions/Room"
         },
         {
@@ -391,6 +394,37 @@
         "width",
         "x",
         "y"
+      ],
+      "type": "object"
+    },
+    "Partition": {
+      "properties": {
+        "a": {
+          "$ref": "#/definitions/Vec"
+        },
+        "b": {
+          "$ref": "#/definitions/Vec"
+        },
+        "group": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "partition",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "id",
+        "kind",
+        "layer"
       ],
       "type": "object"
     },

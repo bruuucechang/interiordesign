@@ -72,6 +72,7 @@ export function layerForKind(kind: ObjKind): LayerId {
   if (kind === 'image') return 'underlay';
   if (kind === 'wall') return 'walls';
   if (kind === 'beam') return 'beams';
+  if (kind === 'partition') return 'rooms';   // it exists to make rooms, so it hides with them
   if (kind === 'room') return 'rooms';
   if (kind === 'door' || kind === 'window') return 'openings';
   if (kind === 'furniture') return 'furniture';

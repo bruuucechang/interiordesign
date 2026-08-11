@@ -22,9 +22,21 @@ let reconcileTimer: number | undefined;
 let reconciling = false;
 let lastWallSig = '';
 
+/**
+ * Everything that closes a region: walls, and partition lines.
+ *
+ * The detector works on a planar graph of segments and does not care whether
+ * a segment is built or drawn — which is exactly what makes a partition line
+ * work. Leave them out and drawing one does nothing at all: no new room, no
+ * error, just a dashed line that the area take-off ignores.
+ */
+function dividers(doc: Doc): WallObj[] {
+  return doc.objects.filter(o => o.kind === 'wall' || o.kind === 'partition') as WallObj[];
+}
+
 function wallSig(doc: Doc): string {
-  return (doc.objects.filter(o => o.kind === 'wall') as WallObj[])
-    .map(w => `${w.a.x},${w.a.y},${w.b.x},${w.b.y}`).join(';');
+  return dividers(doc)
+    .map(w => `${w.kind[0]}${w.a.x},${w.a.y},${w.b.x},${w.b.y}`).join(';');
 }
 
 /** Debounced: whenever the walls change, re-derive the auto rooms. */
@@ -54,8 +66,7 @@ export function scheduleReconcile(doc: Doc) {
  * Manual rooms — drawn, renamed, or moved — are left untouched.
  */
 async function reconcileAutoRooms(doc: Doc) {
-  const walls = doc.objects.filter(o => o.kind === 'wall') as WallObj[];
-  const detected = await detectRooms(walls);
+  const detected = await detectRooms(dividers(doc));
   // A null result means the backend is unreachable, which is not the same as
   // "no rooms". Reconciling against an empty list would delete every auto room
   // the moment the connection drops, so leave them exactly as they are.

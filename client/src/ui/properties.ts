@@ -229,6 +229,25 @@ export function refreshProps(editor: Editor, doc: Doc) {
       }
       break;
     }
+    case 'partition': {
+      // Length and ends, and a note about what it is not. A dashed line that
+      // divides the area take-off but builds nothing is a distinction worth
+      // stating where the person is looking at it.
+      const note = document.createElement('div'); note.className = 'muted'; note.style.fontSize = '12px';
+      note.textContent = '只在平面上分割區域：計入面積報表，3D 不出現，不計價';
+      basics.appendChild(note);
+      dim(size.body, '長度', dist(o.a, o.b), v => {
+        const L = Math.max(1, v), cur = dist(o.a, o.b);
+        const ux = cur > 1e-6 ? (o.b.x - o.a.x) / cur : 1;
+        const uy = cur > 1e-6 ? (o.b.y - o.a.y) / cur : 0;
+        up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
+      }, 1);
+      dim(pos.body, 'A · X', o.a.x, v => up({ a: { x: v, y: o.a.y } } as any));
+      dim(pos.body, 'A · Y', o.a.y, v => up({ a: { x: o.a.x, y: v } } as any));
+      dim(pos.body, 'B · X', o.b.x, v => up({ b: { x: v, y: o.b.y } } as any));
+      dim(pos.body, 'B · Y', o.b.y, v => up({ b: { x: o.b.x, y: v } } as any));
+      break;
+    }
     case 'wall':
       dim(size.body, '長度', dist(o.a, o.b), v => {   // resize by moving the far end along the wall
         const L = Math.max(1, v), cur = dist(o.a, o.b);
@@ -379,7 +398,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
 }
 
 function kindLabel(k: string) {
-  return ({ wall: '牆', beam: '樑', room: '房間', door: '門', window: '窗', furniture: '家具',
+  return ({ wall: '牆', beam: '樑', partition: '隔間線', room: '房間', door: '門', window: '窗', furniture: '家具',
             dimension: '尺寸標註', image: '底圖', electrical: '水電配件' } as Record<string, string>)[k] ?? k;
 }
 
