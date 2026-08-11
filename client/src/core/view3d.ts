@@ -29,9 +29,31 @@ const LIGHTING: Record<TimeKey, { sun: number; intensity: number; hemi: number; 
 };
 
 // plan coords (x, y) map to 3D (X = x, Z = y, Y = up)
-/** Frames per second for the 3D view while it is only the sidebar preview. */
-const PREVIEW_FPS = 12;
-const PREVIEW_FRAME_MS = 1000 / PREVIEW_FPS;
+/**
+ * How much of a frame the 3D view is worth, by situation.
+ *
+ * `full` is the view the user is driving. `shared` is the other half of a split
+ * — a real, full-size view that is not being touched right now, so it still
+ * needs to be correct and still needs ambient occlusion (dropping AO would make
+ * the image visibly change every time the pointer crossed the divider), just
+ * not sixty times a second while the 2D canvas is the thing being dragged.
+ *
+ * Both compete for one main thread with the 2D renderer. That competition is
+ * what "卡頓" was.
+ */
+export type Budget = 'full' | 'shared';
+
+/**
+ * How far onto the camera's side a run of wall has to be before it is cut away,
+ * as a fraction of the plan's half size on that axis.
+ *
+ * 0 cuts everything past the middle, including partitions that were not in the
+ * way. Near 1 only the outermost wall goes and the second row of rooms stays
+ * shut. 0.3 opens the front rooms and keeps the back of the building standing.
+ */
+const NEAR_WALL_CUT = 0.3;
+const SHARED_FPS = 20;
+const SHARED_FRAME_MS = 1000 / SHARED_FPS;
 
 export class View3D {
   private renderer: THREE.WebGLRenderer;
@@ -434,8 +456,28 @@ export class View3D {
       const openings = floor.objects.filter(o => o.kind === 'door' || o.kind === 'window') as Extract<Obj, { kind: 'door' | 'window' }>[];
       for (const o of floor.objects) {
         if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
+        // Everything a wall-like object adds gets stamped with where it stands,
+        // so the doll's-house cull below can find the near side without having
+        // to work out what each mesh was for.
+        const from = this.staticGroup.children.length;
         if (o.kind === 'wall') this.buildWall(o, openings, floor.elevation);
         else this.buildObject(o, floor.elevation);
+        if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'door' || o.kind === 'window') {
+          // Which way the run of wall faces decides which direction it blocks:
+          // one running east–west stands between the camera and the rooms when
+          // the camera is north or south of it, and never when it is east.
+          const c = 'a' in o
+            ? { x: (o.a.x + o.b.x) / 2, z: (o.a.y + o.b.y) / 2 }
+            : { x: o.x, z: o.y };
+          const alongX = 'a' in o
+            ? Math.abs(o.b.x - o.a.x) >= Math.abs(o.b.y - o.a.y)
+            : Math.abs(Math.cos(o.angle * Math.PI / 180)) >= Math.abs(Math.sin(o.angle * Math.PI / 180));
+          const blocks: 'x' | 'z' = alongX ? 'z' : 'x';
+          for (let i = from; i < this.staticGroup.children.length; i++) {
+            this.staticGroup.children[i].userData.occludeAt = c;
+            this.staticGroup.children[i].userData.occludeBlocks = blocks;
+          }
+        }
         this.growObject(o, grow);
       }
     }
@@ -552,17 +594,65 @@ export class View3D {
    * Show the ceilings only when the camera is under them and inside the plan —
    * i.e. when the view is one a person standing in the room would have.
    */
-  private updateCeilingVisibility() {
-    const g = this.ceilingGroup;
-    if (!g.children.length) return;
+/**
+   * Hide the walls between the camera and the plan — the doll's-house view.
+   *
+   * Looking at a plan from outside, the near walls are opaque and the room
+   * behind them is simply not there: the floor finish, the furniture, the whole
+   * design. The first multi-room screenshot of the 3D pane looked like an empty
+   * grey box with a sliver of wood at the bottom, and everything in it was
+   * present and correct — just behind a wall.
+   *
+   * The test is which side of the plan's centre a wall sits on, projected onto
+   * the direction the camera is looking from. Normalised by the plan's half
+   * size so the threshold means the same thing on a studio and on a whole
+   * floor. Openings are stamped with the same position as their wall, so a
+   * hidden wall takes its windows with it rather than leaving frames floating.
+   *
+   * Only when the camera is outside: from inside a room the near wall is behind
+   * the camera anyway, and hiding walls then would open the room to the sky.
+   */
+  private updateWallVisibility(box: THREE.Box3, inside: boolean) {
     const cam = this.camera.position;
-    const box = new THREE.Box3().setFromObject(this.staticGroup);
+    const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+    // Per axis, not projected onto one camera direction: a single cutting plane
+    // works when the camera faces a side square-on and fails on the diagonal —
+    // it opens the corner nearest the camera and leaves the other two rooms
+    // shut. Each run of wall is tested against the axis it actually blocks.
+    const sx = Math.sign(cam.x - cx) || 1, sz = Math.sign(cam.z - cz) || 1;
+    const halfX = (box.max.x - box.min.x) / 2 || 1;
+    const halfZ = (box.max.z - box.min.z) / 2 || 1;
+
+    for (const m of this.staticGroup.children) {
+      const at = m.userData.occludeAt as { x: number; z: number } | undefined;
+      if (!at) continue;                       // floors and ground always stay
+      const near = m.userData.occludeBlocks === 'z'
+        ? (at.z - cz) * sz > halfZ * NEAR_WALL_CUT
+        : (at.x - cx) * sx > halfX * NEAR_WALL_CUT;
+      m.visible = inside || !near;
+    }
+  }
+
+  private updateCeilingVisibility() {
+    const cam = this.camera.position;
+    // One bounding box for both decisions — it was being rebuilt from the whole
+    // static group every frame for the ceiling alone.
+    const box = this.planBox.makeEmpty();
+    for (const m of this.staticGroup.children) if (m.userData.occludeAt) box.expandByObject(m);
+    if (box.isEmpty()) box.setFromObject(this.staticGroup);
     const inside = cam.x >= box.min.x && cam.x <= box.max.x
                 && cam.z >= box.min.z && cam.z <= box.max.z;
+
+    this.updateWallVisibility(box, inside);
+
+    const g = this.ceilingGroup;
+    if (!g.children.length) return;
     let lowest = Infinity;
     for (const c of g.children) lowest = Math.min(lowest, c.position.y);
     g.visible = inside && cam.y < lowest;
   }
+
+  private planBox = new THREE.Box3();
 
   private buildObject(o: Obj, yBase = 0) {
     switch (o.kind) {
@@ -735,7 +825,7 @@ export class View3D {
    * just be permanently soft.
    */
   private adaptResolution(now: number) {
-    if (!this.primary) return;
+    if (this.budget !== 'full') return;
     if (this.lastFrameAt) this.frameTimes.push(now - this.lastFrameAt);
     this.lastFrameAt = now;
     if (this.frameTimes.length < View3D.SAMPLE) return;
@@ -759,15 +849,12 @@ export class View3D {
    * main thread as the 2D canvas the user is actually dragging on. Two things
    * competing for one thread is exactly what "卡頓" is.
    *
-   * As the preview it therefore draws at PREVIEW_FPS and skips post-processing.
-   * At thumbnail size the AO it skips is a pixel or two of contact shadow;
-   * what it gives back is the frame.
    */
-  private primary = true;
+  private budget: Budget = 'full';
   private lastDraw = 0;
-  setPrimary(on: boolean) {
-    if (this.primary === on) return;
-    this.primary = on;
+  setBudget(b: Budget) {
+    if (this.budget === b) return;
+    this.budget = b;
     this.lastDraw = 0;         // draw the next frame, do not wait out the interval
     // Throw away the timing either side of the switch: the gap that spans it
     // measures the mode change, not the machine.
@@ -780,7 +867,7 @@ export class View3D {
     this.raf = requestAnimationFrame(this.loop);
 
     const now = performance.now();
-    if (!this.primary && now - this.lastDraw < PREVIEW_FRAME_MS) return;
+    if (this.budget === 'shared' && now - this.lastDraw < SHARED_FRAME_MS) return;
     this.lastDraw = now;
 
     const t0 = mark();
@@ -788,8 +875,7 @@ export class View3D {
     if (this.fly) this.applyFly(dt);
     this.controls.update();
     this.updateCeilingVisibility();
-    if (this.primary) this.composer.render();
-    else this.renderer.render(this.scene, this.camera);   // no AO pass for a thumbnail
+    this.composer.render();
     this.adaptResolution(now);
     done('render3d', t0);
   };

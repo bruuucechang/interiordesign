@@ -26,7 +26,11 @@
         <div id="exportMenu" class="menu"><button id="exportToggle" title="匯出檔案">⭳ 匯出 ▾</button></div>
         <button data-act="shortcuts" title="鍵盤快捷鍵">⌨</button>
         <span class="sep"></span>
-        <button id="btnToggle">🧊 切換 3D 檢視</button>
+        <div class="view-modes" id="viewModes">
+          <button data-mode="2d" title="只看平面圖">📐 2D</button>
+          <button data-mode="split" title="平面圖與 3D 並排">▥ 分割</button>
+          <button data-mode="3d" title="只看 3D">🧊 3D</button>
+        </div>
         <select id="timeOfDay" class="time-select" title="光線時段">
           <option value="morning">🌅 早晨</option>
           <option value="noon" selected>☀️ 正午</option>
@@ -50,12 +54,13 @@
 
         <!-- center canvas -->
         <main id="stage">
-          <div id="pane2d" class="pane full">
+          <div id="pane2d" class="pane">
             <canvas id="canvas"></canvas>
-            <div class="pane-tag">2D</div>
+            <div class="pane-tag">2D 平面</div>
             <div id="hint" class="hint"></div>
           </div>
-          <div id="view3d" class="pane view3d pip">
+          <div id="splitter" title="拖曳調整比例，雙擊回到對半"></div>
+          <div id="view3d" class="pane view3d">
             <div class="pane-tag">3D</div>
             <div id="hint3d" class="hint">WASD 移動 · Shift/Space 升降 · Q/E 旋轉物件 · 拖曳旋轉視角 · 滾輪縮放</div>
           </div>
@@ -63,7 +68,6 @@
 
         <!-- right: layers + properties -->
         <aside id="right">
-          <div id="pipSlot"></div>
           <div class="panel-title">樓層</div>
           <div id="floors"></div>
           <div class="panel-title collapsible collapsed" data-collapse="layers">圖層</div>

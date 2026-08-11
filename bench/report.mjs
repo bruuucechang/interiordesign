@@ -24,18 +24,32 @@ for (const r of rows) {
   );
 }
 
-const first = rows[0], last = rows.at(-1);
-const drift = (a, b, label, unit = 'ms') => {
-  if (!a || !b) return;
+// Compare windows, not endpoints.
+//
+// The first version compared the first row with the last and called a 52% jump
+// in heap a leak. It was not: heap sawtooths between collections, so two
+// arbitrary points on the wave say whatever the sampling happened to catch.
+// What a leak actually looks like is the *floor* rising — the level memory
+// returns to after a collection — so that is what gets compared, over the first
+// and last quarter of the run. Frame times use the median of each window for
+// the same reason.
+const q = Math.max(1, Math.floor(rows.length / 4));
+const head = rows.slice(0, q), tail = rows.slice(-q);
+const med = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[s.length >> 1]; };
+const drift = (pick, label, unit = 'ms', agg = med) => {
+  const a = agg(head.map(pick).filter((v) => v != null));
+  const b = agg(tail.map(pick).filter((v) => v != null));
+  if (a == null || b == null || !a) return;
   const pct = ((b - a) / a * 100);
   const bad = Math.abs(pct) > 25;
   console.log(`  ${bad ? '⚠︎' : '·'} ${label}: ${a.toFixed(2)}${unit} → ${b.toFixed(2)}${unit}  (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%)`);
 };
-console.log('\n第一個週期 → 最後一個週期');
-drift(first.perf.render2d.p50, last.perf.render2d.p50, '2D 每幀');
-drift(first.perf.render3d.p50, last.perf.render3d.p50, '3D 每幀');
-drift(first.perf.build3d.p50, last.perf.build3d.p50, '3D 重建');
-drift(first.heap / 1048576, last.heap / 1048576, 'JS heap', 'MB');
-drift(first.nodes, last.nodes, 'DOM 節點', ' 個');
+const lo = (xs) => Math.min(...xs);
+console.log(`\n前 ${q} 個週期 → 後 ${q} 個週期`);
+drift(r => r.perf.render2d.p50, '2D 每幀（中位數）');
+drift(r => r.perf.render3d.p50, '3D 每幀（中位數）');
+drift(r => r.perf.build3d.p50, '3D 重建（中位數）');
+drift(r => r.heap / 1048576, 'JS heap 回收後底線', 'MB', lo);
+drift(r => r.nodes, 'DOM 節點', ' 個', lo);
 const errs = rows.flatMap(r => r.errors);
 console.log(errs.length ? `\n⚠︎ 共 ${errs.length} 個錯誤：\n` + [...new Set(errs)].slice(0, 8).map(e => '  ' + e).join('\n') : '\n· 全程零錯誤');
