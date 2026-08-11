@@ -36,13 +36,17 @@ for (const r of rows) {
 const q = Math.max(1, Math.floor(rows.length / 4));
 const head = rows.slice(0, q), tail = rows.slice(-q);
 const med = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[s.length >> 1]; };
+// Only growth is a warning. The first version flagged any change over 25% in
+// either direction, so a run that got 43% *faster* came back with a ⚠︎ next to
+// it — and a report that warns about good news teaches you to skip the
+// warnings, which is the one thing it must not do.
 const drift = (pick, label, unit = 'ms', agg = med) => {
   const a = agg(head.map(pick).filter((v) => v != null));
   const b = agg(tail.map(pick).filter((v) => v != null));
   if (a == null || b == null || !a) return;
   const pct = ((b - a) / a * 100);
-  const bad = Math.abs(pct) > 25;
-  console.log(`  ${bad ? '⚠︎' : '·'} ${label}: ${a.toFixed(2)}${unit} → ${b.toFixed(2)}${unit}  (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%)`);
+  const mark = pct > 25 ? '⚠︎' : pct < -25 ? '↓' : '·';
+  console.log(`  ${mark} ${label}: ${a.toFixed(2)}${unit} → ${b.toFixed(2)}${unit}  (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%)`);
 };
 const lo = (xs) => Math.min(...xs);
 console.log(`\n前 ${q} 個週期 → 後 ${q} 個週期`);
@@ -52,4 +56,12 @@ drift(r => r.perf.build3d.p50, '3D 重建（中位數）');
 drift(r => r.heap / 1048576, 'JS heap 回收後底線', 'MB', lo);
 drift(r => r.nodes, 'DOM 節點', ' 個', lo);
 const errs = rows.flatMap(r => r.errors);
+// One-off spikes are worth naming: a 500 ms build that happens once is a cold
+// start, and one that happens every twentieth cycle is something else.
+const spikes = rows.filter((r) => r.perf.build3d.max > 60).length;
+if (spikes) {
+  const worst = Math.max(...rows.map((r) => r.perf.build3d.max));
+  console.log(`\n· 3D 重建尖峰 >60ms: ${spikes}/${rows.length} 個週期，最大 ${worst.toFixed(0)}ms`);
+}
+
 console.log(errs.length ? `\n⚠︎ 共 ${errs.length} 個錯誤：\n` + [...new Set(errs)].slice(0, 8).map(e => '  ' + e).join('\n') : '\n· 全程零錯誤');

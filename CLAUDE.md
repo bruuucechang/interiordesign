@@ -42,9 +42,9 @@ npm run migrate      # SQLite → PostgreSQL 遷移
 
 **前端 `client/src/`**
 ```
-core/   geometry units hit snap viewport handles arrange transform
-        renderer view3d wallGeometry openings3d plot panorama
-        exporter furniture3d textures3d resolution editor
+core/   geometry units hit snap viewport handles arrange transform wallEdit
+        renderer view3d wallGeometry openings3d plot panorama perf
+        exporter furniture3d materials textures3d resolution editor
 model/  schema catalogue migrate ids doc
 tools/  draw place select
 ui/     ui.ts modals properties autosave feedback rooms-sync
@@ -52,9 +52,13 @@ net/    api.ts store.ts
 data/   furniture electrical
 ```
 
-`core/` 裡的純函式模組（`geometry` `units` `arrange` `transform` `wallGeometry`
-`openings3d` `snap`）**不碰 DOM、Canvas、document 或 doc**，所以能直接測。改到它們
-就把測試一起改，不要為了省事把狀態塞回去。
+`core/` 裡的純函式模組（`geometry` `units` `arrange` `transform` `wallEdit`
+`wallGeometry` `openings3d` `snap`）**不碰 DOM、Canvas、document 或 doc**，所以能
+直接測。改到它們就把測試一起改，不要為了省事把狀態塞回去。
+
+`materials.ts` 是半純的：材質定義會畫進 canvas context，但**種子亂數、法線編碼、
+人字拼的鋪法、平鋪次數都是純的**，那幾支是會安靜出錯的部分。three.js 綁定在
+`textures3d.ts`。
 
 **後端 `server/app/`**
 ```
@@ -123,6 +127,39 @@ d=cv2.absdiff(a,b); print(d.mean(), (d.max(axis=2)>8).mean()*100)"
 
 拆 `wallGeometry` 那次量到平均絕對差 0.005／差異 >8 的像素 0.003%——那是 JPEG 雜訊的
 量級。WebGL 截圖**不可能逐位元組相同**，所以別用雜湊比。
+
+## 量測與浸泡測試
+
+`bench/` 底下的東西都是 headless Chromium（Playwright）。**必須 headless**：
+四宮格終端機會把 Chrome 完全遮住 → `visibilityState === 'hidden'` → rAF 一秒 0 次，
+之前每一次想在真視窗裡量都不是 timeout 就是量到凍結的畫面。headless 沒有視窗可以
+被遮，而且沒有 vsync——一幀有多長就是裡面有多少工作，那正是要降的量。
+
+```bash
+npm run build                      # bench 吃的是 client/dist，先建
+node bench/soak.mjs --minutes 500   # 八小時浸泡，每 5 分鐘一筆 jsonl
+node bench/report.mjs               # 判讀最新那份
+node bench/drag.mjs --selected 8    # 一次拖曳花掉幾次全畫面重繪
+node bench/shot.mjs [--wall]        # 每種材質各渲一張 3D 圖
+node bench/shot2d.mjs               # 平面圖的材質填充並排
+node bench/shot-split.mjs           # 三種檢視模式
+node bench/verify-wall.mjs          # 端對端：基準線／對齊／分割
+node bench/verify-partition.mjs     # 端對端：隔間線（**需要後端在 :8791**）
+```
+
+`?perf=1` 才會開儀器（`core/perf.ts`）並把 `window.__app` 掛出來；一般載入什麼都不露。
+
+**判讀浸泡結果時的兩個陷阱**，兩個我都踩過：
+
+- **heap 要看「回收後的底線」，不是頭尾兩筆。** 它在回收之間本來就是鋸齒，拿兩個
+  任意取樣點比較會報出 +52% 的假漏。`report.mjs` 比的是前四分之一與後四分之一的
+  最小值
+- **只有變差才該是警告。** 第一版對兩個方向都標 ⚠︎，於是「快了 43%」旁邊也有個
+  警告符號——一份會對好消息示警的報告，會訓練你跳過所有警告
+
+最近一次八小時（100 個週期）：2D 每幀中位數 0.8–1.4ms、heap 底線 24.8MB 零成長、
+DOM 節點恆定、零錯誤。3D 重建中位數 13.9ms，但 8/100 個週期有 >60ms 的尖峰、
+最大 530ms——那一次是 13 種材質的 512² 貼圖與法線第一次生成，其餘尖峰未查明。
 
 ## 這些坑踩過了，別重犯
 
@@ -218,9 +255,13 @@ LibreDWG 0.13.3 實測：R2010/R2018 完全讀不了（READ ERROR 0x100），R20
 - 進行中的模式：**把「錯了不會有錯誤訊息」的運算從有狀態的類別裡抽成純函式再測**。
   已抽出 `core/wallGeometry.ts`（牆體開口分段）、`core/openings3d.ts`（門窗模型）、
   `core/arrange.ts`（複製／對齊／均分）、`core/transform.ts`（拖曳把手的幾何）、
-  `core/units.ts`（公分／公尺換算）。判準是失敗長什麼樣：**照樣跑完、看起來合理、
-  沒有例外、結果是錯的**——對齊往反方向靠、複製出來的群組拖到原件、面積差 100 倍。
-  純粹「行數多」不是理由
+  `core/units.ts`（公分／公尺換算）、`core/materials.ts`（材質與法線）、
+  `core/wallEdit.ts`（基準線／對齊／分割）。判準是失敗長什麼樣：**照樣跑完、
+  看起來合理、沒有例外、結果是錯的**——對齊往反方向靠、複製出來的群組拖到原件、
+  面積差 100 倍。純粹「行數多」不是理由
+- **但純函式測不到接線。** 這一輪有兩個 bug 只有端對端抓得到：空白鍵根本沒傳到
+  畫牆工具（被既有的「按住平移」吃掉），以及浸泡測試點的按鈕早就不存在了而它
+  一直在「通過」。`bench/verify-*.mjs` 就是為這一類存在的
 - `view3d.ts` 834 → 720、`editor.ts` 312 → 265、`select.ts` 221 → 195
 - 仍無測試：`renderer.ts`、`furniture3d.ts`、`view3d.ts` 剩下的部分、ui 層。
   前三者剩下的是場景、相機、渲染迴圈與貼圖，沒有可以單獨測的東西，要驗只能實際看
