@@ -24,7 +24,7 @@ export interface Layer {
   color: string;
 }
 
-export type ObjKind = 'wall' | 'beam' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image' | 'electrical';
+export type ObjKind = 'wall' | 'beam' | 'partition' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image' | 'electrical';
 
 // `group`, when set, ties objects together: selecting any one of them selects
 // them all, so every operation that already works on a multi-selection —
@@ -38,6 +38,11 @@ interface Base { id: string; layer: LayerId; group?: string; }
 // and plans in the wild carry it; a wall that has both was painted a colour on
 // purpose, and silently switching it to a texture would repaint the plan.
 export interface Wall extends Base { kind: 'wall'; a: Vec; b: Vec; thickness: number; bulge?: number; height?: number; color?: string; finish?: string; }
+// A partition line: divides an area without a physical wall — an open kitchen
+// off a dining room, a hallway counted separately from the space it runs
+// through. It closes a region for room detection and area take-off, and that is
+// all it does: nothing is built for it in 3D and nothing is quantified from it.
+export interface Partition extends Base { kind: 'partition'; a: Vec; b: Vec; }
 // A beam: `width` across, `height` tall, its underside `elevation` cm off the floor.
 export interface Beam extends Base { kind: 'beam'; a: Vec; b: Vec; width: number; height: number; elevation: number; }
 // x,y,w,h is the bounding box (used for handles/labels). `poly`, when present,
@@ -78,7 +83,7 @@ export type ElectricalId =
   | 'switch1' | 'switch2' | 'switch3'
   | 'ceilingLight' | 'downlight' | 'spotlight' | 'pendant' | 'wallLight' | 'exhaust';
 
-export type Obj = Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj | Electrical;
+export type Obj = Wall | Beam | Partition | Room | Opening | Furniture | Dimension | ImageObj | Electrical;
 
 // A building level: its own objects, stacked in 3D at `elevation` (cm).
 export interface Floor {

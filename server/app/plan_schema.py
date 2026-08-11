@@ -141,6 +141,15 @@ class Layer(BaseModel):
     visible: bool
 
 
+class Partition(BaseModel):
+    a: Vec
+    b: Vec
+    group: str | None = None
+    id: str
+    kind: Literal['partition']
+    layer: str
+
+
 class Room(BaseModel):
     auto: bool | None = None
     floor: str | None = None
@@ -162,7 +171,15 @@ class Floor(BaseModel):
     id: str
     name: str
     objects: list[
-        Wall | Beam | Room | Opening | Furniture | Dimension | ImageObj | Electrical
+        Wall
+        | Beam
+        | Partition
+        | Room
+        | Opening
+        | Furniture
+        | Dimension
+        | ImageObj
+        | Electrical
     ]
 
 

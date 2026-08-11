@@ -272,6 +272,16 @@ export class Renderer {
         trace(); ctx.stroke();
         break;
       }
+      case 'partition': {
+        // Dashed and thin, and deliberately not wall-coloured: a partition is a
+        // line on a drawing, not something anyone builds. Drawn like a wall it
+        // would be quoted like one.
+        ctx.strokeStyle = color; ctx.lineWidth = 1.5 * line;
+        ctx.setLineDash([14 * line, 8 * line]);
+        ctx.beginPath(); ctx.moveTo(o.a.x, o.a.y); ctx.lineTo(o.b.x, o.b.y); ctx.stroke();
+        ctx.setLineDash([]);
+        break;
+      }
       case 'beam': {
         const dx = o.b.x - o.a.x, dy = o.b.y - o.a.y, L = Math.hypot(dx, dy) || 1;
         const nx = -dy / L * o.width / 2, ny = dx / L * o.width / 2;

@@ -504,7 +504,7 @@ export class View3D {
   }
 
   private growObject(o: Obj, grow: (x: number, z: number) => void) {
-    if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'dimension') { grow(o.a.x, o.a.y); grow(o.b.x, o.b.y); }
+    if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'partition' || o.kind === 'dimension') { grow(o.a.x, o.a.y); grow(o.b.x, o.b.y); }
     else if (o.kind === 'room' && o.poly?.length) { for (const p of o.poly) grow(p.x, p.y); }
     else if (o.kind === 'room' || o.kind === 'furniture') { grow(o.x, o.y); grow(o.x + o.w, o.y + o.h); }
     else grow(o.x, o.y);

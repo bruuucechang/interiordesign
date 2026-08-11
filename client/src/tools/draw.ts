@@ -226,6 +226,62 @@ export class BeamTool implements Tool {
   deactivate() { this.start = null; this.snap = null; this.ctx.setPreview(); }
 }
 
+/**
+ * Chain partition lines the way walls are chained.
+ *
+ * Endpoints snap onto walls, because a partition that stops a few centimetres
+ * short of the wall it was meant to meet does not close the region — and the
+ * only symptom is that the new room never appears. Nothing else about it says
+ * anything is wrong, which is why the snap matters more here than it does for a
+ * wall you can see the thickness of.
+ */
+export class PartitionTool implements Tool {
+  name = 'partition'; cursor = 'crosshair';
+  hint = '點擊放置隔間線的端點；它只在平面上分割區域（不蓋東西、3D 不出現）；端點會貼合牆體；Esc 結束';
+  private start: Vec | null = null;
+  private snap: SnapResult | null = null;
+  constructor(private ctx: ToolCtx) {}
+
+  private end(p: PointerInfo): Vec {
+    if (this.ctx.snapEnabled) {
+      const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall' || o.kind === 'partition') as unknown as WallSeg[];
+      const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
+      if (s) { this.snap = s; return s.point; }
+    }
+    this.snap = null;
+    if (!this.start) return p.snapped;
+    return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+  }
+
+  onDown(p: PointerInfo) {
+    const end = placePoint(this.end(p), this.snap);
+    if (!this.start) { this.start = end; return; }
+    if (dist(this.start, end) < 1) return;
+    this.ctx.doc.commit();
+    this.ctx.doc.add({ id: genId('partition'), kind: 'partition', layer: layerForKind('partition'), a: this.start, b: end });
+    this.start = end;
+  }
+  onMove(p: PointerInfo) {
+    const e = this.end(p), s = this.start, snap = this.snap;
+    this.ctx.setPreview(
+      ctx => {
+        if (!s) return;
+        ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 1.5 / this.ctx.vp.scale;
+        ctx.setLineDash([14 / this.ctx.vp.scale, 8 / this.ctx.vp.scale]);
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.setLineDash([]);
+      },
+      ctx => {
+        if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#6d7890'; ctx.fillText(fmtLen(dist(s, e)), m.x, m.y - 6); }
+        if (snap) drawSnap(ctx, this.ctx.vp, snap);
+      },
+    );
+    this.ctx.render();
+  }
+  onUp() {}
+  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snap = null; this.ctx.setPreview(); this.ctx.render(); } }
+  deactivate() { this.start = null; this.snap = null; this.ctx.setPreview(); }
+}
+
 // Grab the canvas with the left mouse button to pan the view.
 
 // Drag between two points to place a dimension line.

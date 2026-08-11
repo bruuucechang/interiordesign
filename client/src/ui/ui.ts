@@ -22,6 +22,7 @@ const COMMON_TOOLS = [
   { name: 'wall', ic: '▬', label: '直線牆' },
   { name: 'wallCurve', ic: '◠', label: '曲線牆' },
   { name: 'beam', ic: '═', label: '樑' },
+  { name: 'partition', ic: '┄', label: '隔間線' },
   { name: 'door', ic: '🚪', label: '門' },
   { name: 'window', ic: '🪟', label: '窗' },
 ];
