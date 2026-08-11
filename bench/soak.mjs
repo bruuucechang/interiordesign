@@ -165,12 +165,24 @@ async function exercise(page) {
     await page.evaluate(() => window.__app.doc.select(null));
   }
 
-  // switch to 3D and back: exercises build(), the resolution ladder and the
-  // primary/preview swap, which is where a leak would hide
-  await page.evaluate(() => document.getElementById('btnToggle')?.click());
-  await page.waitForTimeout(400);
-  await page.evaluate(() => document.getElementById('btnToggle')?.click());
-  await page.waitForTimeout(400);
+  // Walk the three view modes: exercises build(), the resolution ladder and the
+  // full/shared budget swap, which is where a leak would hide.
+  //
+  // This used to click #btnToggle, which no longer exists — the toggle became a
+  // three-way selector. The soak went on passing and reported 3D frame times of
+  // exactly 0.00 ms, because it was no longer opening the 3D view at all. A
+  // harness that silently stops exercising half the app is worse than one that
+  // fails, so the mode is asserted rather than assumed.
+  for (const m of ['split', '3d', '2d']) {
+    const hit = await page.evaluate((mode) => {
+      const b = document.querySelector(`.view-modes button[data-mode="${mode}"]`);
+      if (!b) return false;
+      b.click();
+      return true;
+    }, m);
+    if (!hit) throw new Error(`找不到檢視模式按鈕 ${m} —— 版面改過了，浸泡測試沒有在測它以為在測的東西`);
+    await page.waitForTimeout(600);
+  }
 }
 
 // ---------------------------------------------------------------- run
