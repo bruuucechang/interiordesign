@@ -15,6 +15,7 @@ const pane2d = document.getElementById('pane2d') as HTMLElement;
 const c3d = document.getElementById('view3d') as HTMLElement;
 const viewModes = document.getElementById('viewModes') as HTMLElement;
 const splitter = document.getElementById('splitter') as HTMLElement;
+const wallRefBtns = document.getElementById('wallRef') as HTMLElement;
 const stage = document.getElementById('stage') as HTMLElement;
 
 const doc = new Doc();
@@ -179,6 +180,20 @@ function applyFocus() {
   // time the pointer crossed the divider.
   view3d.setBudget(mode === 'split' && on2d ? 'shared' : 'full');
 }
+
+// 畫牆基準線。空白鍵在畫的途中也能切，所以按鈕狀態由 editor 反向通知，
+// 不是按鈕自己記著——兩份狀態遲早會不一致，而不一致的那一刻畫出來的牆
+// 位置是錯的，畫面上卻看不出來。
+function paintWallRef(r: string) {
+  for (const b of wallRefBtns.querySelectorAll('button')) {
+    b.classList.toggle('active', (b as HTMLElement).dataset.ref === r);
+  }
+}
+editor.hooks.wallRef = paintWallRef;
+for (const b of wallRefBtns.querySelectorAll('button')) {
+  b.addEventListener('click', () => editor.setWallRef((b as HTMLElement).dataset.ref as any));
+}
+paintWallRef(editor.wallRef);
 
 for (const b of viewModes.querySelectorAll('button')) {
   b.addEventListener('click', () => {
