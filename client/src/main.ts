@@ -13,9 +13,9 @@ const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const hint = document.getElementById('hint') as HTMLElement;
 const pane2d = document.getElementById('pane2d') as HTMLElement;
 const c3d = document.getElementById('view3d') as HTMLElement;
-const btnToggle = document.getElementById('btnToggle') as HTMLButtonElement;
+const viewModes = document.getElementById('viewModes') as HTMLElement;
+const splitter = document.getElementById('splitter') as HTMLElement;
 const stage = document.getElementById('stage') as HTMLElement;
-const pipSlot = document.getElementById('pipSlot') as HTMLElement;
 
 const doc = new Doc();
 const editor = new Editor(canvas, doc, hint);
@@ -25,7 +25,7 @@ const view3d = new View3D(c3d);
 // Place objects by clicking in the 3D view (when 3D is the main view): furniture
 // drops on the floor point; a door/window snaps onto the wall under the cursor.
 view3d.onFloorClick = (floor, sceneHit) => {
-  if (mode !== '3d') return;
+  if (mode === '2d') return;
   const t = editor.toolName;
   if (t === 'furniture') editor.placeFurnitureAt(floor.x, floor.y);
   else if (t === 'door' || t === 'window') editor.placeOpeningAt(t, sceneHit ?? floor);
@@ -33,7 +33,29 @@ view3d.onFloorClick = (floor, sceneHit) => {
 view3d.onRotate90 = (deg) => editor.rotateSelection(deg);   // Q/E in 3D rotate the selected object 90°
 editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter
 
-let mode: '2d' | '3d' = '2d';
+type Mode = '2d' | 'split' | '3d';
+const MODE_KEY = 'interior_view_mode', SPLIT_KEY = 'interior_view_split';
+
+/**
+ * Which panes are on screen, and how wide the 2D one is in a split.
+ *
+ * Both are remembered. A designer who works split does so every time, and
+ * having to re-drag the divider on every reload is the kind of small friction
+ * that makes a tool feel borrowed.
+ */
+let mode: Mode = (localStorage.getItem(MODE_KEY) as Mode) || '2d';
+let split = Number(localStorage.getItem(SPLIT_KEY)) || 55;   // 2D pane, percent
+
+/**
+ * Which pane the keyboard drives.
+ *
+ * Only meaningful in a split, where WASD means two different things: it pans
+ * the plan and it flies the camera. Following the pointer is what every
+ * multi-viewport CAD tool does, and it needs to be visible — hence the accent
+ * outline, because a keypress that goes to the wrong pane looks like the key
+ * did nothing.
+ */
+let focus: '2d' | '3d' = '2d';
 
 // 匯出 360 全景：從 3D 相機所在位置拍。
 //
@@ -42,8 +64,8 @@ let mode: '2d' | '3d' = '2d';
 // 是一張 4096×2048、除了一小塊地板以外全是天空的圖。而 (0,0,0) 落在平面範圍
 // 內又低於天花板，所以座標檢查放行了。它擋得住「飛到室外」，擋不住「還沒進去過」。
 editor.hooks.exportPano = (name) => {
-  if (mode !== '3d') {
-    return '請先切到 3D 檢視 — 全景是從 3D 相機的位置拍的，還沒進去過就沒有位置可拍';
+  if (mode === '2d') {
+    return '請先開啟 3D（分割或 3D 檢視）— 全景是從 3D 相機的位置拍的，還沒進去過就沒有位置可拍';
   }
   const pose = view3d.panoramaPose();
   const boxes = doc.objects.filter(o => o.kind !== 'image').map(bounds);
@@ -58,7 +80,7 @@ let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 // Show/hide the 3D placement ghosts as tools change in 3D: furniture ghosts on
 // the floor; a door/window ghost snaps onto the wall the cursor hovers.
 function updatePlacementPreview() {
-  const t = mode === '3d' ? editor.toolName : '';
+  const t = mode === '2d' ? '' : editor.toolName;
   const it = t === 'furniture' ? FURNITURE_BY_ID[editor.currentFurniture] : null;
   view3d.setPlacementPreview(it ? { id: it.id, w: it.w, h: it.h } : null);
   if (t === 'door' || t === 'window') {
@@ -90,36 +112,130 @@ function fit2D() {
 }
 
 function applyMode() {
-  const twoFull = mode === '2d';
-  const fullEl = twoFull ? pane2d : c3d;
-  const pipEl = twoFull ? c3d : pane2d;
-  if (fullEl.parentElement !== stage) stage.appendChild(fullEl);      // main view fills the stage
-  if (pipEl.parentElement !== pipSlot) pipSlot.appendChild(pipEl);    // preview goes to the sidebar (above 圖層/屬性)
-  pane2d.className = 'pane ' + (twoFull ? 'full' : 'pip');
-  c3d.className = 'pane view3d ' + (twoFull ? 'pip' : 'full');
-  btnToggle.textContent = twoFull ? '🧊 切換 3D 檢視' : '📐 切換 2D 檢視';
-  editor.inputEnabled = twoFull;      // 2D main → edit + WASD pans the 2D view
-  view3d.setFly(!twoFull);            // 3D main → WASD flies the 3D camera
-  view3d.setPrimary(!twoFull);        // as the sidebar preview it drops to a thumbnail budget
-  updatePlacementPreview();           // ghost only makes sense while 3D is the main view
+  const show2d = mode !== '3d', show3d = mode !== '2d', both = mode === 'split';
 
+  pane2d.classList.toggle('hidden-pane', !show2d);
+  c3d.classList.toggle('hidden-pane', !show3d);
+  splitter.classList.toggle('hidden-pane', !both);
+  pane2d.classList.toggle('solo', show2d && !both);
+  c3d.classList.toggle('solo', show3d && !both);
+  stage.classList.toggle('solo-mode', !both);
+  if (both) {
+    pane2d.style.flexBasis = split + '%';
+    c3d.style.flexBasis = (100 - split) + '%';
+  } else {
+    pane2d.style.flexBasis = '';
+    c3d.style.flexBasis = '';
+  }
+
+  // In a solo view the one pane on screen has the keyboard by definition.
+  if (!both) focus = show2d ? '2d' : '3d';
+  applyFocus();
+
+  for (const b of viewModes.querySelectorAll('button')) {
+    b.classList.toggle('active', (b as HTMLElement).dataset.mode === mode);
+  }
+  localStorage.setItem(MODE_KEY, mode);
+
+  updatePlacementPreview();
+
+  // One frame later: the panes have to be laid out before either view can be
+  // told how big it is, and both read their element's size to do it.
   requestAnimationFrame(() => {
-    if (twoFull) {
+    if (show2d) {
       editor.vp.resize();
       if (saved2D) { editor.vp.scale = saved2D.scale; editor.vp.origin = { ...saved2D.origin }; saved2D = null; }
-      editor.render();
-    } else {
-      if (!saved2D) saved2D = { scale: editor.vp.scale, origin: { ...editor.vp.origin } };
-      editor.vp.resize();
-      fit2D();
+      else fit2D();
+      editor.renderNow();
+    } else if (!saved2D) {
+      saved2D = { scale: editor.vp.scale, origin: { ...editor.vp.origin } };
     }
-    view3d.resize();
-    view3d.build(doc, true);   // reframe for the new pane size
-    view3d.start();            // keep the 3D view live in both modes
+    if (show3d) {
+      view3d.resize();
+      view3d.build(doc, true);   // reframe for the new pane size
+      view3d.start();
+    } else {
+      view3d.stop();             // nothing to draw into a pane that is not laid out
+    }
   });
 }
 
-btnToggle.onclick = () => { mode = mode === '2d' ? '3d' : '2d'; applyMode(); };
+/**
+ * Point the keyboard at one pane.
+ *
+ * `editor.inputEnabled` gates the plan's WASD panning and `view3d.setFly` gates
+ * the camera's; both listen on the window, so leaving both on in a split makes
+ * every W both pan the plan and fly the camera. The mouse needs no such rule —
+ * pointer events already go to whichever pane is under the cursor.
+ */
+function applyFocus() {
+  const on2d = focus === '2d';
+  editor.inputEnabled = on2d;
+  view3d.setFly(!on2d);
+  pane2d.classList.toggle('focused', on2d && mode === 'split');
+  c3d.classList.toggle('focused', !on2d && mode === 'split');
+  // The unfocused pane in a split still composites — it is a full-size view, and
+  // dropping ambient occlusion on it would make the image visibly change every
+  // time the pointer crossed the divider.
+  view3d.setBudget(mode === 'split' && on2d ? 'shared' : 'full');
+}
+
+for (const b of viewModes.querySelectorAll('button')) {
+  b.addEventListener('click', () => {
+    const next = (b as HTMLElement).dataset.mode as Mode;
+    if (next === mode) return;
+    mode = next;
+    applyMode();
+  });
+}
+
+// Follow the pointer, but only in a split — in a solo view the answer is fixed
+// and reacting to the pointer leaving the window would take the keyboard away.
+for (const [el, which] of [[pane2d, '2d'], [c3d, '3d']] as const) {
+  el.addEventListener('pointerenter', () => {
+    if (mode !== 'split' || focus === which) return;
+    focus = which;
+    applyFocus();
+  });
+}
+
+// ---- the divider ----
+//
+// Resizing is a live drag rather than a ghost line because both views have to
+// be re-laid-out anyway; showing where it will land and then moving it there is
+// two different pictures of the same thing.
+splitter.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  splitter.setPointerCapture(e.pointerId);
+  splitter.classList.add('dragging');
+  stage.classList.add('resizing');
+
+  const move = (ev: PointerEvent) => {
+    const r = stage.getBoundingClientRect();
+    // Clamped so a pane can never be dragged away entirely — a 0%-wide canvas
+    // is a WebGL context with no drawing buffer, and it does not come back.
+    split = Math.max(20, Math.min(80, ((ev.clientX - r.left) / r.width) * 100));
+    pane2d.style.flexBasis = split + '%';
+    c3d.style.flexBasis = (100 - split) + '%';
+    editor.vp.resize(); editor.renderNow();
+    view3d.resize();
+  };
+  const up = () => {
+    splitter.classList.remove('dragging');
+    stage.classList.remove('resizing');
+    localStorage.setItem(SPLIT_KEY, String(Math.round(split)));
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+});
+
+splitter.addEventListener('dblclick', () => {
+  split = 50;
+  applyMode();
+  localStorage.setItem(SPLIT_KEY, '50');
+});
 
 const timeSel = document.getElementById('timeOfDay') as HTMLSelectElement;
 timeSel.onchange = () => view3d.setTimeOfDay(timeSel.value as any);
@@ -129,10 +245,13 @@ timeSel.onchange = () => view3d.setTimeOfDay(timeSel.value as any);
 let rebuildTimer: number | undefined;
 doc.onChange(() => {
   clearTimeout(rebuildTimer);
-  rebuildTimer = window.setTimeout(() => { view3d.build(doc, false); if (mode === '3d') fit2D(); }, 120);
+  rebuildTimer = window.setTimeout(() => { if (mode !== '2d') view3d.build(doc, false); }, 120);
 });
 
-window.addEventListener('resize', () => { view3d.resize(); if (mode === '3d') fit2D(); });
+window.addEventListener('resize', () => {
+  if (mode !== '3d') { editor.vp.resize(); editor.render(); }
+  if (mode !== '2d') view3d.resize();
+});
 
 requestAnimationFrame(() => { editor.vp.resize(); editor.render(); applyMode(); });
 
