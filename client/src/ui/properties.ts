@@ -41,6 +41,33 @@ export function refreshProps(editor: Editor, doc: Doc) {
     }
     host.appendChild(grid);
 
+    // Walls get their own alignment, because aligning walls by bounding box is
+    // not what anyone means: a run of wall is a face, and two walls of
+    // different thickness whose boxes line up still have a step between them.
+    const walls = doc.selectedObjects.filter(o => o.kind === 'wall');
+    if (walls.length >= 2) {
+      const wl = document.createElement('div'); wl.className = 'panel-title'; wl.style.borderTop = 'none';
+      wl.textContent = `牆面對齊（${walls.length} 道）`;
+      const wg = document.createElement('div'); wg.className = 'align-grid';
+      const wb = (label: string, ref: 'left' | 'center' | 'right', title: string) => {
+        const b = document.createElement('button'); b.className = 'align-btn'; b.textContent = label; b.title = title;
+        b.onclick = () => {
+          const r = editor.alignWallFaces(ref);
+          // Say what it refused to touch. A count that does not match what was
+          // selected is the only warning that a slanted or curved wall was left
+          // where it was.
+          flash(r.skipped
+            ? `對齊 ${r.moved} 道，跳過 ${r.skipped} 道（不平行或是曲線牆）`
+            : r.moved ? `對齊 ${r.moved} 道` : '這些牆已經對齊了');
+        };
+        wg.appendChild(b);
+      };
+      wb('◧', 'left', '左緣對齊（相對各自的畫線方向）');
+      wb('⊹', 'center', '中心線對齊');
+      wb('◨', 'right', '右緣對齊');
+      host.append(wl, wg);
+    }
+
     const grp = document.createElement('button'); grp.className = 'prop-action';
     if (doc.canUngroup) { grp.textContent = '解散群組 (⇧⌘G)'; grp.onclick = () => doc.ungroupSelection(); }
     else { grp.textContent = '組成群組 (⌘G)'; grp.onclick = () => doc.groupSelection(); }
@@ -211,6 +238,29 @@ export function refreshProps(editor: Editor, doc: Doc) {
       }, 1);
       dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
       dim(size.body, '高度', o.height ?? 270, v => up({ height: Math.max(10, v) } as any), 10);
+      {
+        // Split at a measured distance, which is how a wall gets a different
+        // thickness or finish along part of its run. The field is committed on
+        // the button, not on every keystroke: splitting live would cut the wall
+        // at 1, then 12, then 120 as the number is typed.
+        const row = document.createElement('div'); row.className = 'prop';
+        const l = document.createElement('label'); l.textContent = `分割於 (${unitLabel(unit)})`;
+        const inp = document.createElement('input'); inp.type = 'number';
+        inp.value = fieldValue(dist(o.a, o.b) / 2, unit); inp.step = stepFor(unit);
+        const go = document.createElement('button'); go.className = 'align-btn'; go.textContent = '✂';
+        go.title = '從 a 端量這個距離把牆切成兩道';
+        go.onclick = () => {
+          const cm = parseLength(inp.value, unit, 0);
+          if (cm === null) { flash('請先輸入距離'); return; }
+          flash(editor.splitSelectedWall(cm)
+            ? '已分割'
+            : (o as any).bulge
+              ? '曲線牆還不能分割 — 照弦線切會把弧弄丟'
+              : '距離超出牆的範圍');
+        };
+        inp.style.width = '70px';
+        row.append(l, inp, go); size.body.appendChild(row);
+      }
       {
         const b = document.createElement('button');
         b.className = 'prop-action'; b.textContent = '📏 自動標註這道牆';

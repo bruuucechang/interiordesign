@@ -3,6 +3,7 @@ import { genId } from '../model/doc';
 import { Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
 import { fmtLen, dist, angleDeg, alignWallEnd, bulgeFrom } from '../core/geometry';
+import { applyReference } from '../core/wallEdit';
 import { computeSnap, drawSnap, SnapResult, WallSeg } from '../core/snap';
 
 const WALL_THICKNESS = 12;   // cm
@@ -23,7 +24,7 @@ export function placePoint(pt: Vec, snap: SnapResult | null): Vec {
 // Endpoints snap onto nearby walls (foolproof joining); otherwise they soft-snap
 // to 0/45/90° for grid alignment (Shift = force).
 export class WallTool implements Tool {
-  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；自動貼合牆體端點/中點/牆面，並顯示水平/垂直對齊輔助線；近軸對齊格線（Shift 強制）；Esc 結束';
+  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；R 切換基準線（中心/左緣/右緣）；自動貼合牆體端點/中點/牆面；近軸對齊格線（Shift 強制）；Esc 結束';
   private start: Vec | null = null;
   private snap: SnapResult | null = null;   // set when the current end snapped to a wall / alignment
   constructor(private ctx: ToolCtx) {}
@@ -45,7 +46,10 @@ export class WallTool implements Tool {
     if (!this.start) { this.start = end; return; }
     if (dist(this.start, end) < 1) return;
     this.ctx.doc.commit();
-    this.ctx.doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a: this.start, b: end, thickness: WALL_THICKNESS });
+    // The clicked line is whichever face the setting says; the stored wall is
+    // always its centreline.
+    const seg = applyReference(this.start, end, this.ctx.wallRef, WALL_THICKNESS);
+    this.ctx.doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a: seg.a, b: seg.b, thickness: WALL_THICKNESS });
     this.start = end;
   }
   onMove(p: PointerInfo) {
@@ -55,8 +59,17 @@ export class WallTool implements Tool {
     this.ctx.setPreview(
       ctx => {
         if (!s) return;
+        // The band shows where the wall will actually be; the thin line shows
+        // the face being measured. Drawing only the band would put it centred
+        // on the cursor, which is exactly the misunderstanding this feature
+        // exists to remove.
+        const seg = applyReference(s, e, this.ctx.wallRef, WALL_THICKNESS);
         ctx.strokeStyle = '#4c8dff'; ctx.lineWidth = WALL_THICKNESS; ctx.globalAlpha = 0.4; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.moveTo(seg.a.x, seg.a.y); ctx.lineTo(seg.b.x, seg.b.y); ctx.stroke(); ctx.globalAlpha = 1;
+        if (this.ctx.wallRef !== 'center') {
+          ctx.strokeStyle = '#8bffb0'; ctx.lineWidth = 1 / this.ctx.vp.scale;
+          ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+        }
       },
       ctx => {
         if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(`${fmtLen(dist(s, e))} · ${ang}°`, m.x, m.y - 6); }
@@ -66,7 +79,13 @@ export class WallTool implements Tool {
     this.ctx.render();
   }
   onUp() {}
-  onKey(e: KeyboardEvent) { if (e.key === 'Escape') { this.start = null; this.snap = null; this.ctx.setPreview(); this.ctx.render(); } }
+  onKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') { this.start = null; this.snap = null; this.ctx.setPreview(); this.ctx.render(); }
+    // R cycles the reference line mid-draw, which is when you find out the tape
+    // was against the other face. Not Space, which Coohom uses — here Space is
+    // already hold-to-pan, and that is the stronger habit of the two.
+    if (e.key === 'r' || e.key === 'R') { this.ctx.cycleWallRef(); this.ctx.render(); }
+  }
   deactivate() { this.start = null; this.snap = null; this.ctx.setPreview(); }
 }
 
