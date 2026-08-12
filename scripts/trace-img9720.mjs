@@ -46,25 +46,34 @@ const win = (x, y, width, angle) =>
   objects.push({ id: id('window'), kind: 'window', layer: 'openings', x, y, width, angle });
 
 // ---- the grid, in centimetres -------------------------------------------
-// X, upper band (printed chain): 0 | 496 | 846 | 1208 | 1381.5
-// X, lower band (printed chain): 190 | 518 | 817 | 1217 | 1354
-const XW = 60;        // 客廳 west wall (the curved section is straightened here)
-const X_DIN = 190;    // 餐廳 west wall
-const X_LIV = 496;    // 客廳 | 臥室
-const X_BED = 518;    // 餐廳 | 臥室 (lower)
-const X_MB = 830;     // 臥室 | 主臥室 (upper)
-const X_B2 = 817;     // 臥室 | 臥室 (lower)
-const X_BATH = 1208;  // 主臥室 | 衛浴
-const X_E2 = 1217;    // lower rooms east wall
-const XE = 1381.5;    // east edge
+//
+// Second pass. The first one placed the walls from the printed dimension chains
+// alone and was wrong by up to 60 cm, because the chains and the drawn walls do
+// not agree — the right-hand chain does not even agree with itself (453 + 471.5
+// = 924.5 against a printed 869.5 for the same span). The scale is still taken
+// from the top chain and cross-checked against the bottom one to 0.1 %, but
+// every wall below is now the *measured* centre of the drawn pair, with the
+// thickness taken from the gap between its two faces.
+//
+// Where a printed number and the drawing disagree, the drawing wins: it is what
+// the walls were drawn on, and it is what the underlay will be compared against.
+const XW = 0;         // 客廳 west — very slightly angled, 5 cm over 4.5 m
+const X_DIN = 190;    // 餐廳 west (printed chain: 189.7)
+const X_LIV = 489;    // 客廳 | 臥室      (faces 483 / 495)
+const X_BED = 529;    // 餐廳 | 臥室      (523 / 536)
+const X_MB = 788;     // 臥室 | 主臥室    (781 / 794)   ← first pass had 830
+const X_B2 = 830;     // 臥室 | 臥室      (823 / 836)
+const X_BATH = 1197;  // 主臥室 | 主浴
+const X_E2 = 1230;    // lower rooms east (1222 / 1237)
+const XE = 1376;      // east edge        (1369 / 1383)
 
-// Y bands, measured off the scan against the same scale.
 const Y0 = 0;         // top of the master bedroom bay
-const Y_TOP = 162;    // 161.5 printed — top of the main band
-const Y_MID = 596;    // bottom of the upper bedrooms
-const Y_LOW = 690;    // top of the lower bedrooms
-const Y_BAL = 1067;   // balcony line
-const YB = 1248;      // south edge
+const Y_TOP = 132;    // north wall of 客廳 / 臥室      ← first pass had 162
+const Y_MID = 592;    // 臥室 south                      (585 / 598)
+const Y_MBS = 619;    // 主臥室 south — it steps         (613 / 625)
+const Y_LOW = 699;    // lower rooms north               (693 / 705)
+const Y_BAL = 1034;   // 臥室 | 陽台                     ← first pass had 1067
+const YB = 1260;      // south edge                      (1254 / 1266)
 
 // ---- envelope ------------------------------------------------------------
 wall(XW, Y_TOP, X_LIV, Y_TOP, TOUT);            // 客廳 north
@@ -73,18 +82,19 @@ wall(X_MB, Y0, X_BATH, Y0, TOUT);               // 主臥室 north (bay)
 wall(X_MB, Y0, X_MB, Y_TOP, TOUT);
 wall(X_BATH, Y0, X_BATH, Y_TOP, TOUT);
 wall(X_BATH, Y_TOP, XE, Y_TOP, TOUT);           // 衛浴 north
-wall(XE, Y_TOP, XE, Y_MID, TOUT);               // east
+wall(XE, Y_TOP, XE, Y_MBS, TOUT);               // east
 wall(XW, Y_TOP, XW, YB, TOUT);                  // west
 wall(XW, YB, X_E2, YB, TOUT);                   // south
 wall(X_E2, Y_LOW, X_E2, YB, TOUT);              // lower east
-wall(X_BATH, Y_MID, X_E2, Y_LOW, TOUT);         // the jog between the bands
-wall(XE, Y_MID, X_BATH, Y_MID, TOUT);
+wall(X_BATH, Y_MBS, X_E2, Y_LOW, TOUT);         // the jog between the bands
+wall(XE, Y_MBS, X_BATH, Y_MBS, TOUT);
 
 // ---- upper band ----------------------------------------------------------
 wall(X_LIV, Y_TOP, X_LIV, Y_MID);               // 客廳 | 臥室
-wall(X_MB, Y_TOP, X_MB, Y_MID);                 // 臥室 | 主臥室
-wall(X_BATH, Y_TOP, X_BATH, Y_MID);             // 主臥室 | 衛浴
-wall(X_LIV, Y_MID, X_BATH, Y_MID);              // south wall of the upper rooms
+wall(X_MB, Y_TOP, X_MB, Y_MBS);                 // 臥室 | 主臥室
+wall(X_BATH, Y_TOP, X_BATH, Y_MBS);             // 主臥室 | 衛浴
+wall(X_LIV, Y_MID, X_MB, Y_MID);                // 臥室 south
+wall(X_MB, Y_MBS, X_BATH, Y_MBS);               // 主臥室 south（有台階）
 
 // ---- lower band ----------------------------------------------------------
 wall(X_DIN, Y_LOW, X_DIN, YB);                  // 餐廳 west (inner)
@@ -97,8 +107,8 @@ wall(X_DIN, Y_BAL, X_BED, Y_BAL);               // 餐廳 | 廚房
 // ---- rooms ---------------------------------------------------------------
 room('客廳', XW, Y_TOP, X_LIV - XW, Y_MID - Y_TOP, 'wood');
 room('臥室', X_LIV, Y_TOP, X_MB - X_LIV, Y_MID - Y_TOP, 'wood');
-room('主臥室', X_MB, Y0, X_BATH - X_MB, Y_MID - Y0, 'wood');
-room('主浴', X_BATH, Y_TOP, XE - X_BATH, Y_MID - Y_TOP, 'tile');
+room('主臥室', X_MB, Y0, X_BATH - X_MB, Y_MBS - Y0, 'wood');
+room('主浴', X_BATH, Y_TOP, XE - X_BATH, Y_MBS - Y_TOP, 'tile');
 room('餐廳', X_DIN, Y_LOW, X_BED - X_DIN, Y_BAL - Y_LOW, 'wood');
 room('廚房', X_DIN, Y_BAL, X_BED - X_DIN, YB - Y_BAL, 'tile');
 room('臥室', X_BED, Y_LOW, X_B2 - X_BED, Y_BAL - Y_LOW, 'wood');
@@ -109,13 +119,13 @@ room('陽台', X_B2, Y_BAL, X_E2 - X_B2, YB - Y_BAL, 'terrazzo');
 // ---- openings ------------------------------------------------------------
 win((X_MB + X_BATH) / 2, Y0, 300, 0);            // 主臥室 bay
 win((X_LIV + X_MB) / 2, Y_TOP, 180, 0);          // 臥室
-win(XW, (Y_TOP + Y_MID) / 2, 240, 90);           // 客廳 west
+win(XW, (Y_TOP + Y_MID) / 2, 240, 90);          // 客廳 west
 win((X_BED + X_B2) / 2, Y_BAL, 200, 0);          // 臥室 → 陽台
 win((X_B2 + X_E2) / 2, Y_BAL, 260, 0);
 door(X_LIV, Y_MID - 90, 90, 90);                 // 客廳 ↔ 餐廳 side
 door((X_LIV + X_MB) / 2 - 60, Y_MID, 90, 0);     // 臥室
-door((X_MB + X_BATH) / 2, Y_MID, 90, 0);         // 主臥室
-door(X_BATH, (Y_TOP + Y_MID) / 2 + 120, 80, 90); // 主浴
+door((X_MB + X_BATH) / 2, Y_MBS, 90, 0);        // 主臥室
+door(X_BATH, (Y_TOP + Y_MBS) / 2 + 120, 80, 90); // 主浴
 door((X_BED + X_B2) / 2 - 70, Y_LOW, 90, 0);     // 臥室
 door((X_B2 + X_E2) / 2 - 90, Y_LOW, 90, 0);      // 臥室
 door(X_BED, Y_BAL - 60, 80, 90);                 // 廚房
