@@ -18,6 +18,15 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 const server = await new Promise(ok => { const s = createServer(async (req, res) => {
   const p = decodeURIComponent(req.url.split('?')[0]);
   if (p.startsWith('/api/')) {
+    // Read-only proxy. The app autosaves whatever it has loaded, so a proxy
+    // that forwards writes puts every test fixture into the real database —
+    // it put three of them there before this was noticed, and they looked
+    // exactly like the user's own plans in the list.
+    if (req.method !== 'GET' && !/^\/api\/(rooms|dimensions|walls)\//.test(p)) {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{"ok":true,"blocked":"bench proxy is read-only"}');
+      return;
+    }
     const body = await new Promise(r => { let b = ''; req.on('data', c => b += c); req.on('end', () => r(b)); });
     try {
       const up = await fetch(API + req.url, { method: req.method, headers: { 'content-type': 'application/json' }, body: req.method === 'GET' ? undefined : body });
