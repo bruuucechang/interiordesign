@@ -10,6 +10,11 @@
 // 12.3 × 11.3 m 「房間」 on top of all ten drawn rooms. Detection ran, returned a
 // polygon, added a room — nothing failed.
 //
+// Any overlap at all counts. The first version only flagged more than 1 m²,
+// and the one that got through was 0.37 m² — a 138 × 27 strip where a room's
+// bounding rectangle lay across the corridor. Small in area, and directly under
+// a doorway, so it was the piece of floor you walk over.
+//
 // Needs the backend on :8791 and the plan saved as `img9720`.
 //
 //   node bench/verify-rooms.mjs
@@ -32,17 +37,36 @@ await page.goto(`http://127.0.0.1:${s.address().port}/?perf=1&plan=img9720`);
 await page.waitForTimeout(6000);
 const r = JSON.parse(await page.evaluate(()=>{
   const rooms = window.__app.doc.objects.filter(o=>o.kind==='room');
-  const box = r => r.poly && r.poly.length>=3
-    ? (()=>{const xs=r.poly.map(p=>p.x),ys=r.poly.map(p=>p.y);return {x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)}})()
-    : {x:r.x,y:r.y,w:r.w,h:r.h};
-  const overlap = (a,c)=>{const A=box(a),C=box(c);
-    const ox=Math.max(0,Math.min(A.x+A.w,C.x+C.w)-Math.max(A.x,C.x));
-    const oy=Math.max(0,Math.min(A.y+A.h,C.y+C.h)-Math.max(A.y,C.y));
-    return ox*oy};
+  // Compare the actual shapes, not their bounding boxes. An L-shaped room's
+  // box covers ground the room does not, so a box test both misses real
+  // overlaps and invents ones that are not there — it reported 0.4 m² against a
+  // corridor the room had already been reshaped to avoid.
+  const poly = r => (r.poly && r.poly.length>=3) ? r.poly
+    : [{x:r.x,y:r.y},{x:r.x+r.w,y:r.y},{x:r.x+r.w,y:r.y+r.h},{x:r.x,y:r.y+r.h}];
+  const inside = (p, pts) => {
+    let hit = false;
+    for (let i=0,j=pts.length-1;i<pts.length;j=i++) {
+      if ((pts[i].y>p.y)!==(pts[j].y>p.y) &&
+          p.x < (pts[j].x-pts[i].x)*(p.y-pts[i].y)/(pts[j].y-pts[i].y)+pts[i].x) hit=!hit;
+    }
+    return hit;
+  };
+  const STEP = 5;   // cm — a 5 cm grid finds anything worth seeing
+  const overlap = (a,c)=>{
+    const A=poly(a), C=poly(c);
+    const xs=[...A,...C].map(p=>p.x), ys=[...A,...C].map(p=>p.y);
+    let n=0;
+    for(let x=Math.min(...xs)+STEP/2;x<Math.max(...xs);x+=STEP)
+      for(let y=Math.min(...ys)+STEP/2;y<Math.max(...ys);y+=STEP)
+        if(inside({x,y},A) && inside({x,y},C)) n++;
+    return n*STEP*STEP;
+  };
+  const box = r => { const p=poly(r); const xs=p.map(q=>q.x),ys=p.map(q=>q.y);
+    return {x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)}; };
   const out=[];
   for(let i=0;i<rooms.length;i++) for(let j=i+1;j<rooms.length;j++){
     const a=overlap(rooms[i],rooms[j]);
-    if(a>10000) out.push(`${rooms[i].name}${rooms[i].auto?'(自動)':''} ∩ ${rooms[j].name}${rooms[j].auto?'(自動)':''} = ${(a/10000).toFixed(1)} m²`);
+    if(a>100) out.push(`${rooms[i].name}${rooms[i].auto?'(自動)':''} ∩ ${rooms[j].name}${rooms[j].auto?'(自動)':''} = ${(a/10000).toFixed(2)} m²`);
   }
   return JSON.stringify({
     總數: rooms.length,
