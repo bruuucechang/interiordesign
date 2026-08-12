@@ -45,6 +45,9 @@ const door = (x, y, width, angle) =>
 const win = (x, y, width, angle) =>
   objects.push({ id: id('window'), kind: 'window', layer: 'openings', x, y, width, angle });
 
+const dim = (ax, ay, bx, by, offset) =>
+  objects.push({ id: id('dimension'), kind: 'dimension', layer: 'dims', a: { x: ax, y: ay }, b: { x: bx, y: by }, offset });
+
 // ---- the grid, in centimetres -------------------------------------------
 //
 // Second pass. The first one placed the walls from the printed dimension chains
@@ -129,6 +132,36 @@ door(X_BATH, (Y_TOP + Y_MBS) / 2 + 120, 80, 90); // 主浴
 door((X_BED + X_B2) / 2 - 70, Y_LOW, 90, 0);     // 臥室
 door((X_B2 + X_E2) / 2 - 90, Y_LOW, 90, 0);      // 臥室
 door(X_BED, Y_BAL - 60, 80, 90);                 // 廚房
+
+// ---- the structural column ----------------------------------------------
+//
+// This is why the printed chain and the drawn wall disagreed. The divider
+// between 臥室 and 主臥室 is a 13 cm partition at X 788, but at its north end
+// there is a column about 82 × 90, and the chain's tick sits on that column's
+// grid line at 846. So the printed 350 is 客廳's grid bay, not the room: the
+// room's clear width is 299 — which is exactly what the *bottom* chain prints
+// for the room below it.
+//
+// Modelling the column makes both numbers true at once, and stops the next
+// person rediscovering the same 58 cm argument.
+wall(807, 90, 807, 175, 82);
+
+// ---- the printed dimension chains ---------------------------------------
+//
+// The drawing's own numbers, carried into the plan rather than left in a scan.
+// They are the structural grid, so they will not all land on partitions — that
+// is the point of having them visible.
+dim(0, Y_TOP, 496, Y_TOP, -150);
+dim(496, Y_TOP, 846, Y_TOP, -150);
+dim(846, Y_TOP, 1208, Y_TOP, -150);
+dim(1208, Y_TOP, 1381.5, Y_TOP, -150);
+dim(190, YB, 518, YB, 150);
+dim(518, YB, 817, YB, 150);
+dim(817, YB, 1217, YB, 150);
+dim(XE, 0, XE, 161.5, 150);
+dim(XE, 161.5, XE, 614.5, 150);
+dim(XE, 614.5, XE, 1086, 150);
+dim(XE, 1086, XE, 1316, 150);
 
 // ---- the scan, at the same scale ----------------------------------------
 const b64 = readFileSync(img).toString('base64');
