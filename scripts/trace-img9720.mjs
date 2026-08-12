@@ -14,20 +14,20 @@
 // this: the X grid and the overall envelope come from the printed dimensions.
 // The Y bands, the bathroom fittings, the door swings and the curved wall on the
 // living room's west side are measured off the scan and are good to a few
-// centimetres at best. The scan is embedded as an underlay at the same scale so
-// the rest can be traced against it rather than guessed at again.
+// centimetres at best.
+//
+// The scan is no longer embedded. It was there as an underlay to trace the rest
+// against; with the walls settled it is 245 KB of base64 in every save, every
+// autosave and every load, for a picture nobody is looking at any more.
+// scripts/ still has this file, so it can be put back by re-running an earlier
+// revision if the remaining details ever get traced.
 
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CEIL = 300;            // 天花板 3 m — 使用者指定
 const T = 15;                // 內牆厚（圖上量到約 12–17）
 const TOUT = 24;             // 外牆厚
-
-const img = process.argv.includes('--image')
-  ? process.argv[process.argv.indexOf('--image') + 1]
-  : '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/underlay.jpg';
 
 let n = 0;
 const id = (k) => `${k}_${++n}`;
@@ -163,21 +163,12 @@ dim(XE, 161.5, XE, 614.5, 150);
 dim(XE, 614.5, XE, 1086, 150);
 dim(XE, 1086, XE, 1316, 150);
 
-// ---- the scan, at the same scale ----------------------------------------
-const b64 = readFileSync(img).toString('base64');
-objects.unshift({
-  id: id('image'), kind: 'image', layer: 'underlay',
-  src: `data:image/jpeg;base64,${b64}`,
-  x: -24.5, y: -349.5, w: 1733.0, h: 2155.2, opacity: 0.35,
-});
-
 const plan = {
   schemaVersion: 1,
   name: 'A1 單元（IMG_9720 描繪）',
   activeFloorId: 'f1',
   floors: [{ id: 'f1', name: '1F', elevation: 0, height: CEIL, objects }],
   layers: [
-    { id: 'underlay', name: '底圖', visible: true, locked: false, color: '#8b93a3' },
     { id: 'walls', name: '牆體', visible: true, locked: false, color: '#c9cfdb' },
     { id: 'rooms', name: '房間', visible: true, locked: false, color: '#6d7890' },
     { id: 'openings', name: '門窗', visible: true, locked: false, color: '#7bc6ff' },
