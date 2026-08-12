@@ -52,6 +52,12 @@ export type Budget = 'full' | 'shared';
  * shut. 0.3 opens the front rooms and keeps the back of the building standing.
  */
 const NEAR_WALL_CUT = 0.3;
+
+/**
+ * How close to the plan's edge a run of wall has to be to count as an outside
+ * wall. Anything nearer the middle than this is a partition and is never cut.
+ */
+const EDGE_BAND = 0.7;
 const SHARED_FPS = 20;
 const SHARED_FRAME_MS = 1000 / SHARED_FPS;
 
@@ -647,9 +653,17 @@ export class View3D {
     for (const m of this.staticGroup.children) {
       const at = m.userData.occludeAt as { x: number; z: number } | undefined;
       if (!at) continue;                       // floors and ground always stay
-      const near = m.userData.occludeBlocks === 'z'
+      // Only the outside wall facing the camera comes off. Cutting interior
+      // partitions too is what a doll's house does *not* do, and it is what was
+      // reported as 「牆壁有時會消失」: a wall in the middle of the plan has no
+      // reason to vanish, so when it does it reads as the model breaking rather
+      // than as a view being helpful.
+      const onEdge = m.userData.occludeBlocks === 'z'
+        ? Math.abs(at.z - cz) > halfZ * EDGE_BAND
+        : Math.abs(at.x - cx) > halfX * EDGE_BAND;
+      const near = onEdge && (m.userData.occludeBlocks === 'z'
         ? (at.z - cz) * sz > halfZ * NEAR_WALL_CUT
-        : (at.x - cx) * sx > halfX * NEAR_WALL_CUT;
+        : (at.x - cx) * sx > halfX * NEAR_WALL_CUT);
       m.visible = inside || !near;
     }
   }

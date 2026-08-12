@@ -89,10 +89,28 @@ async function reconcileAutoRooms(doc: Doc) {
     if (JSON.stringify(ar.poly) !== JSON.stringify(poly)) doc.update(ar.id, { poly, ...bboxOf(poly) } as any);
   }
 
+  /** The centre of a room, however it is shaped. */
+  const centre = (r: RoomObj) => (r.poly && r.poly.length >= 3
+    ? polygonCentroid(r.poly)
+    : { x: r.x + r.w / 2, y: r.y + r.h / 2 });
+
   for (let i = 0; i < detected.length; i++) {
     if (consumed.has(i)) continue;
-    if (manual.some(r => roomContains(r, cents[i]))) continue;          // already a manual room here
     const poly = detected[i];
+    if (manual.some(r => roomContains(r, cents[i]))) continue;          // already a manual room here
+
+    // And: a region that swallows rooms someone has already drawn is not a new
+    // room, it is a failed detection. It happens whenever the partitions do not
+    // quite meet the walls — the only closed loop left is the whole floor, so
+    // one giant "房間" gets laid over the entire plan.
+    //
+    // Nothing about that reads as an error. What it looks like is the floors
+    // breaking up, because the new room's slab sits at exactly the same height
+    // as every slab underneath it and the two fight for the same depth. That is
+    // what was actually reported: 「地板一閃一閃像破圖」.
+    const swallowed = manual.filter(r => pointInPolygon(centre(r), poly)).length;
+    if (swallowed >= 2) continue;
+
     doc.add({ id: genId('room'), kind: 'room', layer: layerForKind('room'), name: '房間', poly, auto: true, ...bboxOf(poly) } as any);
   }
 }
