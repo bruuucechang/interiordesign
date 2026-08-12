@@ -15,7 +15,7 @@
 // bounding rectangle lay across the corridor. Small in area, and directly under
 // a doorway, so it was the piece of floor you walk over.
 //
-// Needs the backend on :8791 and the plan saved as `img9720`.
+// Needs the backend on :8791 and the plan saved as `img0197`.
 //
 //   node bench/verify-rooms.mjs
 
@@ -33,7 +33,7 @@ const s=await new Promise(ok=>{const sv=createServer(async(req,res)=>{const p=de
  let f=join(DIST,p==='/'?'index.html':p); if(!existsSync(f))f=join(DIST,'index.html');
  res.writeHead(200,{'content-type':MIME[extname(f)]??'application/octet-stream'});res.end(await readFile(f))});sv.listen(0,()=>ok(sv))});
 const b=await chromium.launch();const page=await b.newPage({viewport:{width:1400,height:900}});
-await page.goto(`http://127.0.0.1:${s.address().port}/?perf=1&plan=img9720`);
+await page.goto(`http://127.0.0.1:${s.address().port}/?perf=1&plan=img0197`);
 await page.waitForTimeout(6000);
 const r = JSON.parse(await page.evaluate(()=>{
   const rooms = window.__app.doc.objects.filter(o=>o.kind==='room');

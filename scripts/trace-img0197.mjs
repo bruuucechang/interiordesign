@@ -76,58 +76,75 @@ objects.push({
 });
 
 // ---- main partitions -----------------------------------------------------
-wall(X_A, Y_A, X_A, Y_B);                       // 客廳 | 中間房
-wall(X_B, YN, X_B, Y_B);                        // 中間房 | 主臥室
-wall(X_D, YN, X_D, Y_B);                        // 主臥室 | 東側
-wall(X_E, Y_A, X_E, Y_B);
-wall(X_A, Y_A, X_B, Y_A);                       // 中間房 north
-wall(X_D, Y_A, XE, Y_A);                        // 東側 north
-wall(XW, Y_B, XE, Y_B);                         // 上下分帶（走廊北）
-wall(X_K, Y_C, XE, Y_C);                        // 走廊南
-wall(X_K, Y_B, X_K, YS);                        // 廚房／餐廳 東
-wall(X_C, Y_C, X_C, Y_E);                       // 下層房間之間
-wall(X_D, Y_D, X_D, Y_E);
-wall(X_K, Y_E, XE, Y_E);                        // 陽台線
+wall(X_A, Y_A, X_A, Y_B);                       // 左上 | 中間
+wall(X_B, YN, X_B, Y_B);                        // 中間 | 右上
+wall(X_D, YN, X_D, Y_B);                        // 右上 | 最右
+wall(X_A, Y_A, X_B, Y_A);
+wall(X_D, Y_A, XE, Y_A);
+wall(XW, Y_B, XE, Y_B);                         // 上下分帶
+wall(X_K, Y_B, X_K, YS);                        // 廚房西
+wall(X_C, Y_D, X_C, YS);                        // 廚房／陽台 | 右下那間
+wall(X_K, Y_E, X_C, Y_E);                       // 廚房 | 陽台
+wall(X_C, Y_D, XE, Y_D);                        // 右下那間的北牆
 
 // ---- rooms ---------------------------------------------------------------
-room('客廳', XW, Y_A, X_A - XW, Y_B - Y_A, 'wood');
-room('臥室', X_A, Y_A, X_B - X_A, Y_B - Y_A, 'wood');
-room('主臥室', X_B, YN, X_D - X_B, Y_B - YN, 'wood');
-room('主浴', X_E, Y_A, XE - X_E, Y_B - Y_A, 'tile');
-room('走廊', X_K, Y_B, XE - X_K, Y_C - Y_B, 'tile');
-room('餐廳', XW, Y_B, X_K - XW, Y_E - Y_B, 'wood');
-room('廚房', XW, Y_E, X_K - XW, YS - Y_E, 'tile');
-room('臥室', X_K, Y_C, X_C - X_K, Y_E - Y_C, 'wood');
-room('臥室', X_C, Y_C, X_D - X_C, Y_E - Y_C, 'wood');
-room('浴室', X_D, Y_D, XE - X_D, Y_E - Y_D, 'tile');
-room('陽台', X_K, Y_E, X_C - X_K, YS - Y_E, 'terrazzo');
-room('陽台', X_C, Y_E, XE - X_C, YS - Y_E, 'terrazzo');
+//
+// Seven spaces, not twelve. The first pass carried the room list over from the
+// hand-drawn plan of the same flat and split the bottom into 餐廳 + 走廊 +
+// two bedrooms + two balconies. This drawing is the *renovated* layout —
+// IMG_0198 is the demolition set — and the walls that made those rooms are the
+// ones that came out.
+//
+// From the owner: there is one balcony, beside the kitchen. What was the second
+// balcony is now part of the room next to it, one continuous space.
+room('左上（弧牆）', XW, Y_A, X_A - XW, Y_B - Y_A, 'wood');
+room('中間房', X_A, Y_A, X_B - X_A, Y_B - Y_A, 'wood');
+room('右上房', X_B, YN, X_D - X_B, Y_B - YN, 'wood');
+room('最右（窄）', X_D, Y_A, XE - X_D, Y_B - Y_A, 'tile');
+roomPoly('廚房', [
+  { x: X_K, y: Y_B }, { x: X_C, y: Y_B }, { x: X_C, y: Y_E },
+  { x: 555, y: Y_E }, { x: 555, y: YS }, { x: X_K, y: YS },
+], 'tile');
+room('陽台', 555, Y_E, X_C - 555, YS - Y_E, 'terrazzo');
+room('右下房（含原陽台）', X_C, Y_D, XE - X_C, YS - Y_D, 'wood');
 
 // ---- openings ------------------------------------------------------------
-win((X_B + X_D) / 2, YN, 320, 0);                // 主臥室
+win((X_B + X_D) / 2, YN, 320, 0);                // 右上房
 win((X_D + XE) / 2, YN, 120, 0);
 win((X_A + X_B) / 2, Y_A, 200, 0);               // 中間房
-win((X_K + X_C) / 2, Y_E, 200, 0);               // 陽台
-win((X_C + XE) / 2, Y_E, 240, 0);
-door((X_A + X_B) / 2, Y_B, 90, 0);               // 臥室 → 走廊
-door((X_B + X_D) / 2 - 80, Y_B, 90, 0);          // 主臥室 → 走廊
-door(X_E, (Y_A + Y_B) / 2 + 100, 80, 90);        // 主浴
-door((X_K + X_C) / 2 - 60, Y_C, 90, 0);          // 臥室
-door((X_C + X_D) / 2, Y_C, 90, 0);               // 臥室
-door(X_D, (Y_D + Y_E) / 2, 80, 90);              // 浴室
+win((555 + X_C) / 2, Y_E, 220, 0);               // 廚房 → 陽台
+win((X_C + XE) / 2, YS, 240, 0);                 // 右下房南面
+door((X_A + X_B) / 2, Y_B, 90, 0);
+door((X_B + X_D) / 2 - 80, Y_B, 90, 0);
+door(X_D, (Y_A + Y_B) / 2 + 100, 80, 90);
+door(X_C, (Y_D + Y_E) / 2, 90, 90);              // 右下房
 
-// 客廳與餐廳之間沒有牆
+// 廚房那一片是開放的，西側沒有牆
 partition(XW, Y_B, X_K, Y_B);
 
 // ---- the design's joinery ------------------------------------------------
-// Not walls. Carried as furniture so the intent survives, with the drawing's
-// own dimensions: 系統開放衣櫃 4 抽 (240 wide), 木作強化崩頂 + 鋁框拉門.
+// Not walls — new cabinetry. Carried as furniture so the drawing's intent
+// survives without any of it being quoted as structure.
 furn('wardrobe', '系統開放衣櫃 4抽', X_K + 20, 500, 240, 60);
-furn('wardrobe', '系統開放衣櫃 4抽', X_E - 250, 470, 240, 60);
-furn('wardrobe', '系統開放衣櫃 4抽', X_E - 250, 860, 240, 60);
-furn('cabinet', '汙衣櫃', X_E, 860, 53, 60);
-furn('fridge', '冰箱', X_K + 10, 1060, 60, 70);
-furn('counter', '廚具（水槽＋爐）', X_K + 10, YS - 70, 307, 60);
+furn('wardrobe', '系統開放衣櫃 4抽', X_D - 250, 470, 240, 60);
+furn('wardrobe', '系統開放衣櫃 4抽', X_D - 250, 860, 240, 60);
+furn('cabinet', '汙衣櫃', X_D, 860, 53, 60);
+furn('fridge', '冰箱 R.E.F.', X_K + 10, 1000, 60, 89);
+
+// The kitchen run, unit by unit, from IMG_0199's elevation. Its chain is
+// 95 | 60 | 60 | 20 | 40 | 20 | 5 against a stated total of 307.2, and the
+// elevation names them: 開門 / 洗碗機 / 抽屜 / 抽屜 / 調味拉籃 / 側板.
+const KY = YS - 60;                 // the run sits against the south wall
+let kx = X_K + 10;
+for (const [w, label] of [
+  [95, '水槽（開門）'], [60, '洗碗機'], [60, '抽屜'],
+  [20, '調味拉籃'], [40, '爐具'], [20, '抽屜'], [5, '側板'],
+]) {
+  furn('counter', label, kx, KY, w, 60);
+  kx += w;
+}
+// The 86 unit drawn on its own on the elevation sheet.
+furn('cabinet', '吊櫃 86', X_K + 10, YS - 130, 86, 35);
 
 // The drawing itself, at the scale the walls were measured with.
 //
