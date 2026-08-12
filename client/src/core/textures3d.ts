@@ -89,5 +89,24 @@ export function surfaceMaterial(
   return mat;
 }
 
+/**
+ * Build the textures for these materials now, so the first 3D frame does not.
+ *
+ * Generating one material is a 512² albedo, a 512² height field, and a Sobel
+ * pass over the second to make a normal map. That is 8–40 ms each, and it is
+ * paid lazily — on the first frame that shows a surface using it. Measured as a
+ * single 530 ms build the first time a plan with every finish on it reached the
+ * 3D view: one stall, at exactly the moment the user pressed the button and was
+ * watching.
+ *
+ * Only the ids passed in, because warming all thirteen would spend that time on
+ * materials the plan does not use. Idle work, so it must not be a long
+ * uninterruptible block either — the caller feeds it one id at a time.
+ */
+export function warmMaterial(id: string | undefined, category: Category): void {
+  if (id && id.startsWith('#')) return;   // a plain colour needs no texture
+  source(material(id, category));
+}
+
 /** The swatch colour, for anything that needs a flat stand-in. */
 export { material } from './materials';

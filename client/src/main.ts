@@ -3,6 +3,7 @@ import { Doc } from './model/doc';
 import { Editor } from './core/editor';
 import { View3D } from './core/view3d';
 import { PERF_ON } from './core/perf';
+import { warmMaterial } from './core/textures3d';
 import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
@@ -274,4 +275,38 @@ requestAnimationFrame(() => { editor.vp.resize(); editor.render(); applyMode(); 
 // the 3D view without a backend, and reaching in through the DOM cannot do
 // either. Gated on the same flag as the instrumentation, so a normal load
 // exposes nothing.
-if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D };
+/**
+ * Pre-build the textures this plan actually uses, while nothing else is
+ * happening.
+ *
+ * One material per idle callback rather than all of them in one: the point is
+ * to move the cost off the moment the 3D view opens, and a single 500 ms block
+ * of idle work would just move the stall to a different, less predictable
+ * moment.
+ */
+function warmFinishes() {
+  if (!('requestIdleCallback' in window)) return;
+  const jobs: (() => void)[] = [];
+  const seenFloor = new Set<string>(), seenWall = new Set<string>();
+  for (const o of doc.objects) {
+    if (o.kind === 'room') {
+      const id = o.floor ?? 'wood';
+      if (!seenFloor.has(id)) { seenFloor.add(id); jobs.push(() => warmMaterial(id, 'floor')); }
+    } else if (o.kind === 'wall' && !o.color) {
+      const id = o.finish ?? 'paint';
+      if (!seenWall.has(id)) { seenWall.add(id); jobs.push(() => warmMaterial(id, 'wall')); }
+    }
+  }
+  const step = () => {
+    const job = jobs.shift();
+    if (!job) return;
+    job();
+    (window as any).requestIdleCallback(step, { timeout: 2000 });
+  };
+  (window as any).requestIdleCallback(step, { timeout: 2000 });
+}
+doc.onChange(() => { clearTimeout(warmTimer); warmTimer = window.setTimeout(warmFinishes, 400); });
+let warmTimer: number | undefined;
+warmFinishes();
+
+if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes };

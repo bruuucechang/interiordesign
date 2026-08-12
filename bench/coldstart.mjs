@@ -1,0 +1,87 @@
+// How long the first 3D frame costs, with and without warming.
+//
+// Building one material is a 512² albedo, a 512² height field and a Sobel pass.
+// Paid lazily, that lands as a single stall at the exact moment the user
+// presses 切換 3D and is watching. This measures that first build both ways.
+//
+//   node bench/coldstart.mjs
+import { chromium } from 'playwright';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { extname, join, resolve } from 'node:path';
+const DIST = join(resolve(import.meta.dirname, '..'), 'client/dist');
+const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json' };
+const server = await new Promise(ok => { const s = createServer(async (req,res) => {
+  const p = decodeURIComponent(req.url.split('?')[0]);
+  if (p.startsWith('/api/')) { res.writeHead(200,{'content-type':'application/json'}); res.end(JSON.stringify(p==='/api/projects'?{projects:[]}:{polygons:[]})); return; }
+  let f = join(DIST, p==='/'?'index.html':p); if (!existsSync(f)) f = join(DIST,'index.html');
+  res.writeHead(200,{'content-type':MIME[extname(f)]??'application/octet-stream'}); res.end(await readFile(f));
+}); s.listen(0,()=>ok(s)); });
+
+// Every finish on one plan — the worst case, and the one that produced the
+// 530 ms measurement in the soak.
+const FLOORS = ['wood','walnut','herringbone','tile','marble','terrazzo','carpet','concrete'];
+const WALLS = ['paint','plaster','brick','walltile','wallpaper'];
+const objects = [];
+for (let k = 0; k < 8; k++) {
+  const x = (k % 4) * 420, y = Math.floor(k / 4) * 380;
+  objects.push({ id:'r'+k, kind:'room', layer:'rooms', x, y, w:400, h:360, name:'房'+k, floor: FLOORS[k] });
+  const cs = [[[x,y],[x+400,y]],[[x+400,y],[x+400,y+360]],[[x+400,y+360],[x,y+360]],[[x,y+360],[x,y]]];
+  cs.forEach(([a,b], j) => objects.push({ id:`w${k}_${j}`, kind:'wall', layer:'walls', a:{x:a[0],y:a[1]}, b:{x:b[0],y:b[1]}, thickness:12, finish: WALLS[(k+j) % WALLS.length] }));
+}
+const plan = { schemaVersion:1, name:'cold', activeFloorId:'f1',
+  floors:[{ id:'f1', name:'1F', base:0, height:270, objects }],
+  layers:[{id:'walls',name:'牆',color:'#eee',visible:true},{id:'rooms',name:'房',color:'#4c8dff',visible:true}] };
+
+async function run(warm) {
+  const b = await chromium.launch();
+  const page = await b.newPage({ viewport:{width:1200,height:800} });
+  await page.goto(`http://127.0.0.1:${server.address().port}/?perf=1`);
+  await page.waitForTimeout(2000);
+  const ms = await page.evaluate(async ({ plan, warm }) => {
+    const { doc, view3d, warmFinishes } = window.__app;
+    doc.load(plan);
+    // The app warms on its own 400 ms after a change; with warming off we go
+    // straight to 3D before that can happen.
+    await new Promise(r => setTimeout(r, warm ? 4000 : 60));
+    const t = performance.now();
+    view3d.build(doc, true);
+    return performance.now() - t;
+  }, { plan, warm });
+  await b.close();
+  return ms;
+}
+
+// 預熱本身花多久、每一塊多大 —— 成本是被移走不是消失，那些塊落在閒置時
+// 一樣會被感覺到。
+async function warmCost() {
+  const b = await chromium.launch();
+  const page = await b.newPage({ viewport:{width:1200,height:800} });
+  await page.goto(`http://127.0.0.1:${server.address().port}/?perf=1`);
+  await page.waitForTimeout(2000);
+  const r = await page.evaluate(async (plan) => {
+    const { doc } = window.__app;
+    doc.load(plan);
+    const each = [];
+    const ric = window.requestIdleCallback;
+    window.requestIdleCallback = (fn, o) => ric(() => { const t = performance.now(); fn(); each.push(performance.now() - t); }, o);
+    await new Promise(r2 => setTimeout(r2, 6000));
+    window.requestIdleCallback = ric;
+    return each.filter(x => x > 1);
+  }, plan);
+  await b.close();
+  return r;
+}
+
+const cold = await run(false);
+const warmed = await run(true);
+const blocks = await warmCost();
+console.log('13 種材質全用上，第一次 build：');
+console.log(`  沒有預熱  ${cold.toFixed(0)}ms`);
+console.log(`  閒置預熱後 ${warmed.toFixed(0)}ms   (${((1 - warmed / cold) * 100).toFixed(0)}% less)`);
+blocks.sort((a, z) => z - a);
+console.log(`\n預熱本身：${blocks.length} 塊，共 ${blocks.reduce((s, x) => s + x, 0).toFixed(0)}ms`);
+console.log(`  最大一塊 ${blocks[0]?.toFixed(0)}ms   中位數 ${blocks[blocks.length >> 1]?.toFixed(0)}ms`);
+console.log('  （成本是被移到閒置，不是消失——一塊太大照樣會被感覺到）');
+server.close();
