@@ -45,6 +45,9 @@ const door = (x, y, width, angle) =>
 const win = (x, y, width, angle) =>
   objects.push({ id: id('window'), kind: 'window', layer: 'openings', x, y, width, angle });
 
+const partition = (ax, ay, bx, by) =>
+  objects.push({ id: id('partition'), kind: 'partition', layer: 'rooms', a: { x: ax, y: ay }, b: { x: bx, y: by } });
+
 const dim = (ax, ay, bx, by, offset) =>
   objects.push({ id: id('dimension'), kind: 'dimension', layer: 'dims', a: { x: ax, y: ay }, b: { x: bx, y: by }, offset });
 
@@ -86,7 +89,11 @@ wall(X_MB, Y0, X_MB, Y_TOP, TOUT);
 wall(X_BATH, Y0, X_BATH, Y_TOP, TOUT);
 wall(X_BATH, Y_TOP, XE, Y_TOP, TOUT);           // 衛浴 north
 wall(XE, Y_TOP, XE, Y_MBS, TOUT);               // east
-wall(XW, Y_TOP, XW, YB, TOUT);                  // west
+// The west wall steps. Running it the full height put it straight through the
+// lift shaft and the outdoor stair, which are not part of this unit at all.
+wall(XW, Y_TOP, XW, Y_MID, TOUT);               // 客廳 west
+wall(XW, Y_MID, X_DIN, Y_MID, TOUT);            // the step
+wall(X_DIN, Y_MID, X_DIN, YB, TOUT);            // 餐廳 / 廚房 west
 wall(XW, YB, X_E2, YB, TOUT);                   // south
 wall(X_E2, Y_LOW, X_E2, YB, TOUT);              // lower east
 wall(X_BATH, Y_MBS, X_E2, Y_LOW, TOUT);         // the jog between the bands
@@ -100,19 +107,24 @@ wall(X_LIV, Y_MID, X_MB, Y_MID);                // 臥室 south
 wall(X_MB, Y_MBS, X_BATH, Y_MBS);               // 主臥室 south（有台階）
 
 // ---- lower band ----------------------------------------------------------
-wall(X_DIN, Y_LOW, X_DIN, YB);                  // 餐廳 west (inner)
 wall(X_BED, Y_LOW, X_BED, Y_BAL);               // 餐廳 | 臥室
 wall(X_B2, Y_LOW, X_B2, YB);                    // 臥室 | 臥室
 wall(X_BED, Y_LOW, X_E2, Y_LOW);                // north wall of the lower rooms
 wall(X_BED, Y_BAL, X_E2, Y_BAL);                // 臥室 | 陽台
 wall(X_DIN, Y_BAL, X_BED, Y_BAL);               // 餐廳 | 廚房
 
+// 客廳 and 餐廳 are one space in the drawing — there is no wall between them,
+// which is exactly what a partition line is for: the area schedule counts them
+// separately and nothing gets built. Tracing a wall here is what made the room
+// detector see one closed loop for the whole floor.
+partition(XW, Y_MID, X_LIV, Y_MID);
+
 // ---- rooms ---------------------------------------------------------------
 room('客廳', XW, Y_TOP, X_LIV - XW, Y_MID - Y_TOP, 'wood');
 room('臥室', X_LIV, Y_TOP, X_MB - X_LIV, Y_MID - Y_TOP, 'wood');
 room('主臥室', X_MB, Y0, X_BATH - X_MB, Y_MBS - Y0, 'wood');
 room('主浴', X_BATH, Y_TOP, XE - X_BATH, Y_MBS - Y_TOP, 'tile');
-room('餐廳', X_DIN, Y_LOW, X_BED - X_DIN, Y_BAL - Y_LOW, 'wood');
+room('餐廳', X_DIN, Y_MID, X_BED - X_DIN, Y_BAL - Y_MID, 'wood');
 room('廚房', X_DIN, Y_BAL, X_BED - X_DIN, YB - Y_BAL, 'tile');
 room('臥室', X_BED, Y_LOW, X_B2 - X_BED, Y_BAL - Y_LOW, 'wood');
 room('臥室', X_B2, Y_LOW, X_E2 - X_B2, Y_BAL - Y_LOW, 'wood');
