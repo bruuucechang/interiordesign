@@ -73,7 +73,13 @@ const list = WALLS
   : ['wood', 'walnut', 'herringbone', 'tile', 'marble', 'terrazzo', 'carpet', 'concrete'];
 
 // Switch to 3D as the main view, so it renders at full resolution with AO.
-await page.evaluate(() => document.getElementById('btnToggle').click());
+// 三段選擇器，不是舊的切換鈕。找不到就丟例外——一個安靜停止測試半個
+// 程式的測試架構，比一個會失敗的糟得多。
+await page.evaluate(() => {
+  const b = document.querySelector('.view-modes button[data-mode="3d"]');
+  if (!b) throw new Error('找不到 3D 檢視按鈕 —— 版面改過了');
+  b.click();
+});
 await page.waitForTimeout(600);
 
 for (const id of list) {

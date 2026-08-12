@@ -173,13 +173,59 @@ const shade = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: 
   c.fillRect(x, y, w, h);
 };
 
-/** Fine speckle, so a flat fill does not read as plastic. */
+/**
+ * Fine speckle, so a flat fill does not read as plastic.
+ *
+ * Written straight into the pixel buffer rather than as one `fillRect` per
+ * speckle. At 512² with `amount` above 1 that was over half a million canvas
+ * calls for a single material, and it showed: generating the carpet took just
+ * over a second, on the main thread, on its own. Same picture, one
+ * getImageData/putImageData pair.
+ */
 function grain(c: CanvasRenderingContext2D, size: number, rnd: () => number, amount: number) {
-  for (let i = 0; i < size * size * amount; i++) {
+  const img = c.getImageData(0, 0, size, size);
+  const d = img.data;
+  const n = Math.round(size * size * amount);
+  for (let i = 0; i < n; i++) {
+    const p = Math.floor(rnd() * size * size) * 4;
+    // The same blend the fillRect version did — towards white or black with an
+    // alpha of at most 0.08 — not a flat ±N. A fixed offset looks nothing like
+    // it: on a light surface the old rule moved a pixel by about one level and
+    // ±20 turned every painted wall into sandpaper.
     const v = rnd();
-    c.fillStyle = v > 0.5 ? `rgba(255,255,255,${(v - 0.5) * 0.16})` : `rgba(0,0,0,${(0.5 - v) * 0.16})`;
-    c.fillRect(rnd() * size, rnd() * size, 1, 1);
+    const a = Math.abs(v - 0.5) * 0.16;
+    const target = v > 0.5 ? 255 : 0;
+    d[p] += (target - d[p]) * a;
+    d[p + 1] += (target - d[p + 1]) * a;
+    d[p + 2] += (target - d[p + 2]) * a;
   }
+  c.putImageData(img, 0, 0);
+}
+
+/**
+ * Short vertical strokes over the whole surface — carpet pile.
+ *
+ * Same reasoning as `grain`: one fillRect per tuft is a quarter of a million
+ * canvas calls.
+ */
+function pile(c: CanvasRenderingContext2D, size: number, rnd: () => number, density: number) {
+  const img = c.getImageData(0, 0, size, size);
+  const d = img.data;
+  const n = Math.round(size * size * density);
+  for (let i = 0; i < n; i++) {
+    const x = Math.floor(rnd() * size), y = Math.floor(rnd() * size);
+    const v = rnd();
+    const a = Math.abs(v - 0.5) * 0.5;                       // as the old alpha
+    const t = v > 0.5 ? [255, 250, 240] : [20, 16, 10];      // as the old colours
+    const h = 1 + Math.floor(rnd() * 2);
+    for (let k = 0; k < h; k++) {
+      const p = (((y + k) % size) * size + x) * 4;
+      d[p] += (t[0] - d[p]) * a;
+      d[p + 1] += (t[1] - d[p + 1]) * a;
+      d[p + 2] += (t[2] - d[p + 2]) * a;
+    }
+  }
+  c.putImageData(img, 0, 0);
 }
 
 /** Planks running along X, with seams. Shared by the wood floors. */
@@ -398,11 +444,7 @@ export const MATERIALS: MaterialDef[] = [
     roughness: 0.98, metalness: 0, swatch: '#8d8579', bump: 2.2,
     albedo(c, s, r) {
       c.fillStyle = '#8d8579'; c.fillRect(0, 0, s, s);
-      for (let i = 0; i < s * s * 0.9; i++) {
-        const v = r();
-        c.fillStyle = v > 0.5 ? `rgba(255,250,240,${(v - 0.5) * 0.5})` : `rgba(20,16,10,${(0.5 - v) * 0.5})`;
-        c.fillRect(r() * s, r() * s, 1, 1 + r());
-      }
+      pile(c, s, r, 0.9);
     },
     height(c, s, r) { c.fillStyle = '#888'; c.fillRect(0, 0, s, s); grain(c, s, r, 2.4); },
     hatch(c, s) { hatchStipple(c, s, 260, 23, 0.7); },
