@@ -108,7 +108,10 @@ wall(XE, Y_MBS, X_BATH, Y_MBS, TOUT);
 
 // ---- upper band ----------------------------------------------------------
 wall(X_LIV, Y_TOP, X_LIV, Y_MID);               // 客廳 | 臥室
-wall(X_MB, Y_TOP, X_MB, Y_MBS);                 // 臥室 | 主臥室
+// Stops at the corridor, not 27 cm into it. The master's south wall is at 619
+// only east of the bathroom line; here the corridor's north face is 592, and a
+// partition that overshoots it sticks out into the walkway.
+wall(X_MB, Y_TOP, X_MB, Y_MID);                 // 臥室 | 主臥室
 wall(X_BATH, Y_TOP, X_BATH, Y_MBS);             // 主臥室 | 衛浴
 // The corridor's north side is one straight line all the way to the bathroom
 // door. It was stepping at X=788 because I let the master bedroom's south wall
@@ -155,11 +158,14 @@ win((X_LIV + X_MB) / 2, Y_TOP, 180, 0);          // 臥室
 win(XW, (Y_TOP + Y_MID) / 2, 240, 90);          // 客廳 west
 win((X_BED + X_B2) / 2, Y_BAL, 200, 0);          // 臥室 → 陽台
 win((X_B2 + X_E2) / 2, Y_BAL, 260, 0);
-door(X_LIV, Y_MID - 90, 90, 90);                 // 客廳 ↔ 餐廳 side
-door((X_LIV + X_MB) / 2 - 60, Y_MID, 90, 0);     // 臥室
-door((X_MB + X_BATH) / 2, Y_MBS, 90, 0);        // 主臥室
+// Positions read off the door swings in the drawing, not guessed from room
+// centres. Both bedrooms open onto the corridor's north wall, side by side near
+// the middle of the plan — which is why the master's door was so obviously
+// wrong at 992: that is the bathroom's north wall, not the corridor.
+door(730, Y_MID, 90, 0);                        // 臥室
+door(828, Y_MID, 90, 0);                        // 主臥室
 door(X_BATH, (Y_TOP + Y_MBS) / 2 + 120, 80, 90); // 主浴
-door((X_BED + X_B2) / 2 - 70, Y_LOW, 90, 0);     // 臥室
+door(594, Y_COR, 90, 0);                        // 中間臥室（走廊南側）
 door((X_B2 + X_E2) / 2 - 90, Y_BTH, 90, 0);     // 右臥室
   door(X_BW, (Y_MBS + Y_BTH) / 2, 80, 90);        // 中浴（開在走廊盡頭）
 door(X_BED, Y_BAL - 60, 80, 90);                 // 廚房
