@@ -75,9 +75,16 @@ const XE = 1376;      // east edge        (1369 / 1383)
 
 const Y0 = 0;         // top of the master bedroom bay
 const Y_TOP = 132;    // north wall of 客廳 / 臥室      ← first pass had 162
-const Y_MID = 592;    // 臥室 south                      (585 / 598)
-const Y_MBS = 619;    // 主臥室 south — it steps         (613 / 625)
-const Y_LOW = 699;    // lower rooms north               (693 / 705)
+// The corridor is a constant 107 wide — 592 to 699 the whole way. The first
+// pass stepped its north edge down to 619 under the master bedroom, which made
+// it 107 at one end and 80 at the other. 619 is not the corridor at all: it is
+// where the master bedroom stops because the second bathroom is underneath it.
+const Y_MID = 592;    // 臥室 south = corridor north     (585 / 598)
+const Y_MBS = 619;    // 主臥室 south = 中浴 north       (613 / 625)
+const Y_COR = 699;    // corridor south                  (693 / 705)
+const Y_LOW = 699;    // 中間臥室 north
+const Y_BTH = 791;    // 中浴 south = 右臥室 north       (785 / 797)
+const X_BW = 926;     // 中浴 west — the corridor ends at its door
 const Y_BAL = 1034;   // 臥室 | 陽台                     ← first pass had 1067
 const YB = 1260;      // south edge                      (1254 / 1266)
 
@@ -109,7 +116,11 @@ wall(X_MB, Y_MBS, X_BATH, Y_MBS);               // 主臥室 south（有台階�
 // ---- lower band ----------------------------------------------------------
 wall(X_BED, Y_LOW, X_BED, Y_BAL);               // 餐廳 | 臥室
 wall(X_B2, Y_LOW, X_B2, YB);                    // 臥室 | 臥室
-wall(X_BED, Y_LOW, X_E2, Y_LOW);                // north wall of the lower rooms
+wall(X_BED, Y_COR, X_BW, Y_COR);                // 走廊南牆（中間臥室的北牆）
+// ---- 中浴：走廊走到底的那一間 -------------------------------------------
+wall(X_BW, Y_MBS, X_E2, Y_MBS);                 // 中浴 north
+wall(X_BW, Y_MBS, X_BW, Y_BTH);                 // 中浴 west（走廊的盡頭）
+wall(X_BW, Y_BTH, X_E2, Y_BTH);                 // 中浴 south = 右臥室 north
 wall(X_BED, Y_BAL, X_E2, Y_BAL);                // 臥室 | 陽台
 wall(X_DIN, Y_BAL, X_BED, Y_BAL);               // 餐廳 | 廚房
 
@@ -125,9 +136,11 @@ room('臥室', X_LIV, Y_TOP, X_MB - X_LIV, Y_MID - Y_TOP, 'wood');
 room('主臥室', X_MB, Y0, X_BATH - X_MB, Y_MBS - Y0, 'wood');
 room('主浴', X_BATH, Y_TOP, XE - X_BATH, Y_MBS - Y_TOP, 'tile');
 room('餐廳', X_DIN, Y_MID, X_BED - X_DIN, Y_BAL - Y_MID, 'wood');
+room('走廊', X_BED, Y_MID, X_BW - X_BED, Y_COR - Y_MID, 'tile');
+room('浴室', X_BW, Y_MBS, X_E2 - X_BW, Y_BTH - Y_MBS, 'tile');
 room('廚房', X_DIN, Y_BAL, X_BED - X_DIN, YB - Y_BAL, 'tile');
 room('臥室', X_BED, Y_LOW, X_B2 - X_BED, Y_BAL - Y_LOW, 'wood');
-room('臥室', X_B2, Y_LOW, X_E2 - X_B2, Y_BAL - Y_LOW, 'wood');
+room('臥室', X_B2, Y_BTH, X_E2 - X_B2, Y_BAL - Y_BTH, 'wood');
 room('陽台', X_BED, Y_BAL, X_B2 - X_BED, YB - Y_BAL, 'terrazzo');
 room('陽台', X_B2, Y_BAL, X_E2 - X_B2, YB - Y_BAL, 'terrazzo');
 
@@ -142,7 +155,8 @@ door((X_LIV + X_MB) / 2 - 60, Y_MID, 90, 0);     // 臥室
 door((X_MB + X_BATH) / 2, Y_MBS, 90, 0);        // 主臥室
 door(X_BATH, (Y_TOP + Y_MBS) / 2 + 120, 80, 90); // 主浴
 door((X_BED + X_B2) / 2 - 70, Y_LOW, 90, 0);     // 臥室
-door((X_B2 + X_E2) / 2 - 90, Y_LOW, 90, 0);      // 臥室
+door((X_B2 + X_E2) / 2 - 90, Y_BTH, 90, 0);     // 右臥室
+  door(X_BW, (Y_MBS + Y_BTH) / 2, 80, 90);        // 中浴（開在走廊盡頭）
 door(X_BED, Y_BAL - 60, 80, 90);                 // 廚房
 
 // ---- the structural column ----------------------------------------------
