@@ -117,7 +117,13 @@ export class View3D {
     this.sky.frustumCulled = false;
     this.scene.add(this.sky);
 
-    this.camera = new THREE.PerspectiveCamera(52, 1, 1, 200000);
+    // near/far decide how much depth precision there is to go round, and the ratio
+    // between them is what matters: 1 to 200000 spends almost all of it in the
+    // first few centimetres and leaves the floor of a room fighting with whatever
+    // is under it. The scene is a building — the sky dome and the 80 m ground
+    // plane are the furthest things in it — so 5 cm to 400 m is generous, and it
+    // is a 4000× tighter ratio.
+    this.camera = new THREE.PerspectiveCamera(52, 1, 5, 40000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
@@ -447,8 +453,14 @@ export class View3D {
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
     const grow = (x: number, z: number) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
 
+    // Below the slabs, not level with them. A room's floor is a 4 cm box sitting
+    // at y = 2, so its underside was exactly coplanar with a ground plane at
+    // y = 0 — two surfaces at the same depth, which flickers as the camera moves
+    // and which the ambient occlusion pass then samples, so it reads as the
+    // texture itself breaking up rather than as two bits of geometry arguing.
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), this.mat(0xccd3dc, { roughness: 1 }));
-    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; this.staticGroup.add(ground);
+    ground.rotation.x = -Math.PI / 2; ground.position.y = -6;
+    ground.receiveShadow = true; this.staticGroup.add(ground);
     this.ground = ground;
 
     // stack every floor at its elevation
@@ -619,9 +631,18 @@ export class View3D {
     // works when the camera faces a side square-on and fails on the diagonal —
     // it opens the corner nearest the camera and leaves the other two rooms
     // shut. Each run of wall is tested against the axis it actually blocks.
-    const sx = Math.sign(cam.x - cx) || 1, sz = Math.sign(cam.z - cz) || 1;
     const halfX = (box.max.x - box.min.x) / 2 || 1;
     const halfZ = (box.max.z - box.min.z) / 2 || 1;
+    // Which side the camera is on, with a dead zone around the centre line.
+    //
+    // Taking the sign directly means that as the camera swings through the
+    // middle of the plan, a hair of movement flips it and a whole side of the
+    // building appears or vanishes between one frame and the next. Near the
+    // centre line the camera is edge-on to those walls anyway — they are not
+    // blocking anything — so the last decision is kept until it is clearly past.
+    if (Math.abs(cam.x - cx) > halfX * 0.15) this.cullSignX = Math.sign(cam.x - cx) || 1;
+    if (Math.abs(cam.z - cz) > halfZ * 0.15) this.cullSignZ = Math.sign(cam.z - cz) || 1;
+    const sx = this.cullSignX, sz = this.cullSignZ;
 
     for (const m of this.staticGroup.children) {
       const at = m.userData.occludeAt as { x: number; z: number } | undefined;
@@ -653,6 +674,8 @@ export class View3D {
   }
 
   private planBox = new THREE.Box3();
+  private cullSignX = 1;
+  private cullSignZ = 1;
 
   private buildObject(o: Obj, yBase = 0) {
     switch (o.kind) {
