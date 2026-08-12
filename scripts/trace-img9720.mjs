@@ -39,6 +39,16 @@ const wall = (ax, ay, bx, by, thickness = T) =>
 const room = (name, x, y, w, h, floor) =>
   objects.push({ id: id('room'), kind: 'room', layer: 'rooms', x, y, w, h, name, floor });
 
+/** A room that is not a rectangle. Its bbox still drives the label and handles. */
+const roomPoly = (name, poly, floor) => {
+  const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+  objects.push({
+    id: id('room'), kind: 'room', layer: 'rooms', name, floor, poly,
+    x: Math.min(...xs), y: Math.min(...ys),
+    w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys),
+  });
+};
+
 const door = (x, y, width, angle) =>
   objects.push({ id: id('door'), kind: 'door', layer: 'openings', x, y, width, angle });
 
@@ -141,7 +151,14 @@ partition(XW, Y_MID, X_LIV, Y_MID);
 // ---- rooms ---------------------------------------------------------------
 room('客廳', XW, Y_TOP, X_LIV - XW, Y_MID - Y_TOP, 'wood');
 room('臥室', X_LIV, Y_TOP, X_MB - X_LIV, Y_MID - Y_TOP, 'wood');
-room('主臥室', X_MB, Y0, X_BATH - X_MB, Y_MBS - Y0, 'wood');
+// A rectangle to 619 would lie across the corridor from 592 to 619 between
+// X 788 and 926 — 0.37 m² of second floor slab at the master bedroom's door,
+// at exactly the same height as the corridor's. That is not a rounding error
+// you can see; it is the floor visibly flickering as you walk through the door.
+roomPoly('主臥室', [
+  { x: X_MB, y: Y0 }, { x: X_BATH, y: Y0 }, { x: X_BATH, y: Y_MBS },
+  { x: X_BW, y: Y_MBS }, { x: X_BW, y: Y_MID }, { x: X_MB, y: Y_MID },
+], 'wood');
 room('主浴', X_BATH, Y_TOP, XE - X_BATH, Y_MBS - Y_TOP, 'tile');
 room('餐廳', X_DIN, Y_MID, X_BED - X_DIN, Y_BAL - Y_MID, 'wood');
 room('走廊', X_BED, Y_MID, X_BW - X_BED, Y_COR - Y_MID, 'tile');
