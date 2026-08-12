@@ -110,8 +110,13 @@ wall(XE, Y_MBS, X_BATH, Y_MBS, TOUT);
 wall(X_LIV, Y_TOP, X_LIV, Y_MID);               // 客廳 | 臥室
 wall(X_MB, Y_TOP, X_MB, Y_MBS);                 // 臥室 | 主臥室
 wall(X_BATH, Y_TOP, X_BATH, Y_MBS);             // 主臥室 | 衛浴
-wall(X_LIV, Y_MID, X_MB, Y_MID);                // 臥室 south
-wall(X_MB, Y_MBS, X_BATH, Y_MBS);               // 主臥室 south（有台階）
+// The corridor's north side is one straight line all the way to the bathroom
+// door. It was stepping at X=788 because I let the master bedroom's south wall
+// be the corridor's north edge — but the master only steps back at X=926, where
+// the bathroom starts. Two parallel lines, 592 and 699, from 489 to 926.
+wall(X_LIV, Y_MID, X_BW, Y_MID);                // 走廊北牆（臥室＋主臥室的南牆）
+wall(X_BW, Y_MID, X_BW, Y_MBS);                 // 主臥室在浴室這裡才退
+wall(X_BW, Y_MBS, X_BATH, Y_MBS);               // 主臥室 south（浴室那一段）
 
 // ---- lower band ----------------------------------------------------------
 wall(X_BED, Y_LOW, X_BED, Y_BAL);               // 餐廳 | 臥室
