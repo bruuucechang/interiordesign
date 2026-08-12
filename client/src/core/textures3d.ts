@@ -27,7 +27,12 @@ const sources = new Map<string, Maps>();
 function draw(size: number, fn: (c: CanvasRenderingContext2D, s: number) => void): HTMLCanvasElement {
   const cv = document.createElement('canvas');
   cv.width = cv.height = size;
-  fn(cv.getContext('2d')!, size);
+  // willReadFrequently, because these get read straight back: the speckle and
+  // pile passes are getImageData/putImageData, and the height field is read out
+  // whole to build the normal map. Without it the browser keeps the surface on
+  // the GPU and every readback is a stall — Chrome says so in the console, which
+  // is where this came from.
+  fn(cv.getContext('2d', { willReadFrequently: true })!, size);
   return cv;
 }
 
