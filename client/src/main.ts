@@ -3,6 +3,9 @@ import { Doc } from './model/doc';
 import { Editor } from './core/editor';
 import { View3D } from './core/view3d';
 import { PERF_ON } from './core/perf';
+import { loadProject } from './net/api';
+import { setSaveBaseline } from './ui/autosave';
+import { notice } from './ui/feedback';
 import { warmMaterial } from './core/textures3d';
 import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
@@ -270,6 +273,34 @@ window.addEventListener('resize', () => {
 });
 
 requestAnimationFrame(() => { editor.vp.resize(); editor.render(); applyMode(); });
+
+/**
+ * Open a plan straight from the URL: `?plan=<id>`.
+ *
+ * Without it the only way in is the 開啟 dialog, which means a plan cannot be
+ * linked to, bookmarked, or handed to someone — and on this machine, where the
+ * browser window sits behind a full-screen terminal layout, "click 開啟 and
+ * pick it from the list" is not a thing that can be done for you at all.
+ *
+ * A missing or unknown id is not an error: it leaves the blank plan up, the
+ * same as opening the app normally. Silently opening nothing would be worse
+ * than saying so, hence the message.
+ */
+async function openFromUrl() {
+  const id = new URLSearchParams(location.search).get('plan');
+  if (!id) return;
+  const proj = await loadProject(id);
+  if (!proj) { notice(`找不到方案「${id}」— 網址上的 plan 參數對不到任何一份存檔`); return; }
+  doc.load(proj);
+  const nameEl = document.getElementById('projectName') as HTMLInputElement | null;
+  if (nameEl) nameEl.value = proj.name;
+  setSaveBaseline(JSON.stringify(doc.serialize()));   // 剛載入的不算未存
+  editor.resetView();
+  editor.vp.resize();
+  fit2D();
+  if (mode !== '2d') { view3d.resize(); view3d.build(doc, true); }
+}
+void openFromUrl();
 
 // With ?perf=1, hand the soak driver a way in. It needs to load a plan and read
 // the 3D view without a backend, and reaching in through the DOM cannot do
