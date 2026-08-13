@@ -18,22 +18,23 @@
 
 import { readFileSync } from 'node:fs';
 
-const REGIONS = '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/regions.json';
+const REGIONS = '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/regions-rect.json';
 const UNDERLAY = '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/ul0197.jpg';
 const CEIL = 300;
 
 // Names in the order the regions come out (largest first). The drawing labels
 // only 廚房; the rest are placed by position and are the one thing here that is
 // not measured — they are the bit to correct.
+// From the owner.
 const NAMES = [
-  ['廚房', 'tile'],           // 28.6 — labelled on the drawing, open plan
-  ['房間 A', 'wood'],         // 16.5 — 右上，北面整排窗
-  ['房間 B', 'wood'],         // 15.9 — 左上，弧牆
-  ['房間 C', 'wood'],         // 13.8 — 中間
-  ['房間 D', 'wood'],         // 12.7 — 右下（含原陽台）
-  ['衛浴 A', 'tile'],         // 6.3  — 最右，窄
-  ['陽台', 'terrazzo'],       // 4.3  — 廚房旁
-  ['衛浴 B', 'tile'],         // 3.4  — 中間偏右的小間
+  ['客廳＋廚房', 'wood'],     // 28.6 — one open space, the drawing labels it 廚房
+  ['老媽房間', 'wood'],       // 16.5
+  ['Peter 房間', 'wood'],     // 15.9 — the arc on its north side is a window
+  ['老爸房間', 'wood'],       // 13.8
+  ['Bruce 房間', 'wood'],     // 12.7
+  ['衛浴 A', 'tile'],         // 6.3
+  ['陽台', 'terrazzo'],       // 4.3
+  ['衛浴 B', 'tile'],         // 3.3
 ];
 
 const SNAP = 5;                                  // cm — kills contour jitter
@@ -89,6 +90,21 @@ for (const { a, b } of seen.values()) {
   objects.push({
     id: id('wall'), kind: 'wall', layer: 'walls',
     a: { ...a }, b: { ...b }, thickness: 15, finish: 'paint',
+  });
+}
+
+// ---- the curved window on Peter's room -----------------------------------
+//
+// Its north side, as a window that follows the arc rather than a wall that
+// bends. `bulge` is the apex offset from the chord, in cm.
+{
+  const peter = polys[2];
+  const xs = peter.map((p) => p.x), ys = peter.map((p) => p.y);
+  const north = Math.min(...ys);
+  objects.push({
+    id: id('window'), kind: 'window', layer: 'openings',
+    x: (Math.min(...xs) + Math.max(...xs)) / 2, y: north,
+    width: Math.max(...xs) - Math.min(...xs) - 60, angle: 0, bulge: -55,
   });
 }
 
