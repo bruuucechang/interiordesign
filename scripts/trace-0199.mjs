@@ -86,7 +86,40 @@ for (const poly of polys) {
     if (!seen.has(key)) seen.set(key, { a, b });
   }
 }
-for (const { a, b } of seen.values()) {
+// Two lines 15 cm apart are the two *faces* of one wall, not two walls.
+//
+// The rooms are traced from the free space inside them, so a shared wall shows
+// up once per room — at its own face. Emitting both leaves a pair of walls with
+// a gap between them: one 15 cm wall modelled as 45 cm of building. The owner
+// spotted it. Anything parallel, overlapping and within 40 cm is the same wall
+// seen from both sides, and collapses to one on the centreline.
+let segs = [...seen.values()];
+const vert = (s) => s.a.x === s.b.x;
+const span = (s) => (vert(s) ? [Math.min(s.a.y, s.b.y), Math.max(s.a.y, s.b.y)]
+                             : [Math.min(s.a.x, s.b.x), Math.max(s.a.x, s.b.x)]);
+let merged = true;
+while (merged) {
+  merged = false;
+  outer: for (let i = 0; i < segs.length; i++) {
+    for (let j = i + 1; j < segs.length; j++) {
+      const s = segs[i], u = segs[j];
+      if (vert(s) !== vert(u)) continue;
+      const off = vert(s) ? Math.abs(s.a.x - u.a.x) : Math.abs(s.a.y - u.a.y);
+      if (off < 1 || off > 40) continue;
+      const [s0, s1] = span(s), [u0, u1] = span(u);
+      if (Math.min(s1, u1) - Math.max(s0, u0) < 50) continue;      // barely overlap
+      const mid = vert(s) ? (s.a.x + u.a.x) / 2 : (s.a.y + u.a.y) / 2;
+      const lo = Math.min(s0, u0), hi = Math.max(s1, u1);
+      const one = vert(s)
+        ? { a: { x: mid, y: lo }, b: { x: mid, y: hi } }
+        : { a: { x: lo, y: mid }, b: { x: hi, y: mid } };
+      segs = segs.filter((_, k) => k !== i && k !== j).concat([one]);
+      merged = true;
+      break outer;
+    }
+  }
+}
+for (const { a, b } of segs) {
   objects.push({
     id: id('wall'), kind: 'wall', layer: 'walls',
     a: { ...a }, b: { ...b }, thickness: 15, finish: 'paint',
@@ -158,7 +191,7 @@ const plan = {
   ],
 };
 
-console.log(`天花板 ${CEIL} cm，${regions.length} 個空間，${seen.size} 道牆`);
+console.log(`天花板 ${CEIL} cm，${regions.length} 個空間，${segs.length} 道牆（合併前 ${seen.size}）`);
 for (const [i, r] of regions.entries()) {
   console.log(`  ${(NAMES[i]?.[0] ?? '?').padEnd(8)} ${r.m2.toFixed(1)} m²`);
 }
