@@ -18,7 +18,7 @@
 
 import { readFileSync } from 'node:fs';
 
-const REGIONS = '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/regions-rect.json';
+const REGIONS = '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/regions-flat.json';
 const UNDERLAY = '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/ul0197.jpg';
 const CEIL = 300;
 
@@ -90,6 +90,34 @@ for (const { a, b } of seen.values()) {
   objects.push({
     id: id('wall'), kind: 'wall', layer: 'walls',
     a: { ...a }, b: { ...b }, thickness: 15, finish: 'paint',
+  });
+}
+
+// ---- the joinery ---------------------------------------------------------
+//
+// Cabinets, not walls. Telling them apart is the whole reason this pass exists:
+// in this drawing a wall is a pair of lines 15–17 px apart (its two faces at
+// 15 cm) and a cabinet is a pair 50–65 cm apart (its depth), drawn thin and
+// dashed. Flood-filling the raw linework treats both as boundaries, so every
+// wardrobe bit a notch out of its room — which is what the owner spotted: the
+// 35/60/35/20 in Bruce's room and the 240s in the other two are wardrobe
+// widths, and the rooms are square behind them.
+//
+// So the room outlines are flattened over any indentation shallower than 75 cm,
+// and the cabinets go back in as furniture at the sizes the drawing states.
+const CAB = [
+  [959, 491, 240, 60, '系統開放衣櫃 4抽'],     // 老媽房間
+  [949, 799, 240, 60, '系統開放衣櫃 4抽'],     // Bruce 房間
+  [1189, 799, 53, 60, '汙衣櫃'],
+  [16, 484, 369, 60, '木作強化吊頂＋鋁框拉門'], // Peter 房間
+  [143, 549, 240, 60, '系統開放衣櫃 4抽'],
+  [234, 1155, 307, 60, '廚具（水槽＋爐）'],     // 廚房，307.2
+  [240, 1000, 60, 89, '冰箱 R.E.F.'],
+];
+for (const [x, y, w, h, label] of CAB) {
+  objects.push({
+    id: id('furniture'), kind: 'furniture', layer: 'furniture',
+    item: 'cabinet', label, x, y, w, h, angle: 0,
   });
 }
 
