@@ -216,6 +216,31 @@ for (const [x, y, w, h] of COLS) {
   });
 }
 
+// ---- doors and openings --------------------------------------------------
+//
+// Found the same way as everything else here: by measuring, not by placing them
+// where a room's middle happens to be. Each wall is walked along its own line in
+// the original image and the stretches with no ink are its openings. Anything up
+// to 130 cm is a door; wider is an opening or a window run.
+//
+// This is why an earlier pass had the master bedroom's door opening into a
+// bathroom — it was positioned from the room's centre rather than from where
+// the drawing actually breaks the wall.
+const OPENINGS = [
+  [35, 266, 248, 90, 'window'],
+  [1019, 480, 100, 0, 'door'],
+  [1152, 480, 102, 0, 'door'],
+  [400, 481, 66, 90, 'door'],
+  [116, 720, 198, 0, 'window'],
+  [1001, 910, 92, 0, 'door'],
+  [1175, 910, 79, 0, 'door'],
+  [1215, 1062, 304, 90, 'window'],
+  [442, 1140, 198, 0, 'window'],
+];
+for (const [x, y, width, angle, kind] of OPENINGS) {
+  objects.push({ id: id(kind), kind, layer: 'openings', x, y, width, angle });
+}
+
 // ---- the drawing, at the scale the rooms were measured with --------------
 objects.unshift({
   id: id('image'), kind: 'image', layer: 'underlay',
