@@ -57,7 +57,14 @@ export interface Room extends Base { kind: 'room'; x: number; y: number; w: numb
 // `height` (cm) = opening height; `elevation` (cm) = sill height above the floor.
 // `bulge` (cm) curves the opening to follow a curved wall (windows).
 // `style` selects the leaf/sash form (see DOOR_STYLES / WINDOW_STYLES in catalogue.ts).
-export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; bulge?: number; style?: string; }
+// `hinge` is which end of the opening the door is hung on and `swing` is which
+// side it opens to, both read along the opening's own `angle`. Four
+// combinations, which is what a door has. Absent means left-hung, opening back
+// — the only thing that was drawable before, and the reason a plan could not
+// say whether a door swings into the room or into the corridor.
+export type Hinge = 'left' | 'right';
+export type Swing = 'in' | 'out';
+export interface Opening extends Base { kind: 'door' | 'window'; x: number; y: number; width: number; angle: number; height?: number; elevation?: number; bulge?: number; style?: string; hinge?: Hinge; swing?: Swing; }
 // `height` (cm) overrides the model's natural 3D height; `elevation` (cm) lifts it off the floor.
 // `color` (hex) recolours the piece in both views; unset keeps the catalogue's own finish.
 export interface Furniture extends Base { kind: 'furniture'; item: string; x: number; y: number; w: number; h: number; angle: number; label: string; height?: number; elevation?: number; color?: string; }

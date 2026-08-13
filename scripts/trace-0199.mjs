@@ -130,6 +130,28 @@ objects.push({
   bulge: ARC.bulge,
 });
 
+// ---- doors ---------------------------------------------------------------
+//
+// Positions are the gaps in the ink along each wall — measured, not placed at a
+// room's centre. Hand (which end it is hung on, which way it opens) is read off
+// the door swings in the drawing.
+const DOORS = [
+  [1019, 480, 100, 0, 'left', 'in'],
+  [1152, 480, 102, 0, 'right', 'in'],
+  [400, 481, 66, 90, 'left', 'out'],
+  [1001, 910, 92, 0, 'left', 'in'],
+  [1175, 910, 79, 0, 'right', 'in'],
+];
+for (const [x, y, width, angle, hinge, swing] of DOORS) {
+  objects.push({ id: id('door'), kind: 'door', layer: 'openings', x, y, width, angle, hinge, swing });
+}
+const WINDOWS = [
+  [35, 266, 248, 90], [116, 720, 198, 0], [1215, 1062, 304, 90], [442, 1140, 198, 0],
+];
+for (const [x, y, width, angle] of WINDOWS) {
+  objects.push({ id: id('window'), kind: 'window', layer: 'openings', x, y, width, angle });
+}
+
 // ---- joinery, against its wall -------------------------------------------
 for (const [label, w, d, wo, wi, ai, off] of JOINERY) {
   const on = wo === 'H'

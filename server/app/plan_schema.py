@@ -26,24 +26,19 @@ class ElectricalId(StrEnum):
     exhaust = 'exhaust'
 
 
+class Hinge(StrEnum):
+    left = 'left'
+    right = 'right'
+
+
 class Kind(StrEnum):
     door = 'door'
     window = 'window'
 
 
-class Opening(BaseModel):
-    angle: float
-    bulge: float | None = None
-    elevation: float | None = None
-    group: str | None = None
-    height: float | None = None
-    id: str
-    kind: Kind
-    layer: str
-    style: str | None = None
-    width: float
-    x: float
-    y: float
+class Swing(StrEnum):
+    in_ = 'in'
+    out = 'out'
 
 
 class Vec(BaseModel):
@@ -139,6 +134,23 @@ class Layer(BaseModel):
     locked: bool
     name: str
     visible: bool
+
+
+class Opening(BaseModel):
+    angle: float
+    bulge: float | None = None
+    elevation: float | None = None
+    group: str | None = None
+    height: float | None = None
+    hinge: Hinge | None = None
+    id: str
+    kind: Kind
+    layer: str
+    style: str | None = None
+    swing: Swing | None = None
+    width: float
+    x: float
+    y: float
 
 
 class Partition(BaseModel):
