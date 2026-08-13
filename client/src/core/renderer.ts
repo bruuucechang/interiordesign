@@ -299,9 +299,16 @@ export class Renderer {
           if (o.bulge) { const c = wallControl(o.a, o.b, o.bulge); ctx.quadraticCurveTo(c.x, c.y, o.b.x, o.b.y); }
           else ctx.lineTo(o.b.x, o.b.y);
         };
-        ctx.lineCap = 'round';
+        // Square ends, not round. A wall is a rectangle on a plan; a rounded cap
+        // turns a short thick one — a column — into a capsule, and makes every
+        // junction read as a blob rather than a corner. `square` extends the
+        // stroke by half its width at each end, which is exactly the overlap two
+        // perpendicular walls of the same thickness need to close their corner.
+        ctx.lineCap = 'square';
+        ctx.lineJoin = 'miter';
         ctx.strokeStyle = o.color ?? color; ctx.lineWidth = o.thickness; trace(); ctx.stroke();
         ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = line; trace(); ctx.stroke();
+        ctx.lineCap = 'butt';
         break;
       }
       case 'door': case 'window': {
