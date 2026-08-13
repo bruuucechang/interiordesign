@@ -235,6 +235,13 @@
       ],
       "type": "object"
     },
+    "Hinge": {
+      "enum": [
+        "left",
+        "right"
+      ],
+      "type": "string"
+    },
     "ImageObj": {
       "properties": {
         "group": {
@@ -360,6 +367,9 @@
         "height": {
           "type": "number"
         },
+        "hinge": {
+          "$ref": "#/definitions/Hinge"
+        },
         "id": {
           "type": "string"
         },
@@ -375,6 +385,9 @@
         },
         "style": {
           "type": "string"
+        },
+        "swing": {
+          "$ref": "#/definitions/Swing"
         },
         "width": {
           "type": "number"
@@ -520,6 +533,13 @@
         "y"
       ],
       "type": "object"
+    },
+    "Swing": {
+      "enum": [
+        "in",
+        "out"
+      ],
+      "type": "string"
     },
     "Vec": {
       "properties": {

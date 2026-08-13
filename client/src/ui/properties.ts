@@ -315,6 +315,34 @@ export function refreshProps(editor: Editor, doc: Doc) {
         swrap.appendChild(b);
       }
       srow.append(sl, swrap); basics.appendChild(srow);
+
+      // Which way the door is hung and which way it opens. Four buttons rather
+      // than two toggles: a plan reader wants to see the hand at a glance, and
+      // "hinge right + swing out" is one fact about a door, not two.
+      if (o.kind === 'door') {
+        const hrow = document.createElement('div'); hrow.className = 'prop prop-mat';
+        const hl = document.createElement('label'); hl.textContent = '開口朝向';
+        const hwrap = document.createElement('div'); hwrap.className = 'align-grid';
+        hwrap.style.gridTemplateColumns = 'repeat(2, 1fr)';
+        const hands: [string, 'left' | 'right', 'in' | 'out'][] = [
+          ['◟ 左內', 'left', 'in'], ['◞ 右內', 'right', 'in'],
+          ['◜ 左外', 'left', 'out'], ['◝ 右外', 'right', 'out'],
+        ];
+        for (const [label, hinge, swing] of hands) {
+          const b = document.createElement('button');
+          const on = (o.hinge ?? 'left') === hinge && (o.swing ?? 'in') === swing;
+          b.className = 'align-btn' + (on ? ' active' : '');
+          b.textContent = label;
+          b.style.fontSize = '12px';
+          b.onclick = () => {
+            doc.commit(); up({ hinge, swing } as any);
+            hwrap.querySelectorAll('.align-btn').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+          };
+          hwrap.appendChild(b);
+        }
+        hrow.append(hl, hwrap); basics.appendChild(hrow);
+      }
       dim(size.body, '寬度', o.width, v => up({ width: Math.max(10, v) } as any), 10);
       dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up({ height: Math.max(10, v) } as any), 10);
       // find the host straight wall to expose editable left/right offsets
