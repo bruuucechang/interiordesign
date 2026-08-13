@@ -154,18 +154,65 @@ for (const [x, y, w, h, label] of CAB) {
   });
 }
 
-// ---- the curved window on Peter's room -----------------------------------
+// ---- the curved window, and no wall behind it ----------------------------
 //
-// Its north side, as a window that follows the arc rather than a wall that
-// bends. `bulge` is the apex offset from the chord, in cm.
+// The arc across the north of Peter's room is glazing. Measured off the drawing
+// by scanning down each column of pixels for the first ink: it runs from
+// (9, 32) to (446, 98) and stands 37 cm off its own chord. The previous guess
+// used the room's bounding box and was in the wrong place with the wrong
+// curvature.
+//
+// And there is no wall behind it — the arc *is* the boundary. A straight wall
+// along the room's north edge would be a second, invisible skin behind the
+// window, which is what was there.
+const ARC = { ax: 9, ay: 32, bx: 446, by: 98, bulge: -37 };
 {
-  const peter = polys[2];
-  const xs = peter.map((p) => p.x), ys = peter.map((p) => p.y);
-  const north = Math.min(...ys);
+  const dx = ARC.bx - ARC.ax, dy = ARC.by - ARC.ay;
   objects.push({
     id: id('window'), kind: 'window', layer: 'openings',
-    x: (Math.min(...xs) + Math.max(...xs)) / 2, y: north,
-    width: Math.max(...xs) - Math.min(...xs) - 60, angle: 0, bulge: -55,
+    x: (ARC.ax + ARC.bx) / 2, y: (ARC.ay + ARC.by) / 2,
+    width: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) * 180 / Math.PI,
+    bulge: ARC.bulge,
+  });
+  // The straight wall the tracer put along the room's north edge is the skin
+  // behind the glazing. It has to go — but a window in this model is cut into a
+  // wall, so it cannot simply be deleted: the wall itself follows the arc, and
+  // the window sits in it. Straight everywhere else, curved only here, which is
+  // what the drawing shows.
+  const peter = objects.find((o) => o.kind === 'room' && o.name.includes('Peter'));
+  const northY = Math.min(...peter.poly.map((q) => q.y));
+  const xs = peter.poly.filter((q) => q.y === northY).map((q) => q.x);
+  const lo = Math.min(...xs) - 5, hi = Math.max(...xs) + 5;
+  let dropped = 0;
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const o = objects[i];
+    if (o.kind !== 'wall' || o.a.y !== o.b.y || Math.abs(o.a.y - northY) > 8) continue;
+    if (Math.min(o.a.x, o.b.x) >= lo && Math.max(o.a.x, o.b.x) <= hi) { objects.splice(i, 1); dropped++; }
+  }
+  objects.push({
+    id: id('wall'), kind: 'wall', layer: 'walls',
+    a: { x: ARC.ax, y: ARC.ay }, b: { x: ARC.bx, y: ARC.by },
+    thickness: 15, bulge: ARC.bulge, finish: 'paint',
+  });
+  console.log(`  弧形窗：換掉 ${dropped} 道直牆，改成沿弧的牆`);
+}
+
+// ---- the columns ---------------------------------------------------------
+//
+// The solid black squares. They are structure, not partition: found by eroding
+// the darkest ink, which removes every line and leaves only what is filled in.
+// Four of them, and they are why some walls look as though they thicken at one
+// end — the column is wider than the wall it sits in.
+const COLS = [
+  [-1, 32, 38, 110], [777, 136, 84, 52], [794, 697, 68, 98], [215, 701, 64, 97],
+];
+for (const [x, y, w, h] of COLS) {
+  const along = w >= h;
+  objects.push({
+    id: id('wall'), kind: 'wall', layer: 'walls',
+    a: along ? { x, y: y + h / 2 } : { x: x + w / 2, y },
+    b: along ? { x: x + w, y: y + h / 2 } : { x: x + w / 2, y: y + h },
+    thickness: along ? h : w, finish: 'paint',
   });
 }
 
