@@ -199,21 +199,27 @@ const ARC = { ax: 9, ay: 32, bx: 446, by: 98, bulge: -37 };
 
 // ---- the columns ---------------------------------------------------------
 //
-// The solid black squares. They are structure, not partition: found by eroding
-// the darkest ink, which removes every line and leaves only what is filled in.
-// Four of them, and they are why some walls look as though they thicken at one
-// end — the column is wider than the wall it sits in.
+// The solid black squares. Found by eroding the darkest ink — that removes
+// every line and leaves only what is filled in — and then requiring the block
+// to be at least 55 % solid, so hatching does not qualify. Four of them.
+//
+// Drawn as four walls around the perimeter, which is how the owner draws a
+// column. A single thick short wall was the earlier attempt and it read as one
+// stubby wall rather than as structure.
 const COLS = [
-  [-1, 32, 38, 110], [777, 136, 84, 52], [794, 697, 68, 98], [215, 701, 64, 97],
+  [-1, 32, 39, 111], [777, 136, 85, 53], [794, 697, 69, 99], [215, 701, 65, 98],
 ];
 for (const [x, y, w, h] of COLS) {
-  const along = w >= h;
-  objects.push({
-    id: id('wall'), kind: 'wall', layer: 'walls',
-    a: along ? { x, y: y + h / 2 } : { x: x + w / 2, y },
-    b: along ? { x: x + w, y: y + h / 2 } : { x: x + w / 2, y: y + h },
-    thickness: along ? h : w, finish: 'paint',
-  });
+  const c = [
+    [x, y, x + w, y], [x + w, y, x + w, y + h],
+    [x + w, y + h, x, y + h], [x, y + h, x, y],
+  ];
+  for (const [ax, ay, bx, by] of c) {
+    objects.push({
+      id: id('wall'), kind: 'wall', layer: 'walls',
+      a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness: 15, finish: 'paint',
+    });
+  }
 }
 
 // ---- doors and openings --------------------------------------------------
