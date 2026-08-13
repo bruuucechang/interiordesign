@@ -274,12 +274,45 @@ for (const [i, r] of regions.entries()) {
   console.log(`  ${(NAMES[i]?.[0] ?? '?').padEnd(8)} ${r.m2.toFixed(1)} m²`);
 }
 
+// ---- saving, without eating someone else's edits -------------------------
+//
+// This script rebuilds the whole plan and PUTs it, and `save_project` overwrites
+// in place with no history. So a hand edit made in the app between two runs is
+// gone the next time this runs — which is exactly what happened, and there was
+// nothing to restore it from.
+//
+// So: remember the timestamp the server gave back last time, and refuse to
+// write if it has moved since. That is the same rule the app's own offline
+// mirror uses (net/store.ts) — whoever wrote last wins, and you have to be told
+// rather than silently overwritten. `--force` is there for when the intent
+// really is to replace.
+const STAMP = '/private/tmp/claude-501/-Users-bruuucemac/609650e9-c1d4-4d0d-9616-85360c42d5f7/scratchpad/img0199.stamp';
+const PID = 'img0199';
+
 if (process.argv.includes('--save')) {
-  const r = await fetch('http://127.0.0.1:8791/api/projects/img0199', {
+  const { readFileSync: rf, writeFileSync: wf, existsSync } = await import('node:fs');
+  const force = process.argv.includes('--force');
+  let mine = existsSync(STAMP) ? rf(STAMP, 'utf8').trim() : null;
+
+  const cur = await fetch(`http://127.0.0.1:8791/api/projects/${PID}`)
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const theirs = cur?.updatedAtIso ?? null;
+
+  if (theirs && mine && theirs !== mine && !force) {
+    console.error(`\n✖ 沒有寫入。伺服器上的 ${PID} 在這支腳本上次寫入之後又被改過。`);
+    console.error(`   這支腳本上次寫入: ${mine}`);
+    console.error(`   伺服器目前:       ${theirs}`);
+    console.error('   那很可能是有人在 App 裡手動改的。要覆蓋請加 --force。');
+    process.exit(1);
+  }
+
+  const r = await fetch(`http://127.0.0.1:8791/api/projects/${PID}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: plan.name, data: plan }),
   });
-  console.log('PUT /api/projects/img0199 →', r.status);
+  const body = await r.json().catch(() => ({}));
+  if (body.updatedAtIso) wf(STAMP, body.updatedAtIso);
+  console.log(`PUT /api/projects/${PID} →`, r.status, force ? '(--force)' : '');
 }
 if (process.argv.includes('--out')) {
   const { writeFileSync } = await import('node:fs');
