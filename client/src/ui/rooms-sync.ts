@@ -1,7 +1,7 @@
 import { Doc, genId } from '../model/doc';
 import { Obj, Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
-import { polygonCentroid, pointInPolygon, pointInRect } from '../core/geometry';
+import { polygonCentroid, pointInPolygon, pointInRect, polygonArea } from '../core/geometry';
 import { detectRooms } from '../net/api';
 
 // Keeps auto-detected rooms in step with the walls. Debounced, because the
@@ -21,6 +21,9 @@ const roomContains = (r: RoomObj, c: Vec) =>
 let reconcileTimer: number | undefined;
 let reconciling = false;
 let lastWallSig = '';
+
+/** cm² — below this a detected loop is structure, not a room. */
+const MIN_AUTO_ROOM = 2_0000;   // 2 m²
 
 /**
  * Everything that closes a region: walls, and partition lines.
@@ -110,6 +113,13 @@ async function reconcileAutoRooms(doc: Doc) {
     // what was actually reported: 「地板一閃一閃像破圖」.
     const swallowed = manual.filter(r => pointInPolygon(centre(r), poly)).length;
     if (swallowed >= 2) continue;
+
+    // Too small to be a room. A column drawn as four walls, a duct, a pipe
+    // shaft — they are all closed loops the detector will happily return, and
+    // naming them 房間 puts a floor and a label inside something nobody can
+    // walk into. The backend already drops slivers under 0.25 m²; this is the
+    // next size up, where the shape is real but the room is not.
+    if (polygonArea(poly) < MIN_AUTO_ROOM) continue;
 
     doc.add({ id: genId('room'), kind: 'room', layer: layerForKind('room'), name: '房間', poly, auto: true, ...bboxOf(poly) } as any);
   }
