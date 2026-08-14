@@ -1,6 +1,6 @@
 // Builds the flat from IMG_0197/0199 — walls first, on measured centre lines.
 //
-//   node scripts/trace-0199.mjs --save     # 寫到 img0199-gen，不碰 img0199
+//   node scripts/trace-0199.mjs --save     # 寫到 img0199-raw；img0199 與 img0199-gen 都不碰
 //
 // This is the fourth design. The first two derived the walls from the *rooms*:
 // flood-fill the drawing, take each pocket of free space as a room, then treat
@@ -193,7 +193,14 @@ for (const [label, x, y, w, h] of JOINERY) {
   });
 }
 
+const GEN = `${PID}-raw`;
+
 const plan = {
+  // `id` is not decoration: `saveProject` writes under `p.id`, so a plan without
+  // one makes the app mint a fresh `proj_…` on the first autosave. Opening a
+  // generated plan by deep link and editing it therefore forked a new project
+  // every time, and neither of us could find where the edits had gone.
+  id: GEN,
   schemaVersion: 1,
   name: 'A1 單元（IMG_0199 成品）',
   activeFloorId: 'f1',
@@ -218,18 +225,23 @@ for (const r of regions) {
 
 // ---- saving -------------------------------------------------------------
 //
-// This script writes to `img0199-gen` and never to `img0199`.
+// This script writes to `img0199-raw` and never to `img0199` or `img0199-gen`.
 //
 // It used to write to `img0199` with a timestamp guard, and I bypassed that
 // guard with --force twice. The second time destroyed hand-placed doors and
 // hand-adjusted walls, and `save_project` overwrites in place with no history,
 // so there was nothing to restore from. A guard I can wave away is not a guard.
 //
-// So the ownership is now split and there is no flag to cross it: the generator
-// owns `img0199-gen`, the person owns `img0199`. To take something from a
-// regenerated version, open both and copy it across — which is a decision made
-// by someone who can see both, rather than by a script that assumes it is right.
-const GEN = `${PID}-gen`;
+// So the ownership is split and there is no flag to cross it. It is three ways
+// now, because `img0199-gen` became the document the owner actually works in:
+//
+//   img0199        原始那份，誰都不動
+//   img0199-gen    工作中的那份，人在改 — 這支腳本不碰
+//   img0199-raw    這支腳本的產物
+//
+// To take something from a regenerated version, open both and copy it across —
+// a decision made by someone who can see both, rather than by a script that
+// assumes it is right.
 if (process.argv.includes('--save')) {
   const r = await fetch(`http://127.0.0.1:8791/api/projects/${GEN}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -237,7 +249,7 @@ if (process.argv.includes('--save')) {
   });
   console.log(`PUT /api/projects/${GEN} →`, r.status);
   console.log(`   看它: http://localhost:5180/?plan=${GEN}`);
-  console.log(`   （${PID} 是你的，這支腳本碰不到）`);
+  console.log(`   （${PID} 與 ${PID}-gen 是你的，這支腳本碰不到）`);
 }
 if (process.argv.includes('--out')) {
   writeFileSync(process.argv[process.argv.indexOf('--out') + 1], JSON.stringify(plan));

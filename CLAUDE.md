@@ -112,6 +112,11 @@ db.py main.py
 - API 的 `updatedAt` 是資料庫給的時區、**沒有標記**（這台機器差 UTC 八小時），只能顯示不能比較。要比較用 `updatedAtIso`。
 - 已知限制：依賴兩端的 wall clock。單人單機成立。
 
+**用 API 直接塞方案進去時，`data` 裡一定要有 `id`，而且要等於網址上的 id。**
+`saveProject` 是拿 `p.id` 當寫入位址的，少了它 App 會在第一次 autosave 自己生一個
+`proj_…`——於是使用者從 `?plan=xxx` 開圖、改完、存檔，東西跑到一個誰都不知道的新
+id 去，兩邊都以為對方弄丟了。實際發生過。`scripts/trace-0199.mjs` 現在會寫 `id`。
+
 ## 重構 3D 之後怎麼證明沒改壞
 
 單元測試釘得住 `wallGeometry` 的分段座標，但釘不住「畫出來一不一樣」。做法是把
