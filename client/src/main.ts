@@ -345,7 +345,7 @@ function warmFinishes() {
 // generated stand-in. Rebuilding is the only way the surfaces pick it up —
 // materials were handed out per surface and each holds its own clone.
 onTexturesReady(() => { if (mode !== '2d') view3d.build(doc, false); });
-onModelsReady(() => { if (mode !== '2d') view3d.build(doc, false); });
+onModelsReady(() => { view3d.refreshGhost(); if (mode !== '2d') view3d.build(doc, false); });
 
 doc.onChange(() => { clearTimeout(warmTimer); warmTimer = window.setTimeout(warmFinishes, 400); });
 let warmTimer: number | undefined;
