@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 // Proper 3D furniture models assembled from primitives, using rounded-box
@@ -469,11 +470,100 @@ const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
 };
 
 function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
+  // Start the load here rather than leaving it to the idle-time warmer. The
+  // warmer runs on requestIdleCallback, and a 3D view rendering every frame
+  // starves it: with 35 pieces on one plan only 8 of the 17 models had arrived
+  // by the time anyone looked. This is the moment the model is actually wanted,
+  // so it is the honest place to ask for it. Idempotent, and it still returns
+  // the built stand-in on this call.
+  if (!models.has(item)) void loadFurnitureModel(item);
+  const proto = models.get(item);
+  if (proto) {
+    // Uniform, not per-axis: a sofa squashed to a square footprint is worse than
+    // one that leaves a gap. The catalogue's default w/h is the model's own real
+    // size, so the common case scales by exactly 1.
+    const n = proto.userData.natural as THREE.Vector3;
+    const k = Math.min(w / (n.x || 1), h / (n.z || 1));
+    const g = proto.clone(true);
+    g.scale.setScalar(k);
+    return g;
+  }
   const b = BUILDERS[item];
   if (b) return b(w, h);
   const g = new THREE.Group();
   g.add(rbox(w, 75, h, 3, mat(0xb0895e), 0, 37.5, 0));
   return g;
+}
+
+// ---- CC0 models -----------------------------------------------------------
+//
+// Seventeen of the catalogue's pieces have a real scanned model under
+// client/public/models, fetched by scripts/fetch_models.py. Where one exists it
+// replaces the procedural builder; where it does not — the fridge, the sanitary
+// ware, the wardrobe, everything that gets traced off a drawing at a specific
+// size — the builder still runs.
+//
+// The same rule as the surface textures, for the same reason: loading is
+// asynchronous and `getFurnitureModel` is not, so a caller always gets
+// something now. The scan if it has landed, the built box if it has not, and
+// `onModelsReady` to rebuild once it arrives. A plan must never wait on a file.
+
+interface ModelEntry { asset: string; name: string; file: string; w: number; d: number; h: number; }
+
+const MODEL_BASE = new URL('models/', document.baseURI).href;
+const models = new Map<string, THREE.Object3D>();      // item → normalised prototype
+const modelPending = new Map<string, Promise<boolean>>();
+let modelManifest: Record<string, ModelEntry> | null | undefined;
+let modelsReady: (() => void) | undefined;
+
+/** Called when a model lands after something already drew the built stand-in. */
+export function onModelsReady(fn: () => void) { modelsReady = fn; }
+
+async function manifest(): Promise<Record<string, ModelEntry> | null> {
+  if (modelManifest !== undefined) return modelManifest ?? null;
+  try {
+    const r = await fetch(`${MODEL_BASE}manifest.json`);
+    modelManifest = r.ok ? (await r.json()).models : null;
+  } catch { modelManifest = null; }
+  return modelManifest ?? null;
+}
+
+/**
+ * Load one model and normalise it to this file's convention: centred on x/z,
+ * sitting on y = 0, one unit = one centimetre.
+ *
+ * glTF is metres and the scene's origin is wherever the artist left it. Skipping
+ * either half puts a sofa underground or 40 cm off its own footprint, and
+ * nothing complains — it just looks placed by somebody careless.
+ */
+export function loadFurnitureModel(item: string): Promise<boolean> {
+  if (models.has(item)) return Promise.resolve(true);
+  const inflight = modelPending.get(item);
+  if (inflight) return inflight;
+  const job = (async () => {
+    const m = await manifest();
+    const entry = m?.[item];
+    if (!entry) return false;
+    try {
+      const gltf = await new GLTFLoader().loadAsync(`${MODEL_BASE}${item}/${entry.file}`);
+      const root = gltf.scene;
+      root.scale.setScalar(100);                       // metres → centimetres
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(root);
+      const c = box.getCenter(new THREE.Vector3());
+      const g = new THREE.Group();
+      root.position.set(-c.x, -box.min.y, -c.z);
+      g.add(root);
+      g.userData.natural = box.getSize(new THREE.Vector3());
+      models.set(item, g);
+      for (const k of [..._cache.keys()]) if (k.startsWith(`${item}|`)) _cache.delete(k);
+      for (const k of [..._height.keys()]) if (k.startsWith(`${item}|`)) _height.delete(k);
+      modelsReady?.();
+      return true;
+    } catch { return false; }
+  })();
+  modelPending.set(item, job);
+  return job;
 }
 
 // Cache one model per (item, size); callers .clone() it (shares geometry/materials).

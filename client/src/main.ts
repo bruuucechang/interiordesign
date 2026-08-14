@@ -7,7 +7,9 @@ import { loadProject } from './net/api';
 import { setSaveBaseline } from './ui/autosave';
 import { notice } from './ui/feedback';
 import { warmMaterial, onTexturesReady } from './core/textures3d';
+import { loadFurnitureModel, onModelsReady } from './core/furniture3d';
 import { floorMaterials, wallMaterials } from './core/materials';
+import { FURNITURE } from './data/furniture';
 import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
@@ -319,7 +321,7 @@ void openFromUrl();
 function warmFinishes() {
   if (!('requestIdleCallback' in window)) return;
   const jobs: (() => void)[] = [];
-  const seenFloor = new Set<string>(), seenWall = new Set<string>();
+  const seenFloor = new Set<string>(), seenWall = new Set<string>(), seenItem = new Set<string>();
   for (const o of doc.objects) {
     if (o.kind === 'room') {
       const id = o.floor ?? 'wood';
@@ -327,6 +329,8 @@ function warmFinishes() {
     } else if (o.kind === 'wall' && !o.color) {
       const id = o.finish ?? 'paint';
       if (!seenWall.has(id)) { seenWall.add(id); jobs.push(() => warmMaterial(id, 'wall')); }
+    } else if (o.kind === 'furniture') {
+      if (!seenItem.has(o.item)) { seenItem.add(o.item); jobs.push(() => void loadFurnitureModel(o.item)); }
     }
   }
   const step = () => {
@@ -341,6 +345,7 @@ function warmFinishes() {
 // generated stand-in. Rebuilding is the only way the surfaces pick it up —
 // materials were handed out per surface and each holds its own clone.
 onTexturesReady(() => { if (mode !== '2d') view3d.build(doc, false); });
+onModelsReady(() => { if (mode !== '2d') view3d.build(doc, false); });
 
 doc.onChange(() => { clearTimeout(warmTimer); warmTimer = window.setTimeout(warmFinishes, 400); });
 let warmTimer: number | undefined;
@@ -350,4 +355,4 @@ warmFinishes();
 // its own hardcoded list of ids, so every material added after it was written
 // silently went unrendered — and the whole point of that harness is that a
 // material is only verified by looking at it.
-if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes, floorMaterials, wallMaterials };
+if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes, floorMaterials, wallMaterials, FURNITURE };
