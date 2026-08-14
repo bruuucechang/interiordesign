@@ -151,7 +151,27 @@ export class View3D {
 
     // Post-processing: ground-truth ambient occlusion for object-to-floor and
     // object-to-object contact darkening — the main recognizability boost.
-    this.composer = new EffectComposer(this.renderer);
+    // The renderer's `antialias: true` above does nothing on its own here: it
+    // only applies to the default framebuffer, and every frame goes through the
+    // composer's offscreen target instead — which defaults to `samples: 0`. So
+    // the flag was set and the picture was still fully aliased: stair-stepped
+    // door frames and wall corners, and the raised door panels, about one pixel
+    // wide at room distance, breaking into a dashed line that reads as dirt on
+    // the door. Giving the composer a multisampled target is what actually
+    // turns it on.
+    //
+    // 4 samples and the default 8-bit format — not HalfFloat. Tone mapping runs
+    // in OutputPass at the end, so the intermediate does not need the range, and
+    // a multisampled float target at pixel ratio 2 on a large window is a couple
+    // of hundred megabytes of GPU memory for nothing.
+    //
+    // The GPU cost of the samples could not be measured here: headless Chromium
+    // rasterises in software, where MSAA is pathologically expensive and the
+    // numbers came out as noise (0 samples measured *slower* than 4). What
+    // covers it instead is the machine's own answer — `adaptResolution` already
+    // drops the pixel ratio when frames pass 20 ms, and multisampling makes the
+    // frame more fill-bound, which is exactly what that valve responds to.
+    this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(1, 1, { samples: 4 }));
     this.renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(this.renderPass);
     this.gtao = new GTAOPass(this.scene, this.camera, 1, 1);

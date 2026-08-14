@@ -41,7 +41,18 @@ export function buildDoor3D(width: number, h: number, elev: number, style = 'sin
   };
   const panelLeaf = (cx: number, cw: number) => {                       // wood leaf with two recessed panels
     bx(cw, lh, ld, leafM, cx, elev + lh / 2, 0);
-    for (const zs of [1, -1]) { const zz = zs * (ld / 2 + 0.6); bx(cw * 0.66, lh * 0.36, 1.2, panelM, cx, elev + lh * 0.7, zz); bx(cw * 0.66, lh * 0.34, 1.2, panelM, cx, elev + lh * 0.3, zz); }
+    // The panels are sunk *through* the leaf face rather than sitting on it.
+    // A 1.2 cm panel starting exactly at ld/2 puts its back face at the same
+    // depth as the leaf's front face, and two coplanar surfaces fight in the
+    // depth buffer: every panel outline came out as a dashed dark line, on
+    // every door, which reads as bad modelling rather than as a rendering bug.
+    // Same protrusion as before — 2.4 cm centred on the face instead of 1.2 cm
+    // starting at it — so nothing about the silhouette changes.
+    for (const zs of [1, -1]) {
+      const zz = zs * (ld / 2);
+      bx(cw * 0.66, lh * 0.36, 2.4, panelM, cx, elev + lh * 0.7, zz);
+      bx(cw * 0.66, lh * 0.34, 2.4, panelM, cx, elev + lh * 0.3, zz);
+    }
   };
   if (style === 'double') {
     const cw = lw / 2 - 0.5;

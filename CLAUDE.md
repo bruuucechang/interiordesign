@@ -326,6 +326,34 @@ qlmanage -t -s 2000 -o <輸出目錄> plot.pdf     # 產出 plot.pdf.png
 （我曾試著在頁面裡手刻 PDF 的 inflate ＋ PNG predictor 解碼去挖出內嵌影像，走到一半
 就卡住，而且完全沒必要。）
 
+### `antialias: true` 對走 EffectComposer 的畫面沒有作用
+
+`new THREE.WebGLRenderer({ antialias: true })` 只管**預設 framebuffer**。這個專案
+每一幀都走 EffectComposer（RenderPass → GTAO → OutputPass），畫面進的是離屏 render
+target，而它預設 `samples: 0`——所以旗標一直是開的，畫面卻完全沒有反鋸齒。
+
+看起來不像「沒有 AA」，看起來像模型做壞了：門框與牆角是階梯狀的，門片上凸起的
+鑲板在室內距離只有約一個像素寬，於是斷成一條虛線，像門上有一圈髒污。
+
+**排除的過程值得記著**，因為前兩個猜測都錯：先以為是共平面 z-fighting（鑲板的背面
+確實跟門片正面同深度，改掉了，但虛線還在），再以為是陰影或 GTAO 的抖動（兩個都關掉
+重渲，虛線還在）。真正的驗證是把三個變因逐一關掉還在，才回頭去看 AA。
+
+修法是給 composer 一個有多重取樣的 target：
+
+```ts
+this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(1, 1, { samples: 4 }));
+```
+
+**不要順手加 `type: THREE.HalfFloatType`**：色調映射在最後的 OutputPass 才做，中間
+那張不需要那個動態範圍，而在大視窗、pixelRatio 2 之下一張多重取樣的浮點 target 是
+好幾百 MB 的 GPU 記憶體。
+
+**MSAA 的 GPU 成本在這台機器上量不出來。** headless Chromium 是軟體光柵化，MSAA 在
+那裡的代價病態地高，量出來 0 取樣比 4 取樣還慢——純雜訊。真正接住它的是機器自己的
+回答：`adaptResolution` 本來就會在每幀超過 20ms 時降一階解析度，而多重取樣正好是讓
+畫面更受填充率限制，那正是那個閥門在應對的事。
+
 ### three.js
 
 - tone mapping **只在輸出到畫布時套用**，render target 不會
