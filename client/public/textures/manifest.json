@@ -1,79 +1,82 @@
 {
-  "source": "https://ambientcg.com",
+  "sources": {
+    "polyhaven": "https://polyhaven.com",
+    "ambientcg": "https://ambientcg.com"
+  },
   "license": "CC0 1.0",
-  "size": 512,
+  "size": 1024,
   "materials": {
     "wood": {
-      "asset": "WoodFloor051",
-      "name": "Wood Floor 051",
-      "tileCm": 180,
-      "attribution": "ambientCG — WoodFloor051 (CC0)"
+      "tileCm": 199,
+      "attribution": "Poly Haven — wooden_floor_01 (CC0)",
+      "source": "polyhaven",
+      "asset": "wooden_floor_01"
     },
     "walnut": {
-      "asset": "WoodFloor011",
-      "name": "Wood Floor 011",
-      "tileCm": null,
-      "attribution": "ambientCG — WoodFloor011 (CC0)"
+      "tileCm": 200,
+      "attribution": "Poly Haven — plank_flooring_04 (CC0)",
+      "source": "polyhaven",
+      "asset": "plank_flooring_04"
     },
     "herringbone": {
-      "asset": "WoodFloor034",
-      "name": "Wood Floor 034",
-      "tileCm": 190,
-      "attribution": "ambientCG — WoodFloor034 (CC0)"
+      "tileCm": 340,
+      "attribution": "Poly Haven — herringbone_parquet (CC0)",
+      "source": "polyhaven",
+      "asset": "herringbone_parquet"
     },
     "tile": {
-      "asset": "Tiles139",
-      "name": "Tiles 139",
-      "tileCm": 200,
-      "attribution": "ambientCG — Tiles139 (CC0)"
+      "tileCm": 190,
+      "attribution": "Poly Haven — interior_tiles (CC0)",
+      "source": "polyhaven",
+      "asset": "interior_tiles"
     },
     "marble": {
-      "asset": "Marble012",
-      "name": "Marble 012",
-      "tileCm": null,
-      "attribution": "ambientCG — Marble012 (CC0)"
+      "tileCm": 150,
+      "attribution": "Poly Haven — marble_01 (CC0)",
+      "source": "polyhaven",
+      "asset": "marble_01"
     },
     "terrazzo": {
-      "asset": "Terrazzo005",
-      "name": "Terrazzo 005",
       "tileCm": null,
-      "attribution": "ambientCG — Terrazzo005 (CC0)"
-    },
-    "carpet": {
-      "asset": "Carpet009",
-      "name": "Carpet 009",
-      "tileCm": null,
-      "attribution": "ambientCG — Carpet009 (CC0)"
+      "attribution": "ambientCG — Terrazzo005 (CC0)",
+      "source": "ambientcg",
+      "asset": "Terrazzo005"
     },
     "concrete": {
-      "asset": "Concrete016",
-      "name": "Concrete 016",
-      "tileCm": null,
-      "attribution": "ambientCG — Concrete016 (CC0)"
+      "tileCm": 400,
+      "attribution": "Poly Haven — painted_concrete_02 (CC0)",
+      "source": "polyhaven",
+      "asset": "painted_concrete_02"
     },
     "plaster": {
-      "asset": "Plaster003",
-      "name": "Plaster 003",
-      "tileCm": null,
-      "attribution": "ambientCG — Plaster003 (CC0)"
+      "tileCm": 200,
+      "attribution": "Poly Haven — white_stucco (CC0)",
+      "source": "polyhaven",
+      "asset": "white_stucco"
     },
     "brick": {
-      "asset": "Bricks060",
-      "name": "Bricks 060",
-      "tileCm": 105,
-      "attribution": "ambientCG — Bricks060 (CC0)"
+      "tileCm": 200,
+      "attribution": "Poly Haven — whitewashed_brick (CC0)",
+      "source": "polyhaven",
+      "asset": "whitewashed_brick"
     },
     "walltile": {
-      "asset": "Tiles010",
-      "name": "Tiles 010",
+      "tileCm": 127,
+      "attribution": "Poly Haven — long_white_tiles (CC0)",
+      "source": "polyhaven",
+      "asset": "long_white_tiles"
+    },
+    "carpet": {
       "tileCm": null,
-      "attribution": "ambientCG — Tiles010 (CC0)"
+      "attribution": "ambientCG — Fabric045 (CC0)",
+      "source": "ambientcg",
+      "asset": "Fabric045"
     },
     "wallpaper": {
-      "asset": "Wallpaper002B",
-      "name": "Wallpaper 002 B",
       "tileCm": null,
-      "attribution": "ambientCG — Wallpaper002B (CC0)"
+      "attribution": "ambientCG — Fabric043 (CC0)",
+      "source": "ambientcg",
+      "asset": "Fabric043"
     }
   }
 }

@@ -190,39 +190,60 @@ DOM 節點恆定、零錯誤。
 
 ### 實拍貼圖：13 種裡有 12 種改用 CC0 掃描圖
 
-`client/public/textures/<id>/{color,normal,rough}.jpg`，512²，由
-`scripts/fetch_textures.py` 從 **ambientCG** 抓（**CC0 1.0**，公共領域、可商用、
-不需署名——選它就是為了散佈時沒有東西要遵守）。檔案 commit 進 repo 不是在建置
-時抓：桌面版是單一執行檔、沒有網路，而會連外的建置一定會在某台機器上爆掉。
-12 種共 1.7MB。
+`client/public/textures/<id>/{color,normal,arm}.jpg`，**1024²**，由
+`scripts/fetch_textures.py` 抓，12 種共 6.3MB。兩個來源都是 **CC0 1.0**（公共領域、
+可商用、不需署名——選它們就是為了散佈時沒有東西要遵守）：
 
-三件容易做錯的：
+- **Poly Haven**（10 種）：全站都是實地掃描
+- **ambientCG**（2 種）：只挑 `PBRPhotogrammetry`
+
+**第一版整批用 ambientCG，結果很簡陋，原因不是解析度。** 那批挑到的十二個全部是
+`creationMethod: PBRProcedural`——ambientCG **自己程式生成**的材質（站上 1412 個
+是生成的、只有 351 個是實拍）。等於把這個專案的 procedural 換成別人的 procedural。
+**挑 ambientCG 的資產一定要看 `creationMethod`。**
+
+`terrazzo` 是刻意的例外：兩個站都沒有掃描過的磨石子（Poly Haven 的
+`terrazzo_tiles` 渲出來是一片素褐色，看不到石粒），而 ambientCG 那個生成的
+`Terrazzo005` 渲出來是對的。`carpet` 與 `wallpaper` 用 ambientCG 也是因為
+Poly Haven 全站只有一個 `dirty_carpet` 和一個 `decrepit_wallpaper`。
+
+四件容易做錯的：
 
 - **`NormalGL` 不是 `NormalDX`**。three.js 用 OpenGL 慣例（綠色朝上）。拿錯的話
   每一個凹凸都會反過來，而且不會有錯誤，只是光打錯邊——錯得剛好夠像對的
-- **有 `roughnessMap` 時，`roughness` 變成乘數不是值**。原本每種材質的
-  `roughness` 常數是當絕對值調的，留著會把每張掃描圖依它宣告的霧面程度再壓暗
-  一次。所以有 map 時把它設成 1
-- **`dimensionX` 是掃描圖的真實公分寬**，manifest 有存。它比 `tileCm` 誠實
-  ——`tileCm` 是為了讓「畫出來的圖案」好看而挑的，不是量的
+- **ARM 一張圖餵三個插槽**。Poly Haven 出的 `arm` 是 AO 在 R、roughness 在 G、
+  metalness 在 B，正好是 three.js 取樣的方式，所以 AO 是白拿的。ambientCG 那兩個
+  在腳本裡手動打包成同一個排列，App 只要認識一種慣例
+- **`aoMap` 預設讀第二組 UV**，而這些面只有一組。不設 `texture.channel = 0` 的話
+  它安靜地什麼都不做——沒有警告、沒有錯誤，只是比檔案該有的樣子平
+- **有 `roughnessMap` 時 `roughness` 是乘數不是值**。原本每種材質的 `roughness`
+  常數是當絕對值調的，留著會把每張掃描圖依它宣告的霧面程度再壓暗一次
+- **`dimensionX`／`dimensions` 是掃描圖的真實尺寸**（Poly Haven 給的是公釐），
+  manifest 有存，它比 `tileCm` 誠實——後者是為了讓「畫出來的圖案」好看而挑的
 
-**縮圖會騙人，要看渲染。** 站上的縮圖是打過光的球，明度完全不可信：
+**縮圖會騙人，一定要看渲染。** 站上的縮圖是打過光的球，明度完全不可信：
 WoodFloor048 縮圖看起來是胡桃木、渲出來近乎全黑；Concrete034 看起來是灰色水泥
 粉光、渲出來是白的；Carpet014 看起來有織紋、渲出來一片平；Fabric012 看起來是
-灰亞麻、渲出來是深海軍藍。**四個都是 `node bench/shot.mjs` 才抓到的。**
+灰亞麻、渲出來是深海軍藍；floor_tiles_02 看起來是白灰大理石、渲出來是髒的米黃。
+**五個都是 `node bench/shot.mjs` 才抓到的。**
 
-`paint`（乳膠漆）刻意**不用**掃描圖：站上每一張 plaster 都是粗糙的粉光，貼到牆
-上在室內尺度就是砂紙——跟前面那個混色 bug 一模一樣的結果。程式生成的近乎平面
-的牆比較誠實。
+`paint`（乳膠漆）刻意**不用**掃描圖：兩個站的 plaster 都是粗糙粉光，貼到牆上在
+室內尺度就是砂紙——跟前面那個混色 bug 一模一樣的結果。
 
 載入是非同步的而 `surfaceMaterial()` 是同步的，規則是**呼叫端一定馬上拿到材質**：
 掃描圖到了就給掃描圖，還沒到就給程式生成的，到了之後 `onTexturesReady` 讓 3D
 重建。絕不阻塞，也絕不回傳沒有貼圖的材質。
 
-改成這樣之後預熱**零次主執行緒阻塞**（圖片解碼不在主執行緒），37 個檔 1.7MB
-在 769ms 到齊。順帶：`coldstart.mjs` 原本包住 `requestIdleCallback` 計時，
-`warmMaterial` 一改成非同步就開始回報「0 塊、0ms」，看起來像預熱免費了——改成
-量 `longtask`，因為它量的是「主執行緒被佔住」這件事本身，兩種寫法都測得到。
+**這件事讓兩個量測工具開始說謊，兩個都修了。** `coldstart.mjs` 原本包住
+`requestIdleCallback` 計時，`warmMaterial` 一改成非同步就回報「預熱 0 塊、0ms」，
+看起來像免費了——改成量 `longtask`（它量的是主執行緒被佔住這件事本身）。
+`shot.mjs` 原本固定等 1600ms 就截圖，會截到程式生成的備援那一幀，圖照樣產出、
+看起來也合理，只是拍的不是要驗的東西——改成先等該材質的三個檔案進
+`performance.getEntriesByType('resource')`。順帶：`locator.screenshot` 會等元素
+「穩定」，而貼圖到齊觸發的重建剛好讓它永遠等不到，改用 `page.screenshot` + clip。
+
+實測：預熱 1 次 53ms 的主執行緒佔用，37 個檔 6.3MB 在 818ms 到齊；第一次 build
+沒預熱 351ms、預熱後 7ms。
 
 ## 這些坑踩過了，別重犯
 

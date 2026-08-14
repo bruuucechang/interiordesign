@@ -20,7 +20,12 @@ const SIZE = 512;
 interface Maps {
   map: THREE.Texture;
   normalMap?: THREE.Texture;
-  roughnessMap?: THREE.Texture;
+  /**
+   * AO in R, roughness in G, metalness in B — the layout Poly Haven ships and
+   * the one three.js samples, so the same texture feeds `aoMap` and
+   * `roughnessMap` without a second file.
+   */
+  armMap?: THREE.Texture;
   /** The scan's real-world width, when the source published one. */
   tileCm?: number;
 }
@@ -88,12 +93,12 @@ export function loadPhoto(id: string): Promise<boolean> {
     const entry = m?.[id];
     if (!entry) return false;
     try {
-      const [map, normalMap, roughnessMap] = await Promise.all([
+      const [map, normalMap, armMap] = await Promise.all([
         loadTexture(`${BASE}${id}/color.jpg`, true),
         loadTexture(`${BASE}${id}/normal.jpg`, false),
-        loadTexture(`${BASE}${id}/rough.jpg`, false),
+        loadTexture(`${BASE}${id}/arm.jpg`, false),
       ]);
-      photos.set(id, { map, normalMap, roughnessMap, tileCm: entry.tileCm ?? undefined });
+      photos.set(id, { map, normalMap, armMap, tileCm: entry.tileCm ?? undefined });
       // Anything already built from the generator for this id is now stale.
       sources.delete(id);
       ready?.();
@@ -176,13 +181,21 @@ export function surfaceMaterial(
     mat.normalMap = nm;
     mat.normalScale = new THREE.Vector2(1, 1);
   }
-  if (src.roughnessMap) {
-    const rm = src.roughnessMap.clone(); rm.needsUpdate = true; rm.repeat.set(u, v);
-    mat.roughnessMap = rm;
+  if (src.armMap) {
+    const am = src.armMap.clone(); am.needsUpdate = true; am.repeat.set(u, v);
+    mat.roughnessMap = am;
+    mat.aoMap = am;
+    // `aoMap` reads the *second* UV set by default, and these surfaces only have
+    // one. Left alone it silently contributes nothing — no warning, no error,
+    // just a flatter render than the file paid for.
+    am.channel = 0;
     // With a map, `roughness` is a multiplier rather than the value. The
     // per-material constants were tuned as absolutes, so leaving them in would
     // darken every scan by however matte its finish was declared to be.
     mat.roughness = 1;
+    // metalness stays the material's own: the B channel is correct for the
+    // scans that ship ARM, but nothing here is metal and a stray value there
+    // would turn a floor into a mirror.
   }
   return mat;
 }

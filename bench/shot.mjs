@@ -87,9 +87,20 @@ await page.waitForTimeout(600);
 
 for (const id of list) {
   await page.evaluate((p) => { window.__app.doc.load(p); }, WALLS ? room('wood', id) : room(id, 'paint'));
-  await page.waitForTimeout(1600);   // rebuild + a few frames of AO
+  // 等這個材質的實拍貼圖真的到齊再截。貼圖改成非同步載入之後，1600ms 的固定
+  // 等待會截到「程式生成的備援」那一幀——圖照樣產出、看起來也合理，只是拍的
+  // 不是要驗的東西。到齊之後 onTexturesReady 會讓 3D 重建，所以還要再等一次。
+  await page.evaluate(async (mid) => {
+    const has = (n) => performance.getEntriesByType('resource')
+      .filter((e) => e.name.includes(`/textures/${n}/`)).length >= 3;
+    for (let i = 0; i < 50 && !has(mid); i++) await new Promise((r) => setTimeout(r, 100));
+  }, id);
+  await page.waitForTimeout(1800);   // rebuild + a few frames of AO
   const file = join(OUT, `${WALLS ? 'wall' : 'floor'}-${id}.png`);
-  await page.locator('#view3d canvas').screenshot({ path: file });
+  // page.screenshot + clip，不是 locator.screenshot：後者會等元素「穩定」，而
+  // 貼圖到齊觸發的重建剛好讓它永遠等不到。
+  const box = await page.locator('#view3d canvas').boundingBox();
+  await page.screenshot({ path: file, clip: box });
   console.log('→', file);
 }
 
