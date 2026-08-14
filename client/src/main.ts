@@ -7,6 +7,7 @@ import { loadProject } from './net/api';
 import { setSaveBaseline } from './ui/autosave';
 import { notice } from './ui/feedback';
 import { warmMaterial, onTexturesReady } from './core/textures3d';
+import { floorMaterials, wallMaterials } from './core/materials';
 import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
@@ -345,4 +346,8 @@ doc.onChange(() => { clearTimeout(warmTimer); warmTimer = window.setTimeout(warm
 let warmTimer: number | undefined;
 warmFinishes();
 
-if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes };
+// `floorMaterials`/`wallMaterials` are here for bench/shot.mjs: it used to carry
+// its own hardcoded list of ids, so every material added after it was written
+// silently went unrendered — and the whole point of that harness is that a
+// material is only verified by looking at it.
+if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes, floorMaterials, wallMaterials };

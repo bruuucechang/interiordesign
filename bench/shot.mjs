@@ -71,9 +71,14 @@ page.on('pageerror', (e) => console.error('PAGEERROR', String(e).split('\n')[0])
 await page.goto(`http://127.0.0.1:${server.address().port}/?perf=1`);
 await page.waitForTimeout(2500);
 
-const list = WALLS
-  ? ['paint', 'plaster', 'brick', 'walltile', 'wallpaper']
-  : ['wood', 'walnut', 'herringbone', 'tile', 'marble', 'terrazzo', 'carpet', 'concrete'];
+// 從 App 自己的材質清單取，不要在這裡再抄一份：抄的那一份不會跟著新增的材質
+// 更新，於是新材質永遠不會被渲出來看——而這支工具存在的唯一理由就是看。
+const list = await page.evaluate((w) => {
+  const a = window.__app;
+  if (!a?.floorMaterials) throw new Error('__app 沒有材質清單 —— main.ts 的 ?perf=1 匯出改過了');
+  return (w ? a.wallMaterials() : a.floorMaterials()).map((m) => m.id);
+}, WALLS);
+console.log(`${list.length} 種${WALLS ? '牆面' : '地板'}材質`);
 
 // Switch to 3D as the main view, so it renders at full resolution with AO.
 // 三段選擇器，不是舊的切換鈕。找不到就丟例外——一個安靜停止測試半個

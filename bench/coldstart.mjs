@@ -21,10 +21,25 @@ const server = await new Promise(ok => { const s = createServer(async (req,res) 
 
 // Every finish on one plan — the worst case, and the one that produced the
 // 530 ms measurement in the soak.
-const FLOORS = ['wood','walnut','herringbone','tile','marble','terrazzo','carpet','concrete'];
-const WALLS = ['paint','plaster','brick','walltile','wallpaper'];
+//
+// 清單向 App 要，不要在這裡抄一份：抄的那一份不會跟著新增的材質更新，於是
+// 「全部材質都用上」這個前提會安靜地變成假的，而整個量測就是建立在它上面。
+const lists = await (async () => {
+  const b = await chromium.launch();
+  const page = await b.newPage();
+  await page.goto(`http://127.0.0.1:${server.address().port}/?perf=1`);
+  await page.waitForTimeout(2000);
+  const r = await page.evaluate(() => {
+    const a = window.__app;
+    if (!a?.floorMaterials) throw new Error('__app 沒有材質清單 —— main.ts 的 ?perf=1 匯出改過了');
+    return { f: a.floorMaterials().map((m) => m.id), w: a.wallMaterials().map((m) => m.id) };
+  });
+  await b.close();
+  return r;
+})();
+const FLOORS = lists.f, WALLS = lists.w;
 const objects = [];
-for (let k = 0; k < 8; k++) {
+for (let k = 0; k < FLOORS.length; k++) {
   const x = (k % 4) * 420, y = Math.floor(k / 4) * 380;
   objects.push({ id:'r'+k, kind:'room', layer:'rooms', x, y, w:400, h:360, name:'房'+k, floor: FLOORS[k] });
   const cs = [[[x,y],[x+400,y]],[[x+400,y],[x+400,y+360]],[[x+400,y+360],[x,y+360]],[[x,y+360],[x,y]]];
@@ -88,7 +103,7 @@ async function warmCost() {
 const cold = await run(false);
 const warmed = await run(true);
 const w = await warmCost();
-console.log('13 種材質全用上，第一次 build：');
+console.log(`${FLOORS.length + WALLS.length} 種材質全用上，第一次 build：`);
 console.log(`  沒有預熱  ${cold.toFixed(0)}ms`);
 console.log(`  閒置預熱後 ${warmed.toFixed(0)}ms   (${((1 - warmed / cold) * 100).toFixed(0)}% less)`);
 const blocks = w.blocks.sort((a, z) => z - a);

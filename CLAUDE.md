@@ -188,14 +188,19 @@ DOM 節點恆定、零錯誤。
 4ms——但**成本是被移走不是消失**，預熱本身仍是 309ms，拆成 13 塊、最大一塊
 67ms。`coldstart.mjs` 會把這三個數字一起印，就是為了不讓「99% less」蓋掉它。
 
-### 實拍貼圖：13 種裡有 12 種改用 CC0 掃描圖
+### 實拍貼圖：28 種材質，27 種是 CC0 掃描圖
 
-`client/public/textures/<id>/{color,normal,arm}.jpg`，**1024²**，由
-`scripts/fetch_textures.py` 抓，12 種共 6.3MB。兩個來源都是 **CC0 1.0**（公共領域、
-可商用、不需署名——選它們就是為了散佈時沒有東西要遵守）：
+`client/public/textures/<id>/{color,normal,arm}.jpg`（color/normal **1024²**、
+arm 512²），由 `scripts/fetch_textures.py` 抓，27 種共 8.6MB。兩個來源都是
+**CC0 1.0**（公共領域、可商用、不需署名——選它們就是為了散佈時沒有東西要遵守）：
 
-- **Poly Haven**（10 種）：全站都是實地掃描
+- **Poly Haven**（25 種）：全站都是實地掃描
 - **ambientCG**（2 種）：只挑 `PBRPhotogrammetry`
+
+只有 13 種在 `materials.ts` 裡有完整的程式生成器，那是掃描圖出現之前就寫好的；
+後來加的 15 種走 `scanned()`，備援只是色票平鋪加雜訊。**那個備援不是要畫出材質**
+——它只在掃描圖到之前顯示幾百毫秒，以及當作 2D 的色票來源。色票值是掃描圖自己
+的平均色，由抓取腳本算出來寫進 manifest 再抄進 TS，所以平面圖跟 3D 不會各說各話。
 
 **第一版整批用 ambientCG，結果很簡陋，原因不是解析度。** 那批挑到的十二個全部是
 `creationMethod: PBRProcedural`——ambientCG **自己程式生成**的材質（站上 1412 個
@@ -242,8 +247,12 @@ WoodFloor048 縮圖看起來是胡桃木、渲出來近乎全黑；Concrete034 �
 `performance.getEntriesByType('resource')`。順帶：`locator.screenshot` 會等元素
 「穩定」，而貼圖到齊觸發的重建剛好讓它永遠等不到，改用 `page.screenshot` + clip。
 
-實測：預熱 1 次 53ms 的主執行緒佔用，37 個檔 6.3MB 在 818ms 到齊；第一次 build
-沒預熱 351ms、預熱後 7ms。
+**兩支量測工具的材質清單原本也是各抄一份的**，於是新增材質不會被渲圖看過、
+「全部材質都用上」這個前提也會安靜變成假的。兩支都改成向 App 要
+（`?perf=1` 下 `__app.floorMaterials/wallMaterials`），找不到就丟例外。
+
+實測（28 種全用上）：預熱 0 次主執行緒佔用，82 個檔 8.6MB 在 1230ms 到齊；
+第一次 build 沒預熱 456ms、預熱後 8ms。
 
 ## 這些坑踩過了，別重犯
 
