@@ -94,15 +94,35 @@ const NAMES = [
 // and a *marked* run (both faces continuous, two short ticks across the wall).
 // The front door is the marked kind — that is why looking for gaps never found
 // it. ['H'|'V', wall centre, from, to].
+//
+// Hand and style: only Peter's door has a swing drawn (leaf on the east jamb,
+// arc sweeping north into the room) — every other opening in both sheets is
+// just two ticks across the wall, and IMG_0199 is a lower-resolution photo of
+// the same plan, so there is nothing more to read. The rest are decided, and
+// these are the reasons:
+//
+//   swing  — into the private side (bedroom, bathroom) and, for the front door,
+//            into the flat, so nothing opens across a corridor.
+//   hinge  — the jamb nearer the end of its wall, so the open leaf tucks into
+//            the corner instead of standing in the middle of the room.
+//
+// Checked first that it is a free choice: each door's swept quarter-disc was
+// tested against every wall and cabinet in all four hands, and none of the 32
+// combinations collides with anything (4–18% "obstruction" in every one of
+// them, which is just the leaf lying back on its own wall).
+//
+// ['H'|'V', wall centre, from, to, label, hinge, swing, style?]
 const DOORS = [
-  ['H', Y[6], 58.5, 183.5, '大門'],        // 125 cm 子母門，在那道 2.1 m 的牆上
-  ['H', Y[2], 386.0, 481.0, 'Peter 房'],   // 圖上標 95
-  ['H', Y[3], 705.9, 794.9, '老爸房'],
-  ['H', Y[3], 849.9, 938.9, '老媽房'],
-  ['H', Y[5], 851.0, 938.0, 'Bruce 房走道'],
-  ['V', X[4], 617.4, 702.4, '走道'],
-  ['V', X[5], 632.8, 712.8, '衛浴 B'],
-  ['V', X[6], 459.4, 538.4, '衛浴 A'],
+  // 58.0 cm of wall west of it, 35.9 east → hinge east. 子母門: the app has no
+  // unequal pair, and two leaves is closer to 125 cm than one.
+  ['H', Y[6], 58.5, 183.5, '大門', 'right', 'in', 'double'],
+  ['H', Y[2], 386.0, 481.0, 'Peter 房', 'right', 'in'],       // 圖上標 95，唯一畫了門弧的
+  ['H', Y[3], 705.9, 794.9, '老爸房', 'right', 'in'],          // 212.0 / 153.3 → 靠東
+  ['H', Y[3], 849.9, 938.9, '老媽房', 'right', 'in'],          // 356.0 /   9.3 → 靠東
+  ['H', Y[5], 851.0, 938.0, 'Bruce 房走道', 'right', 'in'],    // 6.0 / 10.2，兩邊都貼牆
+  ['V', X[4], 617.4, 702.4, '走道', 'left', 'in'],
+  ['V', X[5], 632.8, 712.8, '衛浴 B', 'left', 'in'],           // 28.0 / 86.9 → 靠北
+  ['V', X[6], 459.4, 538.4, '衛浴 A', 'right', 'in'],          // 房內離南牆 66，離北牆 307
 ];
 
 const WINDOWS = [
@@ -111,8 +131,10 @@ const WINDOWS = [
   ['H', Y[8], 333.4, 439.4, '客廳'],
   ['H', Y[8], 885.4, 1133.4, 'Bruce 房'],
   ['V', X[8], 158.2, 289.2, '衛浴 A'],
-  ['V', X[3], 1055.1, 1221.1, '陽台'],     // 兩片拉門，記號在 1055/1131/1221
 ];
+
+// 陽台那道是門不是窗：圖上是兩片、沒有門弧，所以是推拉。
+const SLIDERS = [['V', X[3], 1055.1, 1221.1, '陽台', null, null, 'sliding']];
 
 // Joinery. Every piece here is measured against a printed dimension in the
 // drawing; pieces I could only eyeball are left out rather than guessed, because
@@ -165,14 +187,15 @@ for (const r of regions) {
 }
 
 // ---- openings -------------------------------------------------------------
-const opening = (kind, [o, c, a, b, label]) => objects.push({
+const opening = (kind, [o, c, a, b, label, hinge, swing, style]) => objects.push({
   id: id(kind), kind, layer: 'openings', label,
   x: o === 'V' ? c : (a + b) / 2,
   y: o === 'V' ? (a + b) / 2 : c,
   width: Math.round(b - a), angle: o === 'V' ? 90 : 0,
-  hinge: 'left', swing: 'in',
+  ...(hinge ? { hinge } : {}), ...(swing ? { swing } : {}), ...(style ? { style } : {}),
 });
 for (const d of DOORS) opening('door', d);
+for (const d of SLIDERS) opening('door', d);
 for (const w of WINDOWS) opening('window', w);
 
 // The arc is glazing end to end, so the window follows it rather than sitting in
