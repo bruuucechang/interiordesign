@@ -328,6 +328,25 @@ export class View3D {
     return g;
   }
 
+  /**
+   * Rebuild the placement ghost in place.
+   *
+   * The ghost is built once per item and kept until the item changes, so a model
+   * that lands afterwards leaves the preview showing the built stand-in — and
+   * then the piece changes shape the instant it is dropped, which is the one
+   * thing a preview exists to prevent. Called when a model finishes loading.
+   */
+  refreshGhost() {
+    if (!this.ghost || !this.previewItem) return;
+    const pos = this.ghost.position.clone();
+    const rot = this.ghost.rotation.clone();
+    const vis = this.ghost.visible;
+    this.clearGhost();
+    const g = this.buildGhost();
+    if (!g) return;
+    g.position.copy(pos); g.rotation.copy(rot); g.visible = vis;
+  }
+
   private clearGhost() {
     if (!this.ghost) return;
     this.ghost.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => mm.dispose()); });
