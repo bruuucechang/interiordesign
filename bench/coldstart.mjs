@@ -11,7 +11,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 const DIST = join(resolve(import.meta.dirname, '..'), 'client/dist');
-const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json' };
+const MIME = { '.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.jpg':'image/jpeg','.png':'image/png' };
 const server = await new Promise(ok => { const s = createServer(async (req,res) => {
   const p = decodeURIComponent(req.url.split('?')[0]);
   if (p.startsWith('/api/')) { res.writeHead(200,{'content-type':'application/json'}); res.end(JSON.stringify(p==='/api/projects'?{projects:[]}:{polygons:[]})); return; }
@@ -55,20 +55,31 @@ async function run(warm) {
 
 // 預熱本身花多久、每一塊多大 —— 成本是被移走不是消失，那些塊落在閒置時
 // 一樣會被感覺到。
+//
+// 量的是 longtask 不是 requestIdleCallback 的回呼時間。第一版包住 ric 計時，
+// 材質改成先抓 CC0 貼圖之後，warmMaterial 只丟出一個 promise 就回來——回呼本身
+// 變成 0ms，於是這裡開始回報「0 塊，共 0ms」，看起來像預熱免費了。實際成本搬到
+// 圖片解碼與上傳，那些照樣卡主執行緒，只是不在回呼裡面。longtask 兩種寫法都量
+// 得到，因為它量的是「主執行緒被佔住超過 50ms」這件事本身。
 async function warmCost() {
   const b = await chromium.launch();
   const page = await b.newPage({ viewport:{width:1200,height:800} });
   await page.goto(`http://127.0.0.1:${server.address().port}/?perf=1`);
   await page.waitForTimeout(2000);
   const r = await page.evaluate(async (plan) => {
-    const { doc } = window.__app;
-    doc.load(plan);
-    const each = [];
-    const ric = window.requestIdleCallback;
-    window.requestIdleCallback = (fn, o) => ric(() => { const t = performance.now(); fn(); each.push(performance.now() - t); }, o);
+    const blocks = [];
+    new PerformanceObserver((l) => { for (const e of l.getEntries()) blocks.push(e.duration); })
+      .observe({ entryTypes: ['longtask'] });
+    const t0 = performance.now();
+    window.__app.doc.load(plan);
     await new Promise(r2 => setTimeout(r2, 6000));
-    window.requestIdleCallback = ric;
-    return each.filter(x => x > 1);
+    const tex = performance.getEntriesByType('resource').filter((e) => e.name.includes('/textures/'));
+    return {
+      blocks,
+      files: tex.length,
+      bytes: tex.reduce((s, e) => s + (e.encodedBodySize || 0), 0),
+      lastAt: tex.length ? Math.max(...tex.map((e) => e.responseEnd)) - t0 : 0,
+    };
   }, plan);
   await b.close();
   return r;
@@ -76,12 +87,13 @@ async function warmCost() {
 
 const cold = await run(false);
 const warmed = await run(true);
-const blocks = await warmCost();
+const w = await warmCost();
 console.log('13 種材質全用上，第一次 build：');
 console.log(`  沒有預熱  ${cold.toFixed(0)}ms`);
 console.log(`  閒置預熱後 ${warmed.toFixed(0)}ms   (${((1 - warmed / cold) * 100).toFixed(0)}% less)`);
-blocks.sort((a, z) => z - a);
-console.log(`\n預熱本身：${blocks.length} 塊，共 ${blocks.reduce((s, x) => s + x, 0).toFixed(0)}ms`);
-console.log(`  最大一塊 ${blocks[0]?.toFixed(0)}ms   中位數 ${blocks[blocks.length >> 1]?.toFixed(0)}ms`);
+const blocks = w.blocks.sort((a, z) => z - a);
+console.log(`\n預熱本身：主執行緒被佔住 ${blocks.length} 次（>50ms），共 ${blocks.reduce((s, x) => s + x, 0).toFixed(0)}ms`);
+console.log(`  最長一次 ${blocks[0]?.toFixed(0) ?? 0}ms`);
+console.log(`  貼圖 ${w.files} 個檔、${(w.bytes / 1024).toFixed(0)} KB，最後一個在 ${w.lastAt.toFixed(0)}ms 到齊`);
 console.log('  （成本是被移到閒置，不是消失——一塊太大照樣會被感覺到）');
 server.close();

@@ -20,9 +20,89 @@ const SIZE = 512;
 interface Maps {
   map: THREE.Texture;
   normalMap?: THREE.Texture;
+  roughnessMap?: THREE.Texture;
+  /** The scan's real-world width, when the source published one. */
+  tileCm?: number;
 }
 
 const sources = new Map<string, Maps>();
+
+// ---- photographed maps ----------------------------------------------------
+//
+// CC0 scans from ambientCG, fetched by scripts/fetch_textures.py and committed
+// under client/public/textures. Where one exists it replaces the procedural
+// generator for that id; where it does not — `paint`, and anything the script
+// has not been pointed at — the generator still runs, so nothing depends on the
+// files being present.
+//
+// Loading is asynchronous and `surfaceMaterial` is not, which is the whole
+// difficulty here. The rule: a caller always gets a material immediately. If
+// the photo has landed it gets the photo; if it has not, it gets the generated
+// one, and `notifyReady` tells the 3D view to rebuild when the photo arrives.
+// Never block, never hand back a material with no map.
+
+interface PhotoEntry { asset: string; name: string; tileCm: number | null; attribution: string; }
+
+// Resolved against the page rather than a build-time constant: the desktop
+// build serves the same files from a local server on an arbitrary port, and the
+// dev server and Docker image do not agree on a base path either.
+const BASE = new URL('textures/', document.baseURI).href;
+const photos = new Map<string, Maps>();
+const pending = new Map<string, Promise<boolean>>();
+let manifest: Record<string, PhotoEntry> | null | undefined;
+let ready: (() => void) | undefined;
+
+/** Called when a photographed material lands after something already drew with the generated one. */
+export function onTexturesReady(fn: () => void) { ready = fn; }
+
+async function loadManifest(): Promise<Record<string, PhotoEntry> | null> {
+  if (manifest !== undefined) return manifest ?? null;
+  try {
+    const r = await fetch(`${BASE}manifest.json`);
+    manifest = r.ok ? (await r.json()).materials : null;
+  } catch { manifest = null; }         // offline, or a build without the files
+  return manifest ?? null;
+}
+
+function loadTexture(url: string, srgb: boolean): Promise<THREE.Texture> {
+  return new Promise((res, rej) => {
+    new THREE.TextureLoader().load(url, (t) => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 8;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+      res(t);
+    }, undefined, rej);
+  });
+}
+
+/**
+ * Load the photographed set for one material id. Resolves to whether there is
+ * one; safe and cheap to call again.
+ */
+export function loadPhoto(id: string): Promise<boolean> {
+  if (photos.has(id)) return Promise.resolve(true);
+  const inflight = pending.get(id);
+  if (inflight) return inflight;
+  const job = (async () => {
+    const m = await loadManifest();
+    const entry = m?.[id];
+    if (!entry) return false;
+    try {
+      const [map, normalMap, roughnessMap] = await Promise.all([
+        loadTexture(`${BASE}${id}/color.jpg`, true),
+        loadTexture(`${BASE}${id}/normal.jpg`, false),
+        loadTexture(`${BASE}${id}/rough.jpg`, false),
+      ]);
+      photos.set(id, { map, normalMap, roughnessMap, tileCm: entry.tileCm ?? undefined });
+      // Anything already built from the generator for this id is now stale.
+      sources.delete(id);
+      ready?.();
+      return true;
+    } catch { return false; }          // a missing file is not worth a broken view
+  })();
+  pending.set(id, job);
+  return job;
+}
 
 function draw(size: number, fn: (c: CanvasRenderingContext2D, s: number) => void): HTMLCanvasElement {
   const cv = document.createElement('canvas');
@@ -63,6 +143,8 @@ function build(def: MaterialDef): Maps {
 }
 
 function source(def: MaterialDef): Maps {
+  const p = photos.get(def.id);
+  if (p) return p;
   let m = sources.get(def.id);
   if (!m) { m = build(def); sources.set(def.id, m); }
   return m;
@@ -80,7 +162,10 @@ export function surfaceMaterial(
 ): THREE.MeshStandardMaterial {
   const def = material(id, category);
   const src = source(def);
-  const [u, v] = repeatFor(def, wCm, hCm);
+  // A scan carries its own real-world size, and it is the honest one — the
+  // generator's tileCm was chosen to make a drawn pattern look right, not
+  // measured off anything. Where the source published a dimension, it wins.
+  const [u, v] = repeatFor(src.tileCm ? { ...def, tileCm: src.tileCm } : def, wCm, hCm);
 
   const map = src.map.clone(); map.needsUpdate = true; map.repeat.set(u, v);
   const mat = new THREE.MeshStandardMaterial({
@@ -90,6 +175,14 @@ export function surfaceMaterial(
     const nm = src.normalMap.clone(); nm.needsUpdate = true; nm.repeat.set(u, v);
     mat.normalMap = nm;
     mat.normalScale = new THREE.Vector2(1, 1);
+  }
+  if (src.roughnessMap) {
+    const rm = src.roughnessMap.clone(); rm.needsUpdate = true; rm.repeat.set(u, v);
+    mat.roughnessMap = rm;
+    // With a map, `roughness` is a multiplier rather than the value. The
+    // per-material constants were tuned as absolutes, so leaving them in would
+    // darken every scan by however matte its finish was declared to be.
+    mat.roughness = 1;
   }
   return mat;
 }
@@ -110,7 +203,11 @@ export function surfaceMaterial(
  */
 export function warmMaterial(id: string | undefined, category: Category): void {
   if (id && id.startsWith('#')) return;   // a plain colour needs no texture
-  source(material(id, category));
+  const def = material(id, category);
+  // Ask for the scan first and only generate if there is not one. Doing both
+  // would pay the 8–40 ms twice over for every material that has a photo, which
+  // is eleven of the thirteen.
+  void loadPhoto(def.id).then((got) => { if (!got) source(def); });
 }
 
 /** The swatch colour, for anything that needs a flat stand-in. */

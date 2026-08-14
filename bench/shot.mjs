@@ -21,7 +21,10 @@ const DIST = join(ROOT, 'client/dist');
 const OUT = join(ROOT, 'bench/results/shots');
 const WALLS = process.argv.includes('--wall');
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
+// .jpg matters now that materials load photographed maps from /textures — a
+// wrong or missing content-type here would fall back to index.html and the shot
+// would quietly show the generated texture instead of the one being checked.
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png' };
 const server = await new Promise((ok) => {
   const s = createServer(async (req, res) => {
     const p = decodeURIComponent(req.url.split('?')[0]);

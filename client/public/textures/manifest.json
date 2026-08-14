@@ -1,0 +1,79 @@
+{
+  "source": "https://ambientcg.com",
+  "license": "CC0 1.0",
+  "size": 512,
+  "materials": {
+    "wood": {
+      "asset": "WoodFloor051",
+      "name": "Wood Floor 051",
+      "tileCm": 180,
+      "attribution": "ambientCG — WoodFloor051 (CC0)"
+    },
+    "walnut": {
+      "asset": "WoodFloor011",
+      "name": "Wood Floor 011",
+      "tileCm": null,
+      "attribution": "ambientCG — WoodFloor011 (CC0)"
+    },
+    "herringbone": {
+      "asset": "WoodFloor034",
+      "name": "Wood Floor 034",
+      "tileCm": 190,
+      "attribution": "ambientCG — WoodFloor034 (CC0)"
+    },
+    "tile": {
+      "asset": "Tiles139",
+      "name": "Tiles 139",
+      "tileCm": 200,
+      "attribution": "ambientCG — Tiles139 (CC0)"
+    },
+    "marble": {
+      "asset": "Marble012",
+      "name": "Marble 012",
+      "tileCm": null,
+      "attribution": "ambientCG — Marble012 (CC0)"
+    },
+    "terrazzo": {
+      "asset": "Terrazzo005",
+      "name": "Terrazzo 005",
+      "tileCm": null,
+      "attribution": "ambientCG — Terrazzo005 (CC0)"
+    },
+    "carpet": {
+      "asset": "Carpet009",
+      "name": "Carpet 009",
+      "tileCm": null,
+      "attribution": "ambientCG — Carpet009 (CC0)"
+    },
+    "concrete": {
+      "asset": "Concrete016",
+      "name": "Concrete 016",
+      "tileCm": null,
+      "attribution": "ambientCG — Concrete016 (CC0)"
+    },
+    "plaster": {
+      "asset": "Plaster003",
+      "name": "Plaster 003",
+      "tileCm": null,
+      "attribution": "ambientCG — Plaster003 (CC0)"
+    },
+    "brick": {
+      "asset": "Bricks060",
+      "name": "Bricks 060",
+      "tileCm": 105,
+      "attribution": "ambientCG — Bricks060 (CC0)"
+    },
+    "walltile": {
+      "asset": "Tiles010",
+      "name": "Tiles 010",
+      "tileCm": null,
+      "attribution": "ambientCG — Tiles010 (CC0)"
+    },
+    "wallpaper": {
+      "asset": "Wallpaper002B",
+      "name": "Wallpaper 002 B",
+      "tileCm": null,
+      "attribution": "ambientCG — Wallpaper002B (CC0)"
+    }
+  }
+}

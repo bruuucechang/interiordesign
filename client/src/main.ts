@@ -6,7 +6,7 @@ import { PERF_ON } from './core/perf';
 import { loadProject } from './net/api';
 import { setSaveBaseline } from './ui/autosave';
 import { notice } from './ui/feedback';
-import { warmMaterial } from './core/textures3d';
+import { warmMaterial, onTexturesReady } from './core/textures3d';
 import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
@@ -336,6 +336,11 @@ function warmFinishes() {
   };
   (window as any).requestIdleCallback(step, { timeout: 2000 });
 }
+// A photographed material can land after the 3D view has already drawn the
+// generated stand-in. Rebuilding is the only way the surfaces pick it up —
+// materials were handed out per surface and each holds its own clone.
+onTexturesReady(() => { if (mode !== '2d') view3d.build(doc, false); });
+
 doc.onChange(() => { clearTimeout(warmTimer); warmTimer = window.setTimeout(warmFinishes, 400); });
 let warmTimer: number | undefined;
 warmFinishes();
