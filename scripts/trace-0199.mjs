@@ -111,18 +111,23 @@ const NAMES = [
 // combinations collides with anything (4–18% "obstruction" in every one of
 // them, which is just the leaf lying back on its own wall).
 //
-// ['H'|'V', wall centre, from, to, label, hinge, swing, style?]
+// Where the owner has since overruled one of these in `img0199-gen`, this table
+// follows them — the rows marked 「使用者」. The rule of thumb was only ever a
+// tie-breaker for something the drawing does not record; the person who lives
+// there does know, and a generator that regenerates its way back over their
+// decision is worse than no generator.
+//
+// ['H'|'V', wall centre, from, to, label, hinge, swing, style?, angle?]
 const DOORS = [
-  // 58.0 cm of wall west of it, 35.9 east → hinge east. 子母門: the app has no
-  // unequal pair, and two leaves is closer to 125 cm than one.
-  ['H', Y[6], 58.5, 183.5, '大門', 'right', 'in', 'double'],
+  ['H', Y[6], 47.5, 172.5, '大門', 'left', 'in', 'single'],    // 使用者：往西 11cm，退回單開
   ['H', Y[2], 386.0, 481.0, 'Peter 房', 'right', 'in'],       // 圖上標 95，唯一畫了門弧的
   ['H', Y[3], 705.9, 794.9, '老爸房', 'right', 'in'],          // 212.0 / 153.3 → 靠東
-  ['H', Y[3], 849.9, 938.9, '老媽房', 'right', 'in'],          // 356.0 /   9.3 → 靠東
-  ['H', Y[5], 851.0, 938.0, 'Bruce 房走道', 'right', 'in'],    // 6.0 / 10.2，兩邊都貼牆
+  ['H', Y[3], 849.9, 938.9, '老媽房', 'left', 'in'],           // 使用者：鉸鏈換到西側
+  ['H', Y[5], 851.0, 938.0, 'Bruce 房走道', 'right', 'in', null, 180],  // 使用者：往南開
   ['V', X[4], 617.4, 702.4, '走道', 'left', 'in'],
   ['V', X[5], 632.8, 712.8, '衛浴 B', 'left', 'in'],           // 28.0 / 86.9 → 靠北
   ['V', X[6], 459.4, 538.4, '衛浴 A', 'right', 'in'],          // 房內離南牆 66，離北牆 307
+  ['V', X[3], 1068.0, 1158.0, '陽台', 'left', 'in', 'single'], // 使用者：不要推拉
 ];
 
 const WINDOWS = [
@@ -133,19 +138,33 @@ const WINDOWS = [
   ['V', X[8], 158.2, 289.2, '衛浴 A'],
 ];
 
-// 陽台那道是門不是窗：圖上是兩片、沒有門弧，所以是推拉。
-const SLIDERS = [['V', X[3], 1055.1, 1221.1, '陽台', null, null, 'sliding']];
-
-// Joinery. Every piece here is measured against a printed dimension in the
-// drawing; pieces I could only eyeball are left out rather than guessed, because
-// a cabinet in the wrong place reads as a wall.
+// Joinery. `item` has to be a real catalogue id — an unknown one is not an
+// error, it just draws a plain box in 2D and a featureless 75 cm slab in 3D,
+// which is what every piece here used to be. Nothing warns about it.
+//
+// The kitchen is measured off the plan rather than off the elevation: the sink
+// and the hob are floor-standing units in this app (85 and 90 cm tall, with
+// their own bodies), not fittings dropped into a worktop, so the run is split
+// into the cabinet lengths *between* them instead of one 308 cm counter with
+// two appliances overlapping it.
+//
+// Nothing is placed in either bathroom and no beds or sofa exist here: this is
+// a 木作／系統櫃 drawing. Both bathrooms are drawn empty and no loose furniture
+// appears anywhere on it. Guessing would put objects in a plan whose whole
+// claim is that it matches the drawing.
+//
+// [label, item, x, y, w, h]
 const JOINERY = [
-  ['系統開放衣櫃＋木作強化吊頂', 6.0, 504.9, 369, 60],
-  ['系統開放衣櫃 4抽', 953.0, 544.8, 240, 60],
-  ['系統開放衣櫃 4抽', 948.2, 799.7, 240, 60],
-  ['汙衣櫃', 1188.2, 799.7, 53, 60],
-  ['廚具（水槽＋爐）', 222.0, 1170.6, 307, 60],
-  ['冰箱 R.E.F.', 229.0, 989.0, 83, 89],
+  ['系統開放衣櫃＋木作強化吊頂', 'wardrobe', 6.0, 504.9, 369, 60],
+  ['系統開放衣櫃 4抽', 'wardrobe', 953.0, 556.8, 240, 60],       // 使用者對齊過
+  ['系統開放衣櫃 4抽', 'wardrobe', 948.2, 802.7, 240, 60],       // 使用者對齊過
+  ['汙衣櫃', 'cabinet_storage', 1188.2, 802.7, 53, 60],         // 使用者對齊過
+  ['木作高櫃', 'tall_cabinet', 226.7, 770.0, 44.8, 217.6],
+  ['冰箱 R.E.F.', 'fridge', 226.7, 987.5, 73.7, 83.1],
+  ['廚櫃', 'cabinet_kitchen', 226.7, 1162.5, 23.3, 60.7],
+  ['水槽', 'sink', 250.0, 1162.5, 78, 60.7],
+  ['廚櫃 4抽', 'cabinet_kitchen', 328.0, 1162.5, 124, 60.7],
+  ['爐具', 'stove', 452.0, 1162.5, 78, 60.7],
 ];
 
 const regions = JSON.parse(readFileSync(`${SCRATCH}/final.json`, 'utf8')).regions;
@@ -187,15 +206,14 @@ for (const r of regions) {
 }
 
 // ---- openings -------------------------------------------------------------
-const opening = (kind, [o, c, a, b, label, hinge, swing, style]) => objects.push({
+const opening = (kind, [o, c, a, b, label, hinge, swing, style, angle]) => objects.push({
   id: id(kind), kind, layer: 'openings', label,
   x: o === 'V' ? c : (a + b) / 2,
   y: o === 'V' ? (a + b) / 2 : c,
-  width: Math.round(b - a), angle: o === 'V' ? 90 : 0,
+  width: Math.round(b - a), angle: angle ?? (o === 'V' ? 90 : 0),
   ...(hinge ? { hinge } : {}), ...(swing ? { swing } : {}), ...(style ? { style } : {}),
 });
 for (const d of DOORS) opening('door', d);
-for (const d of SLIDERS) opening('door', d);
 for (const w of WINDOWS) opening('window', w);
 
 // The arc is glazing end to end, so the window follows it rather than sitting in
@@ -209,9 +227,9 @@ objects.push({
 });
 
 // ---- joinery --------------------------------------------------------------
-for (const [label, x, y, w, h] of JOINERY) {
+for (const [label, item, x, y, w, h] of JOINERY) {
   objects.push({
-    id: id('furniture'), kind: 'furniture', layer: 'furniture', item: 'cabinet',
+    id: id('furniture'), kind: 'furniture', layer: 'furniture', item,
     label, angle: 0, x, y, w, h,
   });
 }

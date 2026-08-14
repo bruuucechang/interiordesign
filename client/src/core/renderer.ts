@@ -469,7 +469,11 @@ export class Renderer {
       }
       case 'furniture': {
         const c = furnitureCenter(o);
-        this.text(c, FURNITURE_BY_ID[o.item]?.name ?? o.label, '#e0b45a', 11);
+        // The object's own label wins over the catalogue's generic name. Placing
+        // from the palette sets no label, so those still read 衣櫃 / 冰箱; but a
+        // piece traced off a drawing carries the drawing's name — 系統開放衣櫃 4抽,
+        // 汙衣櫃 — and that is the whole reason it was written down.
+        this.text(c, o.label || FURNITURE_BY_ID[o.item]?.name || '', '#e0b45a', 11);
         break;
       }
     }
