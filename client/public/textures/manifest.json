@@ -10,73 +10,190 @@
       "tileCm": 199,
       "attribution": "Poly Haven — wooden_floor_01 (CC0)",
       "source": "polyhaven",
-      "asset": "wooden_floor_01"
+      "asset": "wooden_floor_01",
+      "swatch": "#b17e4e"
     },
     "walnut": {
       "tileCm": 200,
       "attribution": "Poly Haven — plank_flooring_04 (CC0)",
       "source": "polyhaven",
-      "asset": "plank_flooring_04"
+      "asset": "plank_flooring_04",
+      "swatch": "#402416"
     },
     "herringbone": {
       "tileCm": 340,
       "attribution": "Poly Haven — herringbone_parquet (CC0)",
       "source": "polyhaven",
-      "asset": "herringbone_parquet"
+      "asset": "herringbone_parquet",
+      "swatch": "#926f4d"
     },
     "tile": {
       "tileCm": 190,
       "attribution": "Poly Haven — interior_tiles (CC0)",
       "source": "polyhaven",
-      "asset": "interior_tiles"
+      "asset": "interior_tiles",
+      "swatch": "#aa9784"
     },
     "marble": {
       "tileCm": 150,
       "attribution": "Poly Haven — marble_01 (CC0)",
       "source": "polyhaven",
-      "asset": "marble_01"
+      "asset": "marble_01",
+      "swatch": "#b19c79"
     },
     "terrazzo": {
       "tileCm": null,
       "attribution": "ambientCG — Terrazzo005 (CC0)",
       "source": "ambientcg",
-      "asset": "Terrazzo005"
+      "asset": "Terrazzo005",
+      "swatch": "#c1bcb8"
     },
     "concrete": {
       "tileCm": 400,
       "attribution": "Poly Haven — painted_concrete_02 (CC0)",
       "source": "polyhaven",
-      "asset": "painted_concrete_02"
+      "asset": "painted_concrete_02",
+      "swatch": "#55534c"
     },
     "plaster": {
       "tileCm": 200,
       "attribution": "Poly Haven — white_stucco (CC0)",
       "source": "polyhaven",
-      "asset": "white_stucco"
+      "asset": "white_stucco",
+      "swatch": "#d7d3cf"
     },
     "brick": {
       "tileCm": 200,
       "attribution": "Poly Haven — whitewashed_brick (CC0)",
       "source": "polyhaven",
-      "asset": "whitewashed_brick"
+      "asset": "whitewashed_brick",
+      "swatch": "#a5998c"
     },
     "walltile": {
       "tileCm": 127,
       "attribution": "Poly Haven — long_white_tiles (CC0)",
       "source": "polyhaven",
-      "asset": "long_white_tiles"
+      "asset": "long_white_tiles",
+      "swatch": "#cdc6b6"
     },
     "carpet": {
       "tileCm": null,
       "attribution": "ambientCG — Fabric045 (CC0)",
       "source": "ambientcg",
-      "asset": "Fabric045"
+      "asset": "Fabric045",
+      "swatch": "#c4c3c1"
     },
     "wallpaper": {
       "tileCm": null,
       "attribution": "ambientCG — Fabric043 (CC0)",
       "source": "ambientcg",
-      "asset": "Fabric043"
+      "asset": "Fabric043",
+      "swatch": "#8d8583"
+    },
+    "oaklight": {
+      "tileCm": 208,
+      "attribution": "Poly Haven — laminate_floor_03 (CC0)",
+      "source": "polyhaven",
+      "asset": "laminate_floor_03",
+      "swatch": "#9a7147"
+    },
+    "parquet": {
+      "tileCm": 225,
+      "attribution": "Poly Haven — rectangular_parquet (CC0)",
+      "source": "polyhaven",
+      "asset": "rectangular_parquet",
+      "swatch": "#775b32"
+    },
+    "granite": {
+      "tileCm": 230,
+      "attribution": "Poly Haven — granite_tile (CC0)",
+      "source": "polyhaven",
+      "asset": "granite_tile",
+      "swatch": "#4d4e4e"
+    },
+    "checker": {
+      "tileCm": 300,
+      "attribution": "Poly Haven — floor_tiles_06 (CC0)",
+      "source": "polyhaven",
+      "asset": "floor_tiles_06",
+      "swatch": "#796f6b"
+    },
+    "mosaic": {
+      "tileCm": 200,
+      "attribution": "Poly Haven — marble_mosaic_tiles (CC0)",
+      "source": "polyhaven",
+      "asset": "marble_mosaic_tiles",
+      "swatch": "#806c5e"
+    },
+    "antislip": {
+      "tileCm": 180,
+      "attribution": "Poly Haven — anti_skid_tiles (CC0)",
+      "source": "polyhaven",
+      "asset": "anti_skid_tiles",
+      "swatch": "#856b53"
+    },
+    "vinyl": {
+      "tileCm": 200,
+      "attribution": "Poly Haven — linoleum_brown (CC0)",
+      "source": "polyhaven",
+      "asset": "linoleum_brown",
+      "swatch": "#997a58"
+    },
+    "retrotile": {
+      "tileCm": 170,
+      "attribution": "Poly Haven — brown_floor_tiles (CC0)",
+      "source": "polyhaven",
+      "asset": "brown_floor_tiles",
+      "swatch": "#896e54"
+    },
+    "woodpanel": {
+      "tileCm": 180,
+      "attribution": "Poly Haven — white_planks_clean (CC0)",
+      "source": "polyhaven",
+      "asset": "white_planks_clean",
+      "swatch": "#b4a69d"
+    },
+    "bamboo": {
+      "tileCm": 200,
+      "attribution": "Poly Haven — bamboo_wall (CC0)",
+      "source": "polyhaven",
+      "asset": "bamboo_wall",
+      "swatch": "#846a52"
+    },
+    "exposed": {
+      "tileCm": 230,
+      "attribution": "Poly Haven — concrete_slab_wall (CC0)",
+      "source": "polyhaven",
+      "asset": "concrete_slab_wall",
+      "swatch": "#a9a29a"
+    },
+    "redbrick": {
+      "tileCm": 300,
+      "attribution": "Poly Haven — brick_wall_001 (CC0)",
+      "source": "polyhaven",
+      "asset": "brick_wall_001",
+      "swatch": "#644a3c"
+    },
+    "stonewall": {
+      "tileCm": 200,
+      "attribution": "Poly Haven — stone_tile_wall (CC0)",
+      "source": "polyhaven",
+      "asset": "stone_tile_wall",
+      "swatch": "#a9a5a0"
+    },
+    "mosaicwall": {
+      "tileCm": 200,
+      "attribution": "Poly Haven — rounded_square_tiled_wall (CC0)",
+      "source": "polyhaven",
+      "asset": "rounded_square_tiled_wall",
+      "swatch": "#857665"
+    },
+    "beige": {
+      "tileCm": 300,
+      "attribution": "Poly Haven — beige_wall_001 (CC0)",
+      "source": "polyhaven",
+      "asset": "beige_wall_001",
+      "swatch": "#9d8c78"
     }
   }
 }

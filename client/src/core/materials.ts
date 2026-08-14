@@ -319,6 +319,33 @@ const mix = (a: string, b: string, t: number) => {
   return `rgb(${q(ar, br)},${q(ag, bg)},${q(ab, bb)})`;
 };
 
+/**
+ * A material whose real appearance comes from a photographed scan under
+ * `client/public/textures/<id>`.
+ *
+ * The generator here is deliberately not an attempt to draw the material. It is
+ * the stand-in shown for the few hundred milliseconds before the scan lands,
+ * and the source of the 2D swatch colour — nothing else ever sees it. Writing
+ * fifteen more plausible `albedo`/`height` pairs to be covered up immediately
+ * would be effort spent where nobody looks; the ones above earned theirs by
+ * predating the scans.
+ *
+ * The `swatch` values are the mean colour of the scan's own colour map,
+ * computed by scripts/fetch_textures.py and copied here, so the plan view and
+ * the picker agree with the 3D view instead of with a guess.
+ */
+function scanned(
+  id: string, label: string, category: Category, tileCm: number, swatch: string,
+  o: { roughness?: number; bump?: number; hatch?: MaterialDef['hatch']; hatchCm?: number } = {},
+): MaterialDef {
+  return {
+    id, label, category, tileCm, swatch,
+    roughness: o.roughness ?? 0.7, metalness: 0, bump: o.bump ?? 1.4,
+    albedo(c, s, r) { c.fillStyle = swatch; c.fillRect(0, 0, s, s); grain(c, s, r, 0.6); },
+    hatch: o.hatch, hatchCm: o.hatchCm ?? tileCm,
+  };
+}
+
 // ---------------------------------------------------------------- the library
 
 export const MATERIALS: MaterialDef[] = [
@@ -537,6 +564,39 @@ export const MATERIALS: MaterialDef[] = [
     hatch(c, s) { hatchLines(c, s, 90, s / 5); },
     hatchCm: 100,
   },
+
+  // ---- 第二批：只有掃描圖的材質，見 scanned() 上方的說明 ----------------
+  scanned('oaklight', '淺色海島型', 'floor', 208, '#9a7147',
+    { roughness: 0.6, hatch: (c, s) => hatchLines(c, s, 0, s / 9), hatchCm: 208 }),
+  scanned('parquet', '方塊拼木', 'floor', 225, '#775b32',
+    { roughness: 0.6, hatch: (c, s) => hatchGrid(c, s, 4, 4, false), hatchCm: 112 }),
+  scanned('granite', '花崗石', 'floor', 230, '#4d4e4e',
+    { roughness: 0.35, bump: 1.0, hatch: (c, s) => hatchGrid(c, s, 3, 2, false), hatchCm: 230 }),
+  scanned('checker', '黑白格磚', 'floor', 300, '#796f6b',
+    { roughness: 0.3, bump: 1.0, hatch: (c, s) => hatchGrid(c, s, 6, 6, false), hatchCm: 150 }),
+  scanned('mosaic', '馬賽克地磚', 'floor', 200, '#806c5e',
+    { roughness: 0.45, bump: 2.2, hatch: (c, s) => hatchStipple(c, s, 260, 7), hatchCm: 100 }),
+  scanned('antislip', '止滑磚', 'floor', 180, '#856b53',
+    { roughness: 0.85, bump: 2.0, hatch: (c, s) => hatchStipple(c, s, 340, 11), hatchCm: 90 }),
+  scanned('vinyl', '塑膠地板', 'floor', 200, '#997a58',
+    { roughness: 0.55, bump: 0.7, hatch: (c, s) => hatchLines(c, s, 0, s / 3, 1.4), hatchCm: 200 }),
+  scanned('retrotile', '復古地磚', 'floor', 170, '#896e54',
+    { roughness: 0.5, bump: 1.8, hatch: (c, s) => hatchGrid(c, s, 3, 3, false), hatchCm: 85 }),
+
+  scanned('woodpanel', '白色木板牆', 'wall', 180, '#b4a69d',
+    { roughness: 0.7, bump: 2.0, hatch: (c, s) => hatchLines(c, s, 90, s / 7), hatchCm: 180 }),
+  scanned('bamboo', '竹編牆', 'wall', 200, '#846a52',
+    { roughness: 0.8, bump: 2.4, hatch: (c, s) => hatchLines(c, s, 90, s / 12), hatchCm: 100 }),
+  scanned('exposed', '清水模', 'wall', 230, '#a9a29a',
+    { roughness: 0.8, bump: 0.8, hatch: (c, s) => hatchStipple(c, s, 120, 3), hatchCm: 230 }),
+  scanned('redbrick', '紅磚牆', 'wall', 300, '#644a3c',
+    { roughness: 0.92, bump: 3.0, hatch: (c, s) => hatchGrid(c, s, 3, 9, true), hatchCm: 150 }),
+  scanned('stonewall', '石材牆', 'wall', 200, '#a9a5a0',
+    { roughness: 0.8, bump: 2.6, hatch: (c, s) => hatchGrid(c, s, 2, 5, true), hatchCm: 200 }),
+  scanned('mosaicwall', '馬賽克壁磚', 'wall', 200, '#857665',
+    { roughness: 0.35, bump: 2.4, hatch: (c, s) => hatchStipple(c, s, 300, 5), hatchCm: 100 }),
+  scanned('beige', '米色塗料', 'wall', 300, '#9d8c78',
+    { roughness: 0.9, bump: 0.5, hatch: (c, s) => hatchStipple(c, s, 60, 17, 0.9) }),
 ];
 
 const BY_ID = new Map(MATERIALS.map((m) => [m.id, m]));

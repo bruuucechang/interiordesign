@@ -71,6 +71,24 @@ ASSETS = {
     'walltile':    (PH,  'long_white_tiles'),    # 壁磚 — white glazed, 127 cm
     'carpet':      (ACG, 'Fabric045'),           # 地毯 — 標籤就是 rug，米白織紋
     'wallpaper':   (ACG, 'Fabric043'),           # 壁紙 — 灰色布紋
+
+    # 第二批：把選項從 13 種擴到 28 種。全部 Poly Haven 實掃，挑的標準是
+    # 「台灣住宅真的會用」——所以沒有戶外石材、沒有 rustic 的舊磚舊木。
+    'oaklight':    (PH,  'laminate_floor_03'),   # 淺色海島型
+    'parquet':     (PH,  'rectangular_parquet'), # 方塊拼木
+    'granite':     (PH,  'granite_tile'),        # 花崗石
+    'checker':     (PH,  'floor_tiles_06'),      # 黑白格磚
+    'mosaic':      (PH,  'marble_mosaic_tiles'), # 馬賽克地磚
+    'antislip':    (PH,  'anti_skid_tiles'),     # 止滑磚（陽台／浴室）
+    'vinyl':       (PH,  'linoleum_brown'),      # 塑膠地板
+    'retrotile':   (PH,  'brown_floor_tiles'),   # 復古地磚
+    'woodpanel':   (PH,  'white_planks_clean'),  # 白色木板牆
+    'bamboo':      (PH,  'bamboo_wall'),         # 竹編牆
+    'exposed':     (PH,  'concrete_slab_wall'),  # 清水模
+    'redbrick':    (PH,  'brick_wall_001'),      # 紅磚牆
+    'stonewall':   (PH,  'stone_tile_wall'),     # 石材牆
+    'mosaicwall':  (PH,  'rounded_square_tiled_wall'),  # 馬賽克壁磚
+    'beige':       (PH,  'beige_wall_001'),      # 米色塗料
 }
 
 # `paint` (乳膠漆) is deliberately absent from both sources. Every plaster scan
@@ -79,7 +97,10 @@ ASSETS = {
 # mixer was rewritten. The generated near-flat wall is more truthful.
 
 SIZE = 1024            # up from 512: these are scans now and they carry the detail
-QUALITY = 86
+# AO / roughness / metalness are all low-frequency — half the resolution is
+# indistinguishable in a render and it is what keeps 28 materials under 10 MB.
+ARM_SIZE = 512
+QUALITY = 82
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'client' / 'public' / 'textures'
 
@@ -95,9 +116,9 @@ def fetch(url: str) -> bytes:
         return r.read()
 
 
-def decode(buf: bytes) -> np.ndarray:
+def decode(buf: bytes, size: int = SIZE) -> np.ndarray:
     return cv2.resize(cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_COLOR),
-                      (SIZE, SIZE), interpolation=cv2.INTER_AREA)
+                      (size, size), interpolation=cv2.INTER_AREA)
 
 
 def from_polyhaven(asset: str) -> tuple[dict, dict]:
@@ -106,7 +127,7 @@ def from_polyhaven(asset: str) -> tuple[dict, dict]:
     url = lambda k: files[k]['2k']['jpg']['url']
     maps = {'color': decode(fetch(url('Diffuse'))),
             'normal': decode(fetch(url('nor_gl'))),
-            'arm': decode(fetch(url('arm')))}
+            'arm': decode(fetch(url('arm')), ARM_SIZE)}
     # `dimensions` is millimetres, and it is the real-world size of the scan —
     # the honest tile size. Guessing it is how a 2 m tile ends up as mosaic.
     dim = (info.get('dimensions') or [0, 0])[0] / 10
@@ -122,10 +143,10 @@ def from_ambientcg(asset: str) -> tuple[dict, dict]:
     rough = pick('_Roughness.jpg')
     # Packed by hand into the same ARM layout Poly Haven ships, so the app has
     # one convention to know: AO in R, roughness in G, metalness in B.
-    arm = np.zeros((SIZE, SIZE, 3), np.uint8)
-    if ao:    arm[:, :, 2] = cv2.cvtColor(decode(z.read(ao)), cv2.COLOR_BGR2GRAY)      # BGR: R is index 2
+    arm = np.zeros((ARM_SIZE, ARM_SIZE, 3), np.uint8)
+    if ao:    arm[:, :, 2] = cv2.cvtColor(decode(z.read(ao), ARM_SIZE), cv2.COLOR_BGR2GRAY)  # BGR: R is index 2
     else:     arm[:, :, 2] = 255
-    if rough: arm[:, :, 1] = cv2.cvtColor(decode(z.read(rough)), cv2.COLOR_BGR2GRAY)
+    if rough: arm[:, :, 1] = cv2.cvtColor(decode(z.read(rough), ARM_SIZE), cv2.COLOR_BGR2GRAY)
     else:     arm[:, :, 1] = 200
     maps = {'color': decode(z.read(pick('_Color.jpg'))),
             'normal': decode(z.read(pick('_NormalGL.jpg'))),
@@ -147,7 +168,9 @@ def one(mid: str, src: str, asset: str, force: bool) -> dict:
     d.mkdir(parents=True, exist_ok=True)
     for k, im in maps.items():
         cv2.imwrite(str(d / f'{k}.jpg'), im, [cv2.IMWRITE_JPEG_QUALITY, QUALITY])
-    entry |= {'source': src, 'asset': asset}
+    b, g, r = cv2.mean(maps['color'])[:3]
+    entry |= {'source': src, 'asset': asset,
+              'swatch': '#%02x%02x%02x' % (int(r), int(g), int(b))}
     (d / 'meta.json').write_text(json.dumps(entry, ensure_ascii=False), encoding='utf-8')
     kb = sum((d / f'{k}.jpg').stat().st_size for k in maps) / 1024
     print(f'  {kb:6.0f} KB   {entry["tileCm"] or "?"} cm')
