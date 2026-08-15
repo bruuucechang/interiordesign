@@ -12,7 +12,14 @@ export interface FurnitureItem {
 }
 
 function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  r = Math.min(r, w / 2, h / 2);
+  // Clamp, because a thin piece makes an inset negative: the 立鏡 is 3 cm deep,
+  // so an inner outline drawn at `h - 6` asks for a -1.5 radius, `arcTo` throws
+  // IndexSizeError — and since the palette draws every pictogram while it is
+  // being built, one bad item took the whole app down before `__app` was even
+  // assigned. A pictogram must not be able to do that.
+  w = Math.max(0, w); h = Math.max(0, h);
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  if (w === 0 || h === 0) return;
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -168,6 +175,87 @@ export const FURNITURE: FurnitureItem[] = [
     } },
   { id: 'stool', name: '椅凳', cat: '餐廳', w: 42, h: 44, draw(ctx, w, h) {
       body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+
+  // ---- 第三批款式：全部有 CC0 實掃模型，尺寸是模型量到的真實尺寸 --------
+  { id: 'armchair_classic', name: '經典單椅', cat: '客廳', w: 85, h: 77, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 16, w - 14, h - 24, 6); ctx.stroke();
+    } },
+  { id: 'accent_chair', name: '造型單椅', cat: '客廳', w: 67, h: 66, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 16, w - 14, h - 24, 6); ctx.stroke();
+    } },
+  { id: 'rocking', name: '搖椅', cat: '客廳', w: 71, h: 83, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 16, w - 14, h - 24, 6); ctx.stroke();
+    } },
+  { id: 'sofa_2', name: '雙人沙發', cat: '客廳', w: 181, h: 82, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(w / 2, 20); ctx.lineTo(w / 2, h - 8); ctx.stroke();
+    } },
+  { id: 'bench', name: '長凳', cat: '客廳', w: 116, h: 50, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 5); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; ctx.beginPath(); ctx.moveTo(6, h / 2); ctx.lineTo(w - 6, h / 2); ctx.stroke();
+    } },
+  { id: 'console', name: '玄關桌', cat: '客廳', w: 154, h: 59, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'coffee_round', name: '圓茶几', cat: '客廳', w: 130, h: 130, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'side_tall', name: '高邊几', cat: '客廳', w: 38, h: 38, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'mirror', name: '立鏡', cat: '客廳', w: 49, h: 3, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#9fd4ffaa'; const i = Math.min(3, w / 6, h / 6); rr(ctx, i, i, w - i * 2, h - i * 2, 2); ctx.stroke();
+    } },
+  { id: 'table_wood', name: '實木長桌', cat: '餐廳', w: 180, h: 66, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'stool_fold', name: '折凳', cat: '餐廳', w: 53, h: 55, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 16, w - 14, h - 24, 6); ctx.stroke();
+    } },
+  { id: 'stool_bar', name: '吧檯椅', cat: '餐廳', w: 35, h: 36, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'cabinet_painted', name: '烤漆收納櫃', cat: '客廳', w: 120, h: 62, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'shelf_narrow', name: '窄層架', cat: '客廳', w: 59, h: 50, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 4);
+    } },
+  { id: 'bookshelf_wood', name: '實木書櫃', cat: '書房', w: 137, h: 58, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 4);
+    } },
+  { id: 'shelf_wall', name: '壁掛層架', cat: '書房', w: 51, h: 37, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 4);
+    } },
+  { id: 'daybed', name: '貴妃椅', cat: '臥室', w: 197, h: 86, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(w / 2, 20); ctx.lineTo(w / 2, h - 8); ctx.stroke();
+    } },
+  { id: 'cn_armchair', name: '太師椅', cat: '中式', w: 85, h: 79, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 16, w - 14, h - 24, 6); ctx.stroke();
+    } },
+  { id: 'cn_cabinet', name: '中式高櫃', cat: '中式', w: 126, h: 54, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'cn_teatable', name: '中式茶几', cat: '中式', w: 84, h: 84, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'cn_screen', name: '屏風', cat: '中式', w: 129, h: 38, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88';
+      for (let i = 1; i < 4; i++) { const x = w * i / 4; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+    } },
+  { id: 'cn_console', name: '中式條案', cat: '中式', w: 172, h: 34, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
     } },
 ];
 
