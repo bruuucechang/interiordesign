@@ -6,7 +6,23 @@ import * as THREE from 'three';
 
 export const PANO_WIDTH = 4096;
 export const PANO_HEIGHT = 2048;
-const CUBE_FACE = 1024;            // ~PANO_WIDTH / 4 keeps detail without overkill
+
+// Supersampled: two cube texels per output pixel in each direction, filtered
+// down by the reprojection.
+//
+// This is the panorama's antialiasing, and it needs its own because the capture
+// does not go through the composer — a CubeCamera renders the scene directly,
+// so the multisampled target that antialiases the on-screen view is not in this
+// path at all. `samples` on a cube render target does not help either: three
+// allocates multisample framebuffers for 2D targets only.
+//
+// At the old 1024 the mapping was almost exactly 1:1 — a 4096-wide equirect is
+// 11.4 px per degree and a 1024 cube face covering 90° is also 11.4 — so every
+// jagged edge was copied straight through. 2048 doubles it, and mipmapped
+// trilinear sampling is what turns those four texels into one filtered pixel;
+// with LinearFilter alone the shader would just pick a nearest pair and the
+// extra resolution would buy nothing.
+const CUBE_FACE = 2048;
 
 // three.js only applies tone mapping and sRGB encoding when it renders to the
 // canvas; rendering into a render target hands back raw linear colour. The
@@ -98,7 +114,7 @@ export function capturePanorama(
   renderer: THREE.WebGLRenderer, scene: THREE.Scene, position: THREE.Vector3,
 ): HTMLCanvasElement {
   const cubeRT = new THREE.WebGLCubeRenderTarget(CUBE_FACE, {
-    generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter,
   });
   cubeRT.texture.colorSpace = THREE.LinearSRGBColorSpace;   // keep it linear for the shader
   const cubeCam = new THREE.CubeCamera(1, 200000, cubeRT);

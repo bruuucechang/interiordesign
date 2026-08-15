@@ -547,6 +547,19 @@ export function loadFurnitureModel(item: string): Promise<boolean> {
     try {
       const gltf = await new GLTFLoader().loadAsync(`${MODEL_BASE}${item}/${entry.file}`);
       const root = gltf.scene;
+      // glTF textures arrive at anisotropy 1 while everything this project
+      // builds itself uses 8. Left alone, a sideboard's wood grain and a
+      // shelf's metal frame shimmer at grazing angles — which is where most of
+      // a room is seen from — while the floor right next to them does not.
+      root.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        for (const mat of (Array.isArray(m) ? m : [m]) as THREE.MeshStandardMaterial[]) {
+          if (!mat) continue;
+          for (const t of [mat.map, mat.normalMap, mat.roughnessMap, mat.metalnessMap, mat.aoMap]) {
+            if (t) { t.anisotropy = 8; t.needsUpdate = true; }
+          }
+        }
+      });
       root.scale.setScalar(100);                       // metres → centimetres
       root.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(root);
