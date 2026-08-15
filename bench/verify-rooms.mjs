@@ -24,7 +24,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { extname, join } from 'node:path';
-const DIST='/Users/bruuucemac/Documents/Projects/interior-designer/client/dist';
+const DIST='/Users/bruuucemac/Projects/interior-designer/client/dist';
 const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json'};
 const s=await new Promise(ok=>{const sv=createServer(async(req,res)=>{const p=decodeURIComponent(req.url.split('?')[0]);
  if(p.startsWith('/api/')){const body=await new Promise(r=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>r(b))});
