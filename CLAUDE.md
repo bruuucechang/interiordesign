@@ -354,6 +354,19 @@ this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(1,
 回答：`adaptResolution` 本來就會在每幀超過 20ms 時降一階解析度，而多重取樣正好是讓
 畫面更受填充率限制，那正是那個閥門在應對的事。
 
+**「整個 3D」不只是畫面上那一塊，另外兩處各有各的反鋸齒：**
+
+- **全景拍攝完全繞過 composer**。`capturePanorama()` 用 CubeCamera 直接渲，多重
+  取樣的 target 根本不在這條路徑上；而且 cube target 也救不了——three 只替 2D
+  target 配置多重取樣 framebuffer。原本 cube 面 1024 對 4096 寬的等距長方投影是
+  **幾乎 1:1**（各是每度 11.4 px），鋸齒原封不動抄過去。改成 cube 面 2048 ＋
+  mipmap ＋ trilinear，讓重投影自己把四個 texel 濾成一個像素。**只放大不開 mipmap
+  沒有用**：LinearFilter 只會取最近的兩個 texel，多出來的解析度白花。實測那一區的
+  Laplacian 變異數 176.9 → 95.0
+- **glTF 模型的貼圖預設 anisotropy 是 1**，而這個專案自己產的材質都是 8。不補的話
+  邊櫃的木紋、層架的金屬框在掠角會閃爍，而旁邊的地板不會——房間大部分就是從掠角
+  看的。在 `loadFurnitureModel` 裡一併設掉
+
 ### three.js
 
 - tone mapping **只在輸出到畫布時套用**，render target 不會
