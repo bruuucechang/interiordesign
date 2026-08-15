@@ -8,6 +8,7 @@
 // `elev` is the sill height off the floor of the storey.
 
 import * as THREE from 'three';
+import { applyVeneer } from './textures3d';
 
 /** Matches view3d's own material helper, so the two look identical in a scene. */
 function mat(color: number, opts: THREE.MeshStandardMaterialParameters = {}) {
@@ -19,9 +20,16 @@ function mat(color: number, opts: THREE.MeshStandardMaterialParameters = {}) {
 export function buildDoor3D(width: number, h: number, elev: number, style = 'single'): THREE.Group {
   const g = new THREE.Group();
   const d = 12, fw = 7;
+  // Veneer at life size: the frame is a 7 cm stile so its grain runs down the
+  // jamb, while the leaf and its panels take the leaf's own face. Before this
+  // every door was a flat brown — the one thing in an interior view that is
+  // always at eye level and always in frame.
   const frameM = mat(0x6b4a2a, { roughness: 0.6 });
+  applyVeneer(frameM, 'veneer_walnut', fw, h);
   const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.4, envMapIntensity: 1.1 });
+  applyVeneer(leafM, 'veneer_walnut', width, h);
   const panelM = new THREE.MeshPhysicalMaterial({ color: 0x7a4e2c, roughness: 0.45, metalness: 0, clearcoat: 0.25, envMapIntensity: 1.0 });
+  applyVeneer(panelM, 'veneer_walnut', width * 0.66, h * 0.36);
   const metalM = mat(0xc2c7cf, { roughness: 0.28, metalness: 0.92, envMapIntensity: 1.35 });
   const glassM = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
   const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
