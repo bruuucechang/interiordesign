@@ -59,6 +59,31 @@ MODELS = {
     'ottoman':         'Ottoman_01',
     'lounge':          'mid_century_lounge_chair',
     'roundtable':      'round_wooden_table_01',
+
+    # 第二批款式
+    'armchair_classic': 'ArmChair_01',
+    'accent_chair':     'GreenChair_01',
+    'rocking':          'Rockingchair_01',
+    'sofa_2':           'sofa_02',
+    'bench':            'painted_wooden_bench',
+    'console':          'ClassicConsole_01',
+    'coffee_round':     'coffee_table_round_01',
+    'side_tall':        'side_table_tall_01',
+    'table_wood':       'WoodenTable_01',
+    'stool_fold':       'folding_wooden_stool',
+    'stool_bar':        'metal_stool_01',
+    'cabinet_painted':  'painted_wooden_cabinet',
+    'shelf_narrow':     'steel_frame_shelves_02',
+    'bookshelf_wood':   'wooden_bookshelf_worn',
+    'shelf_wall':       'painted_wooden_shelves',
+    'mirror':           'ornate_mirror_01',
+    'daybed':           'vintage_day_bed',
+    # 中式一套。這間房子在台灣，太師椅、條案、屏風是會出現的東西。
+    'cn_armchair':      'chinese_armchair',
+    'cn_cabinet':       'chinese_cabinet',
+    'cn_teatable':      'chinese_tea_table',
+    'cn_screen':        'chinese_screen_panels',
+    'cn_console':       'chinese_console_table',
 }
 
 RES = '1k'

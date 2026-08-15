@@ -294,10 +294,11 @@ Diffuse 抓下來直接看。
 **拉絲金屬是 procedural 合理的少數情況**：它本來就是機械加工的規則紋理，而
 ambientCG 的 135 個 Metal 只有 1 個是實拍。
 
-### 家具：17 件是 CC0 實掃模型
+### 家具：39 件是 CC0 實掃模型
 
-`client/public/models/<catalogueId>/`（glTF ＋ .bin ＋ 貼圖，共 6.4MB），由
-`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。1k 下載後把貼圖
+`client/public/models/<catalogueId>/`（glTF ＋ .bin ＋ 貼圖，共 12.6MB），由
+`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。目錄 57 件裡 39 件
+有模型，含中式一套（太師椅、高櫃、條案、屏風、茶几）。1k 下載後把貼圖
 **重新編碼成 512**：好幾個模型一個材質就帶三四張 1k 圖，十七件原始下載是 20MB，
 重編後 6.4MB，而在室內視角一張沙發只有 200px 高，看不出差別。
 
@@ -324,6 +325,11 @@ ambientCG 的 135 個 Metal 只有 1 個是實拍。
 幾百毫秒到的話，預覽會一直停在程式生成的那版——然後放下去的瞬間形狀就變了，而
 那正是預覽存在要防的事。`view3d.refreshGhost()` 在模型到齊時原地重建它。實測對照：
 關掉時鬼影恆為 26 個 mesh（程式生成的沙發），開著時從 26 變成 1（實掃模型）。
+
+**圖例不能讓 App 起不來。** `data/furniture.ts` 的 `rr()` 現在會把負的寬高與半徑
+夾住：立鏡只有 3cm 深，內框畫在 `h - 6` 就是負數，`arcTo` 丟 IndexSizeError——而
+面板是在建立時就把每個圖例畫一遍的，所以一個壞掉的圖例在 `__app` 被指派之前就讓
+整個 App 掛掉。是 `bench/furniture.mjs` 的守衛（拿不到目錄就丟例外）先報出來的。
 
 `bench/furniture.mjs` 把整個目錄擺成一個房間渲出來（`--close` 拉近看細節）。
 它會等 `.gltf` 真的進 `performance.getEntriesByType('resource')` 才截圖，而且
