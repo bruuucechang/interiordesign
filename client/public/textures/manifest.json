@@ -208,6 +208,20 @@
       "source": "polyhaven",
       "asset": "walnut_veneer",
       "swatch": "#8a6950"
+    },
+    "weave": {
+      "tileCm": 27,
+      "attribution": "Poly Haven — hessian_380 (CC0)",
+      "source": "polyhaven",
+      "asset": "hessian_380",
+      "swatch": "#af906a"
+    },
+    "metal_brushed": {
+      "tileCm": null,
+      "attribution": "ambientCG — Metal050A (CC0)",
+      "source": "ambientcg",
+      "asset": "Metal050A",
+      "swatch": "#f6f8f7"
     }
   }
 }

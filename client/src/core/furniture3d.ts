@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { applyVeneer } from './textures3d';
+import { applyScan } from './textures3d';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
@@ -18,23 +18,40 @@ const mat = (color: number, opts: THREE.MeshStandardMaterialParameters = {}) =>
 // swaps the flat colour for a photographed wood veneer at life size. Left off,
 // the material stays the plain colour it always was, which is what the pieces
 // that are not wood want.
-const woodMat = (color: number, roughness = 0.6, veneer?: [number, number], grain: 'oak' | 'walnut' = 'oak') => {
+const woodMat = (color: number, roughness = 0.6, size: [number, number] = [60, 60], grain: 'oak' | 'walnut' = 'oak') => {
   const m = new THREE.MeshPhysicalMaterial({ color, roughness, metalness: 0, clearcoat: 0.22, clearcoatRoughness: 0.5, envMapIntensity: 1.0 });
-  if (veneer) applyVeneer(m, `veneer_${grain}`, veneer[0], veneer[1]);
+  applyScan(m, `veneer_${grain}`, size[0], size[1]);
   return m;
 };
-// brushed / satin metal — appliances, faucets, handles, legs
-const metalMat = (color = 0x9aa3b0, roughness = 0.32) =>
-  new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.9, envMapIntensity: 1.35 });
-// matte upholstery fabric — no reflections, soft
-const fabricMat = (color: number, roughness = 1.0) =>
-  new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.45 });
-// glazed ceramic / porcelain — sanitaryware, planters
+// brushed / satin metal — appliances, faucets, handles, legs.
+// Colour stays the caller's: an appliance may be steel, graphite or white, and
+// the scan is only here for the brushing.
+const metalMat = (color = 0x9aa3b0, roughness = 0.32, size: [number, number] = [60, 60]) => {
+  const m = new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.9, envMapIntensity: 1.35 });
+  applyScan(m, 'metal_brushed', size[0], size[1], { colour: false });
+  return m;
+};
+// matte upholstery fabric — no reflections, soft. Weave only, colour kept, or
+// every sofa in the catalogue would come out the same beige.
+const fabricMat = (color: number, roughness = 1.0, size: [number, number] = [60, 60], kind: 'weave' | 'carpet' = 'weave') => {
+  const m = new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.45 });
+  applyScan(m, kind, size[0], size[1], { colour: false });
+  return m;
+};
+// glazed ceramic / porcelain — sanitaryware, planters.
+//
+// Deliberately left un-scanned. Glazed porcelain really is a smooth, featureless
+// specular surface; every ceramic scan on both libraries is a *tile*, complete
+// with grout and wear. Putting one on a toilet would be adding dirt that is not
+// there, which is worse than the flat white being flat.
 const ceramicMat = (color = 0xeef2f6) =>
   new THREE.MeshPhysicalMaterial({ color, roughness: 0.12, metalness: 0, clearcoat: 0.85, clearcoatRoughness: 0.08, envMapIntensity: 1.2 });
-// polished stone — countertops
-const stoneMat = (color = 0x8a929e) =>
-  new THREE.MeshPhysicalMaterial({ color, roughness: 0.28, metalness: 0.05, clearcoat: 0.4, clearcoatRoughness: 0.35, envMapIntensity: 1.1 });
+// polished stone — countertops. Colour comes from the stone.
+const stoneMat = (color = 0x8a929e, size: [number, number] = [120, 60]) => {
+  const m = new THREE.MeshPhysicalMaterial({ color, roughness: 0.28, metalness: 0.05, clearcoat: 0.4, clearcoatRoughness: 0.35, envMapIntensity: 1.1 });
+  applyScan(m, 'granite', size[0], size[1]);
+  return m;
+};
 // tinted glass
 const glassMat = (color = 0x9fd4ff, opacity = 0.22) =>
   new THREE.MeshPhysicalMaterial({ color, transparent: true, opacity, roughness: 0.04, metalness: 0, envMapIntensity: 1.4 });
@@ -313,9 +330,11 @@ function tvStand(w: number, h: number): THREE.Group {
 
 function rug(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
-  g.add(rbox(w, 2, h, 3, fabricMat(0x4a5570), 0, 1, 0));
-  g.add(box(w - 12, 1.5, h - 12, fabricMat(0x5f6d92), 0, 2, 0));
-  g.add(box(w - 40, 1, h - 40, fabricMat(0x3f4a66), 0, 2.5, 0));
+  // The carpet scan, not the upholstery weave — a rug's pile is coarser than a
+  // sofa's cloth and at floor scale the difference is the whole point.
+  g.add(rbox(w, 2, h, 3, fabricMat(0x4a5570, 1.0, [w, h], 'carpet'), 0, 1, 0));
+  g.add(box(w - 12, 1.5, h - 12, fabricMat(0x5f6d92, 1.0, [w, h], 'carpet'), 0, 2, 0));
+  g.add(box(w - 40, 1, h - 40, fabricMat(0x3f4a66, 1.0, [w, h], 'carpet'), 0, 2.5, 0));
   return g;
 }
 
