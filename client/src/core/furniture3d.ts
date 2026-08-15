@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyVeneer } from './textures3d';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
@@ -13,8 +14,15 @@ const mat = (color: number, opts: THREE.MeshStandardMaterialParameters = {}) =>
 // --- physically-based material archetypes: each surface type reacts to light
 // the way its real material does (sheen, glaze, brushed metal, tinted glass) ---
 // oiled / lacquered wood — matte grain with a faint clearcoat sheen
-const woodMat = (color: number, roughness = 0.6) =>
-  new THREE.MeshPhysicalMaterial({ color, roughness, metalness: 0, clearcoat: 0.22, clearcoatRoughness: 0.5, envMapIntensity: 1.0 });
+// `veneer` is the face this material mostly covers, in centimetres — passing it
+// swaps the flat colour for a photographed wood veneer at life size. Left off,
+// the material stays the plain colour it always was, which is what the pieces
+// that are not wood want.
+const woodMat = (color: number, roughness = 0.6, veneer?: [number, number], grain: 'oak' | 'walnut' = 'oak') => {
+  const m = new THREE.MeshPhysicalMaterial({ color, roughness, metalness: 0, clearcoat: 0.22, clearcoatRoughness: 0.5, envMapIntensity: 1.0 });
+  if (veneer) applyVeneer(m, `veneer_${grain}`, veneer[0], veneer[1]);
+  return m;
+};
 // brushed / satin metal — appliances, faucets, handles, legs
 const metalMat = (color = 0x9aa3b0, roughness = 0.32) =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.9, envMapIntensity: 1.35 });
@@ -186,9 +194,10 @@ function bed(w: number, h: number, dbl: boolean): THREE.Group {
 
 function wardrobe(w: number, h: number): THREE.Group {
   const g = new THREE.Group(); const height = 200, front = h / 2;
-  const bodyM = woodMat(0x7a5636, 0.55), doorM = woodMat(0x86603a, 0.5), frameM = woodMat(0x6b4a2a, 0.55);
+  const bodyM = woodMat(0x7a5636, 0.55, [w, height]), doorM = woodMat(0x86603a, 0.5, [w / 2, height]);
+  const frameM = woodMat(0x6b4a2a, 0.55, [w, 20]);
   const handle = metalMat(0x9aa3b0, 0.3), mirror = metalMat(0xc2d4e2, 0.04);
-  g.add(rbox(w, 8, h, 2, woodMat(0x4a3320, 0.6), 0, 4, 0));                    // plinth
+  g.add(rbox(w, 8, h, 2, woodMat(0x4a3320, 0.6, [w, 8]), 0, 4, 0));            // plinth
   g.add(rbox(w, height - 8, h, 2, bodyM, 0, 6 + (height - 8) / 2, 0));
   g.add(rbox(w + 4, 6, h + 4, 2, frameM, 0, height + 1, 0));                   // cornice
   for (const s of [-1, 1]) {
@@ -350,8 +359,9 @@ function cabPull(g: THREE.Group, m: THREE.Material, style: 'bar' | 'knob', x: nu
 function cabinetModel(w: number, h: number, height: number, opts: CabOpts = {}): THREE.Group {
   const { doors = 2, rows = 1, topDrawers = 0, base = 'plinth', counter = false, backsplash = false, basin = false, handle = 'knob' } = opts;
   const g = new THREE.Group(); const front = h / 2;
-  const bodyM = woodMat(0x7a5636, 0.55), doorM = woodMat(0x86603a, 0.48);
-  const panelM = woodMat(0x6f4d2b, 0.5), frameM = woodMat(0x6b4a2a, 0.55), hwM = metalMat(0x9aa3b0, 0.3);
+  const bodyM = woodMat(0x7a5636, 0.55, [w, height]), doorM = woodMat(0x86603a, 0.48, [w / Math.max(1, doors), height]);
+  const panelM = woodMat(0x6f4d2b, 0.5, [w, height]), frameM = woodMat(0x6b4a2a, 0.55, [w, 20]);
+  const hwM = metalMat(0x9aa3b0, 0.3);
   const counterM = stoneMat(0x9aa0a8);
   // --- base / feet ---
   let bottom = 0;

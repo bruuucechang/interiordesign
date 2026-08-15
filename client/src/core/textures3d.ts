@@ -223,5 +223,57 @@ export function warmMaterial(id: string | undefined, category: Category): void {
   void loadPhoto(def.id).then((got) => { if (!got) source(def); });
 }
 
+/**
+ * Give an already-built material a photographed wood veneer.
+ *
+ * For the pieces that are *built* rather than scanned — the doors and the
+ * carcase furniture — where a flat brown was standing in for wood. They cannot
+ * go through `surfaceMaterial`: that one owns its material, and these builders
+ * have already made theirs with their own clearcoat and roughness, which is
+ * what makes a lacquered door read as lacquered.
+ *
+ * `wCm`/`hCm` are the face this material mostly covers, so the grain comes out
+ * life-sized. Box faces are UV 0..1 each, so without a repeat one veneer tile
+ * stretches across a 244 cm sideboard and across a 40 cm drawer identically,
+ * and the furniture looks like a photograph of furniture rather than furniture.
+ *
+ * The colour is forced white because with a map it multiplies: leaving the
+ * stand-in brown on would darken a brown veneer to near black — the same trap
+ * as `roughness` becoming a multiplier once `roughnessMap` is set.
+ *
+ * Applies at once if the scan has landed, and registers to be applied later if
+ * it has not. Materials are shared by every clone, so a late apply needs no
+ * rebuild — assigning the map and setting `needsUpdate` is enough.
+ */
+const veneerWaiting: { m: THREE.MeshStandardMaterial; id: string; w: number; h: number }[] = [];
+
+function paintVeneer(m: THREE.MeshStandardMaterial, src: Maps, w: number, h: number) {
+  const tile = src.tileCm || 100;
+  const [u, v] = [Math.max(0.25, w / tile), Math.max(0.25, h / tile)];
+  const put = (t: THREE.Texture) => { const c = t.clone(); c.needsUpdate = true; c.repeat.set(u, v); return c; };
+  m.map = put(src.map);
+  if (src.normalMap) m.normalMap = put(src.normalMap);
+  if (src.armMap) { const a = put(src.armMap); m.roughnessMap = a; m.aoMap = a; a.channel = 0; m.roughness = 1; }
+  m.color.setHex(0xffffff);
+  m.needsUpdate = true;
+}
+
+export function applyVeneer(m: THREE.MeshStandardMaterial, id: string, wCm: number, hCm: number): void {
+  const src = photos.get(id);
+  if (src) { paintVeneer(m, src, wCm, hCm); return; }
+  veneerWaiting.push({ m, id, w: wCm, h: hCm });
+  void loadPhoto(id).then((got) => {
+    if (!got) return;
+    const now = photos.get(id);
+    if (!now) return;
+    for (let i = veneerWaiting.length - 1; i >= 0; i--) {
+      const e = veneerWaiting[i];
+      if (e.id !== id) continue;
+      paintVeneer(e.m, now, e.w, e.h);
+      veneerWaiting.splice(i, 1);
+    }
+  });
+}
+
 /** The swatch colour, for anything that needs a flat stand-in. */
 export { material } from './materials';

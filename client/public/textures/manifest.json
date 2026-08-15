@@ -194,6 +194,20 @@
       "source": "polyhaven",
       "asset": "beige_wall_001",
       "swatch": "#9d8c78"
+    },
+    "veneer_oak": {
+      "tileCm": 100,
+      "attribution": "Poly Haven — oak_veneer_02 (CC0)",
+      "source": "polyhaven",
+      "asset": "oak_veneer_02",
+      "swatch": "#dcb995"
+    },
+    "veneer_walnut": {
+      "tileCm": 180,
+      "attribution": "Poly Haven — walnut_veneer (CC0)",
+      "source": "polyhaven",
+      "asset": "walnut_veneer",
+      "swatch": "#8a6950"
     }
   }
 }

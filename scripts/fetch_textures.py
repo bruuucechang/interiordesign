@@ -89,6 +89,11 @@ ASSETS = {
     'stonewall':   (PH,  'stone_tile_wall'),     # 石材牆
     'mosaicwall':  (PH,  'rounded_square_tiled_wall'),  # 馬賽克壁磚
     'beige':       (PH,  'beige_wall_001'),      # 米色塗料
+
+    # 木皮。這兩個不在 materials.ts 的清單裡，所以不會出現在使用者的色票——它們
+    # 是給 3D 的門片與櫃體用的，貼在家具上的木紋要是木皮不是地板拼板。
+    'veneer_oak':    (PH, 'oak_veneer_02'),       # 系統櫃／衣櫃
+    'veneer_walnut': (PH, 'walnut_veneer'),        # 門片。american_walnut_veneer 名字對、掃出來是灰的
 }
 
 # `paint` (乳膠漆) is deliberately absent from both sources. Every plaster scan
