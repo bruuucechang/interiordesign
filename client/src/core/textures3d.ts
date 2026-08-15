@@ -224,10 +224,10 @@ export function warmMaterial(id: string | undefined, category: Category): void {
 }
 
 /**
- * Give an already-built material a photographed wood veneer.
+ * Give an already-built material a photographed surface.
  *
- * For the pieces that are *built* rather than scanned — the doors and the
- * carcase furniture — where a flat brown was standing in for wood. They cannot
+ * For the pieces that are *built* rather than scanned — the doors and every
+ * procedural piece of furniture — where a flat colour was standing in. They cannot
  * go through `surfaceMaterial`: that one owns its material, and these builders
  * have already made theirs with their own clearcoat and roughness, which is
  * what makes a lacquered door read as lacquered.
@@ -237,40 +237,52 @@ export function warmMaterial(id: string | undefined, category: Category): void {
  * stretches across a 244 cm sideboard and across a 40 cm drawer identically,
  * and the furniture looks like a photograph of furniture rather than furniture.
  *
- * The colour is forced white because with a map it multiplies: leaving the
- * stand-in brown on would darken a brown veneer to near black — the same trap
- * as `roughness` becoming a multiplier once `roughnessMap` is set.
+ * When the colour map is taken, the material's colour is forced white because
+ * with a map it multiplies: leaving the stand-in brown on would darken a brown
+ * veneer to near black — the same trap as `roughness` becoming a multiplier
+ * once `roughnessMap` is set.
  *
  * Applies at once if the scan has landed, and registers to be applied later if
  * it has not. Materials are shared by every clone, so a late apply needs no
  * rebuild — assigning the map and setting `needsUpdate` is enough.
  */
-const veneerWaiting: { m: THREE.MeshStandardMaterial; id: string; w: number; h: number }[] = [];
+interface ScanOpts {
+  /**
+   * Take the scan's colour too, or only its normal and roughness.
+   *
+   * True for the materials whose colour *is* the scan — wood, stone. False for
+   * the ones the builder colours on purpose: a navy sofa, a green planter, a
+   * steel appliance. Those want the weave and the brushing, not somebody else's
+   * beige; taking the colour map would repaint every one of them the same.
+   */
+  colour?: boolean;
+}
 
-function paintVeneer(m: THREE.MeshStandardMaterial, src: Maps, w: number, h: number) {
+const scanWaiting: { m: THREE.MeshStandardMaterial; id: string; w: number; h: number; o: ScanOpts }[] = [];
+
+function paintScan(m: THREE.MeshStandardMaterial, src: Maps, w: number, h: number, o: ScanOpts) {
   const tile = src.tileCm || 100;
   const [u, v] = [Math.max(0.25, w / tile), Math.max(0.25, h / tile)];
   const put = (t: THREE.Texture) => { const c = t.clone(); c.needsUpdate = true; c.repeat.set(u, v); return c; };
-  m.map = put(src.map);
+  if (o.colour !== false) { m.map = put(src.map); m.color.setHex(0xffffff); }
   if (src.normalMap) m.normalMap = put(src.normalMap);
   if (src.armMap) { const a = put(src.armMap); m.roughnessMap = a; m.aoMap = a; a.channel = 0; m.roughness = 1; }
-  m.color.setHex(0xffffff);
   m.needsUpdate = true;
 }
 
-export function applyVeneer(m: THREE.MeshStandardMaterial, id: string, wCm: number, hCm: number): void {
+export function applyScan(m: THREE.MeshStandardMaterial, id: string, wCm: number, hCm: number, o: ScanOpts = {}): void {
   const src = photos.get(id);
-  if (src) { paintVeneer(m, src, wCm, hCm); return; }
-  veneerWaiting.push({ m, id, w: wCm, h: hCm });
+  if (src) { paintScan(m, src, wCm, hCm, o); return; }
+  scanWaiting.push({ m, id, w: wCm, h: hCm, o });
   void loadPhoto(id).then((got) => {
     if (!got) return;
     const now = photos.get(id);
     if (!now) return;
-    for (let i = veneerWaiting.length - 1; i >= 0; i--) {
-      const e = veneerWaiting[i];
+    for (let i = scanWaiting.length - 1; i >= 0; i--) {
+      const e = scanWaiting[i];
       if (e.id !== id) continue;
-      paintVeneer(e.m, now, e.w, e.h);
-      veneerWaiting.splice(i, 1);
+      paintScan(e.m, now, e.w, e.h, e.o);
+      scanWaiting.splice(i, 1);
     }
   });
 }

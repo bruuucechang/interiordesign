@@ -94,6 +94,10 @@ ASSETS = {
     # 是給 3D 的門片與櫃體用的，貼在家具上的木紋要是木皮不是地板拼板。
     'veneer_oak':    (PH, 'oak_veneer_02'),       # 系統櫃／衣櫃
     'veneer_walnut': (PH, 'walnut_veneer'),        # 門片。american_walnut_veneer 名字對、掃出來是灰的
+    'weave':         (PH, 'hessian_380'),          # 布面：沙發、床墊、抱枕、地毯
+    # 拉絲金屬是少數 procedural 合理的情況——它本來就是機械加工出來的規則紋理，
+    # 而 ambientCG 的 135 個 Metal 裡只有 1 個是實拍。這個只取 normal/roughness。
+    'metal_brushed': (ACG, 'Metal050A'),           # 家電、把手、腳
 }
 
 # `paint` (乳膠漆) is deliberately absent from both sources. Every plaster scan

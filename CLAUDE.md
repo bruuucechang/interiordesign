@@ -254,28 +254,45 @@ WoodFloor048 縮圖看起來是胡桃木、渲出來近乎全黑；Concrete034 �
 實測（28 種全用上）：預熱 0 次主執行緒佔用，82 個檔 8.6MB 在 1230ms 到齊；
 第一次 build 沒預熱 456ms、預熱後 8ms。
 
-### 自己蓋的門片與櫃體貼木皮，不是貼地板
+### 程式蓋出來的家具：六個材質原型，五個貼掃描圖
 
-門、衣櫃、以及所有走 `cabinetModel` 的櫃子（收納櫃／鞋櫃／廚櫃／高櫃／浴櫃／餐邊櫃）
-是程式蓋出來的，原本是純色。它們現在會貼 `veneer_oak`／`veneer_walnut`——Poly Haven
-的**木皮**掃描，1m 見方，不是地板拼板。地板那種一片片的拼接貼到門片上一眼就是錯的。
+17 件家具是實掃模型，其餘 18 件是程式蓋的，門也是。它們原本全是純色。做法不是
+一件一件貼，而是**在材質原型上貼**——`furniture3d.ts` 的六個原型各對一張掃描圖，
+所有建構程式自動跟著換：
 
-`applyVeneer(material, id, wCm, hCm)` 在 `textures3d.ts`。它不能走 `surfaceMaterial`：
-那個函式自己擁有材質，而這些建構程式已經帶著各自的 clearcoat 與 roughness 做好了，
-那正是漆面門看起來像漆面的原因。三件事：
+| 原型 | 掃描圖 | 取顏色？ |
+|---|---|---|
+| `woodMat` | `veneer_oak` / `veneer_walnut`（1m 木皮） | ✔ 木頭的顏色就是木頭 |
+| `stoneMat` | `granite` | ✔ 石材的顏色就是石材 |
+| `fabricMat` | `weave`（麻布）／`carpet`（地毯） | ✘ 只取織紋 |
+| `metalMat` | `metal_brushed` | ✘ 只取拉絲 |
+| `ceramicMat` | 刻意不貼 | — |
+| `glassMat` | 不需要 | — |
+
+**顏色取不取是關鍵。** 沙發是海軍藍、植栽盆是綠的、家電是石墨灰——那些顏色是刻意
+選的。布料和金屬只取 normal 與 roughness，取了顏色會把整個目錄漆成同一個米色。
+木皮和石材相反，它們的顏色本來就該來自掃描圖。
+
+**陶瓷刻意不貼。** 上釉的瓷器本來就是光滑無特徵的鏡面，而兩個圖庫裡每一張「陶瓷」
+都是**磁磚**，帶著填縫和磨損。貼到馬桶上是在加不存在的髒污，比平白色更糟。
+
+`applyScan(material, id, wCm, hCm, { colour })` 在 `textures3d.ts`。它不能走
+`surfaceMaterial`：那個函式自己擁有材質，而這些建構程式已經帶著各自的 clearcoat 與
+roughness 做好了，那正是漆面門看起來像漆面的原因。三件事：
 
 - **`wCm`/`hCm` 是這個材質主要覆蓋的那一面**。Box 的每一面 UV 都是 0..1，不給
-  repeat 的話一張木皮會同樣地被拉滿 244cm 的餐邊櫃和 40cm 的抽屜，木紋大小完全
-  不一致
-- **`color` 要設成白色**。有 map 時它是乘數——留著原本的棕色會把棕色木皮乘成接近
-  黑色，跟 `roughness` 在有 `roughnessMap` 時變成乘數是同一個陷阱
-- 材質是所有 clone 共用的，所以貼圖晚到不需要重建場景，指定 map ＋ `needsUpdate`
-  就會全部更新
+  repeat 的話一張木皮會同樣地被拉滿 244cm 的餐邊櫃和 40cm 的抽屜
+- **取顏色時 `color` 要設成白色**。有 map 時它是乘數——留著原本的棕色會把棕色木皮
+  乘成接近黑色，跟 `roughness` 在有 `roughnessMap` 時變成乘數是同一個陷阱
+- 材質是所有 clone 共用的，所以貼圖晚到不需要重建場景
 
 **木皮的名字不可信，要看貼圖本體。** `american_walnut_veneer` 和
-`natural_walnut_veneer` 掃出來都是**灰色**的，`mocha_oak_veneer` 也是。貼上去門
-變成灰木。可用的是 `walnut_veneer`（#8a6950，暖棕細直紋）。判斷方法不是縮圖也不是
-名字，是把 1k 的 Diffuse 抓下來直接看——縮圖是打過光的球，連明度都不能信。
+`natural_walnut_veneer` 掃出來都是**灰色**的，`mocha_oak_veneer` 也是。可用的是
+`walnut_veneer`（#8a6950，暖棕細直紋）。判斷方法不是縮圖也不是名字，是把 1k 的
+Diffuse 抓下來直接看。
+
+**拉絲金屬是 procedural 合理的少數情況**：它本來就是機械加工的規則紋理，而
+ambientCG 的 135 個 Metal 只有 1 個是實拍。
 
 ### 家具：17 件是 CC0 實掃模型
 
