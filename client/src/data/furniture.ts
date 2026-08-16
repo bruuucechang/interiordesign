@@ -319,6 +319,27 @@ export const FURNITURE: FurnitureItem[] = [
   { id: 'clock', name: '時鐘', cat: '裝飾', w: 23, h: 17, draw(ctx, w, h) {
       body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
+
+  // ---- Kenney（CC0）補的三件，目錄本來沒有 --------------------------------
+  // 尺寸是台灣住宅的實際尺寸，不是模型的——Kenney 的套件在固定格線上做，衣櫃只有
+  // 56cm 寬、廚櫃 43cm。載入器本來就會把模型等比縮到物件的 w/h，所以目錄要放對的
+  // 那一個。
+  { id: 'washer', name: '洗衣機', cat: '廚房', w: 60, h: 60, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#9fd4ffaa'; ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 3, 0, 7); ctx.stroke();
+    } },
+  { id: 'microwave', name: '微波爐', cat: '廚房', w: 50, h: 38, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; ctx.beginPath(); ctx.moveTo(w * 0.72, 4); ctx.lineTo(w * 0.72, h - 4); ctx.stroke();
+    } },
+  { id: 'coat_rack', name: '衣帽架', cat: '客廳', w: 45, h: 45, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88';
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4;
+        ctx.beginPath(); ctx.moveTo(w / 2, h / 2);
+        ctx.lineTo(w / 2 + Math.cos(a) * (w / 2 - 6), h / 2 + Math.sin(a) * (h / 2 - 6)); ctx.stroke(); }
+    } },
+
 ];
 
 export const FURNITURE_BY_ID: Record<string, FurnitureItem> = Object.fromEntries(FURNITURE.map(f => [f.id, f]));
