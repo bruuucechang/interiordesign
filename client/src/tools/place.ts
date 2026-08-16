@@ -120,7 +120,13 @@ export class FurnitureTool implements Tool {
     if (!item) return;
     this.ctx.doc.commit();
     const id = genId('furn');
-    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: p.snapped.x - item.w / 2, y: p.snapped.y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name });
+    // A ceiling piece hangs from this storey's ceiling, a wall piece sits at eye
+    // level. Worked out here rather than stored in the catalogue because the
+    // ceiling height belongs to the floor, not to the lamp.
+    const ceiling = this.ctx.doc.activeFloor.height;
+    const elevation = item.mount === 'ceiling' ? Math.max(0, ceiling - 60)
+      : item.mount === 'wall' ? 150 : undefined;
+    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: p.snapped.x - item.w / 2, y: p.snapped.y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name, ...(elevation ? { elevation } : {}) });
     this.ctx.doc.select(id);
     this.ctx.selectTool('select');
   }
