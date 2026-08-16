@@ -214,11 +214,28 @@ export class Editor implements ToolCtx {
     window.addEventListener('resize', () => { this.vp.resize(); this.render(); });
 
     window.addEventListener('keydown', e => {
-      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      const el = e.target as HTMLElement | null;
+      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable === true;
+      // Esc is document-level, not a 2D tool shortcut, so it is handled *before*
+      // both guards below.
+      //
+      // It used to sit after them and therefore did nothing in two of the three
+      // places it is wanted: `inputEnabled` is false whenever 2D is not the main
+      // view, so Esc was dead in 3D and in split — which is exactly where you are
+      // after placing something and wanting out of it. And with the caret in a
+      // properties field the handler returned before reaching Esc at all.
+      //
+      // From a field, Esc leaves the field and stops there. Losing the selection
+      // as well because you happened to be editing a number is not what anyone
+      // means by cancel; a second press then clears it.
+      if (e.key === 'Escape') {
+        if (typing) { el!.blur(); return; }
+        this.selectTool('select');
+        this.doc.select(null);
+        return;
+      }
+      if (typing) return;
       if (!this.inputEnabled) return; // 2D is only the preview — ignore shortcuts
-      // Esc always cancels the current tool (e.g. furniture placement) and clears
-      // the selection, returning to the plain select/mouse mode.
-      if (e.key === 'Escape') { this.selectTool('select'); this.doc.select(null); return; }
       if (e.code === 'Space') { this.space = true; this.canvas.style.cursor = 'grab'; return; }
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === 'z') { e.shiftKey ? this.doc.redo() : this.doc.undo(); e.preventDefault(); return; }
