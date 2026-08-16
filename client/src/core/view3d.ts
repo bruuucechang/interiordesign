@@ -511,13 +511,28 @@ export class View3D {
     // stack every floor at its elevation
     for (const floor of doc.project.floors) {
       const openings = floor.objects.filter(o => o.kind === 'door' || o.kind === 'window') as Extract<Obj, { kind: 'door' | 'window' }>[];
+      // Which wall ends meet another wall. A wall is a box running from one
+      // centre-line endpoint to the other, so at a corner neither box covers the
+      // square where the two centre lines cross: two 15 cm walls meeting leave a
+      // 7.5 x 7.5 cm notch bitten out of the outside corner. Measured, not
+      // guessed — the boxes come out x ∈ [0,400] and z ∈ [0,400] and nothing
+      // covers x,z ∈ [-7.5,0].
+      //
+      // The 2D plan has never had this: it strokes walls with `lineCap:
+      // 'square'`, which is exactly the same half-thickness overhang.
+      const joins = new Map<string, number>();
+      const jkey = (p: { x: number; y: number }) => `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`;
+      for (const o of floor.objects) {
+        if (o.kind !== 'wall') continue;
+        for (const p of [o.a, o.b]) joins.set(jkey(p), (joins.get(jkey(p)) ?? 0) + 1);
+      }
       for (const o of floor.objects) {
         if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
         // Everything a wall-like object adds gets stamped with where it stands,
         // so the doll's-house cull below can find the near side without having
         // to work out what each mesh was for.
         const from = this.staticGroup.children.length;
-        if (o.kind === 'wall') this.buildWall(o, openings, floor.elevation);
+        if (o.kind === 'wall') this.buildWall(o, openings, floor.elevation, joins);
         else this.buildObject(o, floor.elevation);
         if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'door' || o.kind === 'window') {
           // Which way the run of wall faces decides which direction it blocks:
@@ -603,7 +618,10 @@ export class View3D {
   }
 
   // Build a wall, cutting real holes for its doors/windows (straight walls).
-  private buildWall(o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[], yBase: number) {
+  private buildWall(
+    o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[],
+    yBase: number, joins?: Map<string, number>,
+  ) {
     const wallMat = this.wallMaterial(o, dist(o.a, o.b), o.height ?? WALL_H);
     const wh = o.height ?? WALL_H;
 
@@ -618,7 +636,21 @@ export class View3D {
     const a = o.a, b = o.b, L = dist(a, b);
     if (L < 1) return;
     const dir = { x: (b.x - a.x) / L, y: (b.y - a.y) / L }, ang = -angleDeg(a, b) * Math.PI / 180;
-    for (const p of wallPieces(o, openings, wh)) {
+    // Run half a thickness past each end that meets another wall, so the corner
+    // square gets filled. Only at joined ends: doing it everywhere would leave a
+    // free-standing wall poking 7.5 cm out of its own drawn length. The two
+    // walls overlap inside the corner — they are the same material, and an
+    // overlap is invisible where a hole is not.
+    const jkey = (p: { x: number; y: number }) => `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`;
+    const half = o.thickness / 2;
+    const extA = (joins?.get(jkey(a)) ?? 0) > 1 ? half : 0;
+    const extB = (joins?.get(jkey(b)) ?? 0) > 1 ? half : 0;
+    for (const piece of wallPieces(o, openings, wh)) {
+      const p = {
+        ...piece,
+        s0: piece.s0 <= 0.01 ? piece.s0 - extA : piece.s0,
+        s1: piece.s1 >= L - 0.01 ? piece.s1 + extB : piece.s1,
+      };
       const mid = (p.s0 + p.s1) / 2;
       const box = new THREE.Mesh(
         new THREE.BoxGeometry(p.s1 - p.s0, p.yHi - p.yLo, o.thickness), wallMat,
