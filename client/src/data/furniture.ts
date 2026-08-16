@@ -340,6 +340,93 @@ export const FURNITURE: FurnitureItem[] = [
         ctx.lineTo(w / 2 + Math.cos(a) * (w / 2 - 6), h / 2 + Math.sin(a) * (h / 2 - 6)); ctx.stroke(); }
     } },
 
+
+  // ---- 第四批：Kenney（CC0）。尺寸是台灣住宅的實際尺寸，不是模型的 ------
+  { id: 'range_hood', name: '抽油煙機', cat: '廚房', w: 90, h: 50, mount: 'wall', draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'upper_cabinet', name: '廚房吊櫃', cat: '廚房', w: 80, h: 35, mount: 'wall', draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'kitchen_island', name: '中島', cat: '廚房', w: 180, h: 90, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'dryer', name: '烘衣機', cat: '廚房', w: 60, h: 60, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'coffee_machine', name: '咖啡機', cat: '廚房', w: 30, h: 35, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'toilet_square', name: '方型馬桶', cat: '浴室', w: 40, h: 70, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'shower_round', name: '圓形淋浴間', cat: '浴室', w: 90, h: 90, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'trashcan', name: '垃圾桶', cat: '浴室', w: 40, h: 40, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sofa_corner', name: 'L型布沙發', cat: '客廳', w: 240, h: 240, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w * 0.6, h - 16, 8); ctx.stroke();
+      rr(ctx, w * 0.62, 8, w * 0.34, h * 0.55, 8); ctx.stroke();
+    } },
+  { id: 'table_glass', name: '玻璃桌', cat: '客廳', w: 120, h: 60, draw(ctx, w, h) {
+      ctx.fillStyle = '#31414e'; ctx.strokeStyle = '#9fd4ff'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 5); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'side_drawers', name: '抽屜邊几', cat: '客廳', w: 45, h: 40, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'rug_round', name: '圓地毯', cat: '客廳', w: 160, h: 160, draw(ctx, w, h) {
+      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 9, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    } },
+  { id: 'rug_square', name: '方地毯', cat: '客廳', w: 200, h: 200, draw(ctx, w, h) {
+      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.setLineDash([8, 6]); rr(ctx, 7, 7, w - 14, h - 14, 3); ctx.stroke(); ctx.setLineDash([]);
+    } },
+  { id: 'doormat', name: '門墊', cat: '客廳', w: 75, h: 45, draw(ctx, w, h) {
+      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.setLineDash([8, 6]); rr(ctx, 7, 7, w - 14, h - 14, 3); ctx.stroke(); ctx.setLineDash([]);
+    } },
+  { id: 'tv_wall', name: '壁掛電視', cat: '客廳', w: 120, h: 10, mount: 'wall', draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'pillow', name: '抱枕', cat: '客廳', w: 45, h: 45, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'lamp_floor', name: '立燈', cat: '燈具', w: 40, h: 40, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a3524'; ctx.strokeStyle = '#f0c869'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'lamp_table', name: '檯燈', cat: '燈具', w: 25, h: 25, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a3524'; ctx.strokeStyle = '#f0c869'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'lamp_flush', name: '方型吸頂燈', cat: '燈具', w: 40, h: 40, mount: 'ceiling', draw(ctx, w, h) {
+      ctx.fillStyle = '#3a3524'; ctx.strokeStyle = '#f0c869'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'chair_desk', name: '辦公椅', cat: '書房', w: 60, h: 60, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
+    } },
+  { id: 'desk_corner', name: 'L型書桌', cat: '書房', w: 160, h: 140, draw(ctx, w, h) {
+      body(ctx);
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w, h * 0.42);
+      ctx.lineTo(w * 0.45, h * 0.42); ctx.lineTo(w * 0.45, h); ctx.lineTo(0, h);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'stairs', name: '樓梯', cat: '常用', w: 100, h: 300, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88';
+      for (let i = 1; i < 9; i++) { const y = h * i / 9; ctx.beginPath(); ctx.moveTo(3, y); ctx.lineTo(w - 3, y); ctx.stroke(); }
+    } },
 ];
 
 export const FURNITURE_BY_ID: Record<string, FurnitureItem> = Object.fromEntries(FURNITURE.map(f => [f.id, f]));

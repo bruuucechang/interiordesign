@@ -35,9 +35,14 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 ZIP = ('https://kenney.nl/media/pages/assets/furniture-kit/'
        '440e0608a4-1677580847/kenney_furniture-kit.zip')
 INSIDE = 'Models/GLTF format/{}.glb'
+THUMB_IN = 'Isometric/{}_SE.png'      # 面板預覽圖，套件本來就附
+THUMB_PX = 128
 
 # catalogue id → Kenney model. Every one of these replaces a procedural builder.
 MODELS = {
@@ -63,6 +68,30 @@ MODELS = {
     'washer':          'washer',
     'microwave':       'kitchenMicrowave',
     'coat_rack':       'coatRackStanding',
+
+    # 第二批。台灣廚房沒有抽油煙機和吊櫃就不是廚房。
+    'range_hood':      'hoodModern',
+    'upper_cabinet':   'kitchenCabinetUpperDouble',
+    'kitchen_island':  'kitchenBar',
+    'dryer':           'dryer',
+    'coffee_machine':  'kitchenCoffeeMachine',
+    'trashcan':        'trashcan',
+    'toilet_square':   'toiletSquare',
+    'shower_round':    'showerRound',
+    'rug_round':       'rugRound',
+    'rug_square':      'rugSquare',
+    'doormat':         'rugDoormat',
+    'lamp_floor':      'lampRoundFloor',
+    'lamp_table':      'lampSquareTable',
+    'lamp_flush':      'lampSquareCeiling',
+    'side_drawers':    'sideTableDrawers',
+    'sofa_corner':     'loungeSofaCorner',
+    'table_glass':     'tableGlass',
+    'tv_wall':         'televisionModern',
+    'chair_desk':      'chairDesk',
+    'desk_corner':     'deskCorner',
+    'stairs':          'stairsOpen',
+    'pillow':          'pillowLong',
 }
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -105,7 +134,8 @@ def main() -> int:
     manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() \
         else {'source': 'https://polyhaven.com', 'license': 'CC0 1.0', 'models': {}}
 
-    need = [c for c in MODELS if force or not (OUT / c).is_dir()]
+    need = [c for c in MODELS
+            if force or not (OUT / c / f'{MODELS[c]}.glb').exists() or not (OUT / c / 'thumb.png').exists()]
     if need:
         print(f'下載 Kenney Furniture Kit（{len(need)} 件要抓）…', flush=True)
         req = urllib.request.Request(ZIP, headers={'User-Agent': 'interior-designer/1.0'})
@@ -116,12 +146,22 @@ def main() -> int:
     for cid, name in MODELS.items():
         d = OUT / cid
         f = d / f'{name}.glb'
-        if not force and f.exists():
+        if not force and f.exists() and (d / 'thumb.png').exists():
             print(f'  {cid:<16} {name:<24} 已存在，跳過')
             continue
         blob = z.read(INSIDE.format(name))
         d.mkdir(parents=True, exist_ok=True)
         f.write_bytes(blob)
+        try:
+            im = cv2.imdecode(np.frombuffer(z.read(THUMB_IN.format(name)), np.uint8), cv2.IMREAD_UNCHANGED)
+            if im is not None:
+                hh, ww = im.shape[:2]
+                k = THUMB_PX / max(hh, ww)
+                if k < 1:
+                    im = cv2.resize(im, (max(1, int(ww * k)), max(1, int(hh * k))), interpolation=cv2.INTER_AREA)
+                cv2.imwrite(str(d / 'thumb.png'), im)
+        except KeyError:
+            pass          # 沒有等角圖的就退回程式圖例
         w, h, dep = glb_size_cm(blob)          # x, y(height), z(depth)
         manifest['models'][cid] = {
             'asset': name, 'name': name, 'file': f'{name}.glb',

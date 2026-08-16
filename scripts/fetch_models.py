@@ -105,6 +105,8 @@ MODELS = {
 }
 
 RES = '1k'
+THUMB = 'https://cdn.polyhaven.com/asset_img/thumbs/{}.png?width=256&height=256'
+THUMB_PX = 128
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'client' / 'public' / 'models'
 FILES = 'https://api.polyhaven.com/files/{}'
@@ -163,6 +165,27 @@ A fixed 512 is not enough on its own: how big a model comes out depends on
             return
 
 
+def save_thumb(d: Path, blob: bytes) -> None:
+    """The palette's preview picture.
+
+    Both libraries already render one per model, which is the only reason this
+    is cheap: a hand-drawn pictogram cannot tell a 太師椅 from a 餐椅, and
+    rendering 72 previews in the browser at start-up would cost more than the
+    models themselves.
+
+    Kept as PNG with its alpha — the previews sit on the panel's own background,
+    and a JPEG would put a grey box behind every one of them.
+    """
+    im = cv2.imdecode(np.frombuffer(blob, np.uint8), cv2.IMREAD_UNCHANGED)
+    if im is None:
+        return
+    h, w = im.shape[:2]
+    k = THUMB_PX / max(h, w)
+    if k < 1:
+        im = cv2.resize(im, (max(1, int(w * k)), max(1, int(h * k))), interpolation=cv2.INTER_AREA)
+    cv2.imwrite(str(d / 'thumb.png'), im)
+
+
 def one(cid: str, asset: str, force: bool) -> dict:
     d = OUT / cid
     files = json.loads(fetch(FILES.format(asset)))
@@ -174,7 +197,7 @@ def one(cid: str, asset: str, force: bool) -> dict:
              'w': dims[0], 'd': dims[1], 'h': dims[2],
              'attribution': f'Poly Haven — {asset} (CC0)'}
 
-    if d.is_dir() and (d / name).exists() and not force:
+    if d.is_dir() and (d / name).exists() and (d / 'thumb.png').exists() and not force:
         print(f'  {cid:<16} {asset:<28} 已存在，跳過')
         return entry
 
@@ -188,6 +211,7 @@ def one(cid: str, asset: str, force: bool) -> dict:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(fetch(f['url']))
     shrink(d)
+    save_thumb(d, fetch(THUMB.format(asset)))
     kb = sum(f.stat().st_size for f in d.rglob('*') if f.is_file()) / 1024
     print(f'  {kb:6.0f} KB   {dims[0]:.0f} × {dims[1]:.0f} × {dims[2]:.0f} cm')
     return entry

@@ -110,6 +110,22 @@ function buildCatalog(editor: Editor) {
       ctx.translate((maxW - item.w * s) / 2, (maxH - item.h * s) / 2); ctx.scale(s, s);
       item.draw(ctx, item.w, item.h);
       b.appendChild(cv);
+      // The palette shows the model's own preview picture where there is one.
+      // A top-down pictogram cannot tell a 太師椅 from a 餐椅 or a 吊燈 from a
+      // 吸頂燈 — they are the same rounded rectangle — and with 72 items that is
+      // most of the panel. Both libraries already ship a render per model, so
+      // this costs a file rather than a browser-side render pass.
+      //
+      // Swapped in on load rather than used directly: the drawn one is the
+      // fallback for anything with no model, and building it first means no
+      // gap while the picture arrives and nothing to undo if it never does.
+      const img = new Image();
+      // 不用 loading="lazy"：面板是一條長清單，懶載入下離開視窗的那些永遠不會
+      // 發出請求，onload 也就永遠不觸發——實測 72 個按鈕換上 0 張。72 張小圖總共
+      // 約 1MB，一次載完比較單純。
+      img.alt = ''; img.decoding = 'async';
+      img.src = new URL(`models/${item.id}/thumb.png`, document.baseURI).href;
+      img.onload = () => { if (cv.parentNode === b) b.replaceChild(img, cv); };
       b.appendChild(document.createTextNode(item.name));
       b.onclick = () => {
         editor.currentFurniture = item.id;

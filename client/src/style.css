@@ -62,6 +62,9 @@ body {
 .furn-btn:hover { border-color: var(--accent); }
 .furn-btn.active { border-color: var(--accent); background: #33405c; }
 .furn-btn canvas { display: block; margin: 0 auto 3px; }
+/* 預覽圖用 contain 而不是 cover：家具的長寬比差很多（157cm 的沙發對 23cm 的時鐘），
+   裁切會把矮的那些切成一條。高度給到 46px 是因為預覽是等角視角、比俯視圖高。 */
+.furn-btn img { display: block; margin: 0 auto 3px; width: 60px; height: 46px; object-fit: contain; }
 
 /* stage: main view fills, the other view floats as a corner PiP */
 /* The stage is a two-pane split. Both panes are real views — the 3D one used to

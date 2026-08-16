@@ -294,10 +294,10 @@ Diffuse 抓下來直接看。
 **拉絲金屬是 procedural 合理的少數情況**：它本來就是機械加工的規則紋理，而
 ambientCG 的 135 個 Metal 只有 1 個是實拍。
 
-### 家具與裝潢素材：72 件全部有 CC0 模型
+### 家具與裝潢素材：94 件全部有 CC0 模型
 
 `client/public/models/<catalogueId>/`（glTF ＋ .bin ＋ 貼圖，共 12.6MB），由
-`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。目錄 72 件**全部**有模型：Poly Haven 51 件（實掃）、Kenney Furniture Kit 21 件
+`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。目錄 94 件**全部**有模型：Poly Haven 51 件（實掃）、Kenney Furniture Kit 43 件
 （`scripts/fetch_kenney.py`，同樣 CC0）。程式蓋的家具建構程式已經沒有任何一個會被
 用到——它們留著只當備援。
 
@@ -363,6 +363,19 @@ ambientCG 的 135 個 Metal 只有 1 個是實拍。
 夾住：立鏡只有 3cm 深，內框畫在 `h - 6` 就是負數，`arcTo` 丟 IndexSizeError——而
 面板是在建立時就把每個圖例畫一遍的，所以一個壞掉的圖例在 `__app` 被指派之前就讓
 整個 App 掛掉。是 `bench/furniture.mjs` 的守衛（拿不到目錄就丟例外）先報出來的。
+
+**左側面板顯示模型自己的預覽圖**，不是俯視圖例。俯視圖例分不出太師椅與餐椅、
+吊燈與吸頂燈——它們都是同一個圓角矩形，而 94 件裡大部分都是這種情況。兩個圖庫本來
+就各附一張渲染圖（Poly Haven 的 `thumbnail_url`、Kenney zip 裡的 `Isometric/*_SE.png`），
+抓取腳本一併存成 `client/public/models/<id>/thumb.png`（128px PNG 保留 alpha，因為
+它們要疊在面板自己的底色上）。
+
+程式圖例留著當**備援**：先畫 canvas，圖片 `onload` 才換掉。這樣沒有模型的品項不會
+開天窗，圖片沒到也不用回頭補。
+
+**不要對這些圖用 `loading="lazy"`。** 面板是一條長清單，懶載入下離開視窗的那些永遠
+不會發出請求，`onload` 也就永遠不觸發——實測 72 個按鈕換上 **0 張**，而且因為根本
+沒發請求，連 404 都沒有可以看的線索。
 
 `bench/furniture.mjs` 把整個目錄擺成一個房間渲出來（`--close` 拉近看細節）。
 它會等 `.gltf` 真的進 `performance.getEntriesByType('resource')` 才截圖，而且
