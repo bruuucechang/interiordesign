@@ -84,6 +84,24 @@ MODELS = {
     'cn_teatable':      'chinese_tea_table',
     'cn_screen':        'chinese_screen_panels',
     'cn_console':       'chinese_console_table',
+
+    # 裝潢素材：燈具、植栽、擺飾。這些多半不是家具，但一個室內設計工具沒有它們
+    # 就只是在排家具。
+    'lamp_ceiling':   'modern_ceiling_lamp_01',
+    'lamp_pendant':   'Chandelier_02',
+    'cn_chandelier':  'chinese_chandelier',
+    'lamp_wall':      'industrial_wall_sconce',
+    'fan_ceiling':    'ceiling_fan',
+    'plant_large':    'potted_plant_02',
+    'plant_small':    'potted_plant_04',
+    'vase':           'ceramic_vase_01',
+    'pot_ceramic':    'ceramic_pot',
+    'basket':         'wicker_basket_01',
+    # 不收的：potted_plant_01（幾何 5.2MB）、book_encyclopedia_set_01（2.5MB）。
+    # 兩個加起來比其餘三十九件的總和還貴，而且是擺飾——貼圖壓得再小也沒用，大的
+    # 是幾何。同類已經有 plant_large / plant_small / pot_ceramic / vase / basket。
+    'tv_set':         'Television_01',
+    'clock':          'alarm_clock_01',
 }
 
 RES = '1k'
@@ -99,24 +117,50 @@ def fetch(url: str) -> bytes:
         return r.read()
 
 
-TEX_SIZE = 512
 TEX_QUALITY = 80
+TEX_BUDGET_KB = 420      # per model, textures only — the .bin cannot be resized
 
 
-def shrink(d: Path) -> None:
-    """Re-encode every texture in a downloaded model in place."""
+def _resize_all(d: Path, size: int) -> None:
     for f in list(d.rglob('*.jpg')) + list(d.rglob('*.png')):
         im = cv2.imread(str(f), cv2.IMREAD_UNCHANGED)
         if im is None:
             continue
         h, w = im.shape[:2]
-        if max(h, w) > TEX_SIZE:
-            k = TEX_SIZE / max(h, w)
+        if max(h, w) > size:
+            k = size / max(h, w)
             im = cv2.resize(im, (max(1, int(w * k)), max(1, int(h * k))), interpolation=cv2.INTER_AREA)
         if f.suffix == '.jpg':
             cv2.imwrite(str(f), im, [cv2.IMWRITE_JPEG_QUALITY, TEX_QUALITY])
         else:
             cv2.imwrite(str(f), im)
+
+
+def _tex_kb(d: Path) -> float:
+    return sum(f.stat().st_size for f in list(d.rglob('*.jpg')) + list(d.rglob('*.png'))) / 1024
+
+
+def shrink(d: Path) -> None:
+    """Re-encode a model's textures down to a per-model size budget.
+
+A fixed 512 is not enough on its own: how big a model comes out depends on
+    how many *materials* it has. A model with one material is 200 KB; one that
+    ships leaves, soil and pot separately is four times that at the same size.
+
+    **The budget counts textures only.** The first version measured the whole
+    directory, and the big models turned out to be big because of *geometry* —
+    a potted plant with 5.2 MB of .bin. Since a .bin cannot be resized the loop
+    could never come in under budget, so it ran every step and crushed that
+    plant's leaf texture to 160² (5 KB) for no saving at all. Something that
+    cannot shrink must not be counted against a shrinking budget.
+
+    Models whose geometry alone blows the budget are not solved here — they are
+    not taken. See MODELS.
+    """
+    for size in (512, 384, 256):
+        _resize_all(d, size)
+        if _tex_kb(d) <= TEX_BUDGET_KB:
+            return
 
 
 def one(cid: str, asset: str, force: bool) -> dict:

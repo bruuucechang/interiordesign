@@ -8,6 +8,16 @@ export interface FurnitureItem {
   cat: string;
   w: number; // cm
   h: number; // cm
+  /**
+   * Where the piece hangs. Absent means it stands on the floor.
+   *
+   * A pendant lamp or a ceiling fan dropped at elevation 0 lies on the carpet,
+   * and the only way out is for the user to know that `離地板距離` exists and
+   * what number to type. The place tool works the height out from the storey it
+   * is being dropped into — the ceiling is not a constant, so the catalogue
+   * cannot carry the answer, only the intent.
+   */
+  mount?: 'ceiling' | 'wall';
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 }
 
@@ -256,6 +266,58 @@ export const FURNITURE: FurnitureItem[] = [
     } },
   { id: 'cn_console', name: '中式條案', cat: '中式', w: 172, h: 34, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+
+  // ---- 裝潢素材：燈具與擺飾。mount 決定放下去時離地多高 ------------------
+  { id: 'lamp_ceiling', name: '吸頂燈', cat: '燈具', w: 43, h: 43, mount: 'ceiling', draw(ctx, w, h) {
+      ctx.fillStyle = '#3a3524'; ctx.strokeStyle = '#f0c869'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 5, 0, 7); ctx.stroke();
+    } },
+  { id: 'lamp_pendant', name: '吊燈', cat: '燈具', w: 68, h: 62, mount: 'ceiling', draw(ctx, w, h) {
+      ctx.fillStyle = '#3a3524'; ctx.strokeStyle = '#f0c869'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 5, 0, 7); ctx.stroke();
+    } },
+  { id: 'cn_chandelier', name: '中式吊燈', cat: '燈具', w: 88, h: 88, mount: 'ceiling', draw(ctx, w, h) {
+      ctx.fillStyle = '#3a3524'; ctx.strokeStyle = '#f0c869'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 5, 0, 7); ctx.stroke();
+    } },
+  { id: 'fan_ceiling', name: '吊扇', cat: '燈具', w: 146, h: 146, mount: 'ceiling', draw(ctx, w, h) {
+      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#9fd4ff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2;
+        ctx.beginPath(); ctx.moveTo(w / 2, h / 2);
+        ctx.lineTo(w / 2 + Math.cos(a) * (w / 2 - 5), h / 2 + Math.sin(a) * (h / 2 - 5)); ctx.stroke(); }
+    } },
+  { id: 'lamp_wall', name: '壁燈', cat: '燈具', w: 15, h: 25, mount: 'wall', draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'plant_large', name: '大型盆栽', cat: '裝飾', w: 70, h: 66, draw(ctx, w, h) {
+      ctx.fillStyle = '#264a34'; ctx.strokeStyle = '#47c479'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 4, 0, 7); ctx.stroke();
+    } },
+  { id: 'plant_small', name: '小盆栽', cat: '裝飾', w: 17, h: 19, draw(ctx, w, h) {
+      ctx.fillStyle = '#264a34'; ctx.strokeStyle = '#47c479'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 4, 0, 7); ctx.stroke();
+    } },
+  { id: 'pot_ceramic', name: '陶盆', cat: '裝飾', w: 66, h: 50, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'vase', name: '花瓶', cat: '裝飾', w: 20, h: 21, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'basket', name: '藤籃', cat: '裝飾', w: 38, h: 30, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'tv_set', name: '電視', cat: '裝飾', w: 60, h: 47, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'clock', name: '時鐘', cat: '裝飾', w: 23, h: 17, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
 ];
 
