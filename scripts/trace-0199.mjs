@@ -186,9 +186,24 @@ for (const [o, i, a, b] of WALLS) {
 wall(X[3], Y_BAL, X[4], Y_BAL);
 wall(ARC.ax, ARC.ay, ARC.bx, ARC.by, 15, { bulge: ARC.bulge });
 
+// A column is one solid wall, not four thin ones round the outside of the block.
+//
+// Four walls whose centre lines run along the block's edges draw a box a whole
+// wall thickness bigger than the block — 7.5 cm proud on every side — so the
+// column stands out past the wall it is set into. Measured against the adjacent
+// wall faces: the four-wall version was +8.4 to +12.1 cm proud, the block's own
+// rectangle is +0.9 to +4.6, which is as flush as the drawing allows.
+//
+// (Filling the four walls' *inner* ring instead, which was the other idea,
+// measures −2.9 to −6.6 — recessed, i.e. the same gap the other way round.)
+//
+// No new object kind is needed: a wall whose `thickness` is the short side and
+// whose centre line runs the long side *is* a solid box, and it keeps the 2D
+// fill, room detection, selection and editing it would otherwise have to
+// reimplement.
 for (const [x, y, w, h] of COLUMNS) {
-  wall(x, y, x + w, y); wall(x + w, y, x + w, y + h);
-  wall(x + w, y + h, x, y + h); wall(x, y + h, x, y);
+  if (w >= h) wall(x, y + h / 2, x + w, y + h / 2, Math.round(h * 10) / 10);
+  else wall(x + w / 2, y, x + w / 2, y + h, Math.round(w * 10) / 10);
 }
 
 // ---- rooms, from what the walls enclose ----------------------------------

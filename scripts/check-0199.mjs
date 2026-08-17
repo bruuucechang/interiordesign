@@ -21,7 +21,13 @@ const MIN_AREA = 1.0;     // m² — below this is a construction pocket, not a 
 const RES = 4;            // cm per cell
 
 const plan = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-const walls = plan.floors[0].objects.filter((o) => o.kind === 'wall');
+const all = plan.floors[0].objects.filter((o) => o.kind === 'wall');
+// Columns are walls too, but they are free-standing solids — both ends dangle by
+// definition, and rule 1 is about runs of wall, not about them. Told apart by
+// thickness: a partition here is 11–21 cm and a column is 38–68.
+const isColumn = (w) => w.thickness > 30;
+const columns = all.filter(isColumn);
+const walls = all.filter((w) => !isColumn(w));
 
 // ---- rule 1: no dangling endpoints ---------------------------------------
 // A curved wall only offers its two ends, so `touches` treats a bulged wall as
@@ -50,7 +56,7 @@ walls.forEach((w, i) => {
 });
 
 // ---- rule 2: the walls close exactly ROOMS regions ------------------------
-const pts = walls.flatMap((w) => [w.a, w.b]);
+const pts = all.flatMap((w) => [w.a, w.b]);
 const pad = 40;
 const minX = Math.min(...pts.map((p) => p.x)) - pad;
 const minY = Math.min(...pts.map((p) => p.y)) - pad;
@@ -68,7 +74,7 @@ const stamp = (x, y, r) => {
     }
   }
 };
-for (const w of walls) {
+for (const w of all) {
   const r = Math.max(1, Math.round(w.thickness / 2 / RES));
   const steps = Math.ceil(Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y) / RES) * 2 + 2;
   // A bulged wall is a quadratic through a control point offset along the
@@ -116,7 +122,8 @@ const nameAt = (r) => rooms
   .map((o) => [Math.hypot(o.x + o.w / 2 - r.x, o.y + o.h / 2 - r.y), o.name])
   .sort((a, b) => a[0] - b[0])[0]?.[1] ?? '（無名）';
 
-console.log(`規則一・牆不無故伸出：${walls.length} 道牆，懸空端點 ${dangling.length} 個`);
+console.log(`規則一・牆不無故伸出：${walls.length} 道牆（另有 ${columns.length} 根柱不計），`
+  + `懸空端點 ${dangling.length} 個`);
 for (const d of dangling) {
   const { a, b } = d.w;
   console.log(`   #${d.i} (${d.p.x.toFixed(0)},${d.p.y.toFixed(0)})`
