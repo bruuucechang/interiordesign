@@ -230,6 +230,11 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .chip:hover { border-color: var(--accent); }
 .chip.on { background: #33405c; border-color: var(--accent); color: var(--text); }
 /* The count is what a filtered section says about itself: "客廳 3" after a
-   filter is information, a bare "客廳" is not. */
-.furn-count { font-size: 10px; color: var(--muted); background: var(--panel2); border-radius: 999px; padding: 1px 6px; }
-.furn-head.collapsible::after { margin-left: 6px; }
+   filter is information, a bare "客廳" is not.
+   It sits **next to the name**, not spread across the row. `.panel-title.collapsible`
+   is space-between, which pushed the number into the middle of an otherwise empty
+   header and made it read as a second column — 一個只有兩位數的欄位卻佔掉整條列
+   的中段。緊貼名字後面就只是名字的一部分，箭頭用 margin-left:auto 自己靠右。 */
+.furn-head { justify-content: flex-start; gap: 6px; }
+.furn-count { font-size: 10px; color: var(--muted); opacity: .75; }
+.furn-head.collapsible::after { margin-left: auto; }
