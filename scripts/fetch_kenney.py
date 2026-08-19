@@ -48,32 +48,22 @@ THUMB_PX = 128
 # 這裡只留「CC0 圖庫沒有實掃版本」的類別。櫃體後來都在 Poly Haven 找到了實掃的，
 # 已經搬去 fetch_models.py：平鋪的材質貼在低多邊形上永遠長不成烘焙貼圖的樣子——
 # 前者每一格都一樣，後者每一平方公分都不同。
+# 這裡少掉的家電／衛浴／床是刻意的：它們搬去 fetch_quaternius.py 了。
+# 判斷標準是拉近看的樣子——Kenney 這批是平面著色的低多邊形，離遠看是家電，
+# 離近看是玩具。Quaternius 的同一批多邊形細得多。Kenney 現在只留兩邊都沒有
+# 更好版本的那些。
 MODELS = {
-    'bed_double':      'bedDouble',
-    'bed_single':      'bedSingle',
-    'fridge':          'kitchenFridgeLarge',
-    'stove':           'kitchenStove',
-    'sink':            'kitchenSink',
-    'toilet':          'toilet',
-    'bathtub':         'bathtub',
-    'shower':          'shower',
     'rug':             'rugRectangle',
     'plant':           'pottedPlant',
-    'cabinet_kitchen': 'kitchenCabinet',
-    'vanity':          'bathroomCabinetDrawer',
     # 順帶補上台灣住宅常見、目錄本來沒有的
-    'washer':          'washer',
     'microwave':       'kitchenMicrowave',
     'coat_rack':       'coatRackStanding',
 
     # 第二批。台灣廚房沒有抽油煙機和吊櫃就不是廚房。
     'range_hood':      'hoodModern',
-    'upper_cabinet':   'kitchenCabinetUpperDouble',
     'kitchen_island':  'kitchenBar',
     'dryer':           'dryer',
     'coffee_machine':  'kitchenCoffeeMachine',
-    'trashcan':        'trashcan',
-    'toilet_square':   'toiletSquare',
     'shower_round':    'showerRound',
     'rug_round':       'rugRound',
     'rug_square':      'rugSquare',
