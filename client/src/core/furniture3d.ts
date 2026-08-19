@@ -614,12 +614,31 @@ let modelsReady: (() => void) | undefined;
 /** Called when a model lands after something already drew the built stand-in. */
 export function onModelsReady(fn: () => void) { modelsReady = fn; }
 
+/**
+ * The model catalogue, or null when nobody downloaded it.
+ *
+ * `client/public/models/` is 41MB of CC0 scans and is deliberately **not** in
+ * the repo — `npm run assets` fetches it. Everything below has to keep working
+ * without it, and it does: no manifest means `loadFurnitureModel` returns false
+ * for every item and each one falls back to the geometry this file builds.
+ *
+ * The fallback is **not** an equivalent, and the note below says so. Only the
+ * first ~55 items have hand-written geometry (sofa, wardrobe, the appliances);
+ * the rest were added as models and fall back to a plain box. Rendering the
+ * whole catalogue with models/ deleted is two thirds featureless blocks — it
+ * runs, it just does not look designed. Silence here would read as "this is
+ * what the app looks like" rather than "one command is missing".
+ */
 async function manifest(): Promise<Record<string, ModelEntry> | null> {
   if (modelManifest !== undefined) return modelManifest ?? null;
   try {
     const r = await fetch(`${MODEL_BASE}manifest.json`);
     modelManifest = r.ok ? (await r.json()).models : null;
   } catch { modelManifest = null; }
+  if (!modelManifest) {
+    console.info('[家具] 沒有 client/public/models/ —— 只有早期那批家具有手寫幾何，'
+      + '其餘一律退回方塊，面板也只剩畫出來的圖例。要 CC0 實掃模型跑 `npm run assets`（約 41MB）。');
+  }
   return modelManifest ?? null;
 }
 

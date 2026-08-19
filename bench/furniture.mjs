@@ -65,14 +65,23 @@ console.log(`${items.length} 件家具`);
 // 就回 false，那件家具安靜地退回程式生成的方塊，而磁碟上的 .glb 還在、面板的預覽圖
 // 也還在，所以從外面完全看不出來。實際發生過：`fetch_models.py` 從頭重建 manifest，
 // 把 `fetch_kenney.py` 併進去的 21 筆抹掉，衣櫃、冰箱、馬桶、浴缸、床全部退回方塊。
+//
+// models/ 不在 repo 裡（41MB，`npm run assets` 自己抓），所以「整包沒有」跟「少了
+// 幾筆」要分開講：前者是還沒下載，後者才是 bug。混在一起的話，乾淨 clone 上跑這支
+// 會噴一個看起來像壞掉的 127 件全滅錯誤。
 const gap = await page.evaluate(async (ids) => {
-  const man = await (await fetch('models/manifest.json')).json();
+  const r = await fetch('models/manifest.json');
+  if (!r.ok) return null;
+  const man = await r.json();
   return ids.filter((i) => !man.models[i]);
 }, items.map((i) => i.id));
-if (gap.length) {
+if (gap === null) {
+  console.log('models/ 沒下載，這輪渲的是程式生成的家具。要實掃模型跑 `npm run assets`。');
+} else if (gap.length) {
   throw new Error(`${gap.length} 件在 manifest 裡沒有對應的模型，會安靜退回程式生成：${gap.join(', ')}`);
+} else {
+  console.log(`manifest 對照：${items.length} 件都有模型 ✔`);
 }
-console.log('manifest 對照：94 件都有模型 ✔'.replace('94', String(items.length)));
 
 // Laid out in rows at each piece's own catalogue size, with a gap wide enough
 // that a model scaled wrong is obvious rather than merely overlapping.
