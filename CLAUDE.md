@@ -1,5 +1,8 @@
 # CLAUDE.md
 
+> 2026-08-13～19 那段（描圖、素材、3D 品質）的來龍去脈在
+> **[`docs/worklog.md`](docs/worklog.md)**——這份講「現在長怎樣」，那份講「怎麼走到這裡、哪幾次判斷錯了」。
+
 ## Overview
 
 **室內設計 2D 平面圖繪圖軟體**。Canvas/TypeScript 的 2D 編輯器 ＋ three.js 3D 檢視，後端負責儲存、房間偵測、底圖牆體辨識與面積報表。
