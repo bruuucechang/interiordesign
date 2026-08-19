@@ -57,7 +57,7 @@ await page.waitForTimeout(2500);
 const items = await page.evaluate(() => {
   const a = window.__app;
   if (!a?.FURNITURE) throw new Error('__app 沒有家具目錄 —— main.ts 的 ?perf=1 匯出改過了');
-  return a.FURNITURE.map((f) => ({ id: f.id, w: f.w, h: f.h }));
+  return a.FURNITURE.map((f) => ({ id: f.id, w: f.w, h: f.h, proc: !!f.proc }));
 });
 console.log(`${items.length} 件家具`);
 
@@ -74,13 +74,14 @@ const gap = await page.evaluate(async (ids) => {
   if (!r.ok) return null;
   const man = await r.json();
   return ids.filter((i) => !man.models[i]);
-}, items.map((i) => i.id));
+}, items.filter((i) => !i.proc).map((i) => i.id));
 if (gap === null) {
   console.log('models/ 沒下載，這輪渲的是程式生成的家具。要實掃模型跑 `npm run assets`。');
 } else if (gap.length) {
   throw new Error(`${gap.length} 件在 manifest 裡沒有對應的模型，會安靜退回程式生成：${gap.join(', ')}`);
 } else {
-  console.log(`manifest 對照：${items.length} 件都有模型 ✔`);
+  const np = items.filter((i) => i.proc).length;
+  console.log(`manifest 對照：${items.length - np} 件都有模型 ✔`+ (np ? `（另有 ${np} 件是刻意程式生成的，不該有模型）` : ''));
 }
 
 // Laid out in rows at each piece's own catalogue size, with a gap wide enough
