@@ -102,6 +102,15 @@ MODELS = {
     # 是幾何。同類已經有 plant_large / plant_small / pot_ceramic / vase / basket。
     'tv_set':         'Television_01',
     'clock':          'alarm_clock_01',
+
+    # 櫃體。原本用 Kenney 的，但那是平面著色＋平鋪材質，跟旁邊實掃的餐桌擺在一起
+    # 一眼就是兩種東西。這些是實掃的，貼圖是每個模型自己烘焙的。
+    'wardrobe':         'vintage_cabinet_01',
+    'tall_cabinet':     'painted_wooden_cabinet_02',
+    'cabinet_storage':  'GothicCommode_01',
+    'open_shelf':       'Shelf_01',
+    'shoe_cabinet':     'vintage_wooden_drawer_01',
+    'tv':               'modern_wooden_cabinet',
 }
 
 RES = '1k'
