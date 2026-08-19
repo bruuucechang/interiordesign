@@ -93,6 +93,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
     inp.addEventListener('focus', () => doc.commit());
     inp.addEventListener('input', () => { const v = parseLength(inp.value, unit, min); if (v !== null) setCm(v); });
     row.append(l, inp); parent.appendChild(row);
+    return inp;      // 呼叫端要能回頭改它——見門窗的左右牆長
   };
   const deg = (parent: HTMLElement, label: string, value: number, set: (v: number) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
@@ -343,7 +344,11 @@ export function refreshProps(editor: Editor, doc: Doc) {
         }
         hrow.append(hl, hwrap); basics.appendChild(hrow);
       }
-      dim(size.body, '寬度', o.width, v => up({ width: Math.max(10, v) } as any), 10);
+      // 左右牆長是連動的：left + 寬度 + right 恆等於整道牆。改寬度也會同時改變
+      // 兩邊，所以這個 setter 也要通知它們。宣告在前面是因為欄位是照順序建的，
+      // 而這個 callback 要到使用者真的動手時才會跑，那時兩個欄位都已經存在。
+      let syncOffsets: ((widthCm: number) => void) | null = null;
+      dim(size.body, '寬度', o.width, v => { const w = Math.max(10, v); up({ width: w } as any); syncOffsets?.(w); }, 10);
       dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up({ height: Math.max(10, v) } as any), 10);
       // find the host straight wall to expose editable left/right offsets
       let host: { w: Extract<Obj, { kind: 'wall' }>; L: number; dc: number; dir: Vec } | null = null; let bestD = 40;
@@ -353,10 +358,39 @@ export function refreshProps(editor: Editor, doc: Doc) {
         if (d < bestD) { const L = dist(w.a, w.b); bestD = d; host = { w, L, dc: cs.t * L, dir: { x: L > 1e-6 ? (w.b.x - w.a.x) / L : 1, y: L > 1e-6 ? (w.b.y - w.a.y) / L : 0 } }; }
       }
       if (host) {
-        const { w, L, dc, dir } = host, hw = o.width / 2;
-        const place = (ndc: number) => { const c = Math.min(L - hw, Math.max(hw, ndc)); up({ x: w.a.x + dir.x * c, y: w.a.y + dir.y * c, angle: angleDeg(w.a, w.b) } as any); };
-        dim(pos.body, '左側牆長', Math.max(0, dc - hw), v => place(v + hw), 0);
-        dim(pos.body, '右側牆長', Math.max(0, L - dc - hw), v => place(L - v - hw), 0);
+        const { w, L, dir } = host;
+        // 開口中心與半寬會被使用者改動，所以是變數不是常數——每次落位之後更新。
+        let c = host.dc, hw = o.width / 2;
+        /** 把中心放到 ndc（沿牆的距離），夾在牆內，回傳真正落在哪。 */
+        const place = (ndc: number) => {
+          c = Math.min(L - hw, Math.max(hw, ndc));
+          up({ x: w.a.x + dir.x * c, y: w.a.y + dir.y * c, angle: angleDeg(w.a, w.b) } as any);
+          return c;
+        };
+        let leftInp: HTMLInputElement | null = null, rightInp: HTMLInputElement | null = null;
+        /**
+         * 兩個欄位是同一個事實的兩種說法：left + 寬度 + right ≡ 牆長。
+         *
+         * 改了一邊不更新另一邊的話，面板上會同時出現兩個互相矛盾的數字，而且
+         * **停在那裡**——`doc.onChange` 裡的 refreshProps 在焦點還在屬性面板時
+         * 會刻意跳過（不然使用者打到一半的輸入框會被整個換掉），所以正在編輯的
+         * 那一刻正是它最不會自己更新的時候。
+         *
+         * 用的是 `place()` 夾過之後的實際位置，不是使用者打進去的數字：輸入
+         * 500 但牆只有 300 的時候，對面那格要顯示夾住之後的結果，不是一個
+         * 從來沒有成立過的值。
+         */
+        const sync = (except: HTMLInputElement | null) => {
+          if (leftInp && leftInp !== except) leftInp.value = fieldValue(Math.max(0, c - hw), unit);
+          if (rightInp && rightInp !== except) rightInp.value = fieldValue(Math.max(0, L - c - hw), unit);
+        };
+        syncOffsets = (widthCm) => { hw = widthCm / 2; place(c); sync(null); };
+        leftInp = dim(pos.body, '左側牆長', Math.max(0, c - hw), v => { place(v + hw); sync(leftInp); }, 0);
+        rightInp = dim(pos.body, '右側牆長', Math.max(0, L - c - hw), v => { place(L - v - hw); sync(rightInp); }, 0);
+        // 打字的當下不動使用者正在打的那一格——游標會跳。但離開欄位時要把它校正成
+        // 真正發生的事：在 300 公分的牆上打 9999，門會貼到底，那一格就該顯示貼到底
+        // 之後的值，而不是一個從來沒成立過的數字留在畫面上。
+        for (const inp of [leftInp, rightInp]) inp.addEventListener('change', () => sync(null));
       }
       deg(pos.body, '角度', o.angle, v => up({ angle: v } as any));
       dim(pos.body, '離地板距離', o.elevation ?? (o.kind === 'door' ? 0 : 90), v => up({ elevation: Math.max(0, v) } as any));
