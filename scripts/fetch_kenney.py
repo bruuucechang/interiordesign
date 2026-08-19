@@ -134,8 +134,14 @@ def main() -> int:
     manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() \
         else {'source': 'https://polyhaven.com', 'license': 'CC0 1.0', 'models': {}}
 
-    need = [c for c in MODELS
-            if force or not (OUT / c / f'{MODELS[c]}.glb').exists() or not (OUT / c / 'thumb.png').exists()]
+    # "已存在" has to mean the manifest row too, not just the files. Checking
+    # only the files meant that when something else rewrote the manifest, this
+    # script skipped every model — the .glb sat on disk with no row, and
+    # `loadFurnitureModel` cannot find a model it has no row for.
+    def done(c: str) -> bool:
+        return ((OUT / c / f'{MODELS[c]}.glb').exists() and (OUT / c / 'thumb.png').exists()
+                and c in manifest.get('models', {}))
+    need = [c for c in MODELS if force or not done(c)]
     if need:
         print(f'下載 Kenney Furniture Kit（{len(need)} 件要抓）…', flush=True)
         req = urllib.request.Request(ZIP, headers={'User-Agent': 'interior-designer/1.0'})
@@ -146,7 +152,7 @@ def main() -> int:
     for cid, name in MODELS.items():
         d = OUT / cid
         f = d / f'{name}.glb'
-        if not force and f.exists() and (d / 'thumb.png').exists():
+        if not force and done(cid):
             print(f'  {cid:<16} {name:<24} 已存在，跳過')
             continue
         blob = z.read(INSIDE.format(name))

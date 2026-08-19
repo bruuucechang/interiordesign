@@ -61,6 +61,19 @@ const items = await page.evaluate(() => {
 });
 console.log(`${items.length} 件家具`);
 
+// 每一件都要在 manifest 裡有一row。少一row不會報錯——`loadFurnitureModel` 找不到
+// 就回 false，那件家具安靜地退回程式生成的方塊，而磁碟上的 .glb 還在、面板的預覽圖
+// 也還在，所以從外面完全看不出來。實際發生過：`fetch_models.py` 從頭重建 manifest，
+// 把 `fetch_kenney.py` 併進去的 21 筆抹掉，衣櫃、冰箱、馬桶、浴缸、床全部退回方塊。
+const gap = await page.evaluate(async (ids) => {
+  const man = await (await fetch('models/manifest.json')).json();
+  return ids.filter((i) => !man.models[i]);
+}, items.map((i) => i.id));
+if (gap.length) {
+  throw new Error(`${gap.length} 件在 manifest 裡沒有對應的模型，會安靜退回程式生成：${gap.join(', ')}`);
+}
+console.log('manifest 對照：94 件都有模型 ✔'.replace('94', String(items.length)));
+
 // Laid out in rows at each piece's own catalogue size, with a gap wide enough
 // that a model scaled wrong is obvious rather than merely overlapping.
 const GAP = 90, WIDE = 1900;
