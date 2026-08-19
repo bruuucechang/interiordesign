@@ -220,12 +220,25 @@ def one(cid: str, asset: str, force: bool) -> dict:
 def main() -> int:
     force = '--force' in sys.argv
     OUT.mkdir(parents=True, exist_ok=True)
+    # Merge into whatever is already there. This file used to rebuild the
+    # manifest from scratch, which silently deleted every entry
+    # scripts/fetch_kenney.py had merged in — 21 models were left on disk with
+    # no manifest row, so `loadFurnitureModel` could not find them and 21 pieces
+    # of furniture quietly fell back to the procedural box. Nothing errors: a
+    # missing row is indistinguishable from "this item has no model".
+    manifest_path = OUT / 'manifest.json'
+    existing = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else {}
+    models = existing.get('models', {})
     print(f'{len(MODELS)} 件家具 → {OUT.relative_to(ROOT)}  ({RES})')
-    manifest = {cid: one(cid, asset, force) for cid, asset in MODELS.items()}
-    (OUT / 'manifest.json').write_text(
-        json.dumps({'source': 'https://polyhaven.com', 'license': 'CC0 1.0',
-                    'resolution': RES, 'models': manifest},
-                   ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    for cid, asset in MODELS.items():
+        models[cid] = one(cid, asset, force) | {'source': 'polyhaven'}
+    existing |= {'source': 'https://polyhaven.com', 'license': 'CC0 1.0',
+                 'resolution': RES, 'models': models}
+    existing.setdefault('sources', {})['polyhaven'] = 'https://polyhaven.com'
+    manifest_path.write_text(json.dumps(existing, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    print(f'manifest 共 {len(models)} 筆'
+          f'（polyhaven {sum(1 for v in models.values() if v.get("source") != "kenney")}、'
+          f'kenney {sum(1 for v in models.values() if v.get("source") == "kenney")}）')
     total = sum(f.stat().st_size for f in OUT.rglob('*') if f.is_file()) / 1024 / 1024
     print(f'共 {total:.1f} MB')
     return 0

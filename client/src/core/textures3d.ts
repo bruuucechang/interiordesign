@@ -256,13 +256,23 @@ interface ScanOpts {
    * beige; taking the colour map would repaint every one of them the same.
    */
   colour?: boolean;
+  /**
+   * Tiles per UV unit, instead of working it out from `wCm`/`hCm`.
+   *
+   * For geometry whose UVs are not in centimetres. Kenney's models carry UVs
+   * spanning tens of units across a 60 cm cabinet, so a cm-derived repeat comes
+   * out hundreds of tiles wide.
+   */
+  repeat?: number;
 }
 
 const scanWaiting: { m: THREE.MeshStandardMaterial; id: string; w: number; h: number; o: ScanOpts }[] = [];
 
 function paintScan(m: THREE.MeshStandardMaterial, src: Maps, w: number, h: number, o: ScanOpts) {
   const tile = src.tileCm || 100;
-  const [u, v] = [Math.max(0.25, w / tile), Math.max(0.25, h / tile)];
+  const [u, v] = o.repeat != null
+    ? [o.repeat, o.repeat]
+    : [Math.max(0.25, w / tile), Math.max(0.25, h / tile)];
   const put = (t: THREE.Texture) => { const c = t.clone(); c.needsUpdate = true; c.repeat.set(u, v); return c; };
   if (o.colour !== false) { m.map = put(src.map); m.color.setHex(0xffffff); }
   if (src.normalMap) m.normalMap = put(src.normalMap);

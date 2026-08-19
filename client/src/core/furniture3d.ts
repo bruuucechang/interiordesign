@@ -537,7 +537,47 @@ function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
 // something now. The scan if it has landed, the built box if it has not, and
 // `onModelsReady` to rebuild once it arrives. A plan must never wait on a file.
 
-interface ModelEntry { asset: string; name: string; file: string; w: number; d: number; h: number; }
+interface ModelEntry { asset: string; name: string; file: string; w: number; d: number; h: number; source?: string; }
+
+/**
+ * Kenney's models ship with no textures at all: a flat base colour per material,
+ * `roughnessFactor: 1`, `metallicFactor: 0`, no normal map. That is why half the
+ * palette looked untextured next to the photogrammetry — it *was*.
+ *
+ * What they do ship is **semantic material names** — `wood`, `woodDark`, `metal`,
+ * `metalLight`, `metalDark`, `carpet`, `glass`, `lamp` — so each one can be
+ * matched to the same archetype the procedural furniture uses. Their UVs are
+ * real (tens of units across a cabinet, so `repeat` is given directly rather
+ * than derived from centimetres), which is what makes a tiling scan work here
+ * at all.
+ *
+ * Colour is never taken: Kenney's palette is the whole design of these models,
+ * and the scans are here for the grain, the brushing and the weave. Setting
+ * roughness and metalness matters as much as the maps — a fridge at roughness 1
+ * reads as matte plastic no matter what normal map is on it.
+ */
+const KENNEY_ARCHETYPES: { re: RegExp; scan?: string; rough: number; metal: number; repeat: number }[] = [
+  { re: /^wood/i,   scan: 'veneer_oak',    rough: 0.62, metal: 0,    repeat: 0.03 },
+  { re: /^metal/i,  scan: 'metal_brushed', rough: 0.33, metal: 0.85, repeat: 0.06 },
+  { re: /^carpet/i, scan: 'weave',         rough: 0.95, metal: 0,    repeat: 0.10 },
+  { re: /^glass/i,                         rough: 0.05, metal: 0,    repeat: 1 },
+  { re: /^lamp/i,                          rough: 0.35, metal: 0.15, repeat: 1 },
+];
+
+function dressKenney(root: THREE.Object3D) {
+  root.traverse((o) => {
+    const mm = (o as THREE.Mesh).material;
+    for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshStandardMaterial[]) {
+      if (!m) continue;
+      const a = KENNEY_ARCHETYPES.find((k) => k.re.test(m.name ?? ''));
+      if (!a) continue;
+      m.roughness = a.rough;
+      m.metalness = a.metal;
+      if (a.scan) applyScan(m, a.scan, 0, 0, { colour: false, repeat: a.repeat });
+      m.needsUpdate = true;
+    }
+  });
+}
 
 const MODEL_BASE = new URL('models/', document.baseURI).href;
 const models = new Map<string, THREE.Object3D>();      // item → normalised prototype
@@ -580,6 +620,7 @@ export function loadFurnitureModel(item: string): Promise<boolean> {
       // builds itself uses 8. Left alone, a sideboard's wood grain and a
       // shelf's metal frame shimmer at grazing angles — which is where most of
       // a room is seen from — while the floor right next to them does not.
+      if (entry.source === 'kenney') dressKenney(root);
       root.traverse((o) => {
         const m = (o as THREE.Mesh).material;
         for (const mat of (Array.isArray(m) ? m : [m]) as THREE.MeshStandardMaterial[]) {
