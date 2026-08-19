@@ -569,17 +569,25 @@ interface ModelEntry { asset: string; name: string; file: string; w: number; d: 
  * than derived from centimetres), which is what makes a tiling scan work here
  * at all.
  *
- * Colour is never taken: Kenney's palette is the whole design of these models,
- * and the scans are here for the grain, the brushing and the weave. Setting
- * roughness and metalness matters as much as the maps — a fridge at roughness 1
- * reads as matte plastic no matter what normal map is on it.
+ * **Wood takes the scan's colour; nothing else does.** The first version took no
+ * colour anywhere, on the reasoning that Kenney's palette is the design. For a
+ * white fridge or a pink duvet that is right — repainting them beige would throw
+ * the model away. For the cabinets it was plainly wrong: a normal map on a flat
+ * tan face is a faint ripple and nothing more, so the wardrobe, the TV cabinet
+ * and the storage cabinet still read as untextured, which is what they were
+ * reported as. Wood is the one case where the colour *is* the material.
+ *
+ * Roughness and metalness are set **after** the scan, not before: `applyScan`
+ * forces `roughness = 1` when it attaches a roughness map, because with a map
+ * the value is a multiplier. Setting them first meant a fridge stayed at
+ * roughness 1 — matte plastic — no matter what was attached to it.
  */
-const KENNEY_ARCHETYPES: { re: RegExp; scan?: string; rough: number; metal: number; repeat: number }[] = [
-  { re: /^wood/i,   scan: 'veneer_oak',    rough: 0.62, metal: 0,    repeat: 0.03 },
-  { re: /^metal/i,  scan: 'metal_brushed', rough: 0.33, metal: 0.85, repeat: 0.06 },
-  { re: /^carpet/i, scan: 'weave',         rough: 0.95, metal: 0,    repeat: 0.10 },
-  { re: /^glass/i,                         rough: 0.05, metal: 0,    repeat: 1 },
-  { re: /^lamp/i,                          rough: 0.35, metal: 0.15, repeat: 1 },
+const KENNEY_ARCHETYPES: { re: RegExp; scan?: string; colour?: boolean; rough: number; metal: number; repeat: number }[] = [
+  { re: /^wood/i,   scan: 'veneer_oak',    colour: true,  rough: 0.62, metal: 0,    repeat: 0.03 },
+  { re: /^metal/i,  scan: 'metal_brushed', colour: false, rough: 0.33, metal: 0.85, repeat: 0.06 },
+  { re: /^carpet/i, scan: 'weave',         colour: false, rough: 0.95, metal: 0,    repeat: 0.10 },
+  { re: /^glass/i,                                        rough: 0.05, metal: 0,    repeat: 1 },
+  { re: /^lamp/i,                                         rough: 0.35, metal: 0.15, repeat: 1 },
 ];
 
 function dressKenney(root: THREE.Object3D) {
@@ -589,9 +597,9 @@ function dressKenney(root: THREE.Object3D) {
       if (!m) continue;
       const a = KENNEY_ARCHETYPES.find((k) => k.re.test(m.name ?? ''));
       if (!a) continue;
-      m.roughness = a.rough;
+      if (a.scan) applyScan(m, a.scan, 0, 0, { colour: a.colour === true, repeat: a.repeat });
+      m.roughness = a.rough;      // after applyScan — it forces roughness to 1
       m.metalness = a.metal;
-      if (a.scan) applyScan(m, a.scan, 0, 0, { colour: false, repeat: a.repeat });
       m.needsUpdate = true;
     }
   });
