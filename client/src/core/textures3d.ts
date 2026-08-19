@@ -297,5 +297,13 @@ export function applyScan(m: THREE.MeshStandardMaterial, id: string, wCm: number
   });
 }
 
+/** 還在等貼圖下載的材質數。
+ *
+ * `applyScan` 是非同步的：圖還沒到就先把材質排進 `scanWaiting`，之後補上。
+ * 所以「這個材質有沒有貼圖」在建出來的當下問是**錯的時間點**——
+ * bench/verify-textures.mjs 第一版就是這樣，量到一份混著真漏與還沒到的清單。
+ * 要等這個數字歸零再問。 */
+export const scansPending = () => scanWaiting.length;
+
 /** The swatch colour, for anything that needs a flat stand-in. */
 export { material } from './materials';

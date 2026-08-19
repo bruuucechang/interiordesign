@@ -41,7 +41,7 @@ export interface FurnitureItem {
    * than no filter, so the tags were re-cut from a contact sheet of the
    * thumbnails.
    */
-  style?: '現代' | '古典' | '鄉村' | '工業' | '中式';
+  style?: '現代' | '古典' | '鄉村' | '工業' | '中式' | '日式' | '北歐';
   /**
    * Built by `furniture3d.ts` on purpose, with no downloaded model behind it.
    *
@@ -114,7 +114,7 @@ export const FURNITURE: FurnitureItem[] = [
       rr(ctx, 8, 22, w - 16, h - 30, 8); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(w / 3, 22); ctx.lineTo(w / 3, h - 8); ctx.moveTo(2 * w / 3, 22); ctx.lineTo(2 * w / 3, h - 8); ctx.stroke();
     } },
-  { id: 'armchair', name: '單椅', style: '現代', cat: '客廳', w: 82, h: 99, draw(ctx, w, h) {
+  { id: 'armchair', name: '單椅', style: '北歐', cat: '客廳', w: 82, h: 99, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 10); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 18, w - 16, h - 26, 6); ctx.stroke();
     } },
@@ -199,11 +199,11 @@ export const FURNITURE: FurnitureItem[] = [
       rr(ctx, 8, 22, w * 0.62, h - 30, 8); ctx.stroke();
       rr(ctx, w * 0.66, 10, w * 0.3, h - 18, 8); ctx.stroke();
     } },
-  { id: 'lounge', name: '休閒單椅', style: '現代', cat: '客廳', w: 101, h: 119, draw(ctx, w, h) {
+  { id: 'lounge', name: '休閒單椅', style: '北歐', cat: '客廳', w: 101, h: 119, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 14); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 10, 26, w - 20, h - 40, 10); ctx.stroke();
     } },
-  { id: 'ottoman', name: '腳凳', style: '現代', cat: '客廳', w: 88, h: 62, draw(ctx, w, h) {
+  { id: 'ottoman', name: '腳凳', style: '北歐', cat: '客廳', w: 88, h: 62, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 10); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 7, w - 14, h - 14, 7); ctx.stroke();
     } },
@@ -621,6 +621,174 @@ export const FURNITURE: FurnitureItem[] = [
     } },
   { id: 'wardrobe_kids', name: '兒童衣櫃', style: '現代', cat: '臥室', proc: true, w: 100, h: 55, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
+    } },
+
+  // ---- 日式與北歐：新增的兩個風格分類。實掃圖庫沒有和室家具，但這兩個風格的
+  // 辨識度幾乎全在材料（藺草、障子紙、藤編），而材料是掃得到的 ----
+  { id: 'jp_tatami', name: '榻榻米地台', style: '日式', cat: '臥室', proc: true, w: 180, h: 90, draw(ctx, w, h) {
+      ctx.fillStyle = '#4a5138'; ctx.strokeStyle = '#c9c07a'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#c9c07a66';
+      for (let i = 1; i < Math.max(2, Math.round(w / 90)); i++) { const x = w * i / Math.max(2, Math.round(w / 90)); ctx.beginPath(); ctx.moveTo(x, 2); ctx.lineTo(x, h - 2); ctx.stroke(); }
+    } },
+  { id: 'jp_tatami_high', name: '和室高地台', style: '日式', cat: '臥室', proc: true, w: 180, h: 180, draw(ctx, w, h) {
+      ctx.fillStyle = '#4a5138'; ctx.strokeStyle = '#c9c07a'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#c9c07a66';
+      for (let i = 1; i < Math.max(2, Math.round(w / 90)); i++) { const x = w * i / Math.max(2, Math.round(w / 90)); ctx.beginPath(); ctx.moveTo(x, 2); ctx.lineTo(x, h - 2); ctx.stroke(); }
+    } },
+  { id: 'jp_shoji', name: '障子屏風', style: '日式', cat: '客廳', proc: true, w: 180, h: 4, draw(ctx, w, h) {
+      ctx.fillStyle = '#e8e2d2'; ctx.strokeStyle = '#9a7a4e'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 1); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'jp_shoji_low', name: '半腰障子', style: '日式', cat: '客廳', proc: true, w: 120, h: 4, draw(ctx, w, h) {
+      ctx.fillStyle = '#e8e2d2'; ctx.strokeStyle = '#9a7a4e'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 1); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'jp_low_table', name: '和室矮桌', style: '日式', cat: '客廳', proc: true, w: 120, h: 70, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 5); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'jp_low_cabinet', name: '和室矮櫃', style: '日式', cat: '客廳', proc: true, w: 150, h: 40, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 3);
+    } },
+  { id: 'jp_futon', name: '布團台', style: '日式', cat: '臥室', proc: true, w: 140, h: 200, draw(ctx, w, h) {
+      ctx.fillStyle = '#4a5138'; ctx.strokeStyle = '#c9c07a'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#c9c07a66';
+      for (let i = 1; i < Math.max(2, Math.round(w / 90)); i++) { const x = w * i / Math.max(2, Math.round(w / 90)); ctx.beginPath(); ctx.moveTo(x, 2); ctx.lineTo(x, h - 2); ctx.stroke(); }
+    } },
+  { id: 'nd_sideboard', name: '北歐邊櫃', style: '北歐', cat: '客廳', proc: true, w: 150, h: 42, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#d9c49a99';
+      for (let i = 1; i < 4; i++) { const x = w * i / 4; ctx.beginPath(); ctx.moveTo(x, 3); ctx.lineTo(x, h - 3); ctx.stroke(); }
+    } },
+  { id: 'nd_nightstand', name: '北歐床頭櫃', style: '北歐', cat: '臥室', proc: true, w: 45, h: 40, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#d9c49a99';
+      for (let i = 1; i < 4; i++) { const x = w * i / 4; ctx.beginPath(); ctx.moveTo(x, 3); ctx.lineTo(x, h - 3); ctx.stroke(); }
+    } },
+  { id: 'nd_cabinet', name: '北歐高櫃', style: '北歐', cat: '客廳', proc: true, w: 90, h: 42, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#d9c49a99';
+      for (let i = 1; i < 4; i++) { const x = w * i / 4; ctx.beginPath(); ctx.moveTo(x, 3); ctx.lineTo(x, h - 3); ctx.stroke(); }
+    } },
+  { id: 'nd_wardrobe', name: '北歐衣櫃', style: '北歐', cat: '臥室', proc: true, w: 120, h: 58, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 3);
+    } },
+  { id: 'nd_shelf', name: '北歐層架', style: '北歐', cat: '書房', proc: true, w: 90, h: 32, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 4);
+    } },
+  { id: 'nd_bench', name: '玄關長凳', style: '北歐', cat: '客廳', proc: true, w: 120, h: 38, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 5); ctx.fill(); ctx.stroke();
+    } },
+
+  // ---- Quaternius（CC0）：實掃圖庫沒有第二款的那些。尺寸是真實尺寸，不是模型尺寸 ----
+  { id: 'bed_king', name: '加大雙人床', style: '現代', cat: '臥室', w: 180, h: 200, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'bed_single_q', name: '單人床', style: '現代', cat: '臥室', w: 90, h: 190, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'bed_bunk', name: '上下舖', style: '現代', cat: '臥室', w: 100, h: 200, height: 175, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sofa_q', name: '布沙發', style: '現代', cat: '客廳', w: 200, h: 88, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'sofa_q2', name: '布沙發 II', style: '現代', cat: '客廳', w: 210, h: 90, height: 82, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'sofa_q3', name: '布沙發 III', style: '現代', cat: '客廳', w: 195, h: 88, height: 78, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'sofa_single_q', name: '單人沙發', style: '現代', cat: '客廳', w: 95, h: 88, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'couch_l', name: 'L 型沙發', style: '現代', cat: '客廳', w: 260, h: 190, height: 78, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'couch_lg1', name: '大沙發 I', style: '現代', cat: '客廳', w: 220, h: 92, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'couch_lg2', name: '大沙發 II', style: '現代', cat: '客廳', w: 225, h: 92, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'couch_md1', name: '雙人沙發 I', style: '北歐', cat: '客廳', w: 165, h: 90, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'chair_q1', name: '餐椅 I', style: '鄉村', cat: '餐廳', w: 45, h: 48, height: 88, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'chair_q2', name: '餐椅 II', style: '鄉村', cat: '餐廳', w: 46, h: 50, height: 90, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'chair_q3', name: '餐椅 III', style: '鄉村', cat: '餐廳', w: 47, h: 50, height: 86, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'chair_q4', name: '餐椅 IV', style: '鄉村', cat: '餐廳', w: 45, h: 49, height: 92, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'stool_q', name: '圓凳', style: '現代', cat: '客廳', w: 38, h: 38, height: 45, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_q', name: '餐桌', style: '鄉村', cat: '餐廳', w: 160, h: 90, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_q2', name: '餐桌 II', style: '鄉村', cat: '餐廳', w: 140, h: 80, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'bookshelf_q', name: '書架', style: '現代', cat: '書房', w: 80, h: 30, height: 180, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 3);
+    } },
+  { id: 'carpet_q1', name: '地毯 I', style: '現代', cat: '客廳', w: 200, h: 140, height: 2, draw(ctx, w, h) {
+      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'carpet_round_q', name: '圓地毯', style: '現代', cat: '客廳', w: 160, h: 160, height: 2, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'wardrobe_tall', name: '高衣櫃', style: '古典', cat: '臥室', w: 150, h: 60, height: 220, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'wardrobe_short', name: '矮衣櫃', style: '古典', cat: '臥室', w: 120, h: 60, height: 150, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'bed_dbl_wood', name: '木框雙人床', style: '古典', cat: '臥室', w: 150, h: 200, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'bed_twin_wood', name: '木框單人床', style: '古典', cat: '臥室', w: 105, h: 200, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'chair_wood_q', name: '木餐椅', style: '古典', cat: '餐廳', w: 45, h: 48, height: 90, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'chair_office', name: '辦公椅', style: '現代', cat: '書房', w: 60, h: 60, height: 105, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'desk_wood', name: '木書桌', style: '古典', cat: '書房', w: 120, h: 60, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'bookcase_tall', name: '高書櫃', style: '古典', cat: '書房', w: 90, h: 32, height: 200, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'bookcase_books', name: '滿書書櫃', style: '現代', cat: '書房', w: 90, h: 32, height: 200, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'nightstand_wood', name: '木床頭櫃', style: '古典', cat: '臥室', w: 45, h: 40, height: 55, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
     } },
 ];
 

@@ -411,7 +411,7 @@ function cabinetModel(w: number, h: number, height: number, opts: CabOpts = {}):
   let bottom = 0;
   if (base === 'legs') { const lh = 15; legs4(g, w - 6, h - 6, lh, woodMat(0x4a3320, 0.5), 3, 2, 9, 0.14); bottom = lh; }
   else if (base === 'feet') { const lh = 9; for (const dx of [-1, 1]) for (const dz of [-1, 1]) g.add(cyl(3, 2.4, lh, frameM, dx * (w / 2 - 8), lh / 2, dz * (h / 2 - 8), 10)); bottom = lh; }
-  else if (base === 'toekick') { const k = 8; g.add(box(w - 10, k, h - 8, mat(0x241d15, { roughness: 0.85 }), 0, k / 2, 1)); bottom = k; }
+  else if (base === 'toekick') { const k = 8; g.add(box(w - 10, k, h - 8, plinthMat(), 0, k / 2, 1)); bottom = k; }
   else { const p = 6; g.add(rbox(w, p, h, 2, woodMat(0x4a3320, 0.6), 0, p / 2, 0)); bottom = p; }
   // --- carcass (leave headroom for a counter) ---
   const carTop = counter ? height - 4 : height;
@@ -474,7 +474,13 @@ function shelfModel(w: number, h: number, height: number, n: number): THREE.Grou
   g.add(rbox(w, t, h, 1, woodM, 0, height - t / 2, 0));                    // top
   g.add(rbox(w, t, h, 1, woodM, 0, t / 2, 0));                            // bottom
   g.add(box(w - 2 * t, height - 2 * t, 1, backM, 0, height / 2, -h / 2 + 1));  // back panel
-  const bookM = [mat(0xb4553f), mat(0x3f6ab4), mat(0x4f9a5a), mat(0xc9a13a), mat(0x8a4fb0)];
+  // 書背也是布或紙，不是塑膠。顏色留給每一本各自不同，只取表面。
+  const bookM = [0xb4553f, 0x3f6ab4, 0x4f9a5a, 0xc9a13a, 0x8a4fb0].map((c) => {
+    const m = mat(c, { roughness: 0.9 });
+    m.name = 'book';
+    applyScan(m, 'linen', 12, 20, { colour: false });
+    return m;
+  });
   for (let i = 1; i < n; i++) {
     const y = t + (height - 2 * t) * i / n;
     g.add(rbox(w - 2 * t, t, h - 2, 1, woodM, 0, y, 0));
@@ -508,8 +514,25 @@ function glassCabModel(w: number, h: number, height: number, doors: number): THR
 // Painted board — a white or grey wardrobe is sprayed MDF, not veneer, and it
 // really is that even. Scanning wood grain onto it would be inventing a
 // material the piece does not have.
-const paintedMat = (color: number) =>
-  new THREE.MeshPhysicalMaterial({ color, roughness: 0.42, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 1.0 });
+const paintedMat = (color: number, size: [number, number] = [60, 60]) => {
+  const m = new THREE.MeshPhysicalMaterial({ color, roughness: 0.42, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 1.0 });
+  m.name = 'paint';
+  // 取表面、不取顏色。噴漆 MDF 不是平的——近看有極細的橘皮與刷痕，那正是
+  // `beige_wall_001`（標籤就是 painted smooth）掃到的東西。顏色必須留給呼叫端，
+  // 不然白衣櫃跟灰衣櫃會一起變成米色。
+  applyScan(m, 'beige', size[0], size[1], { colour: false });
+  return m;
+};
+
+// 踢腳凹槽。深色、霧面，但**不是純色**——它是烤漆板，離地 8cm 是最容易被看到
+// 邊緣的地方。這是 verify-textures 最後抓到的一件：整個衣櫃 17 個材質都貼好了，
+// 只剩這一條 8 公分高的板子。
+const plinthMat = () => {
+  const m = new THREE.MeshStandardMaterial({ color: 0x241d15, roughness: 0.85, metalness: 0.02 });
+  m.name = 'plinth';
+  applyScan(m, 'beige', 60, 20, { colour: false });
+  return m;
+};
 
 // A wardrobe, built from the choices a real one is specified by.
 function wardrobeModel(w: number, h: number, height: number, opts: CabOpts = {}): THREE.Group {
@@ -519,18 +542,19 @@ function wardrobeModel(w: number, h: number, height: number, opts: CabOpts = {})
   const painted = finish === 'white' || finish === 'grey';
   const tone = finish === 'white' ? 0xe9e6df : 0x8d8f92;
   const grain = finish === 'walnut' ? 'walnut' : 'oak';
-  const bodyM = painted ? paintedMat(tone) : woodMat(0x7a5636, 0.55, [w, height], grain);
-  const doorM = painted ? paintedMat(tone) : woodMat(0x86603a, 0.46, [w / Math.max(1, doors), height], grain);
-  const insideM = painted ? paintedMat(0xdedad2) : woodMat(0x9a7448, 0.62, [w, height], 'oak');
+  const bodyM = painted ? paintedMat(tone, [w, height]) : woodMat(0x7a5636, 0.55, [w, height], grain);
+  const doorM = painted ? paintedMat(tone, [w / Math.max(1, doors), height]) : woodMat(0x86603a, 0.46, [w / Math.max(1, doors), height], grain);
+  const insideM = painted ? paintedMat(0xdedad2, [w, height]) : woodMat(0x9a7448, 0.62, [w, height], 'oak');
   const hwM = metalMat(0x9aa3b0, 0.28);
   // A mirror in a room with no reflection probe is a dark hole. What reads as a
   // mirror at this size is a very smooth, very light metal — high metalness,
   // near-zero roughness — which takes the environment map the scene already has.
   const mirrorM = new THREE.MeshStandardMaterial({ color: 0xdfe6ec, roughness: 0.04, metalness: 1, envMapIntensity: 2.2 });
+  mirrorM.name = 'mirror';        // 命名是為了讓 verify-textures 分得出「刻意沒貼圖」
 
   const carTop = height - topBox;
   let bottom = 0;
-  if (base === 'toekick') { const k = 8; g.add(box(w - 8, k, h - 6, mat(0x241d15, { roughness: 0.85 }), 0, k / 2, 1)); bottom = k; }
+  if (base === 'toekick') { const k = 8; g.add(box(w - 8, k, h - 6, plinthMat(), 0, k / 2, 1)); bottom = k; }
   else if (base === 'feet') { const lh = 9; for (const dx of [-1, 1]) for (const dz of [-1, 1]) g.add(cyl(3, 2.4, lh, bodyM, dx * (w / 2 - 8), lh / 2, dz * (h / 2 - 8), 10)); bottom = lh; }
   else { const p = 6; g.add(rbox(w, p, h, 2, bodyM, 0, p / 2, 0)); bottom = p; }
 
@@ -579,7 +603,7 @@ function wardrobeModel(w: number, h: number, height: number, opts: CabOpts = {})
       const isMirror = mirror.includes(i);
       g.add(rbox(dw - 2, dh, 3, 2, isMirror ? doorM : doorM, dx, bottom + dh / 2 + 1.5, front));
       if (isMirror) g.add(box((dw - 2) * 0.82, dh * 0.9, 1, mirrorM, dx, bottom + dh / 2 + 1.5, front + 1.7));
-      else g.add(box((dw - 2) * 0.72, dh * 0.86, 1.2, painted ? paintedMat(tone) : woodMat(0x6f4d2b, 0.5, [dw, dh], grain), dx, bottom + dh / 2 + 1.5, front + 1.6));
+      else g.add(box((dw - 2) * 0.72, dh * 0.86, 1.2, painted ? paintedMat(tone, [dw, dh]) : woodMat(0x6f4d2b, 0.5, [dw, dh], grain), dx, bottom + dh / 2 + 1.5, front + 1.6));
       if (handle !== 'none') {
         const hx = dx + (i % 2 ? -dw / 2 + 5 : dw / 2 - 5);
         if (handle === 'knob') g.add(cyl(1.5, 1.5, 3, hwM, hx, bottom + dh * 0.5, front + 3, 12));
@@ -597,6 +621,78 @@ function wardrobeModel(w: number, h: number, height: number, opts: CabOpts = {})
     }
   } else {
     g.add(rbox(w + 3, 4, h, 2, bodyM, 0, height, -1.5));               // cornice
+  }
+  return g;
+}
+
+// ---- 日式與北歐：新增的兩個風格分類，靠的是新抓的三張掃描圖 ----
+//
+// 一個風格分類要有意義，裡面得有東西。實掃圖庫沒有和室家具（沒有人去掃榻榻米
+// 地台或障子），但這兩個風格的辨識度**幾乎全在材料**——榻榻米的藺草編、障子的
+// 紙與細木格、藤編櫃門——而材料正好是可以掃的。所以這幾件是程式蓋、貼實掃圖。
+const tatamiMat = (w: number, h: number) => {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0 });
+  m.name = 'tatami';
+  applyScan(m, 'tatami', w, h);           // 取顏色：藺草的黃綠就是它的樣子
+  return m;
+};
+const rattanMat = (w: number, h: number) => {
+  const m = new THREE.MeshStandardMaterial({ color: 0xd9c49a, roughness: 0.78, metalness: 0 });
+  m.name = 'rattan';
+  applyScan(m, 'rattan', w, h, { colour: false });
+  return m;
+};
+// 障子的紙：半透、有纖維。用亞麻的織紋當纖維，透光靠 transmission。
+const shojiPaperMat = () => {
+  const m = new THREE.MeshPhysicalMaterial({
+    color: 0xf6f1e4, roughness: 0.95, metalness: 0,
+    transmission: 0.55, thickness: 0.4, ior: 1.1, envMapIntensity: 0.8,
+  });
+  m.name = 'shoji-paper';
+  applyScan(m, 'linen', 30, 30, { colour: false });
+  return m;
+};
+
+/** 榻榻米地台：邊框是木、面是藺草蓆，離地 12–20cm。 */
+function tatamiPlatform(w: number, h: number, height = 16): THREE.Group {
+  const g = new THREE.Group();
+  const edge = woodMat(0x8a6238, 0.6, [w, height]);
+  g.add(rbox(w, height, h, 1.5, edge, 0, height / 2, 0));
+  g.add(box(w - 6, 1.5, h - 6, tatamiMat(w, h), 0, height + 0.6, 0));
+  // 蓆面的接縫：一疊榻榻米是 90×180，照這個比例分格才像
+  const cols = Math.max(1, Math.round(w / 90));
+  for (let i = 1; i < cols; i++)
+    g.add(box(1.2, 1.8, h - 6, edge, -w / 2 + (w / cols) * i, height + 0.7, 0));
+  return g;
+}
+
+/** 障子／屏風：細木格 ＋ 半透紙。 */
+function shojiScreen(w: number, h: number, height = 175): THREE.Group {
+  const g = new THREE.Group();
+  const f = woodMat(0x9a7a4e, 0.62, [w, height]);
+  const t = 3;
+  g.add(rbox(w, t, h, 1, f, 0, height - t / 2, 0));                 // 上下框
+  g.add(rbox(w, t, h, 1, f, 0, t / 2, 0));
+  for (const s of [-1, 1]) g.add(rbox(t, height, h, 1, f, s * (w / 2 - t / 2), height / 2, 0));
+  g.add(box(w - 2 * t, height - 2 * t, 0.8, shojiPaperMat(), 0, height / 2, 0));
+  const rows = 6, cols = Math.max(2, Math.round(w / 30));
+  for (let i = 1; i < rows; i++) g.add(box(w - 2 * t, 1.2, 1.6, f, 0, t + (height - 2 * t) * i / rows, 0));
+  for (let i = 1; i < cols; i++) g.add(box(1.2, height - 2 * t, 1.6, f, -w / 2 + (w / cols) * i, height / 2, 0));
+  return g;
+}
+
+/** 藤編門片的矮櫃——北歐與日式共用的那種細腳收納。 */
+function rattanCabinet(w: number, h: number, height: number, doors = 2, legH = 14): THREE.Group {
+  const g = new THREE.Group();
+  const woodM = woodMat(0x9c7846, 0.55, [w, height]);
+  legs4(g, w - 6, h - 6, legH, woodMat(0x6f5330, 0.5), 3, 2, 7, 0.12);
+  const carH = height - legH;
+  g.add(rbox(w, carH, h, 2, woodM, 0, legH + carH / 2, 0));
+  const dw = w / doors;
+  for (let i = 0; i < doors; i++) {
+    const dx = -w / 2 + dw * (i + 0.5);
+    g.add(box(dw - 4, carH - 8, 1.2, rattanMat(dw, carH), dx, legH + carH / 2, h / 2 + 0.8));
+    g.add(cyl(1.2, 1.2, 2.4, metalMat(0xb8a06a, 0.35), dx, legH + carH / 2, h / 2 + 2, 10));
   }
   return g;
 }
@@ -632,6 +728,21 @@ const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   wardrobe_grey: (w, h) => wardrobeModel(w, h, 210, { doors: 3, finish: 'grey', handle: 'bar' }),
   wardrobe_walnut: (w, h) => wardrobeModel(w, h, 200, { doors: 2, finish: 'walnut', base: 'feet', handle: 'knob' }),
   wardrobe_kids: (w, h) => wardrobeModel(w, h, 150, { doors: 2, finish: 'white', topBox: 30, handle: 'knob' }),
+  // 日式
+  jp_tatami:     (w, h) => tatamiPlatform(w, h, 16),
+  jp_tatami_high: (w, h) => tatamiPlatform(w, h, 32),
+  jp_shoji:      (w, h) => shojiScreen(w, h, 175),
+  jp_shoji_low:  (w, h) => shojiScreen(w, h, 120),
+  jp_low_table:  (w, h) => table(w, h, 33),
+  jp_low_cabinet: (w, h) => cabinetModel(w, h, 45, { doors: 3, base: 'plinth', handle: 'none' }),
+  jp_futon:      (w, h) => tatamiPlatform(w, h, 24),
+  // 北歐
+  nd_sideboard:  (w, h) => rattanCabinet(w, h, 78, 3),
+  nd_nightstand: (w, h) => rattanCabinet(w, h, 52, 1, 16),
+  nd_cabinet:    (w, h) => rattanCabinet(w, h, 120, 2, 16),
+  nd_wardrobe:   (w, h) => wardrobeModel(w, h, 190, { doors: 2, base: 'feet', handle: 'knob' }),
+  nd_shelf:      (w, h) => shelfModel(w, h, 150, 4),
+  nd_bench:      (w, h) => table(w, h, 45),
 };
 
 function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
@@ -731,8 +842,17 @@ const FLAT_ARCHETYPES: { re: RegExp; scan?: string; colour?: boolean; rough: num
                                         scan: 'weave',         colour: false, rough: 1,    metal: 0,    repeat: 0.08 },
   { re: /leather/i,                                                           rough: 0.45, metal: 0,    repeat: 1 },
   { re: /glass|mirror/i,                                                      rough: 0.05, metal: 0,    repeat: 1 },
-  { re: /lamp|light|bulb/i,                                                   rough: 0.35, metal: 0.15, repeat: 1 },
-  { re: /plastic/i,                                                           rough: 0.4,  metal: 0,    repeat: 1 },
+  { re: /lamp|shade/i,                  scan: 'linen',         colour: false, rough: 0.9,  metal: 0,    repeat: 0.05 },
+  // `\b` 不是裝飾。Quaternius 用顏色命名材質，於是 `LightOrange` 撞上 /light/
+  // 被當成燈具——燈具那條刻意不貼圖，所以那張地毯就永遠是純色的。
+  { re: /\blight\b|bulb|emissive/i,                                            rough: 0.35, metal: 0.15, repeat: 1 },
+  { re: /plant|leaf|foliage/i,          scan: 'rattan',        colour: false, rough: 0.55, metal: 0,    repeat: 0.02 },
+  { re: /plastic/i,                     scan: 'beige',         colour: false, rough: 0.4,  metal: 0,    repeat: 0.02 },
+  // 保底。Kenney 的模型有幾個 mesh 根本沒有具名材質（glTF 給的是 `_defaultMat`），
+  // 沒有這一條它們就永遠留白——實測是水槽、馬桶、洗衣機、抽油煙機、圓形淋浴間、
+  // 抽屜邊几六件。噴漆表面是最不會說謊的預設：它只加極細的起伏，不加木紋也不加
+  // 織紋，而那六件在現實裡確實都是烤漆或塑料面板。
+  { re: /./,                            scan: 'beige',         colour: false, rough: 0.5,  metal: 0,    repeat: 0.02 },
 ];
 
 function dressFlat(root: THREE.Object3D) {
@@ -740,6 +860,11 @@ function dressFlat(root: THREE.Object3D) {
     const mm = (o as THREE.Mesh).material;
     for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshStandardMaterial[]) {
       if (!m) continue;
+      // **名字可能不在材質上。** Kenney 的 glTF 帶著材質名，但 Quaternius 走的是
+      // OBJ → trimesh → GLB，而那條路上材質名掉了，語意留在 *node* 上（`Wood`、
+      // `DarkWood`、`Comforter`）。只看 m.name 的話這一整個來源一件都對不上，
+      // 而且看起來完全正常——沒有錯誤，只是全部維持純色。
+      if (!m.name && o.name) m.name = o.name;
       const a = FLAT_ARCHETYPES.find((k) => k.re.test(m.name ?? ''));
       if (!a) continue;
       if (a.scan) applyScan(m, a.scan, 0, 0, { colour: a.colour === true, repeat: a.repeat });

@@ -7,7 +7,8 @@ import { loadProject } from './net/api';
 import { setSaveBaseline } from './ui/autosave';
 import { notice } from './ui/feedback';
 import { warmMaterial, onTexturesReady } from './core/textures3d';
-import { loadFurnitureModel, onModelsReady } from './core/furniture3d';
+import { loadFurnitureModel, onModelsReady, getFurnitureModel } from './core/furniture3d';
+import { scansPending } from './core/textures3d';
 import { floorMaterials, wallMaterials } from './core/materials';
 import { FURNITURE } from './data/furniture';
 import { bounds } from './core/hit';
@@ -355,4 +356,6 @@ warmFinishes();
 // its own hardcoded list of ids, so every material added after it was written
 // silently went unrendered — and the whole point of that harness is that a
 // material is only verified by looking at it.
-if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes, floorMaterials, wallMaterials, FURNITURE };
+// getFurnitureModel/loadFurnitureModel 也露出來：bench/verify-textures.mjs 要能把
+// 每一件實際建出來檢查材質，而不是從畫面上目測。
+if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes, floorMaterials, wallMaterials, FURNITURE, loadFurnitureModel, getFurnitureModel, scansPending };

@@ -115,7 +115,7 @@ function buildCatalog(editor: Editor) {
   search.type = 'search'; search.placeholder = '搜尋家具…'; search.className = 'furn-search';
   bar.appendChild(search);
   const chips = document.createElement('div'); chips.className = 'furn-chips';
-  const STYLES = ['現代', '古典', '鄉村', '工業', '中式'];
+  const STYLES = ['現代', '北歐', '日式', '古典', '鄉村', '工業', '中式'];
   const chipEls = new Map<string, HTMLButtonElement>();
   const allChip = document.createElement('button');
   allChip.className = 'chip'; allChip.textContent = '全部';

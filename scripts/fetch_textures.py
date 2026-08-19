@@ -98,6 +98,15 @@ ASSETS = {
     # 拉絲金屬是少數 procedural 合理的情況——它本來就是機械加工出來的規則紋理，
     # 而 ambientCG 的 135 個 Metal 裡只有 1 個是實拍。這個只取 normal/roughness。
     'metal_brushed': (ACG, 'Metal050A'),           # 家電、把手、腳
+
+    # 第四批：為了「每一件都要貼皮」與新增的風格分類。前三個補的是原本沒有對應
+    # 掃描圖、只好留白的表面，後三個是新風格真正需要的材料。
+    'linen':         (PH, 'rough_linen'),          # 燈罩：布燈罩本來就有織紋，之前是純色
+    'leather':       (PH, 'brown_leather'),        # 皮沙發、皮椅面
+    'rattan':        (PH, 'riet_01'),              # 藤編／蘆葦：北歐與日式的櫃門、椅面
+    'tatami':        (PH, 'tatami_mat'),           # 榻榻米：日式地台
+    'lacquer':       (PH, 'lacquered_cherry_wood'),# 漆面木：中式與古典的亮面
+    'rosewood':      (PH, 'rosewood_veneer1'),     # 花梨木皮：中式
 }
 
 # `paint` (乳膠漆) is deliberately absent from both sources. Every plaster scan

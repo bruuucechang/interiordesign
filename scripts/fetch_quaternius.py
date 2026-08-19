@@ -1,7 +1,8 @@
 """Fetch the furniture styles the scan libraries do not have, from Quaternius.
 
-    .venv/bin/python scripts/fetch_quaternius.py          # 只抓缺的
-    .venv/bin/python scripts/fetch_quaternius.py --force  # 全部重來
+    .venv/bin/python scripts/fetch_quaternius.py                # 只抓缺的
+    .venv/bin/python scripts/fetch_quaternius.py --force        # 全部重來
+    .venv/bin/python scripts/fetch_quaternius.py --no-download  # 只把已經抓到的轉檔
 
 **Why a third source.** Poly Haven is exhausted: 77 of its 85 furniture models are
 already in the catalogue and the 8 left are outdoor. More to the point it has
@@ -153,10 +154,15 @@ def obj_files(pack: str, folder_id: str, force: bool) -> dict[str, Path]:
     # FBX 與 .blend 佔掉絕大部分的位元組跟絕大部分的 Drive 請求，而一個都用不到。
     fails: list[str] = []
     for f in listing:
-        p = Path(f.path if hasattr(f, 'path') else f)
-        if p.suffix.lower() not in ('.obj', '.mtl') or 'OBJ' not in p.parts:
+        rel = Path(f.path if hasattr(f, 'path') else f)
+        # gdown 回傳的 path 是**相對於當前工作目錄**的，不是相對於 output=。
+        # 直接拿它當下載目標的話，檔案會掉在 repo 根目錄的 OBJ/ 底下，而
+        # `obj_files` 只看 d/OBJ/，於是每一輪都以為自己什麼都沒抓到——看起來
+        # 就像 Google Drive 把整包鎖死。實際上 30 個檔早就下載成功了。
+        if rel.suffix.lower() not in ('.obj', '.mtl') or 'OBJ' not in rel.parts:
             continue
-        if p.stem not in want or (p.exists() and not force):
+        p = d / 'OBJ' / rel.name
+        if rel.stem not in want or (p.exists() and not force):
             continue
         p.parent.mkdir(parents=True, exist_ok=True)
         # 一個檔被擋不是「這個 pack 沒救了」。第一版在這裡 break，於是每一次
@@ -248,7 +254,14 @@ def main() -> int:
         else {'source': 'https://polyhaven.com', 'license': 'CC0 1.0', 'models': {}}
 
     pool: dict[str, Path] = {}
-    for pack, fid in PACKS.items():
+    if '--no-download' in sys.argv:
+        # Drive 真的開始擋的時候，手上通常已經有一批還沒轉檔的 OBJ。轉檔不需要
+        # 網路，沒有理由讓它跟著下載一起卡住。
+        for pack in PACKS:
+            pool |= {f.stem: f for f in (CACHE / pack).glob('OBJ/*.obj')}
+        print(f'不下載，只轉手上的 {len(pool)} 個檔')
+    else:
+      for pack, fid in PACKS.items():
         if all(n in pool for n, *_ in WANT.values()):
             break                                 # 已經湊齊就不要再敲 Drive
         print(f'{pack} …', flush=True)
