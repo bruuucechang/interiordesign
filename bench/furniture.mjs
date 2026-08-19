@@ -130,8 +130,8 @@ console.log('模型載入狀況:', await page.evaluate(async () => {
   return { gltf: r.length, names: r.map((e) => e.name.split('/').slice(-2, -1)[0]).join(',') };
 }));
 const file = join(OUT, CLOSE ? 'furniture-close.png' : 'furniture.png');
-const box = await page.locator('#view3d canvas').boundingBox();
-await page.screenshot({ path: file, clip: box });
+const box = await page.locator('#view3d canvas').boundingBox({ timeout: 120000 });
+await page.screenshot({ path: file, clip: box, timeout: 300000 });
 console.log('→', file);
 await browser.close();
 server.close();
