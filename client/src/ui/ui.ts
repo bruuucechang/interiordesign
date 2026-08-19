@@ -99,7 +99,7 @@ function buildCatalog(editor: Editor) {
   // A flat list stopped working somewhere past a hundred pieces: 客廳 alone is
   // 48 buttons, so finding one is scrolling past four screens of pictures. The
   // three controls are deliberately independent — search is a name substring,
-  // the chips are a style set, the fold is per-room — because the moment they
+  // the chips pick one style, the fold is per-room — because the moment they
   // gate each other, an empty panel has three possible causes and the user has
   // to guess which one they tripped.
   //
@@ -123,7 +123,15 @@ function buildCatalog(editor: Editor) {
   for (const st of STYLES) {
     const c = document.createElement('button');
     c.className = 'chip'; c.textContent = st;
-    c.onclick = () => { styleSel.has(st) ? styleSel.delete(st) : styleSel.add(st); apply(); };
+    // 單選。複選的聯集在這裡是反效果：現代 75 件加古典 37 件不會幫你找到東西，
+    // 只是把兩堆風格不同的家具倒在一起——而使用者按第二個鍵的意思幾乎一定是
+    // 「改看這個」，不是「兩個都要」。再按一次同一顆等於回到全部。
+    c.onclick = () => {
+      const only = styleSel.size === 1 && styleSel.has(st);
+      styleSel.clear();
+      if (!only) styleSel.add(st);
+      apply();
+    };
     chipEls.set(st, c); chips.appendChild(c);
   }
   allChip.onclick = () => { styleSel.clear(); apply(); };
