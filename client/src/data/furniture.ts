@@ -437,6 +437,119 @@ export const FURNITURE: FurnitureItem[] = [
       ctx.strokeStyle = '#e0b45a88';
       for (let i = 1; i < 9; i++) { const y = h * i / 9; ctx.beginPath(); ctx.moveTo(3, y); ctx.lineTo(w - 3, y); ctx.stroke(); }
     } },
+
+  // ---- 第五批：多種風格，全部 Poly Haven 實掃。尺寸就是模型量到的真實尺寸 --
+  { id: 'chair_painted', name: '彩繪餐椅', cat: '餐廳', w: 43, h: 54, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
+    } },
+  { id: 'chair_country', name: '鄉村單椅', cat: '客廳', w: 64, h: 66, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
+    } },
+  { id: 'chair_school', name: '書桌椅', cat: '書房', w: 57, h: 68, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
+    } },
+  { id: 'chair_plastic', name: '塑膠椅', cat: '餐廳', w: 64, h: 63, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
+    } },
+  { id: 'chair_arm_wood', name: '木扶手椅', cat: '客廳', w: 58, h: 60, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
+    } },
+  { id: 'cn_stool', name: '中式圓凳', cat: '中式', w: 60, h: 51, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'stool_low', name: '矮凳', cat: '客廳', w: 45, h: 47, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'stool_tall', name: '高腳凳', cat: '餐廳', w: 46, h: 47, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'stool_bar_round', name: '圓吧檯椅', cat: '餐廳', w: 48, h: 49, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'stool_painted', name: '彩繪小凳', cat: '客廳', w: 38, h: 41, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'chair_swivel', name: '造型旋轉椅', cat: '客廳', w: 76, h: 133, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
+    } },
+  { id: 'sofa_painted', name: '彩繪木沙發', cat: '客廳', w: 245, h: 79, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'cn_sofa', name: '中式沙發', cat: '中式', w: 228, h: 97, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'coffee_big', name: '大茶几', cat: '客廳', w: 154, h: 97, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'coffee_square', name: '方茶几', cat: '客廳', w: 120, h: 120, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'coffee_classic', name: '古典圓茶几', cat: '客廳', w: 144, h: 144, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'coffee_industrial', name: '工業風茶几', cat: '客廳', w: 78, h: 76, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_round_small', name: '小圓桌', cat: '餐廳', w: 80, h: 80, draw(ctx, w, h) {
+      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_painted', name: '彩繪長桌', cat: '餐廳', w: 241, h: 114, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_wood2', name: '木餐桌', cat: '餐廳', w: 113, h: 71, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_small', name: '小邊桌', cat: '客廳', w: 92, h: 44, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_low', name: '矮木桌', cat: '客廳', w: 83, h: 52, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'desk_school', name: '書桌', cat: '書房', w: 71, h: 55, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'side_tiny', name: '小方几', cat: '客廳', w: 30, h: 30, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'console_wood', name: '木條桌', cat: '客廳', w: 133, h: 56, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'cabinet_classic', name: '古典櫃', cat: '客廳', w: 172, h: 113, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'nightstand_painted', name: '彩繪床頭櫃', cat: '臥室', w: 50, h: 51, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'shelf_wide', name: '寬層架', cat: '書房', w: 235, h: 72, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 4);
+    } },
+  { id: 'rack_metal', name: '金屬層架', cat: '書房', w: 92, h: 60, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 4);
+    } },
+  { id: 'cart_storage', name: '收納推車', cat: '廚房', w: 160, h: 110, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'cn_commode', name: '中式條櫃', cat: '中式', w: 449, h: 117, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'bed_classic', name: '古典床', cat: '臥室', w: 149, h: 204, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 54); ctx.lineTo(w - 6, 54); ctx.stroke();
+    } },
+  { id: 'bed_frame', name: '鐵床架', cat: '臥室', w: 90, h: 200, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 54); ctx.lineTo(w - 6, 54); ctx.stroke();
+    } },
 ];
 
 export const FURNITURE_BY_ID: Record<string, FurnitureItem> = Object.fromEntries(FURNITURE.map(f => [f.id, f]));

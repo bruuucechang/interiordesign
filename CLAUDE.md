@@ -294,12 +294,23 @@ Diffuse 抓下來直接看。
 **拉絲金屬是 procedural 合理的少數情況**：它本來就是機械加工的規則紋理，而
 ambientCG 的 135 個 Metal 只有 1 個是實拍。
 
-### 家具與裝潢素材：94 件全部有 CC0 模型
+### 家具與裝潢素材：127 件全部有 CC0 模型
 
-`client/public/models/<catalogueId>/`（glTF ＋ .bin ＋ 貼圖，共 12.6MB），由
-`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。目錄 94 件**全部**有模型：Poly Haven 51 件（實掃）、Kenney Furniture Kit 43 件
+`client/public/models/<catalogueId>/`（glTF ＋ .bin ＋ 貼圖，共 41MB），由
+`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。目錄 127 件**全部**有模型：Poly Haven 90 件（實掃）、Kenney Furniture Kit 37 件
 （`scripts/fetch_kenney.py`，同樣 CC0）。程式蓋的家具建構程式已經沒有任何一個會被
 用到——它們留著只當備援。
+
+**風格是靠「同一類多抓幾件」做出來的，不是靠參數。** 一把椅子只能有一種樣子——
+它就是被掃下來的那一把。所以要彩繪鄉村、工業、古典、中式、金屬這幾種調性，唯一
+的辦法是每一類各抓一件實掃：`chair_painted`／`chair_country`／`chair_school`／
+`chair_plastic`、`coffee_classic`／`coffee_industrial`、`cn_stool`／`cn_sofa`／
+`cn_commode`、`rack_metal`／`stool_low`／`stool_tall`。目錄尺寸**直接用模型量到的
+真實尺寸**（POSITION accessor 的 min/max），不是我估的——猜尺寸就是廚櫃渲成 54cm
+的那個坑。
+
+**代價是磁碟。** models 目錄現在 41MB（第一批 12.6MB）。全部都是 1k 貼圖版、
+超過預算的會自動降到 512/384/256，已經是最省的一檔；再小就要動到幾何。
 
 **為什麼要第二個來源。** Poly Haven 是攝影測量，而冰箱、爐具、衛浴、洗衣機、以及
 不是雕花古董的床，根本沒有人去掃。那些類別在任何 CC0 圖庫都找不到掃描圖，替代
@@ -386,7 +397,7 @@ ambientCG 的 135 個 Metal 只有 1 個是實拍。
   不會有任何錯誤訊息，只是看起來像隨手擺的
 - **縮放是逐軸填滿宣告的 w/h，不是等比**。原本取 `min()` 讓模型保持比例，理由是
   「壓扁的沙發比留空隙糟」——那在目錄尺寸**就是**模型尺寸時成立（照片測量的那批縮放
-  倍率剛好 1），對 Kenney 那套做在固定格線上的就完全不成立。實測 94 件裡有 19 件比
+  倍率剛好 1），對 Kenney 那套做在固定格線上的就完全不成立。實測當時 94 件裡有 19 件比
   宣告的短超過 10cm，最糟是 180cm 的廚櫃渲成 **54cm**。在繪圖工具裡物件的 w/h 就是
   真相，拉把手就要拉得動，讓步的是比例
 - **高度取兩個縮放的 `min`**，所以單軸拉伸不會把東西拉高：更長的廚具還是檯面高度
@@ -413,7 +424,7 @@ ambientCG 的 135 個 Metal 只有 1 個是實拍。
 整個 App 掛掉。是 `bench/furniture.mjs` 的守衛（拿不到目錄就丟例外）先報出來的。
 
 **左側面板顯示模型自己的預覽圖**，不是俯視圖例。俯視圖例分不出太師椅與餐椅、
-吊燈與吸頂燈——它們都是同一個圓角矩形，而 94 件裡大部分都是這種情況。兩個圖庫本來
+吊燈與吸頂燈——它們都是同一個圓角矩形，而目錄裡大部分都是這種情況。兩個圖庫本來
 就各附一張渲染圖（Poly Haven 的 `thumbnail_url`、Kenney zip 裡的 `Isometric/*_SE.png`），
 抓取腳本一併存成 `client/public/models/<id>/thumb.png`（128px PNG 保留 alpha，因為
 它們要疊在面板自己的底色上）。
