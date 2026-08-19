@@ -79,13 +79,20 @@ const onlyStyle = await visible();
 const expectStyle = await page.evaluate(() => window.__app.FURNITURE.filter((f) => f.style === '現代').length);
 check('只留風格', onlyStyle === expectStyle, `${onlyStyle} 件`);
 
-// --- 多選風格是聯集 ---
+// --- 風格是單選：按第二顆要把第一顆放掉 ---
 await page.click('.chip:has-text("古典")');
 await page.waitForTimeout(80);
 const two = await visible();
-const expectTwo = await page.evaluate(() =>
-  window.__app.FURNITURE.filter((f) => f.style === '現代' || f.style === '古典').length);
-check('風格可複選（聯集）', two === expectTwo, `${two} 件`);
+const expectTwo = await page.evaluate(() => window.__app.FURNITURE.filter((f) => f.style === '古典').length);
+check('選另一個風格會取代前一個', two === expectTwo, `${two} 件（古典）`);
+check('前一個風格的按鈕已經不再亮著', (await page.$$('.chip.on')).length === 1);
+
+// 再按一次同一顆 = 回到全部
+await page.click('.chip:has-text("古典")');
+await page.waitForTimeout(80);
+check('再按一次同一顆回到全部', (await visible()) === total);
+await page.click('.chip:has-text("古典")');
+await page.waitForTimeout(80);
 
 // --- 摺疊不影響「誰被篩掉」，只影響看不看得到 ---
 const firstHead = await page.$('.furn-head:not([style*="none"])');
