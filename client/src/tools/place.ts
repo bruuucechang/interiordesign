@@ -126,7 +126,7 @@ export class FurnitureTool implements Tool {
     const ceiling = this.ctx.doc.activeFloor.height;
     const elevation = item.mount === 'ceiling' ? Math.max(0, ceiling - 60)
       : item.mount === 'wall' ? 150 : undefined;
-    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: p.snapped.x - item.w / 2, y: p.snapped.y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name, ...(elevation ? { elevation } : {}) });
+    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: p.snapped.x - item.w / 2, y: p.snapped.y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name, ...(elevation ? { elevation } : {}), ...(item.height ? { height: item.height } : {}) });
     this.ctx.doc.select(id);
     this.ctx.selectTool('select');
   }

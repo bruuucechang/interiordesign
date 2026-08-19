@@ -508,13 +508,31 @@ function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
   if (!models.has(item)) void loadFurnitureModel(item);
   const proto = models.get(item);
   if (proto) {
-    // Uniform, not per-axis: a sofa squashed to a square footprint is worse than
-    // one that leaves a gap. The catalogue's default w/h is the model's own real
-    // size, so the common case scales by exactly 1.
+    // Fill the declared footprint exactly, per axis.
+    //
+    // This used to take `min` of the two so the model kept its proportions, on
+    // the reasoning that a squashed sofa is worse than one that leaves a gap.
+    // That holds while the catalogue size *is* the model size — true for the
+    // photogrammetry, where the scale comes out 1 — and is wrong for the rest:
+    // Kenney's kit is authored on a fixed grid, so its sizes have nothing to do
+    // with the real ones the catalogue carries. Measured, 19 of 94 pieces came
+    // out more than 10 cm short of what they said they were, the worst being a
+    // 180 cm kitchen run rendering 54 cm wide.
+    //
+    // In a drawing tool the object's w/h is the truth: a 180 cm cabinet has to
+    // be 180 cm, and dragging its handles has to stretch it. Proportions are
+    // what gives way.
+    //
+    // Height takes the *smaller* of the two footprint scales, so stretching one
+    // axis never makes a piece taller: a longer run of kitchen units is still
+    // worktop height, which is what a longer run of kitchen units is. Where that
+    // still lands wrong — Kenney authored a base unit as a 43x48x45 cube — the
+    // catalogue says so outright with `height`, and `o.height` overrides this.
     const n = proto.userData.natural as THREE.Vector3;
-    const k = Math.min(w / (n.x || 1), h / (n.z || 1));
+    const kx = w / (n.x || 1);
+    const kz = h / (n.z || 1);
     const g = proto.clone(true);
-    g.scale.setScalar(k);
+    g.scale.set(kx, Math.min(kx, kz), kz);
     return g;
   }
   const b = BUILDERS[item];

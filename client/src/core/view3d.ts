@@ -831,7 +831,13 @@ export class View3D {
         const inst = getFurnitureModel(o.item, o.w, o.h).clone();
         if (o.color) this.recolour(inst, o.color);
         inst.position.set(o.x + o.w / 2, (o.elevation ?? 0) + yBase, o.y + o.h / 2);
-        if (o.height) inst.scale.y = o.height / getModelHeight(o.item, o.w, o.h);   // stretch to the set height
+        // *= not =: buildFurniture has already scaled the model to the object's
+        // footprint, and getModelHeight measures it *after* that. Assigning
+        // would throw that factor away. Invisible until the models stopped all
+        // being their own real size — every scan scales by 1, so = and *= were
+        // the same thing right up until Kenney's grid-authored kit arrived, and
+        // then a 200 cm wardrobe came out 83.
+        if (o.height) inst.scale.y *= o.height / getModelHeight(o.item, o.w, o.h);   // stretch to the set height
         inst.rotation.y = -o.angle * Math.PI / 180;
         this.furnGroup.add(inst);
         break;

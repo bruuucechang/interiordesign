@@ -18,6 +18,16 @@ export interface FurnitureItem {
    * cannot carry the answer, only the intent.
    */
   mount?: 'ceiling' | 'wall';
+  /**
+   * Real height in centimetres, where the model's own is wrong.
+   *
+   * The footprint comes from `w`/`h` and the height follows the smaller of the
+   * two scales — fine when the model's proportions are real, wrong when they are
+   * not. Kenney authored a kitchen base unit as a 43×48×45 cube, so scaled to a
+   * 180×60 run it came out 56 cm tall instead of 85. Anything with a standard
+   * height says it here rather than hoping the arithmetic lands.
+   */
+  height?: number;
   draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 }
 
@@ -86,7 +96,7 @@ export const FURNITURE: FurnitureItem[] = [
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 18, w - 16, h - 26, 6); ctx.stroke();
     } },
   { id: 'coffee', name: '茶几', cat: '客廳', w: 120, h: 60, draw(ctx, w, h) { body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke(); } },
-  { id: 'tv', name: '電視櫃', cat: '客廳', w: 150, h: 40, draw(ctx, w, h) {
+  { id: 'tv', name: '電視櫃', cat: '客廳', w: 150, h: 40, height: 45, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#7bc6ff'; ctx.beginPath(); ctx.moveTo(w * 0.2, 6); ctx.lineTo(w * 0.8, 6); ctx.stroke();
     } },
@@ -103,60 +113,60 @@ export const FURNITURE: FurnitureItem[] = [
   { id: 'dining', name: '餐桌', cat: '餐廳', w: 226, h: 139, draw(ctx, w, h) { body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke(); } },
   { id: 'chair', name: '餐椅', cat: '餐廳', w: 43, h: 58, draw(ctx, w, h) { body(ctx); rr(ctx, 0, 0, w, h, 5); ctx.fill(); ctx.stroke(); } },
   // 臥室
-  { id: 'bed_double', name: '雙人床', cat: '臥室', w: 150, h: 200, draw(ctx, w, h) {
+  { id: 'bed_double', name: '雙人床', cat: '臥室', w: 150, h: 200, height: 45, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w / 2 - 12, 40, 4); ctx.stroke(); rr(ctx, w / 2 + 4, 8, w / 2 - 12, 40, 4); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(6, 60); ctx.lineTo(w - 6, 60); ctx.stroke();
     } },
-  { id: 'bed_single', name: '單人床', cat: '臥室', w: 100, h: 200, draw(ctx, w, h) {
+  { id: 'bed_single', name: '單人床', cat: '臥室', w: 100, h: 200, height: 45, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 12, 8, w - 24, 40, 4); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(6, 58); ctx.lineTo(w - 6, 58); ctx.stroke();
     } },
   // 廚房
-  { id: 'stove', name: '爐具', cat: '廚房', w: 60, h: 60, draw(ctx, w, h) {
+  { id: 'stove', name: '爐具', cat: '廚房', w: 60, h: 60, height: 85, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#ff5c72'; [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]].forEach(([px, py]) => { ctx.beginPath(); ctx.arc(w * px, h * py, 8, 0, 7); ctx.stroke(); });
     } },
-  { id: 'fridge', name: '冰箱', cat: '廚房', w: 70, h: 70, draw(ctx, w, h) {
+  { id: 'fridge', name: '冰箱', cat: '廚房', w: 70, h: 70, height: 180, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#7bc6ff'; ctx.beginPath(); ctx.moveTo(6, h / 2); ctx.lineTo(w - 6, h / 2); ctx.stroke();
     } },
-  { id: 'sink', name: '水槽', cat: '廚房', w: 80, h: 50, draw(ctx, w, h) {
+  { id: 'sink', name: '水槽', cat: '廚房', w: 80, h: 50, height: 85, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#7bc6ff'; rr(ctx, 10, 10, w - 20, h - 20, 6); ctx.stroke();
     } },
   // 浴室
-  { id: 'toilet', name: '馬桶', cat: '浴室', w: 40, h: 60, draw(ctx, w, h) {
+  { id: 'toilet', name: '馬桶', cat: '浴室', w: 40, h: 60, height: 75, draw(ctx, w, h) {
       body(ctx); rr(ctx, 4, 0, w - 8, 18, 4); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.ellipse(w / 2, h * 0.62, w / 2 - 4, h * 0.32, 0, 0, 7); ctx.fill(); ctx.stroke();
     } },
-  { id: 'bathtub', name: '浴缸', cat: '浴室', w: 160, h: 75, draw(ctx, w, h) {
+  { id: 'bathtub', name: '浴缸', cat: '浴室', w: 160, h: 75, height: 55, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 10); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#7bc6ff'; rr(ctx, 10, 10, w - 20, h - 20, 8); ctx.stroke();
     } },
-  { id: 'shower', name: '淋浴間', cat: '浴室', w: 90, h: 90, draw(ctx, w, h) {
+  { id: 'shower', name: '淋浴間', cat: '浴室', w: 90, h: 90, height: 200, draw(ctx, w, h) {
       ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#7bc6ff'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.arc(w / 2, h / 2, 6, 0, 7); ctx.stroke();
     } },
   { id: 'desk', name: '書桌', cat: '書房', w: 200, h: 95, draw(ctx, w, h) { body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke(); } },
   // 櫃子 — filed under the room each belongs to
-  { id: 'cabinet_storage', name: '收納櫃', cat: '客廳', w: 90, h: 40, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
+  { id: 'cabinet_storage', name: '收納櫃', cat: '客廳', w: 90, h: 40, height: 82, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
   { id: 'display_cabinet', name: '展示櫃', cat: '客廳', w: 108, h: 37, draw(ctx, w, h) { glassCab(ctx, w, h, 2); } },
-  { id: 'shoe_cabinet', name: '鞋櫃', cat: '客廳', w: 100, h: 35, draw(ctx, w, h) { cabinet(ctx, w, h, 3); } },
+  { id: 'shoe_cabinet', name: '鞋櫃', cat: '客廳', w: 100, h: 35, height: 100, draw(ctx, w, h) { cabinet(ctx, w, h, 3); } },
   { id: 'cabinet_side', name: '餐邊櫃', cat: '餐廳', w: 244, h: 52, draw(ctx, w, h) { cabinet(ctx, w, h, 3); } },
-  { id: 'wardrobe', name: '衣櫃', cat: '臥室', w: 120, h: 60, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
+  { id: 'wardrobe', name: '衣櫃', cat: '臥室', w: 120, h: 60, height: 200, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
   { id: 'dresser', name: '五斗櫃', cat: '臥室', w: 114, h: 49, draw(ctx, w, h) { drawers(ctx, w, h, 4); } },
   { id: 'nightstand', name: '床頭櫃', cat: '臥室', w: 57, h: 42, draw(ctx, w, h) { drawers(ctx, w, h, 2); } },
-  { id: 'cabinet_kitchen', name: '廚櫃', cat: '廚房', w: 180, h: 60, draw(ctx, w, h) { cabinet(ctx, w, h, 4); } },
-  { id: 'tall_cabinet', name: '高櫃', cat: '廚房', w: 60, h: 50, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
-  { id: 'vanity', name: '浴櫃', cat: '浴室', w: 80, h: 50, draw(ctx, w, h) {
+  { id: 'cabinet_kitchen', name: '廚櫃', cat: '廚房', w: 180, h: 60, height: 85, draw(ctx, w, h) { cabinet(ctx, w, h, 4); } },
+  { id: 'tall_cabinet', name: '高櫃', cat: '廚房', w: 60, h: 50, height: 200, draw(ctx, w, h) { cabinet(ctx, w, h, 2); } },
+  { id: 'vanity', name: '浴櫃', cat: '浴室', w: 80, h: 50, height: 80, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
       ctx.strokeStyle = '#7bc6ff'; ctx.beginPath(); ctx.ellipse(w / 2, h / 2, w * 0.26, h * 0.28, 0, 0, 7); ctx.stroke();
     } },
   { id: 'bookshelf', name: '書櫃', cat: '書房', w: 110, h: 50, draw(ctx, w, h) { openShelf(ctx, w, h, 4); } },
-  { id: 'open_shelf', name: '開放層架', cat: '書房', w: 90, h: 30, draw(ctx, w, h) { openShelf(ctx, w, h, 3); } },
+  { id: 'open_shelf', name: '開放層架', cat: '書房', w: 90, h: 30, height: 180, draw(ctx, w, h) { openShelf(ctx, w, h, 3); } },
 
   // ---- 有 CC0 實掃模型的新款式（scripts/fetch_models.py）------------------
   // 尺寸就是模型本身量到的真實尺寸，不是估的。
@@ -324,15 +334,15 @@ export const FURNITURE: FurnitureItem[] = [
   // 尺寸是台灣住宅的實際尺寸，不是模型的——Kenney 的套件在固定格線上做，衣櫃只有
   // 56cm 寬、廚櫃 43cm。載入器本來就會把模型等比縮到物件的 w/h，所以目錄要放對的
   // 那一個。
-  { id: 'washer', name: '洗衣機', cat: '廚房', w: 60, h: 60, draw(ctx, w, h) {
+  { id: 'washer', name: '洗衣機', cat: '廚房', w: 60, h: 60, height: 85, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#9fd4ffaa'; ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 3, 0, 7); ctx.stroke();
     } },
-  { id: 'microwave', name: '微波爐', cat: '廚房', w: 50, h: 38, draw(ctx, w, h) {
+  { id: 'microwave', name: '微波爐', cat: '廚房', w: 50, h: 38, height: 30, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; ctx.beginPath(); ctx.moveTo(w * 0.72, 4); ctx.lineTo(w * 0.72, h - 4); ctx.stroke();
     } },
-  { id: 'coat_rack', name: '衣帽架', cat: '客廳', w: 45, h: 45, draw(ctx, w, h) {
+  { id: 'coat_rack', name: '衣帽架', cat: '客廳', w: 45, h: 45, height: 170, draw(ctx, w, h) {
       body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88';
       for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4;
@@ -342,28 +352,28 @@ export const FURNITURE: FurnitureItem[] = [
 
 
   // ---- 第四批：Kenney（CC0）。尺寸是台灣住宅的實際尺寸，不是模型的 ------
-  { id: 'range_hood', name: '抽油煙機', cat: '廚房', w: 90, h: 50, mount: 'wall', draw(ctx, w, h) {
+  { id: 'range_hood', name: '抽油煙機', cat: '廚房', w: 90, h: 50, height: 60, mount: 'wall', draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
     } },
-  { id: 'upper_cabinet', name: '廚房吊櫃', cat: '廚房', w: 80, h: 35, mount: 'wall', draw(ctx, w, h) {
+  { id: 'upper_cabinet', name: '廚房吊櫃', cat: '廚房', w: 80, h: 35, height: 70, mount: 'wall', draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
     } },
-  { id: 'kitchen_island', name: '中島', cat: '廚房', w: 180, h: 90, draw(ctx, w, h) {
+  { id: 'kitchen_island', name: '中島', cat: '廚房', w: 180, h: 90, height: 90, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
     } },
-  { id: 'dryer', name: '烘衣機', cat: '廚房', w: 60, h: 60, draw(ctx, w, h) {
+  { id: 'dryer', name: '烘衣機', cat: '廚房', w: 60, h: 60, height: 85, draw(ctx, w, h) {
       body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
-  { id: 'coffee_machine', name: '咖啡機', cat: '廚房', w: 30, h: 35, draw(ctx, w, h) {
+  { id: 'coffee_machine', name: '咖啡機', cat: '廚房', w: 30, h: 35, height: 35, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
     } },
-  { id: 'toilet_square', name: '方型馬桶', cat: '浴室', w: 40, h: 70, draw(ctx, w, h) {
+  { id: 'toilet_square', name: '方型馬桶', cat: '浴室', w: 40, h: 70, height: 75, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
     } },
-  { id: 'shower_round', name: '圓形淋浴間', cat: '浴室', w: 90, h: 90, draw(ctx, w, h) {
+  { id: 'shower_round', name: '圓形淋浴間', cat: '浴室', w: 90, h: 90, height: 200, draw(ctx, w, h) {
       body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
-  { id: 'trashcan', name: '垃圾桶', cat: '浴室', w: 40, h: 40, draw(ctx, w, h) {
+  { id: 'trashcan', name: '垃圾桶', cat: '浴室', w: 40, h: 40, height: 60, draw(ctx, w, h) {
       body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
   { id: 'sofa_corner', name: 'L型布沙發', cat: '客廳', w: 240, h: 240, draw(ctx, w, h) {
@@ -411,11 +421,11 @@ export const FURNITURE: FurnitureItem[] = [
       ctx.fillStyle = '#3a3524'; ctx.strokeStyle = '#f0c869'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
-  { id: 'chair_desk', name: '辦公椅', cat: '書房', w: 60, h: 60, draw(ctx, w, h) {
+  { id: 'chair_desk', name: '辦公椅', cat: '書房', w: 60, h: 60, height: 95, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 7, 14, w - 14, h - 22, 6); ctx.stroke();
     } },
-  { id: 'desk_corner', name: 'L型書桌', cat: '書房', w: 160, h: 140, draw(ctx, w, h) {
+  { id: 'desk_corner', name: 'L型書桌', cat: '書房', w: 160, h: 140, height: 75, draw(ctx, w, h) {
       body(ctx);
       ctx.beginPath();
       ctx.moveTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w, h * 0.42);
