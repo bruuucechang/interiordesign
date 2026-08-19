@@ -433,25 +433,13 @@ export class Renderer {
         this.text(mid, `↥${fmtLen(o.elevation)}`, '#c9a8ea');   // underside clearance off the floor
         break;
       }
-      case 'door': case 'window': {
-        // always show the wall remaining on each side of the opening
-        let best: { w: Extract<Obj, { kind: 'wall' }>; t: number } | null = null, bestD = 40;
-        for (const w of this.doc.objects) {
-          if (w.kind !== 'wall' || w.bulge) continue;
-          const cs = closestOnSegment({ x: o.x, y: o.y }, w.a, w.b);
-          const d = dist({ x: o.x, y: o.y }, cs.point);
-          if (d < bestD) { bestD = d; best = { w, t: cs.t }; }
-        }
-        if (best) {
-          const { w, t } = best, L = dist(w.a, w.b), dc = t * L, hw = o.width / 2;
-          const ux = L > 1e-6 ? (w.b.x - w.a.x) / L : 1, uy = L > 1e-6 ? (w.b.y - w.a.y) / L : 0;
-          const near = { x: w.a.x + ux * (dc - hw), y: w.a.y + uy * (dc - hw) };
-          const far = { x: w.a.x + ux * (dc + hw), y: w.a.y + uy * (dc + hw) };
-          this.text({ x: (w.a.x + near.x) / 2, y: (w.a.y + near.y) / 2 }, fmtLen(Math.max(0, dc - hw)), '#8bffb0');
-          this.text({ x: (far.x + w.b.x) / 2, y: (far.y + w.b.y) / 2 }, fmtLen(Math.max(0, L - dc - hw)), '#8bffb0');
-        }
+      case 'door': case 'window':
+        // 兩側剩餘牆長**不畫在圖上**。它們曾經是門窗兩側各一個綠色數字，但那是
+        // 一道牆上最擁擠的地方——門本身、牆、尺寸鏈、吸附輔助線都擠在那裡，而且
+        // 兩個數字的位置正好落在牆段中點，也就是中點吸附記號的位置上。
+        // 同樣兩個值在右側屬性面板是「左側牆長／右側牆長」，而且在那裡是**可以改
+        // 的**，不只是可以看的。同一份資訊放在能編輯它的地方，比放在最擠的地方好。
         break;
-      }
       case 'room': {
         const poly = o.poly && o.poly.length >= 3 ? o.poly : null;
         const c = poly ? polygonCentroid(poly) : { x: o.x + o.w / 2, y: o.y + o.h / 2 };
