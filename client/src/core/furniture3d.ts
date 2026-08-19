@@ -370,7 +370,32 @@ function plant(w: number, h: number): THREE.Group {
 // (with optional backsplash and a sink basin), and a row of drawers over the
 // doors — so a credenza, a sideboard, a kitchen base unit and a vanity all read
 // as different pieces of furniture rather than the same box.
-interface CabOpts { doors?: number; rows?: number; topDrawers?: number; base?: 'plinth' | 'toekick' | 'legs' | 'feet'; counter?: boolean; backsplash?: boolean; basin?: boolean; handle?: 'bar' | 'knob'; }
+//
+// **Wardrobes are why this got parametric.** No CC0 scan library has a second
+// one — Poly Haven carries 26 cabinet-ish models and none is a wardrobe (the
+// catalogue's is a `vintage_cabinet_01` standing in), because photogrammetry
+// gives you one of whatever somebody happened to scan, never a range. A box
+// with doors is also the one shape worth building rather than downloading: the
+// variety a real wardrobe wall has — two doors or three, hinged or sliding,
+// open, mirrored, a box on top — is all in the *front*, and the front is flat.
+// Faces get the same photographed veneer as everything else, so these sit in
+// the same room as the scans without looking like a different app.
+interface CabOpts {
+  doors?: number; rows?: number; topDrawers?: number;
+  base?: 'plinth' | 'toekick' | 'legs' | 'feet';
+  counter?: boolean; backsplash?: boolean; basin?: boolean;
+  handle?: 'bar' | 'knob' | 'none';
+  /** Sliding doors: leaves overlap on two tracks instead of butting together. */
+  slide?: boolean;
+  /** No doors — carcass, back panel, shelves and a hanging rail on view. */
+  open?: boolean;
+  /** Which door indexes are mirrored instead of veneered. */
+  mirror?: number[];
+  /** A shallow box of extra storage above the main carcass. */
+  topBox?: number;
+  /** Body/door finish. White and grey are painted board, not veneer. */
+  finish?: 'oak' | 'walnut' | 'white' | 'grey';
+}
 function cabPull(g: THREE.Group, m: THREE.Material, style: 'bar' | 'knob', x: number, y: number, z: number, span: number) {
   if (style === 'knob') g.add(cyl(1.5, 1.5, 3, m, x, y, z + 2, 12));
   else g.add(rbox(Math.min(span * 0.5, 14), 2.2, 3, 1, m, x, y, z + 2));
@@ -409,7 +434,7 @@ function cabinetModel(w: number, h: number, height: number, opts: CabOpts = {}):
     g.add(rbox(dw - 3, dh - 2, 3, 2, doorM, dx, dyc, front));                       // door leaf
     g.add(box((dw - 3) * 0.62, (dh - 2) * 0.78, 1.2, panelM, dx, dyc, front + 1.6)); // recessed panel
     const hx = dx + (i % 2 ? -dw / 2 + 6 : dw / 2 - 6);
-    cabPull(g, hwM, handle, hx, dyc, front, 6);
+    if (handle !== 'none') cabPull(g, hwM, handle, hx, dyc, front, 6);
   }
   // --- counter / backsplash / basin ---
   if (counter) {
@@ -480,6 +505,102 @@ function glassCabModel(w: number, h: number, height: number, doors: number): THR
   return g;
 }
 
+// Painted board — a white or grey wardrobe is sprayed MDF, not veneer, and it
+// really is that even. Scanning wood grain onto it would be inventing a
+// material the piece does not have.
+const paintedMat = (color: number) =>
+  new THREE.MeshPhysicalMaterial({ color, roughness: 0.42, metalness: 0, clearcoat: 0.3, clearcoatRoughness: 0.4, envMapIntensity: 1.0 });
+
+// A wardrobe, built from the choices a real one is specified by.
+function wardrobeModel(w: number, h: number, height: number, opts: CabOpts = {}): THREE.Group {
+  const { doors = 2, slide = false, open = false, mirror = [], topBox = 0,
+          base = 'plinth', handle = 'bar', finish = 'oak' } = opts;
+  const g = new THREE.Group(); const front = h / 2;
+  const painted = finish === 'white' || finish === 'grey';
+  const tone = finish === 'white' ? 0xe9e6df : 0x8d8f92;
+  const grain = finish === 'walnut' ? 'walnut' : 'oak';
+  const bodyM = painted ? paintedMat(tone) : woodMat(0x7a5636, 0.55, [w, height], grain);
+  const doorM = painted ? paintedMat(tone) : woodMat(0x86603a, 0.46, [w / Math.max(1, doors), height], grain);
+  const insideM = painted ? paintedMat(0xdedad2) : woodMat(0x9a7448, 0.62, [w, height], 'oak');
+  const hwM = metalMat(0x9aa3b0, 0.28);
+  // A mirror in a room with no reflection probe is a dark hole. What reads as a
+  // mirror at this size is a very smooth, very light metal — high metalness,
+  // near-zero roughness — which takes the environment map the scene already has.
+  const mirrorM = new THREE.MeshStandardMaterial({ color: 0xdfe6ec, roughness: 0.04, metalness: 1, envMapIntensity: 2.2 });
+
+  const carTop = height - topBox;
+  let bottom = 0;
+  if (base === 'toekick') { const k = 8; g.add(box(w - 8, k, h - 6, mat(0x241d15, { roughness: 0.85 }), 0, k / 2, 1)); bottom = k; }
+  else if (base === 'feet') { const lh = 9; for (const dx of [-1, 1]) for (const dz of [-1, 1]) g.add(cyl(3, 2.4, lh, bodyM, dx * (w / 2 - 8), lh / 2, dz * (h / 2 - 8), 10)); bottom = lh; }
+  else { const p = 6; g.add(rbox(w, p, h, 2, bodyM, 0, p / 2, 0)); bottom = p; }
+
+  const carH = carTop - bottom;
+  if (open) {
+    // Carcass only: sides, top, bottom, back — then what a wardrobe actually
+    // holds. Without the rail and the folded stack it reads as a bookcase.
+    const t = 3;
+    for (const s of [-1, 1]) g.add(rbox(t, carH, h, 1, bodyM, s * (w / 2 - t / 2), bottom + carH / 2, 0));
+    g.add(rbox(w, t, h, 1, bodyM, 0, carTop - t / 2, 0));
+    g.add(rbox(w, t, h, 1, bodyM, 0, bottom + t / 2, 0));
+    g.add(box(w - 2 * t, carH - 2 * t, 1, insideM, 0, bottom + carH / 2, -h / 2 + 1));
+    const railY = bottom + carH * 0.72;
+    const rail = cyl(1.5, 1.5, w - 2 * t - 2, hwM, 0, railY, 0, 12);
+    rail.rotation.z = Math.PI / 2;                                   // cylinders stand up; a rail runs across
+    g.add(rail);
+    const shelfY = bottom + carH * 0.86;
+    g.add(rbox(w - 2 * t, 2, h - 4, 1, insideM, 0, shelfY, 0));
+    const stackM = fabricMat(0xd8d2c6, 1, [30, 20]);
+    for (let i = 0; i < 3; i++) g.add(rbox((w - 2 * t) * 0.36, 7, h * 0.6, 1.5, stackM, -w * 0.22, shelfY + 5 + i * 8, 0));
+    for (let i = 0; i < 4; i++) {                                     // hanging clothes, blocked in
+      const cw = (w - 2 * t) / 5;
+      g.add(rbox(cw * 0.8, carH * 0.42, h * 0.5, 3, fabricMat([0x6d7f96, 0x8f6f5c, 0xa8a49b, 0x5f6b5e][i], 1, [30, 40]),
+        -w / 2 + t + cw * (i + 0.7), railY - carH * 0.23, 2));
+    }
+    return g;
+  }
+
+  g.add(rbox(w, carH, h - 3, 2, bodyM, 0, bottom + carH / 2, -1.5));   // carcass
+  const dh = carH - 3;
+  if (slide) {
+    // Two tracks: leaves are wider than their share so they overlap, and they
+    // sit at two depths. Doors flush in a row would be a hinged wardrobe.
+    const lw = (w / doors) * 1.06;
+    for (let i = 0; i < doors; i++) {
+      const dx = -w / 2 + lw / 2 + i * ((w - lw) / Math.max(1, doors - 1));
+      const z = front + (i % 2 ? 1.5 : 4.5);
+      g.add(rbox(lw, dh, 2.4, 1, mirror.includes(i) ? mirrorM : doorM, dx, bottom + dh / 2 + 1.5, z));
+      if (handle !== 'none') g.add(rbox(2, dh * 0.5, 2, 1, hwM, dx + (i % 2 ? -lw / 2 + 4 : lw / 2 - 4), bottom + dh * 0.55, z + 1.6));
+    }
+    g.add(rbox(w + 2, 3, h + 2, 1, bodyM, 0, carTop + 1.5, 0));        // head track
+  } else {
+    const dw = w / doors;
+    for (let i = 0; i < doors; i++) {
+      const dx = -w / 2 + dw * (i + 0.5);
+      const isMirror = mirror.includes(i);
+      g.add(rbox(dw - 2, dh, 3, 2, isMirror ? doorM : doorM, dx, bottom + dh / 2 + 1.5, front));
+      if (isMirror) g.add(box((dw - 2) * 0.82, dh * 0.9, 1, mirrorM, dx, bottom + dh / 2 + 1.5, front + 1.7));
+      else g.add(box((dw - 2) * 0.72, dh * 0.86, 1.2, painted ? paintedMat(tone) : woodMat(0x6f4d2b, 0.5, [dw, dh], grain), dx, bottom + dh / 2 + 1.5, front + 1.6));
+      if (handle !== 'none') {
+        const hx = dx + (i % 2 ? -dw / 2 + 5 : dw / 2 - 5);
+        if (handle === 'knob') g.add(cyl(1.5, 1.5, 3, hwM, hx, bottom + dh * 0.5, front + 3, 12));
+        else g.add(rbox(2, dh * 0.34, 2.6, 1, hwM, hx, bottom + dh * 0.5, front + 3));
+      }
+    }
+  }
+  if (topBox) {
+    g.add(rbox(w, topBox, h - 3, 2, bodyM, 0, carTop + topBox / 2, -1.5));
+    const bw = w / Math.max(2, doors);
+    for (let i = 0; i < Math.max(2, doors); i++) {
+      const dx = -w / 2 + bw * (i + 0.5);
+      g.add(rbox(bw - 2, topBox - 4, 3, 1.5, doorM, dx, carTop + topBox / 2, front));
+      if (handle !== 'none') g.add(rbox(bw * 0.35, 2, 2.4, 1, hwM, dx, carTop + 6, front + 2.5));
+    }
+  } else {
+    g.add(rbox(w + 3, 4, h, 2, bodyM, 0, height, -1.5));               // cornice
+  }
+  return g;
+}
+
 const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   dining: (w, h) => table(w, h, 75), desk: (w, h) => table(w, h, 75), coffee,
   chair, sofa, armchair,
@@ -496,6 +617,21 @@ const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   open_shelf: (w, h) => shelfModel(w, h, 180, 3),
   display_cabinet: (w, h) => glassCabModel(w, h, 180, 2),
   tall_cabinet: (w, h) => cabinetModel(w, h, 200, { doors: 2, rows: 2, base: 'toekick', handle: 'knob' }), // tall pantry: stacked doors
+  // 衣櫃家族——參數化而不是下載，理由寫在 CabOpts 上面
+  wardrobe_2door: (w, h) => wardrobeModel(w, h, 200, { doors: 2, handle: 'bar' }),
+  wardrobe_3door: (w, h) => wardrobeModel(w, h, 200, { doors: 3, handle: 'bar' }),
+  wardrobe_4door: (w, h) => wardrobeModel(w, h, 220, { doors: 4, handle: 'knob', finish: 'walnut' }),
+  wardrobe_slide: (w, h) => wardrobeModel(w, h, 200, { doors: 2, slide: true }),
+  wardrobe_slide3: (w, h) => wardrobeModel(w, h, 220, { doors: 3, slide: true, finish: 'grey' }),
+  wardrobe_mirror: (w, h) => wardrobeModel(w, h, 200, { doors: 3, mirror: [1], handle: 'bar' }),
+  wardrobe_mirror_slide: (w, h) => wardrobeModel(w, h, 220, { doors: 2, slide: true, mirror: [0], finish: 'white' }),
+  wardrobe_open: (w, h) => wardrobeModel(w, h, 200, { open: true }),
+  wardrobe_open_oak: (w, h) => wardrobeModel(w, h, 180, { open: true, base: 'feet', finish: 'walnut' }),
+  wardrobe_top: (w, h) => wardrobeModel(w, h, 240, { doors: 3, topBox: 45, base: 'toekick', handle: 'bar' }),
+  wardrobe_white: (w, h) => wardrobeModel(w, h, 200, { doors: 2, finish: 'white', handle: 'knob' }),
+  wardrobe_grey: (w, h) => wardrobeModel(w, h, 210, { doors: 3, finish: 'grey', handle: 'bar' }),
+  wardrobe_walnut: (w, h) => wardrobeModel(w, h, 200, { doors: 2, finish: 'walnut', base: 'feet', handle: 'knob' }),
+  wardrobe_kids: (w, h) => wardrobeModel(w, h, 150, { doors: 2, finish: 'white', topBox: 30, handle: 'knob' }),
 };
 
 function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
@@ -582,20 +718,29 @@ interface ModelEntry { asset: string; name: string; file: string; w: number; d: 
  * the value is a multiplier. Setting them first meant a fridge stayed at
  * roughness 1 — matte plastic — no matter what was attached to it.
  */
-const KENNEY_ARCHETYPES: { re: RegExp; scan?: string; colour?: boolean; rough: number; metal: number; repeat: number }[] = [
-  { re: /^wood/i,   scan: 'veneer_oak',    colour: true,  rough: 0.62, metal: 0,    repeat: 0.03 },
-  { re: /^metal/i,  scan: 'metal_brushed', colour: false, rough: 0.33, metal: 0.85, repeat: 0.06 },
-  { re: /^carpet/i, scan: 'weave',         colour: false, rough: 0.95, metal: 0,    repeat: 0.10 },
-  { re: /^glass/i,                                        rough: 0.05, metal: 0,    repeat: 1 },
-  { re: /^lamp/i,                                         rough: 0.35, metal: 0.15, repeat: 1 },
+// Quaternius is the same situation and the same fix, with two differences worth
+// keeping in mind. Its names are not prefixes — `DarkWood`, `Wood1`, `Wood2`
+// only match anchored patterns by accident — so these are substring tests.
+// And it names upholstery by the *object* rather than the material
+// (`Comforter`, `PillowCover`, `Mattress`), which all want the same weave.
+const FLAT_ARCHETYPES: { re: RegExp; scan?: string; colour?: boolean; rough: number; metal: number; repeat: number }[] = [
+  { re: /wood/i,                        scan: 'veneer_oak',    colour: true,  rough: 0.62, metal: 0,    repeat: 0.03 },
+  { re: /metal|steel|chrome/i,          scan: 'metal_brushed', colour: false, rough: 0.33, metal: 0.85, repeat: 0.06 },
+  { re: /carpet|rug/i,                  scan: 'weave',         colour: false, rough: 0.95, metal: 0,    repeat: 0.10 },
+  { re: /comforter|pillow|mattress|cushion|fabric|cloth|sofa|couch/i,
+                                        scan: 'weave',         colour: false, rough: 1,    metal: 0,    repeat: 0.08 },
+  { re: /leather/i,                                                           rough: 0.45, metal: 0,    repeat: 1 },
+  { re: /glass|mirror/i,                                                      rough: 0.05, metal: 0,    repeat: 1 },
+  { re: /lamp|light|bulb/i,                                                   rough: 0.35, metal: 0.15, repeat: 1 },
+  { re: /plastic/i,                                                           rough: 0.4,  metal: 0,    repeat: 1 },
 ];
 
-function dressKenney(root: THREE.Object3D) {
+function dressFlat(root: THREE.Object3D) {
   root.traverse((o) => {
     const mm = (o as THREE.Mesh).material;
     for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshStandardMaterial[]) {
       if (!m) continue;
-      const a = KENNEY_ARCHETYPES.find((k) => k.re.test(m.name ?? ''));
+      const a = FLAT_ARCHETYPES.find((k) => k.re.test(m.name ?? ''));
       if (!a) continue;
       if (a.scan) applyScan(m, a.scan, 0, 0, { colour: a.colour === true, repeat: a.repeat });
       m.roughness = a.rough;      // after applyScan — it forces roughness to 1
@@ -665,7 +810,7 @@ export function loadFurnitureModel(item: string): Promise<boolean> {
       // builds itself uses 8. Left alone, a sideboard's wood grain and a
       // shelf's metal frame shimmer at grazing angles — which is where most of
       // a room is seen from — while the floor right next to them does not.
-      if (entry.source === 'kenney') dressKenney(root);
+      if (entry.source === 'kenney' || entry.source === 'quaternius') dressFlat(root);
       root.traverse((o) => {
         const m = (o as THREE.Mesh).material;
         for (const mat of (Array.isArray(m) ? m : [m]) as THREE.MeshStandardMaterial[]) {

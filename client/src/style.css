@@ -217,3 +217,19 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .import-file:hover { border-color: var(--accent); color: var(--accent); }
 
 .align-btn.active { border-color: var(--accent); color: var(--accent); background: #33405c; }
+
+/* ---- furniture palette: search + style chips + folding rooms ----
+   The panel is 141 items. The filter row is sticky because the natural way to
+   use it is scroll → nothing good → change the filter, and a control you have
+   to scroll back up to reach gets used once and then not again. */
+.furn-filter { position: sticky; top: 0; z-index: 2; background: var(--panel); padding: 8px 10px 6px; border-bottom: 1px solid var(--line); }
+.furn-search { width: 100%; box-sizing: border-box; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 7px; padding: 5px 8px; font-size: 12px; }
+.furn-search:focus { outline: none; border-color: var(--accent); }
+.furn-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip { background: var(--panel2); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 2px 9px; font-size: 11px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip.on { background: #33405c; border-color: var(--accent); color: var(--text); }
+/* The count is what a filtered section says about itself: "客廳 3" after a
+   filter is information, a bare "客廳" is not. */
+.furn-count { font-size: 10px; color: var(--muted); background: var(--panel2); border-radius: 999px; padding: 1px 6px; }
+.furn-head.collapsible::after { margin-left: 6px; }

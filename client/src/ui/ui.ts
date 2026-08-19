@@ -2,7 +2,7 @@ import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj, Project } from '../model/schema';
 import { ELECTRICAL } from '../model/catalogue';
-import { FURNITURE, FURNITURE_CATS } from '../data/furniture';
+import { FURNITURE, FURNITURE_CATS, FurnitureItem } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 import { snap } from '../core/geometry';
 
@@ -94,12 +94,86 @@ function buildCatalog(editor: Editor) {
   }
   host.appendChild(pal);
 
-  // furniture, grouped by room category
+  // ---- furniture: search, style filter, collapsible rooms ----
+  //
+  // A flat list stopped working somewhere past a hundred pieces: 客廳 alone is
+  // 48 buttons, so finding one is scrolling past four screens of pictures. The
+  // three controls are deliberately independent — search is a name substring,
+  // the chips are a style set, the fold is per-room — because the moment they
+  // gate each other, an empty panel has three possible causes and the user has
+  // to guess which one they tripped.
+  //
+  // Fold state persists. A palette that re-opens all eight rooms every reload
+  // undoes the tidying every time, which is the same as not having it.
+  const LS_FOLD = 'furnFold', LS_STYLE = 'furnStyle';
+  const folded = new Set<string>(JSON.parse(localStorage.getItem(LS_FOLD) || '[]'));
+  const styleSel = new Set<string>(JSON.parse(localStorage.getItem(LS_STYLE) || '[]'));
+  let query = '';
+
+  const bar = document.createElement('div'); bar.className = 'furn-filter';
+  const search = document.createElement('input');
+  search.type = 'search'; search.placeholder = '搜尋家具…'; search.className = 'furn-search';
+  bar.appendChild(search);
+  const chips = document.createElement('div'); chips.className = 'furn-chips';
+  const STYLES = ['現代', '古典', '鄉村', '工業', '中式'];
+  const chipEls = new Map<string, HTMLButtonElement>();
+  const allChip = document.createElement('button');
+  allChip.className = 'chip'; allChip.textContent = '全部';
+  chips.appendChild(allChip);
+  for (const st of STYLES) {
+    const c = document.createElement('button');
+    c.className = 'chip'; c.textContent = st;
+    c.onclick = () => { styleSel.has(st) ? styleSel.delete(st) : styleSel.add(st); apply(); };
+    chipEls.set(st, c); chips.appendChild(c);
+  }
+  allChip.onclick = () => { styleSel.clear(); apply(); };
+  bar.appendChild(chips);
+  host.appendChild(bar);
+  search.oninput = () => { query = search.value.trim().toLowerCase(); apply(); };
+
+  const sections: { head: HTMLElement; grid: HTMLElement; cat: string; btns: { el: HTMLElement; item: FurnitureItem }[] }[] = [];
+  /** Re-run the filter over the buttons that already exist. Nothing is rebuilt:
+   *  the pictogram canvases and the 141 preview images are the expensive part,
+   *  and typing must not pay for them on every keystroke. */
+  function apply() {
+    allChip.classList.toggle('on', styleSel.size === 0);
+    for (const [st, c] of chipEls) c.classList.toggle('on', styleSel.has(st));
+    localStorage.setItem(LS_STYLE, JSON.stringify([...styleSel]));
+    for (const s of sections) {
+      let shown = 0;
+      for (const { el, item } of s.btns) {
+        const ok = (!query || item.name.toLowerCase().includes(query) || item.id.includes(query))
+          && (!styleSel.size || (item.style ? styleSel.has(item.style) : false));
+        el.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      }
+      // A section with nothing left in it goes away entirely — leaving the
+      // heading behind reads as "客廳 has no sofas" rather than "your filter
+      // excluded them".
+      s.head.style.display = shown ? '' : 'none';
+      s.grid.style.display = shown && !folded.has(s.cat) ? '' : 'none';
+      const n = s.head.querySelector('.furn-count');
+      if (n) n.textContent = String(shown);
+    }
+  }
+
   for (const cat of FURNITURE_CATS) {
     const items = FURNITURE.filter(f => f.cat === cat);
     if (!items.length) continue;
-    title(cat);
+    const head = document.createElement('div');
+    head.className = 'panel-title collapsible furn-head';
+    if (folded.has(cat)) head.classList.add('collapsed');
+    head.innerHTML = `<span>${cat}</span><span class="furn-count">${items.length}</span>`;
+    host.appendChild(head);
     const grid = document.createElement('div'); grid.className = 'furniture-grid';
+    const btns: { el: HTMLElement; item: FurnitureItem }[] = [];
+    head.onclick = () => {
+      folded.has(cat) ? folded.delete(cat) : folded.add(cat);
+      head.classList.toggle('collapsed', folded.has(cat));
+      localStorage.setItem(LS_FOLD, JSON.stringify([...folded]));
+      apply();
+    };
+    sections.push({ head, grid, cat, btns });
     for (const item of items) {
       const b = document.createElement('button');
       b.className = 'furn-btn'; b.dataset.furn = item.id;
@@ -134,10 +208,12 @@ function buildCatalog(editor: Editor) {
         b.classList.add('active');
         document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
       };
+      btns.push({ el: b, item });
       grid.appendChild(b);
     }
     host.appendChild(grid);
   }
+  apply();
 
   // 水電 — the electrical schedule a Taiwanese handover needs
   for (const cat of ['插座', '開關', '燈具']) {
@@ -293,7 +369,11 @@ function wireTopbar(editor: Editor, doc: Doc) {
     (btn as HTMLElement).onclick = () => handle((btn as HTMLElement).dataset.act!, editor, doc);
   });
   wireExportMenu(editor, doc);
-  document.querySelectorAll<HTMLElement>('.panel-title.collapsible').forEach(h => {
+  // `:not(.furn-head)` — 家具面板的分類標題自己有處理器（要存摺疊狀態、要重跑
+  // 篩選）。這一行是在 buildCatalog 之後跑的，少了排除條件就會把它整個蓋掉：
+  // 外觀完全正常（class 照樣 toggle、CSS 照樣把下一個 div 收起來），只是狀態
+  // 不再被記住、篩選也不再更新。是 bench/verify-palette.mjs 抓到的。
+  document.querySelectorAll<HTMLElement>('.panel-title.collapsible:not(.furn-head)').forEach(h => {
     h.onclick = () => h.classList.toggle('collapsed');   // fold/unfold the section below
   });
   $('#zoomOut').onclick = () => editor.zoomBy(1 / 1.1);
