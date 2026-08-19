@@ -16,3 +16,9 @@ __pycache__/
 # Built client copied into the image; never committed
 server/static/
 build/
+
+# 41MB 的 CC0 家具模型。不進 repo——沒有它們 app 照常跑（家具退回程式生成的
+# 幾何、面板退回畫出來的圖例），要的人自己 `npm run assets`。
+# 貼圖（client/public/textures，10MB）留著：那是牆、地板、每一個表面都要用的，
+# 沒有它整個場景就是素色，不存在「有需要的人」這種區分。
+client/public/models/
