@@ -45,25 +45,22 @@ THUMB_IN = 'Isometric/{}_SE.png'      # 面板預覽圖，套件本來就附
 THUMB_PX = 128
 
 # catalogue id → Kenney model. Every one of these replaces a procedural builder.
+# 這裡只留「CC0 圖庫沒有實掃版本」的類別。櫃體後來都在 Poly Haven 找到了實掃的，
+# 已經搬去 fetch_models.py：平鋪的材質貼在低多邊形上永遠長不成烘焙貼圖的樣子——
+# 前者每一格都一樣，後者每一平方公分都不同。
 MODELS = {
     'bed_double':      'bedDouble',
     'bed_single':      'bedSingle',
-    'wardrobe':        'bookcaseClosedDoors',
     'fridge':          'kitchenFridgeLarge',
     'stove':           'kitchenStove',
     'sink':            'kitchenSink',
     'toilet':          'toilet',
     'bathtub':         'bathtub',
     'shower':          'shower',
-    'tv':              'cabinetTelevisionDoors',
     'rug':             'rugRectangle',
     'plant':           'pottedPlant',
-    'cabinet_storage': 'bookcaseClosedWide',
-    'shoe_cabinet':    'kitchenCabinetDrawer',
     'cabinet_kitchen': 'kitchenCabinet',
     'vanity':          'bathroomCabinetDrawer',
-    'open_shelf':      'bookcaseOpen',
-    'tall_cabinet':    'bookcaseClosed',
     # 順帶補上台灣住宅常見、目錄本來沒有的
     'washer':          'washer',
     'microwave':       'kitchenMicrowave',
