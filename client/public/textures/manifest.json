@@ -222,6 +222,48 @@
       "source": "ambientcg",
       "asset": "Metal050A",
       "swatch": "#f6f8f7"
+    },
+    "linen": {
+      "tileCm": 27,
+      "attribution": "Poly Haven — rough_linen (CC0)",
+      "source": "polyhaven",
+      "asset": "rough_linen",
+      "swatch": "#91abcd"
+    },
+    "leather": {
+      "tileCm": 40,
+      "attribution": "Poly Haven — brown_leather (CC0)",
+      "source": "polyhaven",
+      "asset": "brown_leather",
+      "swatch": "#512d0f"
+    },
+    "rattan": {
+      "tileCm": 250,
+      "attribution": "Poly Haven — riet_01 (CC0)",
+      "source": "polyhaven",
+      "asset": "riet_01",
+      "swatch": "#5e5952"
+    },
+    "tatami": {
+      "tileCm": 180,
+      "attribution": "Poly Haven — tatami_mat (CC0)",
+      "source": "polyhaven",
+      "asset": "tatami_mat",
+      "swatch": "#8e825f"
+    },
+    "lacquer": {
+      "tileCm": 100,
+      "attribution": "Poly Haven — lacquered_cherry_wood (CC0)",
+      "source": "polyhaven",
+      "asset": "lacquered_cherry_wood",
+      "swatch": "#2f1c0f"
+    },
+    "rosewood": {
+      "tileCm": 243,
+      "attribution": "Poly Haven — rosewood_veneer1 (CC0)",
+      "source": "polyhaven",
+      "asset": "rosewood_veneer1",
+      "swatch": "#6d320f"
     }
   }
 }

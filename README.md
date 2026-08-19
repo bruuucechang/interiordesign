@@ -103,7 +103,7 @@ cd interior-designer
 npm install
 npm run setup:py     # 建立 .venv 並安裝後端依賴
 createdb interior_design
-npm run assets       # 選配：抓 127 件 CC0 家具模型（約 41MB，跑一次就好）
+npm run assets       # 選配：抓 CC0 家具模型（約 41MB，跑一次就好）
 npm run dev          # 同時起：FastAPI :8791 + Vite :5180
 # 打開 http://localhost:5180
 ```
@@ -112,6 +112,9 @@ npm run dev          # 同時起：FastAPI :8791 + Vite :5180
 而 clone 的代價是每個人都要付。**不跑也能用**：家具改用程式生成的幾何，不會報錯。
 只是那不是等價的替代品，早期那批（沙發、衣櫃、家電）有手寫幾何，後來以模型為前提
 加的七十幾件會退成素方塊。要的時候隨時補跑，不用重裝任何東西。
+
+目錄共 **154 件**，其中 27 件（14 款衣櫃 ＋ 13 件日式／北歐）是程式蓋的，不需要
+下載也一樣完整——實掃圖庫沒有第二個衣櫃，也沒有和室家具。
 
 若要從舊的 SQLite 存檔搬資料到 PostgreSQL：
 
