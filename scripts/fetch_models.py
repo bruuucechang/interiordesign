@@ -280,9 +280,13 @@ def main() -> int:
                  'resolution': RES, 'models': models}
     existing.setdefault('sources', {})['polyhaven'] = 'https://polyhaven.com'
     manifest_path.write_text(json.dumps(existing, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print(f'manifest 共 {len(models)} 筆'
-          f'（polyhaven {sum(1 for v in models.values() if v.get("source") != "kenney")}、'
-          f'kenney {sum(1 for v in models.values() if v.get("source") == "kenney")}）')
+    # 照 source 真的分組數。原本寫成「不是 kenney 就算 polyhaven」，於是第三個
+    # 來源進來之後，摘要當場謊報 145 筆 polyhaven——資料其實好好的，但那行字
+    # 看起來就像剛剛把 56 筆別人的資料覆蓋掉了。
+    by: dict[str, int] = {}
+    for v in models.values():
+        by[v.get('source', '?')] = by.get(v.get('source', '?'), 0) + 1
+    print(f'manifest 共 {len(models)} 筆（' + '、'.join(f'{k} {n}' for k, n in sorted(by.items())) + '）')
     total = sum(f.stat().st_size for f in OUT.rglob('*') if f.is_file()) / 1024 / 1024
     print(f'共 {total:.1f} MB')
     return 0

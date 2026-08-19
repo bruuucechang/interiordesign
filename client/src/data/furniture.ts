@@ -790,6 +790,49 @@ export const FURNITURE: FurnitureItem[] = [
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
     } },
+  { id: 'couch_lg3', name: '大沙發 III', style: '現代', cat: '客廳', w: 230, h: 95, height: 84, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'couch_md2', name: '雙人沙發 II', style: '現代', cat: '客廳', w: 170, h: 90, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'couch_sm1', name: '單人沙發 I', style: '現代', cat: '客廳', w: 95, h: 88, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'couch_sm2', name: '單人沙發 II', style: '現代', cat: '客廳', w: 100, h: 90, height: 82, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'drawer_q1', name: '抽屜櫃 I', style: '現代', cat: '臥室', w: 90, h: 45, height: 80, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'drawer_q2', name: '抽屜櫃 II', style: '現代', cat: '臥室', w: 100, h: 45, height: 85, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'drawer_q3', name: '抽屜櫃 III', style: '現代', cat: '臥室', w: 80, h: 45, height: 75, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'plant_q1', name: '盆栽 I', style: '現代', cat: '裝飾', w: 40, h: 40, height: 90, draw(ctx, w, h) {
+      ctx.fillStyle = '#264a34'; ctx.strokeStyle = '#47c479'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'plant_q2', name: '盆栽 II', style: '現代', cat: '裝飾', w: 45, h: 45, height: 120, draw(ctx, w, h) {
+      ctx.fillStyle = '#264a34'; ctx.strokeStyle = '#47c479'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'plant_q3', name: '盆栽 III', style: '現代', cat: '裝飾', w: 35, h: 35, height: 70, draw(ctx, w, h) {
+      ctx.fillStyle = '#264a34'; ctx.strokeStyle = '#47c479'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'curtain_dbl', name: '雙開窗簾', style: '現代', cat: '裝飾', w: 180, h: 12, height: 220, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'fireplace_q', name: '壁爐', style: '古典', cat: '客廳', w: 120, h: 40, height: 110, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
 ];
 
 export const FURNITURE_BY_ID: Record<string, FurnitureItem> = Object.fromEntries(FURNITURE.map(f => [f.id, f]));

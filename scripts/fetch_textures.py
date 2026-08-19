@@ -64,7 +64,7 @@ ASSETS = {
     'herringbone': (PH,  'herringbone_parquet'), # 人字拼木 — 340 cm
     'tile':        (PH,  'interior_tiles'),      # 拋光石英磚 — large cream tiles, 190 cm
     'marble':      (PH,  'marble_01'),           # 大理石 — clean polished, 150 cm
-    'terrazzo':    (ACG, 'Terrazzo005'),         # 磨石子 — 見下方註解
+    'terrazzo':    (PH,  'terrazzo_tiles'),       # 磨石子 — 換掉 ACG 的 Terrazzo005：那是 PBRProcedural
     'concrete':    (PH,  'painted_concrete_02'), # 水泥粉光 — smooth mid-grey, 400 cm
     'plaster':     (PH,  'white_stucco'),        # 藝術塗料 — trowelled, 200 cm
     'brick':       (PH,  'whitewashed_brick'),   # 文化石 — 200 cm

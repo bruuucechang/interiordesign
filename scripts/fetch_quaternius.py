@@ -129,6 +129,26 @@ WANT = {
     'carpet_round_q':   ('Carpet_Round',  '圓地毯',     '客廳', '現代', 160, 160, 2),
     'curtain_dbl':      ('Curtains_Double', '雙開窗簾', '裝飾', '現代', 180, 12, 220),
     'fireplace_q':      ('Fireplace',     '壁爐',       '客廳', '古典', 120, 40, 110),
+
+    # --- 取代 Kenney 的那批。理由是「看起來像不像程式硬生出來的」：Kenney 的
+    # 家電與衛浴是平面著色的低多邊形，拉近看就是玩具，而這些類別在任何 CC0 圖庫
+    # 都沒有實掃版本。Quaternius 的同一批東西多邊形細得多、也有真的圓角與凹槽。
+    # 這幾個**沿用原本的 catalogue id**，所以是就地換掉，不是新增一份。
+    'toilet':           ('Bathroom_Toilet',  '馬桶',    '浴室', '現代', 38, 68, 78),
+    'toilet_square':    ('Bathroom_Toilet2', '方形馬桶', '浴室', '現代', 38, 70, 80),
+    'bathtub':          ('Bathroom_Bathtub', '浴缸',    '浴室', '現代', 170, 75, 55),
+    'shower':           ('Bathroom_Shower1', '淋浴間',  '浴室', '現代', 90, 90, 200),
+    'vanity':           ('Bathroom_Sink',    '浴櫃',    '浴室', '現代', 80, 50, 85),
+    'washer':           ('Bathroom_WashingMachine', '洗衣機', '浴室', '現代', 60, 60, 85),
+    'fridge':           ('Kitchen_Fridge',   '冰箱',    '廚房', '現代', 70, 70, 180),
+    'stove':            ('Kitchen_Oven',     '爐具',    '廚房', '現代', 60, 60, 90),
+    'oven_large':       ('Kitchen_Oven_Large', '雙口爐', '廚房', '現代', 90, 62, 90),
+    'sink':             ('Kitchen_Sink',     '水槽',    '廚房', '現代', 80, 60, 90),
+    'cabinet_kitchen':  ('Kitchen_Cabinet1', '廚櫃',    '廚房', '現代', 80, 60, 85),
+    'upper_cabinet':    ('Kitchen_Cabinet2', '吊櫃',    '廚房', '現代', 80, 35, 70),
+    'bed_double':       ('Bed_King',         '雙人床',  '臥室', '現代', 150, 200, 75),
+    'bed_single':       ('Bed_Single',       '單人床',  '臥室', '現代', 90, 190, 75),
+    'trashcan':         ('Trashcan_Small1',  '垃圾桶',  '廚房', '現代', 30, 30, 45),
 }
 
 
