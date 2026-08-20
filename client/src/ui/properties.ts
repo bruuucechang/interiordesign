@@ -481,38 +481,93 @@ async function addDimensionChain(doc: Doc, wall: Extract<Obj, { kind: 'wall' }>)
   flash(`已加入 ${dims.length} 段尺寸標註`);
 }
 
+/**
+ * 把「四道牆圍成一個小方框」就地換成一根實心的牆。
+ *
+ * 判斷條件刻意收得很緊：兩邊都 ≤ 120cm、四個角要對得上、而且四道牆都只屬於這個
+ * 框。放寬的話會把一間小廁所吃掉——那是把一個房間變成一根柱子，比留著四道牆糟
+ * 得多。
+ */
+function collapseColumns(walls: [Vec, Vec, number][]) {
+  const near = (a: number, b: number) => Math.abs(a - b) < 1.5;
+  const horiz = ([a, b]: [Vec, Vec, number]) => near(a.y, b.y);
+  const vert = ([a, b]: [Vec, Vec, number]) => near(a.x, b.x);
+  const xs = ([a, b]: [Vec, Vec, number]) => [Math.min(a.x, b.x), Math.max(a.x, b.x)];
+  const ys = ([a, b]: [Vec, Vec, number]) => [Math.min(a.y, b.y), Math.max(a.y, b.y)];
+  const gone = new Set<[Vec, Vec, number]>();
+  const add: [Vec, Vec, number][] = [];
+  for (const top of walls) {
+    if (gone.has(top) || !horiz(top)) continue;
+    const [x0, x1] = xs(top);
+    if (x1 - x0 > 120 || x1 - x0 < 5) continue;
+    const bottom = walls.find(w => w !== top && !gone.has(w) && horiz(w)
+      && near(xs(w)[0], x0) && near(xs(w)[1], x1)
+      && Math.abs(w[0].y - top[0].y) > 5 && Math.abs(w[0].y - top[0].y) <= 120);
+    if (!bottom) continue;
+    const [y0, y1] = [Math.min(top[0].y, bottom[0].y), Math.max(top[0].y, bottom[0].y)];
+    const sides = walls.filter(w => !gone.has(w) && vert(w)
+      && near(ys(w)[0], y0) && near(ys(w)[1], y1) && (near(w[0].x, x0) || near(w[0].x, x1)));
+    if (sides.length !== 2) continue;
+    for (const m of [top, bottom, ...sides]) gone.add(m);
+    const w = x1 - x0, h = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    add.push(w >= h
+      ? [{ x: x0, y: cy }, { x: x1, y: cy }, h]
+      : [{ x: cx, y: y0 }, { x: cx, y: y1 }, w]);
+  }
+  if (!add.length) return;
+  for (let i = walls.length - 1; i >= 0; i--) if (gone.has(walls[i])) walls.splice(i, 1);
+  walls.push(...add);
+}
+
 // Auto-generate walls from an underlay image, then let room detection fill in rooms.
 async function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { kind: 'image' }>) {
   flash('正在辨識牆體…');
   const traced = await detectWalls(o.src);
   if (!traced) { flash('無法辨識牆體 — 後端未連線'); return; }
   {
-    const { segments, w: iw, h: ih } = traced;
+    const { segments, thickness, w: iw, h: ih } = traced;
     const grid = editor.gridSize || 10;
     const toWorld = (p: Vec) => ({ x: snap(o.x + (p.x / iw) * o.w, grid), y: snap(o.y + (p.y / ih) * o.h, grid) });
-    const raw = segments
-      .map(([a, b]) => [toWorld(a), toWorld(b)] as [Vec, Vec])
+    // 像素 → 公分。底圖可能不等比放，取兩軸的平均當厚度的比例。
+    const pxToCm = ((o.w / iw) + (o.h / ih)) / 2;
+    const raw: [Vec, Vec, number][] = segments
+      .map(([a, b], i) => [toWorld(a), toWorld(b), (thickness?.[i] ?? 0) * pxToCm] as [Vec, Vec, number])
       .filter(([a, b]) => Math.hypot(a.x - b.x, a.y - b.y) >= grid * 2);
 
     // weld nearby endpoints into shared nodes so corners actually meet
     const nodes: Vec[] = [];
     const node = (p: Vec) => { for (const q of nodes) if (Math.hypot(p.x - q.x, p.y - q.y) <= grid * 1.5) return q; const n = { x: p.x, y: p.y }; nodes.push(n); return n; };
-    const welded = raw.map(([a, b]) => [node(a), node(b)] as [Vec, Vec]).filter(([a, b]) => a !== b);
+    const welded = raw.map(([a, b, t]) => [node(a), node(b), t] as [Vec, Vec, number]).filter(([a, b]) => a !== b);
 
     // split walls where another wall's node lands mid-span (T-junctions), so rooms close
-    const walls: [Vec, Vec][] = [];
-    for (const [a, b] of welded) {
+    const walls: [Vec, Vec, number][] = [];
+    for (const [a, b, t] of welded) {
       const mids = nodes
         .filter(p => p !== a && p !== b && distToSegment(p, a, b) <= grid)
         .map(p => { const cs = closestOnSegment(p, a, b); p.x = cs.point.x; p.y = cs.point.y; return { p, t: cs.t }; })   // weld the node exactly onto the wall
         .filter(m => m.t > 0.02 && m.t < 0.98)
         .sort((x, y) => x.t - y.t);
       const seq = [a, ...mids.map(m => m.p), b];
-      for (let i = 1; i < seq.length; i++) if (Math.hypot(seq[i].x - seq[i - 1].x, seq[i].y - seq[i - 1].y) >= grid) walls.push([seq[i - 1], seq[i]]);
+      for (let i = 1; i < seq.length; i++) if (Math.hypot(seq[i].x - seq[i - 1].x, seq[i].y - seq[i - 1].y) >= grid) walls.push([seq[i - 1], seq[i], t]);
     }
     if (!walls.length) { flash('偵測不到牆體 — 請確認是清晰、線條分明的平面圖'); return; }
     doc.commit();
-    for (const [a, b] of walls) doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a, b, thickness: 12 } as Obj);
+    // **柱子是柱子，不是四道牆。** 底圖上的柱子是一個實心黑塊，四邊各描一條線，
+    // 於是辨識出來會是四道圍成小方框的牆。那在 2D 看得過去，3D 就是一個空心的
+    // 方管，而且外緣比黑塊大一整個牆厚。一道 `thickness` 等於短邊、中心線沿長邊
+    // 的牆本來就是一個實心長方體——不需要新的物件種類，2D 填充、房間偵測、選取
+    // 編輯全部照舊。
+    collapseColumns(walls);
+
+    // **厚度用量到的，不是寫死的。** 底圖上一道牆畫成兩條線，兩條線之間就是它的
+    // 厚度；以前這裡一律給 12，於是圖上 24 公分的牆生出 12 公分的、8 公分的隔間
+    // 生出 12 公分的——後者直接畫到使用者的線外面去。量不到（只看到一個面）才退回
+    // 12。夾在 4–60 之間：Hough 偶爾會把兩道平行的牆併成一組，那會量出一個離譜的
+    // 厚度，而一道 3 公尺厚的牆比一道 12 公分的錯牆難發現得多。
+    for (const [a, b, t] of walls) {
+      const thick = t >= 4 ? Math.min(60, Math.round(t)) : 12;
+      doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a, b, thickness: thick } as Obj);
+    }
     editor.selectTool('select');
     flash(`已從底圖生成 ${walls.length} 道牆（封閉區域會自動成為房間，可再手動調整）`);
   }

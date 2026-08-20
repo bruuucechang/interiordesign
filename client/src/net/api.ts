@@ -223,7 +223,8 @@ export async function importDxf(file: string, layers: string[], unit: string): P
   } catch { return null; }
 }
 
-export interface TracedWalls { segments: [Vec, Vec][]; w: number; h: number; }
+// thickness 與 segments 一一對應，單位同座標（處理後的像素）。0 = 只看到一個面，量不到。
+export interface TracedWalls { segments: [Vec, Vec][]; thickness?: number[]; w: number; h: number; }
 
 /**
  * Wall centrelines traced out of an underlay image, in the processed pixel

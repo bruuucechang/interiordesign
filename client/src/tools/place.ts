@@ -100,17 +100,61 @@ export class OpeningTool implements Tool {
   deactivate() { this.cand = null; this.ctx.setPreview(); }
 }
 
+const FURN_SNAP = 60;   // cm — 游標離牆多近才算「要靠牆放」
+
+/**
+ * 靠牆放的家具要背對牆。
+ *
+ * 沙發、床、櫃子、書桌的正面都在 local +y（3D 是 +z）那一側——`furniture3d.ts`
+ * 的沙發把椅背放在 `-h/2`，圖例也把椅背畫在上緣。所以「背靠牆」就是讓 local +y
+ * 指向室內，也就是牆的內法線。
+ *
+ * 之前一律 `angle: 0`，於是靠上牆放的沙發是對的，靠下牆放的沙發背朝著房間中央、
+ * 臉貼著牆——而那是四面牆裡的三面。
+ *
+ * 兩種東西不轉：
+ *   · 天花板件（吊燈、吊扇）——它掛在上面，沒有正面
+ *   · 高度 ≤ 5cm 的地面覆蓋物（地毯、榻榻米、門墊）——轉了看不出來，
+ *     但位置會被推去貼牆，那不是使用者要的
+ */
+export function fitFurnitureToWall(
+  doc: Doc, cursor: Vec, item: { w: number; h: number; height?: number; mount?: string },
+): { pos: Vec; angle: number } | null {
+  if (item.mount === 'ceiling' || (item.height ?? 999) <= 5) return null;
+  let best: { pos: Vec; angle: number } | null = null, bestD = FURN_SNAP;
+  for (const o of doc.objects) {
+    if (o.kind !== 'wall' || !doc.isLayerVisible(o.layer)) continue;
+    const cs = closestOnSegment(cursor, o.a, o.b);
+    const d = dist(cursor, cs.point);
+    if (d >= bestD || d < 1e-6) continue;
+    // 內法線：從牆指向游標那一側。牆有兩面，使用者點的那一面就是要靠的那一面。
+    const n = { x: (cursor.x - cs.point.x) / d, y: (cursor.y - cs.point.y) / d };
+    const off = (o.thickness ?? 12) / 2 + item.h / 2;
+    bestD = d;
+    best = {
+      pos: { x: cs.point.x + n.x * off, y: cs.point.y + n.y * off },
+      angle: Math.atan2(-n.x, n.y) * 180 / Math.PI,
+    };
+  }
+  return best;
+}
+
 // Place the currently-selected furniture item, then switch to the select tool.
 export class FurnitureTool implements Tool {
   name = 'furniture'; cursor = 'crosshair'; hint = '點擊放置所選家具（可再選取調整）';
   constructor(private ctx: ToolCtx) {}
 
+  private fit: { pos: Vec; angle: number } | null = null;
+
   onMove(p: PointerInfo) {
     const item = FURNITURE_BY_ID[this.ctx.currentFurniture];
     if (!item) { this.ctx.setPreview(); return; }
+    // 預覽就要轉好。放下去才轉的話，使用者是在對著一個跟結果不一樣的鬼影瞄準。
+    this.fit = fitFurnitureToWall(this.ctx.doc, p.snapped, item);
+    const c = this.fit?.pos ?? p.snapped, a = this.fit?.angle ?? 0;
     this.ctx.setPreview(ctx => {
       ctx.save(); ctx.globalAlpha = 0.55;
-      ctx.translate(p.snapped.x, p.snapped.y); ctx.translate(-item.w / 2, -item.h / 2);
+      ctx.translate(c.x, c.y); ctx.rotate(a * Math.PI / 180); ctx.translate(-item.w / 2, -item.h / 2);
       item.draw(ctx, item.w, item.h); ctx.restore();
     });
     this.ctx.render();
@@ -126,7 +170,9 @@ export class FurnitureTool implements Tool {
     const ceiling = this.ctx.doc.activeFloor.height;
     const elevation = item.mount === 'ceiling' ? Math.max(0, ceiling - 60)
       : item.mount === 'wall' ? 150 : undefined;
-    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: p.snapped.x - item.w / 2, y: p.snapped.y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name, ...(elevation ? { elevation } : {}), ...(item.height ? { height: item.height } : {}) });
+    const fit = this.fit ?? fitFurnitureToWall(this.ctx.doc, p.snapped, item);
+    const c = fit?.pos ?? p.snapped;
+    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: c.x - item.w / 2, y: c.y - item.h / 2, w: item.w, h: item.h, angle: fit?.angle ?? 0, label: item.name, ...(elevation ? { elevation } : {}), ...(item.height ? { height: item.height } : {}) });
     this.ctx.doc.select(id);
     this.ctx.selectTool('select');
   }

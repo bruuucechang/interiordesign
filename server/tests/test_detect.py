@@ -57,6 +57,36 @@ def test_a_walls_two_drawn_faces_become_one_centreline():
     assert 200 <= y <= 212, f"centreline at {y} should sit between the faces"
 
 
+def test_the_drawn_thickness_comes_back_measured():
+    """兩條面線之間的距離就是牆的厚度，它要跟著中心線一起回來。
+
+    以前這個值算出來就丟掉，前端一律給 12——於是圖上 24 公分的牆生出 12 公分的、
+    8 公分的隔間生出 12 公分的，後者直接畫到使用者的線外面。而「不要超出我畫的線」
+    是描圖唯一的硬性要求。
+    """
+    for gap in (12, 20, 28):    # 一張 600px 寬的圖約 1px = 1cm，也就是 12/20/28 公分的牆
+        img = blank()
+        cv2.line(img, (60, 200), (540, 200), (0, 0, 0), 2)
+        cv2.line(img, (60, 200 + gap), (540, 200 + gap), (0, 0, 0), 2)
+        out = detect_walls(png_b64(img))
+        assert len(out["segments"]) == 1, f"gap={gap} 應該併成一道牆"
+        assert len(out["thickness"]) == len(out["segments"])
+        got = out["thickness"][0]
+        assert abs(got - gap) <= 4, f"畫 {gap} px 量到 {got}"
+
+
+def test_a_single_drawn_face_reports_no_thickness():
+    """只畫一面的牆量不出厚度——回 0 讓呼叫端退回預設值。
+
+    量不到跟量到 0 是兩件事，所以這裡不回一個猜的數字。
+    """
+    img = blank()
+    cv2.line(img, (60, 200), (540, 200), (0, 0, 0), 2)
+    out = detect_walls(png_b64(img))
+    assert len(out["segments"]) == 1
+    assert out["thickness"][0] <= 4
+
+
 def test_a_diagonal_wall_is_found():
     # the scanline detector this replaced could only see axis-aligned ink
     img = blank()

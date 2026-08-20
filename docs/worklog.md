@@ -301,6 +301,7 @@ Quaternius 抓了兩輪、每輪一小時，快取始終停在 13 個檔，我�
 | `verify-textures.mjs` | 每一件的每一個材質都要有貼圖；刻意留白的列 EXEMPT 並寫理由 |
 | `verify-openings.mjs` | 門窗兩側牆長連動；並掃像素確認圖上不再畫那組綠字 |
 | `shot-items.mjs` | 目錄分批拉近渲染——判斷「看起來粗不粗糙」只能用看的 |
+| `verify-placement.mjs` | 靠牆的家具要背對牆；四面牆各驗一次 |
 | `soak.mjs` / `report.mjs` | 長跑，看有沒有漂移 |
 | `coldstart.mjs` / `drag.mjs` | 首幀成本、一次拖曳幾次重繪 |
 
