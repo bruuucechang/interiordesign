@@ -426,7 +426,7 @@ export const FURNITURE: FurnitureItem[] = [
       rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.setLineDash([8, 6]); rr(ctx, 7, 7, w - 14, h - 14, 3); ctx.stroke(); ctx.setLineDash([]);
     } },
-  { id: 'tv_wall', name: '壁掛電視', style: '現代', cat: '客廳', w: 120, h: 10, mount: 'wall', draw(ctx, w, h) {
+  { id: 'tv_wall', name: '液晶電視', style: '現代', cat: '客廳', w: 120, h: 10, mount: 'wall', draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
     } },
   { id: 'pillow', name: '抱枕', style: '現代', cat: '客廳', w: 45, h: 45, draw(ctx, w, h) {
@@ -852,6 +852,162 @@ export const FURNITURE: FurnitureItem[] = [
       ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
   { id: 'oven_large', name: '雙口爐', style: '現代', cat: '廚房', w: 90, h: 62, height: 90, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+
+  // ---- Sweet Home 3D 的 Blend Swap CC-0 素材庫：真實建材尺寸的一般家具 ----
+  { id: 'sh_oven', name: '烤箱', style: '現代', cat: '廚房', w: 60, h: 52, height: 58, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_oven_double', name: '雙烤箱', style: '現代', cat: '廚房', w: 60, h: 52, height: 109, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_cooktop', name: '爐台', style: '現代', cat: '廚房', w: 58, h: 50, height: 4, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_fridge_big', name: '大冰箱', style: '現代', cat: '廚房', w: 92, h: 81, height: 184, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_fridge', name: '冰箱', style: '現代', cat: '廚房', w: 90, h: 96, height: 172, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_cab_sink', name: '水槽櫃', style: '現代', cat: '廚房', w: 60, h: 61, height: 121, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_cab_lower', name: '下櫃', style: '現代', cat: '廚房', w: 60, h: 61, height: 88, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_cab_corner', name: '轉角下櫃', style: '現代', cat: '廚房', w: 81, h: 82, height: 88, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_cab_upper', name: '吊櫃', style: '現代', cat: '廚房', w: 60, h: 41, height: 72, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_cab_upper_c', name: '轉角吊櫃', style: '現代', cat: '廚房', w: 81, h: 81, height: 72, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_cab_high', name: '高身廚櫃', style: '現代', cat: '廚房', w: 60, h: 61, height: 217, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_cab_drawers', name: '抽屜櫃', style: '現代', cat: '廚房', w: 60, h: 61, height: 88, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_cab_glass', name: '玻璃門櫥櫃', style: '現代', cat: '廚房', w: 60, h: 41, height: 72, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_stool_bar', name: '吧檯高凳', style: '現代', cat: '廚房', w: 53, h: 52, height: 98, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_toilet', name: '馬桶', style: '現代', cat: '浴室', w: 35, h: 69, height: 77, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_washbasin', name: '洗臉盆', style: '現代', cat: '浴室', w: 56, h: 46, height: 93, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_vanity', name: '浴櫃', style: '現代', cat: '浴室', w: 90, h: 71, height: 93, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_bidet', name: '坐浴盆', style: '現代', cat: '浴室', w: 40, h: 54, height: 51, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_shower_door', name: '淋浴門', style: '現代', cat: '浴室', w: 90, h: 22, height: 230, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_towel_rack', name: '毛巾架', style: '現代', cat: '浴室', w: 60, h: 8, height: 48, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 4);
+    } },
+  { id: 'sh_wardrobe_slide', name: '滑門衣櫃', style: '現代', cat: '臥室', w: 200, h: 66, height: 236, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_cupboard', name: '碗櫥', style: '現代', cat: '臥室', w: 100, h: 39, height: 150, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_bed1', name: '雙人床（布質）', style: '現代', cat: '臥室', w: 141, h: 208, height: 96, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'sh_bed2', name: '雙人床（木框）', style: '古典', cat: '臥室', w: 145, h: 214, height: 108, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'sh_bed_baby', name: '嬰兒床', style: '現代', cat: '臥室', w: 60, h: 82, height: 76, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'sh_bedside', name: '床頭櫃', style: '現代', cat: '臥室', w: 49, h: 48, height: 45, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_sofa_corner', name: '轉角沙發', style: '現代', cat: '客廳', w: 249, h: 190, height: 78, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'sh_couch', name: '大沙發', style: '現代', cat: '客廳', w: 230, h: 160, height: 87, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'sh_sofa_winch', name: '溫徹斯特沙發', style: '古典', cat: '客廳', w: 232, h: 94, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
+    } },
+  { id: 'sh_armchair_winch', name: '溫徹斯特扶手椅', style: '古典', cat: '客廳', w: 112, h: 93, height: 80, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_armchair', name: '扶手椅', style: '現代', cat: '客廳', w: 95, h: 83, height: 78, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_tv_cabinet', name: '電視櫃', style: '現代', cat: '客廳', w: 135, h: 69, height: 160, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_bookcase', name: '玻璃書櫃', style: '現代', cat: '客廳', w: 92, h: 36, height: 147, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_shelves_v', name: '直立層架', style: '現代', cat: '客廳', w: 44, h: 39, height: 185, draw(ctx, w, h) {
+      cabinet(ctx, w, h, 2);
+    } },
+  { id: 'sh_oak_table', name: '橡木桌', style: '鄉村', cat: '餐廳', w: 124, h: 124, height: 74, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_oak_chair', name: '橡木椅', style: '鄉村', cat: '餐廳', w: 49, h: 61, height: 118, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_osaka_chair', name: '大阪椅', style: '日式', cat: '餐廳', w: 48, h: 52, height: 77, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_piano', name: '鋼琴', style: '古典', cat: '客廳', w: 132, h: 170, height: 178, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_piano_bench', name: '琴凳', style: '古典', cat: '客廳', w: 62, h: 36, height: 52, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_tatami', name: '榻榻米', style: '日式', cat: '客廳', w: 100, h: 200, height: 6, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_lantern', name: '日式石燈', style: '日式', cat: '燈具', w: 16, h: 16, height: 35, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_lamp', name: '立燈', style: '現代', cat: '燈具', w: 53, h: 51, height: 63, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_desk_lamp', name: '桌燈', style: '現代', cat: '燈具', w: 24, h: 24, height: 40, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_wall_light', name: '壁燈', style: '現代', cat: '燈具', w: 23, h: 25, height: 54, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_ceiling_fan', name: '吊扇', style: '現代', cat: '燈具', w: 91, h: 80, height: 39, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_radiator', name: '暖氣片', style: '工業', cat: '客廳', w: 55, h: 21, height: 64, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_radiator_long', name: '長暖氣片', style: '工業', cat: '客廳', w: 216, h: 14, height: 83, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'sh_pool_table', name: '撞球桌', style: '現代', cat: '客廳', w: 256, h: 139, height: 82, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
     } },
 ];

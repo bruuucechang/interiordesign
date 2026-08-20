@@ -311,10 +311,10 @@ Quaternius 抓了兩輪、每輪一小時，快取始終停在 13 個檔，我�
 
 ## 五、目前狀態
 
-- 家具目錄 **203 件**：176 件有 CC0 模型（Poly Haven 90 實掃 + Quaternius 72 + Kenney 14），
+- 家具目錄 **251 件**：224 件有 CC0 模型（Poly Haven 90 實掃 + Quaternius 72 + Sweet Home 3D 55 + Kenney 7），
   另 27 件是參數化（14 款衣櫃 + 13 件日式／北歐）
-- **203 件全部貼皮**，由 `bench/verify-textures.mjs` 逐材質驗證，不是目測
-- 風格 7 種：現代 91／古典 39／鄉村 30／工業 17／北歐 10／中式 9／日式 7
+- **251 件全部貼皮**，由 `bench/verify-textures.mjs` 逐材質驗證，不是目測
+- 風格 7 種：現代 127／古典 44／鄉村 32／工業 19／北歐 10／日式 10／中式 9
 - 材質 34 組掃描圖
 - 材質 **28 種**（27 種是 CC0 掃描圖，拉絲金屬是 procedural）；磁碟上另有 3 組
   只給家具用的掃描圖（木皮、編織、金屬），共 31 組
@@ -336,6 +336,8 @@ Quaternius 抓了兩輪、每輪一小時，快取始終停在 13 個檔，我�
 |---|---|---|
 | [Poly Haven](https://polyhaven.com) | 貼圖 + 90 件家具模型 | CC0 1.0 |
 | [ambientCG](https://ambientcg.com) | 少數貼圖（拉絲金屬） | CC0 1.0 |
-| [Kenney Furniture Kit](https://kenney.nl/assets/furniture-kit) | 37 件家電／衛浴 | CC0 1.0 |
+| [Quaternius](https://quaternius.com) | 72 件（沙發、床、燈、衛浴、廚房） | CC0 1.0 |
+| [Sweet Home 3D · Blend Swap CC-0](https://www.sweethome3d.com/importModels.jsp) | 55 件真實尺寸的一般家具 | CC0 1.0 |
+| [Kenney Furniture Kit](https://kenney.nl/assets/furniture-kit) | 剩 7 件 | CC0 1.0 |
 
 三個都不需要付費、不需要註冊。Kenney 說署名不強制，manifest 還是帶著。

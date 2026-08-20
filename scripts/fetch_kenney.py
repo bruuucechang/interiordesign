@@ -58,17 +58,10 @@ MODELS = {
     'coat_rack':       'coatRackStanding',
 
     # 第二批。台灣廚房沒有抽油煙機和吊櫃就不是廚房。
-    'range_hood':      'hoodModern',
-    'kitchen_island':  'kitchenBar',
     'dryer':           'dryer',
-    'coffee_machine':  'kitchenCoffeeMachine',
-    'shower_round':    'showerRound',
     'rug_square':      'rugSquare',
     'doormat':         'rugDoormat',
     'table_glass':     'tableGlass',
-    'tv_wall':         'televisionModern',
-    'desk_corner':     'deskCorner',
-    'stairs':          'stairsOpen',
     'pillow':          'pillowLong',
 }
 

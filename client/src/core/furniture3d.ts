@@ -840,7 +840,7 @@ const FLAT_ARCHETYPES: { re: RegExp; scan?: string; colour?: boolean; rough: num
   { re: /carpet|rug/i,                  scan: 'weave',         colour: false, rough: 0.95, metal: 0,    repeat: 0.10 },
   { re: /comforter|pillow|mattress|cushion|fabric|cloth|sofa|couch/i,
                                         scan: 'weave',         colour: false, rough: 1,    metal: 0,    repeat: 0.08 },
-  { re: /leather/i,                                                           rough: 0.45, metal: 0,    repeat: 1 },
+  { re: /leather/i,                     scan: 'leather',       colour: false, rough: 0.45, metal: 0,    repeat: 0.04 },
   { re: /glass|mirror/i,                                                      rough: 0.05, metal: 0,    repeat: 1 },
   // `^light$` 是燈罩不是燈泡。Quaternius 把整個罩體叫 `Light`（立燈 60 面、
   // 水晶吊燈 240 面），拿它當發光體就會有五盞燈整片純色。真正不該貼圖的是
@@ -864,6 +864,10 @@ function dressFlat(root: THREE.Object3D) {
     const mm = (o as THREE.Mesh).material;
     for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshStandardMaterial[]) {
       if (!m) continue;
+      // **自己帶貼圖的就不要動。** Sweet Home 3D 那批多半有烘焙好的貼圖（那正是
+      // 它們看起來像真家具的原因），套上平鋪的掃描圖等於把它蓋掉。這裡只補真的
+      // 空白的那些——Kenney 與 Quaternius 是整批空白，所以行為不變。
+      if (m.map || m.normalMap || m.roughnessMap) continue;
       // **名字可能不在材質上。** Kenney 的 glTF 帶著材質名，但 Quaternius 走的是
       // OBJ → trimesh → GLB，而那條路上材質名掉了，語意留在 *node* 上（`Wood`、
       // `DarkWood`、`Comforter`）。只看 m.name 的話這一整個來源一件都對不上，
@@ -939,7 +943,7 @@ export function loadFurnitureModel(item: string): Promise<boolean> {
       // builds itself uses 8. Left alone, a sideboard's wood grain and a
       // shelf's metal frame shimmer at grazing angles — which is where most of
       // a room is seen from — while the floor right next to them does not.
-      if (entry.source === 'kenney' || entry.source === 'quaternius') dressFlat(root);
+      if (entry.source !== 'polyhaven') dressFlat(root);   // 實掃那批本來就完整
       root.traverse((o) => {
         const m = (o as THREE.Mesh).material;
         for (const mat of (Array.isArray(m) ? m : [m]) as THREE.MeshStandardMaterial[]) {
