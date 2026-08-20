@@ -710,10 +710,6 @@ export const FURNITURE: FurnitureItem[] = [
       body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
     } },
-  { id: 'couch_l', name: 'L 型沙發', style: '現代', cat: '客廳', w: 260, h: 190, height: 78, draw(ctx, w, h) {
-      body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
-    } },
   { id: 'couch_lg1', name: '大沙發 I', style: '現代', cat: '客廳', w: 220, h: 92, height: 80, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
@@ -750,13 +746,6 @@ export const FURNITURE: FurnitureItem[] = [
   { id: 'bookshelf_q', name: '書架', style: '現代', cat: '書房', w: 80, h: 30, height: 180, draw(ctx, w, h) {
       openShelf(ctx, w, h, 3);
     } },
-  { id: 'carpet_q1', name: '地毯 I', style: '現代', cat: '客廳', w: 200, h: 140, height: 2, draw(ctx, w, h) {
-      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
-      rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
-    } },
-  { id: 'carpet_round_q', name: '圓地毯', style: '現代', cat: '客廳', w: 160, h: 160, height: 2, draw(ctx, w, h) {
-      body(ctx); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
-    } },
   { id: 'wardrobe_tall', name: '高衣櫃', style: '古典', cat: '臥室', w: 150, h: 60, height: 220, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
     } },
@@ -772,9 +761,6 @@ export const FURNITURE: FurnitureItem[] = [
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
     } },
   { id: 'chair_wood_q', name: '木餐椅', style: '古典', cat: '餐廳', w: 45, h: 48, height: 90, draw(ctx, w, h) {
-      body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
-    } },
-  { id: 'chair_office', name: '辦公椅', style: '現代', cat: '書房', w: 60, h: 60, height: 105, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 9); ctx.fill(); ctx.stroke();
     } },
   { id: 'desk_wood', name: '木書桌', style: '古典', cat: '書房', w: 120, h: 60, height: 75, draw(ctx, w, h) {
@@ -806,18 +792,11 @@ export const FURNITURE: FurnitureItem[] = [
       body(ctx); rr(ctx, 0, 0, w, h, 12); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 20, w - 16, h - 28, 8); ctx.stroke();
     } },
-  { id: 'drawer_q1', name: '抽屜櫃 I', style: '現代', cat: '臥室', w: 90, h: 45, height: 80, draw(ctx, w, h) {
-      cabinet(ctx, w, h, 2);
-    } },
   { id: 'drawer_q2', name: '抽屜櫃 II', style: '現代', cat: '臥室', w: 100, h: 45, height: 85, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
     } },
   { id: 'drawer_q3', name: '抽屜櫃 III', style: '現代', cat: '臥室', w: 80, h: 45, height: 75, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
-    } },
-  { id: 'plant_q1', name: '盆栽 I', style: '現代', cat: '裝飾', w: 40, h: 40, height: 90, draw(ctx, w, h) {
-      ctx.fillStyle = '#264a34'; ctx.strokeStyle = '#47c479'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
     } },
   { id: 'plant_q2', name: '盆栽 II', style: '現代', cat: '裝飾', w: 45, h: 45, height: 120, draw(ctx, w, h) {
       ctx.fillStyle = '#264a34'; ctx.strokeStyle = '#47c479'; ctx.lineWidth = 2;
@@ -831,6 +810,48 @@ export const FURNITURE: FurnitureItem[] = [
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
     } },
   { id: 'fireplace_q', name: '壁爐', style: '古典', cat: '客廳', w: 120, h: 40, height: 110, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_round_lg', name: '大圓桌', style: '現代', cat: '餐廳', w: 120, h: 120, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'table_round_sm', name: '小圓桌', style: '現代', cat: '餐廳', w: 70, h: 70, height: 72, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'nightstand_q1', name: '床頭櫃 I', style: '現代', cat: '臥室', w: 45, h: 40, height: 55, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'nightstand_q2', name: '床頭櫃 II', style: '現代', cat: '臥室', w: 48, h: 42, height: 58, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; rr(ctx, 8, 8, w - 16, 38, 4); ctx.stroke();
+    } },
+  { id: 'shelf_q1', name: '層架 I', style: '現代', cat: '客廳', w: 90, h: 30, height: 180, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 3);
+    } },
+  { id: 'shelf_q2', name: '層架 II', style: '現代', cat: '客廳', w: 100, h: 32, height: 190, draw(ctx, w, h) {
+      openShelf(ctx, w, h, 3);
+    } },
+  { id: 'shelf_wall_q', name: '壁掛層板', style: '現代', cat: '客廳', w: 60, h: 22, height: 20, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'light_pend2', name: '吊燈 II', style: '現代', cat: '燈具', w: 45, h: 45, height: 50, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'light_pend3', name: '吊燈 III', style: '現代', cat: '燈具', w: 35, h: 35, height: 40, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'light_chand_q', name: '水晶吊燈', style: '古典', cat: '燈具', w: 60, h: 60, height: 70, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'light_floor_q2', name: '立燈 II', style: '現代', cat: '燈具', w: 42, h: 42, height: 155, draw(ctx, w, h) {
+      ctx.fillStyle = '#3a4150'; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'oven_large', name: '雙口爐', style: '現代', cat: '廚房', w: 90, h: 62, height: 90, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
     } },
 ];

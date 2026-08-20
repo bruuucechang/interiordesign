@@ -63,6 +63,8 @@ PACKS = {
 # come from the ordinary ranges: a two-door wardrobe is 120x60x200, a double bed
 # 150x200, a bookcase 80x30x180. The app scales x/z to fill w/h and takes the
 # height from the `height` column.
+# 有幾個沿用了 Kenney 原本的 catalogue id（rug、plant、lamp_* …）。那是刻意的：
+# 就地換掉才不會讓面板同時出現兩個一模一樣的東西，也不會讓既有存檔裡的物件失效。
 WANT = {
     # --- 衣櫃：這是這個來源存在的理由。實掃圖庫一款都沒有 ---
     'wardrobe_tall':    ('Closet',        '高衣櫃',     '臥室', '現代', 150, 60, 220),
@@ -78,7 +80,7 @@ WANT = {
     'sofa_q2':          ('Sofa2',         '布沙發 II',  '客廳', '現代', 210, 90, 82),
     'sofa_q3':          ('Sofa3',         '布沙發 III', '客廳', '現代', 195, 88, 78),
     'sofa_single_q':    ('Sofa_individual', '單人沙發', '客廳', '現代', 95, 88, 80),
-    'couch_l':          ('Couch_L',       'L 型沙發',   '客廳', '現代', 260, 190, 78),
+    'sofa_corner':          ('Couch_L',       'L 型沙發',   '客廳', '現代', 260, 190, 78),
     'couch_lg1':        ('Couch_Large1',  '大沙發 I',   '客廳', '現代', 220, 92, 80),
     'couch_lg2':        ('Couch_Large2',  '大沙發 II',  '客廳', '現代', 225, 92, 80),
     'couch_lg3':        ('Couch_Large3',  '大沙發 III', '客廳', '現代', 230, 95, 84),
@@ -88,7 +90,7 @@ WANT = {
     'couch_sm2':        ('Couch_Small2',  '單人沙發 II', '客廳', '現代', 100, 90, 82),
     # --- 椅凳 ---
     'chair_wood_q':     ('Chair',         '木餐椅',     '餐廳', '現代', 45, 48, 90),
-    'chair_office':     ('OfficeChair',   '辦公椅',     '書房', '現代', 60, 60, 105),
+    'chair_desk':     ('OfficeChair',   '辦公椅',     '書房', '現代', 60, 60, 105),
     'chair_q1':         ('Chair_1',       '餐椅 I',     '餐廳', '現代', 45, 48, 88),
     'chair_q2':         ('Chair_2',       '餐椅 II',    '餐廳', '現代', 46, 50, 90),
     'chair_q3':         ('Chair_3',       '餐椅 III',   '餐廳', '現代', 47, 50, 86),
@@ -107,26 +109,26 @@ WANT = {
     'nightstand_wood':  ('NightStand',    '木床頭櫃',   '臥室', '現代', 45, 40, 55),
     'nightstand_q1':    ('NightStand_1',  '床頭櫃 I',   '臥室', '現代', 45, 40, 55),
     'nightstand_q2':    ('NightStand_2',  '床頭櫃 II',  '臥室', '現代', 48, 42, 58),
-    'drawer_q1':        ('Drawer_1',      '抽屜櫃 I',   '臥室', '現代', 90, 45, 80),
+    'side_drawers':        ('Drawer_1',      '抽屜櫃 I',   '臥室', '現代', 90, 45, 80),
     'drawer_q2':        ('Drawer_2',      '抽屜櫃 II',  '臥室', '現代', 100, 45, 85),
     'drawer_q3':        ('Drawer_3',      '抽屜櫃 III', '臥室', '現代', 80, 45, 75),
     'shelf_q1':         ('Shelf_1',       '層架 I',     '客廳', '現代', 90, 30, 180),
     'shelf_q2':         ('Shelf_2',       '層架 II',    '客廳', '現代', 100, 32, 190),
     'shelf_wall_q':     ('Shelf_Small1',  '壁掛層板',   '客廳', '現代', 60, 22, 20),
     # --- 燈具：十九款，實掃圖庫的燈少得可憐 ---
-    'light_pend1':      ('Light_Ceiling1', '吊燈 I',    '燈具', '現代', 40, 40, 45),
+    'lamp_flush':      ('Light_Ceiling1', '吊燈 I',    '燈具', '現代', 40, 40, 45),
     'light_pend2':      ('Light_Ceiling2', '吊燈 II',   '燈具', '現代', 45, 45, 50),
     'light_pend3':      ('Light_Ceiling3', '吊燈 III',  '燈具', '現代', 35, 35, 40),
     'light_chand_q':    ('Light_Chandelier', '水晶吊燈', '燈具', '古典', 60, 60, 70),
-    'light_floor_q1':   ('Light_Floor1',  '立燈 I',     '燈具', '現代', 40, 40, 160),
+    'lamp_floor':   ('Light_Floor1',  '立燈 I',     '燈具', '現代', 40, 40, 160),
     'light_floor_q2':   ('Light_Floor2',  '立燈 II',    '燈具', '現代', 42, 42, 155),
-    'light_desk_q':     ('Light_Desk',    '桌燈',       '燈具', '現代', 25, 25, 45),
+    'lamp_table':     ('Light_Desk',    '桌燈',       '燈具', '現代', 25, 25, 45),
     # --- 裝飾 ---
-    'plant_q1':         ('Houseplant_1',  '盆栽 I',     '裝飾', '現代', 40, 40, 90),
+    'plant':         ('Houseplant_1',  '盆栽 I',     '裝飾', '現代', 40, 40, 90),
     'plant_q2':         ('Houseplant_3',  '盆栽 II',    '裝飾', '現代', 45, 45, 120),
     'plant_q3':         ('Houseplant_5',  '盆栽 III',   '裝飾', '現代', 35, 35, 70),
-    'carpet_q1':        ('Carpet_1',      '地毯 I',     '客廳', '現代', 200, 140, 2),
-    'carpet_round_q':   ('Carpet_Round',  '圓地毯',     '客廳', '現代', 160, 160, 2),
+    'rug':        ('Carpet_1',      '地毯 I',     '客廳', '現代', 200, 140, 2),
+    'rug_round':   ('Carpet_Round',  '圓地毯',     '客廳', '現代', 160, 160, 2),
     'curtain_dbl':      ('Curtains_Double', '雙開窗簾', '裝飾', '現代', 180, 12, 220),
     'fireplace_q':      ('Fireplace',     '壁爐',       '客廳', '古典', 120, 40, 110),
 

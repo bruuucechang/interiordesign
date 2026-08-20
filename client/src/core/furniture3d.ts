@@ -842,10 +842,14 @@ const FLAT_ARCHETYPES: { re: RegExp; scan?: string; colour?: boolean; rough: num
                                         scan: 'weave',         colour: false, rough: 1,    metal: 0,    repeat: 0.08 },
   { re: /leather/i,                                                           rough: 0.45, metal: 0,    repeat: 1 },
   { re: /glass|mirror/i,                                                      rough: 0.05, metal: 0,    repeat: 1 },
-  { re: /lamp|shade/i,                  scan: 'linen',         colour: false, rough: 0.9,  metal: 0,    repeat: 0.05 },
+  // `^light$` 是燈罩不是燈泡。Quaternius 把整個罩體叫 `Light`（立燈 60 面、
+  // 水晶吊燈 240 面），拿它當發光體就會有五盞燈整片純色。真正不該貼圖的是
+  // bulb/emissive 那條。順序也有意義：`LightMetal` 不會被 `^light$` 吃掉，
+  // 會往下落到金屬。
+  { re: /lamp|shade|^light$/i,          scan: 'linen',         colour: false, rough: 0.9,  metal: 0,    repeat: 0.05 },
   // `\b` 不是裝飾。Quaternius 用顏色命名材質，於是 `LightOrange` 撞上 /light/
   // 被當成燈具——燈具那條刻意不貼圖，所以那張地毯就永遠是純色的。
-  { re: /\blight\b|bulb|emissive/i,                                            rough: 0.35, metal: 0.15, repeat: 1 },
+  { re: /bulb|emissive|glow/i,                                                rough: 0.35, metal: 0.15, repeat: 1 },
   { re: /plant|leaf|foliage/i,          scan: 'rattan',        colour: false, rough: 0.55, metal: 0,    repeat: 0.02 },
   { re: /plastic/i,                     scan: 'beige',         colour: false, rough: 0.4,  metal: 0,    repeat: 0.02 },
   // 保底。Kenney 的模型有幾個 mesh 根本沒有具名材質（glTF 給的是 `_defaultMat`），

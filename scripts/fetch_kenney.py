@@ -53,8 +53,6 @@ THUMB_PX = 128
 # 離近看是玩具。Quaternius 的同一批多邊形細得多。Kenney 現在只留兩邊都沒有
 # 更好版本的那些。
 MODELS = {
-    'rug':             'rugRectangle',
-    'plant':           'pottedPlant',
     # 順帶補上台灣住宅常見、目錄本來沒有的
     'microwave':       'kitchenMicrowave',
     'coat_rack':       'coatRackStanding',
@@ -65,17 +63,10 @@ MODELS = {
     'dryer':           'dryer',
     'coffee_machine':  'kitchenCoffeeMachine',
     'shower_round':    'showerRound',
-    'rug_round':       'rugRound',
     'rug_square':      'rugSquare',
     'doormat':         'rugDoormat',
-    'lamp_floor':      'lampRoundFloor',
-    'lamp_table':      'lampSquareTable',
-    'lamp_flush':      'lampSquareCeiling',
-    'side_drawers':    'sideTableDrawers',
-    'sofa_corner':     'loungeSofaCorner',
     'table_glass':     'tableGlass',
     'tv_wall':         'televisionModern',
-    'chair_desk':      'chairDesk',
     'desk_corner':     'deskCorner',
     'stairs':          'stairsOpen',
     'pillow':          'pillowLong',

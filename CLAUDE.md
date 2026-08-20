@@ -297,10 +297,10 @@ Diffuse 抓下來直接看。
 **拉絲金屬是 procedural 合理的少數情況**：它本來就是機械加工的規則紋理，而
 ambientCG 的 135 個 Metal 只有 1 個是實拍。
 
-### 家具與裝潢素材：197 件（170 件 CC0 模型 ＋ 27 件參數化）
+### 家具與裝潢素材：203 件（176 件 CC0 模型 ＋ 27 件參數化）
 
 `client/public/models/<catalogueId>/`（glTF ＋ .bin ＋ 貼圖，共 41MB），由
-`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。目錄 197 件裡 170 件有模型：Poly Haven 90 件（實掃）、Quaternius 55 件、Kenney Furniture Kit 25 件
+`scripts/fetch_models.py` 從 **Poly Haven** 抓，同樣 **CC0 1.0**。目錄 203 件裡 176 件有模型：Poly Haven 90 件（實掃）、Quaternius 72 件、Kenney Furniture Kit 14 件
 （`scripts/fetch_kenney.py`，同樣 CC0）。程式蓋的家具建構程式已經沒有任何一個會被
 用到——它們留著只當備援。
 
@@ -379,7 +379,14 @@ ShortCloset、BedDouble / BedTwin / Bed_King、十二款沙發。三個代價都
 看下來結論很集中：**粗糙的就是 Kenney 那批。** 它們是平面著色的低多邊形，離遠看
 是家電，離近看是玩具——而那正是使用者說的「粗略生成」。所以家電、衛浴、床這幾類
 **沿用原本的 catalogue id 換成 Quaternius**（就地換掉，不是新增，這樣既有存檔裡的
-物件不會失效）。Kenney 從 37 件降到 25 件，只留兩邊都沒有更好版本的那些。
+物件不會失效）。Kenney 從 37 件降到 **14 件**，只留兩邊都沒有更好版本的那些（咖啡機、微波爐、
+抽油煙機、烘衣機、中島、玄關衣帽架、樓梯、玻璃桌、壁掛電視、門墊、方地毯、
+圓形淋浴間、抱枕、L 型書桌）。
+
+**沿用舊 id 換模型，不是新增一個。** 燈具、地毯、植栽、L 型沙發、抽屜邊几、
+辦公椅這幾類，Quaternius 抓下來之後直接接手原本 Kenney 的 catalogue id，並把
+重複的那幾筆從目錄裡刪掉。新增一份的話面板會同時出現兩個一模一樣的東西，而
+換 id 會讓既有存檔裡的物件失效。
 
 **貼圖也查了創建方式，不是只看好不好看。** ambientCG 的 API 有 `creationMethod`：
 `terrazzo` 用的 Terrazzo005 是 **PBRProcedural**，換成 Poly Haven 的
@@ -440,7 +447,7 @@ ShortCloset、BedDouble / BedTwin / Bed_King、十二款沙發。三個代價都
 
 ### 左側面板：搜尋 ＋ 風格 ＋ 摺疊
 
-197 件塞不進一條清單，光客廳就 48 顆按鈕。三個控制項**刻意互相獨立**：搜尋是名稱
+203 件塞不進一條清單，光客廳就 48 顆按鈕。三個控制項**刻意互相獨立**：搜尋是名稱
 子字串、風格**單選**、摺疊是每個分類各自記。一旦互相卡住，一個空面板就有三種可能
 原因，使用者只能猜。
 
