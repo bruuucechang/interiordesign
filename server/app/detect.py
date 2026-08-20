@@ -31,7 +31,14 @@ import cv2
 import numpy as np
 
 MAX_DIM = 1000          # work at this resolution regardless of the upload size
-MAX_WALL_THICKNESS = 18  # px — parallel lines closer than this are one wall's two faces
+MAX_WALL_THICKNESS = 18  # px — 下限；實際門檻跟著圖的大小走，見 detect_walls
+# 牆有多厚是**相對於圖**的事，不是絕對的像素數。固定 18px 在使用者那張 CAD 圖上
+# 剛好夠（牆對相距 15–17px），但同一張圖掃成兩倍解析度就會裂成兩道牆——而
+# 「一道牆的兩條線不是兩道牆」正是這裡最不能錯的一件事。
+# 5% 是照現實推的：平面圖通常橫跨幾公尺，一張 600px 寬的圖大約 1px = 1cm，而住宅
+# 最厚的結構牆約 30cm——也就是 5%。
+# 放寬的代價：兩道真的很近的平行牆（例如管道間）會被併成一道。取捨的方向很明確
+# ——把一道牆看成兩道，使用者每次描圖都會踩到；把兩道很近的牆併成一道，是少數。
 ANGLE_TOL_DEG = 6.0      # lines within this of each other count as parallel
 MAX_ALONG_GAP = 6.0      # px — how far apart collinear pieces may be and still be one wall
 
@@ -80,12 +87,20 @@ def _angles_close(a: float, b: float, tol: float = ANGLE_TOL_DEG) -> bool:
     return min(d, 180.0 - d) <= tol
 
 
-def _merge_group(segs: list) -> tuple[tuple[float, float], tuple[float, float]]:
-    """Collapse near-parallel, near-touching segments into one centreline.
+def _merge_group(segs: list) -> tuple[tuple[float, float], tuple[float, float], float]:
+    """Collapse near-parallel, near-touching segments into one centreline ＋厚度。
 
     The endpoints are the extremes along the group's average direction, and the
     line sits at the average perpendicular offset — so a wall drawn as two
     parallel faces comes back as the single line between them.
+
+    **第三個回傳值是量到的厚度**，也就是那兩個面之間的距離。它一直都算得出來，
+    只是以前被丟掉：前端一律給 `thickness: 12`。於是圖上畫 24 公分的牆會生出
+    12 公分的牆，圖上畫 8 公分的隔間會生出 12 公分的——後者直接超出使用者畫的線，
+    而「不要超出我畫的線」是這張圖唯一的硬性要求。
+
+    一個群組只有單一條線（牆只畫了一面、或 Hough 只抓到一面）時算出來會是 0，
+    呼叫端負責換成預設值——量不到跟量到 0 是兩件事。
     """
     pts = np.array([[[s[0], s[1]], [s[2], s[3]]] for s in segs], dtype=float).reshape(-1, 2)
     mean_ang = math.radians(_circular_mean([_angle(s) for s in segs]))
@@ -97,7 +112,11 @@ def _merge_group(segs: list) -> tuple[tuple[float, float], tuple[float, float]]:
     off = float((rel @ n).mean())
     p0 = centre + d * float(along.min()) + n * off
     p1 = centre + d * float(along.max()) + n * off
-    return (float(p0[0]), float(p0[1])), (float(p1[0]), float(p1[1]))
+    across = rel @ n
+    # 端點的垂距分佈範圍就是兩個面的間距。用 min/max 而不是標準差：兩個面各自
+    # 是一條線，它們的垂距只有兩個值。
+    thickness = float(across.max() - across.min())
+    return (float(p0[0]), float(p0[1])), (float(p1[0]), float(p1[1])), thickness
 
 
 def _circular_mean(degrees: list[float]) -> float:
@@ -108,7 +127,7 @@ def _circular_mean(degrees: list[float]) -> float:
     return (math.degrees(math.atan2(s, c)) / 2) % 180.0
 
 
-def _should_merge(a, b) -> bool:
+def _should_merge(a, b, max_thick: float = MAX_WALL_THICKNESS) -> bool:
     """Do two Hough hits belong to the same wall?
 
     The two directions have to be judged separately. Across the line, a wall is
@@ -128,7 +147,7 @@ def _should_merge(a, b) -> bool:
     pb = np.array([[b[0], b[1]], [b[2], b[3]]], float)
 
     # across: distance between the two lines
-    if abs(float((pa @ n).mean() - (pb @ n).mean())) > MAX_WALL_THICKNESS:
+    if abs(float((pa @ n).mean() - (pb @ n).mean())) > max_thick:
         return False
 
     # along: require overlap, or a gap no wider than the Hough one
@@ -149,6 +168,7 @@ def detect_walls(image_b64: str) -> dict:
     h, w = binary.shape[:2]
 
     min_len = max(24, round(0.05 * max(w, h)))
+    max_thick = max(MAX_WALL_THICKNESS, round(0.05 * max(w, h)))
     # maxLineGap is deliberately small. A generous gap bridges dashed linework,
     # but it also bridges the baseline of a row of lettering — "客廳 LIVING" came
     # back as a 150 px wall. Plans nearly always carry labels and dimension text,
@@ -178,17 +198,21 @@ def detect_walls(image_b64: str) -> dict:
             for j, t in enumerate(segs):
                 if used[j]:
                     continue
-                if any(_should_merge(t, g) for g in group):
+                if any(_should_merge(t, g, max_thick) for g in group):
                     group.append(t)
                     used[j] = True
                     changed = True
         groups.append(group)
 
     out = []
+    thick = []
     for g in groups:
-        (x1, y1), (x2, y2) = _merge_group(g)
+        (x1, y1), (x2, y2), t = _merge_group(g)
         if math.hypot(x2 - x1, y2 - y1) < min_len:
             continue
         out.append([{"x": x1, "y": y1}, {"x": x2, "y": y2}])
-    return {"segments": out, "w": w, "h": h}
+        thick.append(round(t, 2))
+    # thickness 與 segments 一一對應，單位是處理後的像素——跟座標同一個空間，
+    # 呼叫端用同一組比例換成公分。
+    return {"segments": out, "thickness": thick, "w": w, "h": h}
 
