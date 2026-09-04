@@ -9,6 +9,17 @@ body {
   font-family: ui-sans-serif, system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
   background: var(--bg); color: var(--text); overflow: hidden; user-select: none;
 }
+/* Form controls do not inherit font-family — they fall back to the platform
+   default, which here is Arial. That is not a cosmetic difference: Arial has no
+   glyph for most of the symbols this UI uses, so `⌨`, `▾` and `▥` came out as
+   empty boxes while the same characters rendered fine in a <div> two pixels
+   away. The symbol that is drawn rather than typed is `.icon` below. */
+button, input, select, textarea, optgroup { font-family: inherit; }
+/* Inline SVG for the glyphs a button leans on entirely. `⭳` (U+2B73) has no
+   glyph in Arial and the fallback picked for it is a stack of horizontal bars —
+   which is worse than a box, because it looks deliberate. */
+.icon { width: 1em; height: 1em; flex: none; vertical-align: -0.14em; fill: none;
+  stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #app { display: flex; flex-direction: column; height: 100vh; }
 
 /* top bar */
@@ -34,9 +45,11 @@ body {
 .zoom { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 46px; text-align: center; cursor: pointer; }
 .chk { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 4px; }
 #topbar button {
+  display: inline-flex; align-items: center; gap: 5px;
   background: var(--panel2); border: 1px solid var(--line); color: var(--text);
   border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 13px;
 }
+.zoom-ctl button { justify-content: center; }
 #topbar button:hover { border-color: var(--accent); }
 
 #body { flex: 1; display: flex; min-height: 0; }
@@ -136,6 +149,10 @@ body {
 .prop-body:empty { display: none; }
 .btn-danger { margin-top: 4px; }
 .align-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 8px; }
+.facestep { padding: 0 10px 8px; }
+.facestep-head { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.facestep-acts { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; }
+.facestep-acts .align-btn { font-size: 12px; padding: 5px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .align-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 6px 0; cursor: pointer; font-size: 15px; }
 .align-btn:hover { border-color: var(--accent); color: var(--accent); }
 .prop-action { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; margin-bottom: 6px; }

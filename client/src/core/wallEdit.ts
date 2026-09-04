@@ -145,3 +145,98 @@ export function alignWalls(walls: Wall[], ref: Reference, tolDeg = 5): AlignResu
   for (const w of walls) if (w.bulge) skipped.push(w.id);
   return { moves, skipped };
 }
+
+/**
+ * Two walls that share material but whose faces miss each other by a hair.
+ *
+ * `shift` is how far the mover's centreline travels along `normal` to land
+ * flush on that side. Both sides are offered because there is no way to pick
+ * one from the geometry: a 24 cm wall running into a 15 cm one is out by 4.5 cm
+ * on *both* faces, and which of the two rooms gets the flat wall is a decision
+ * about the building, not about the numbers.
+ */
+export interface FaceStep {
+  moverId: string;
+  anchorId: string;
+  /** How far the faces miss by, cm — the same on both sides for a butt joint. */
+  step: number;
+  normal: Vec;
+  shift: { left: number; right: number };
+  /** Middle of the shared run, so the plan can point at it. */
+  at: Vec;
+}
+
+/**
+ * Find joins where the faces are *nearly* lined up.
+ *
+ * This is the measurable half of "the wall has a tiny step in it". A wall is a
+ * box on its centreline, so a 15 cm partition carrying on from a 24 cm
+ * structural wall leaves 4.5 cm of the thick wall's end grain showing on each
+ * side — floor to ceiling, and only visible in 3D, because in plan the two
+ * boxes are drawn butted together and look continuous.
+ *
+ * `tol` is what makes this safe to run over a whole floor: above it the
+ * overhang is not a defect but a thing — a column is wider than the wall it
+ * sits in, and pulling it flush would move it off the block it was traced from.
+ * Below it, nothing that size was ever drawn on purpose.
+ *
+ * Only straight, parallel, overlapping walls are considered. Pairs already
+ * flush on either face are not steps and are not returned.
+ */
+export function findFaceSteps(walls: Wall[], tol = 5, tolDeg = 5): FaceStep[] {
+  const straight = walls.filter((w) => !w.bulge);
+  const len = (w: Wall) => Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y);
+  const out: FaceStep[] = [];
+
+  for (let i = 0; i < straight.length; i++) {
+    for (let j = i + 1; j < straight.length; j++) {
+      const A = straight[i], B = straight[j];
+      if (len(A) < 1 || len(B) < 1) continue;
+      if (angleBetween(A.a, A.b, B.a, B.b) > tolDeg) continue;
+
+      // Measure both walls in the longer one's frame: `n` across, `d` along.
+      const base = len(A) >= len(B) ? A : B;
+      const n = leftNormal(base.a, base.b);
+      const dx = base.b.x - base.a.x, dy = base.b.y - base.a.y, L = Math.hypot(dx, dy);
+      const d = { x: dx / L, y: dy / L };
+      const across = (w: Wall) => ((w.a.x + w.b.x) / 2 - base.a.x) * n.x + ((w.a.y + w.b.y) / 2 - base.a.y) * n.y;
+      const along = (w: Wall) => [w.a, w.b]
+        .map((p) => (p.x - base.a.x) * d.x + (p.y - base.a.y) * d.y)
+        .sort((p, q) => p - q) as [number, number];
+
+      const cA = across(A), cB = across(B);
+      // Sharing material is what makes them one run rather than two walls with
+      // a gap. Two parallel walls a duct apart are neither a step nor ours.
+      if (Math.abs(cA - cB) > (A.thickness + B.thickness) / 2 + 0.5) continue;
+      const [loA, hiA] = along(A), [loB, hiB] = along(B);
+      if (Math.min(hiA, hiB) < Math.max(loA, loB) - 1) continue;   // no shared run
+
+      // +1 is the face on the `n` side, -1 the other. A step is what is left
+      // when neither face lines up.
+      const gap = (s: 1 | -1) => Math.abs((cA + s * A.thickness / 2) - (cB + s * B.thickness / 2));
+      const step = Math.min(gap(1), gap(-1));
+      if (step <= 0.05 || step > tol) continue;
+
+      // The thinner wall moves: it is the partition, and the thick one is
+      // usually structure or the outside of the building. Same thickness — a
+      // centreline that drifted — and the shorter run gives way instead.
+      const mover = A.thickness !== B.thickness
+        ? (A.thickness < B.thickness ? A : B)
+        : (len(A) <= len(B) ? A : B);
+      const anchor = mover === A ? B : A;
+      const cM = mover === A ? cA : cB, cX = anchor === A ? cA : cB;
+      const flush = (s: 1 | -1) => (cX + s * anchor.thickness / 2) - s * mover.thickness / 2 - cM;
+
+      const mid = (Math.max(loA, loB) + Math.min(hiA, hiB)) / 2;
+      out.push({
+        moverId: mover.id, anchorId: anchor.id, step, normal: n,
+        shift: { left: flush(1), right: flush(-1) },
+        at: {
+          x: base.a.x + d.x * mid + n.x * (cA + cB) / 2,
+          y: base.a.y + d.y * mid + n.y * (cA + cB) / 2,
+        },
+      });
+    }
+  }
+  return out.sort((p, q) => p.step - q.step);
+}
