@@ -251,3 +251,46 @@ test('an untimestamped entry still loses to a copy the server does have', async 
   assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0 });
   assert.equal((await loadProject('p1'))?.name, '伺服器');
 });
+
+// ---- 網址上的 id 跟存檔裡的 id 不一樣 ----
+//
+// 用腳本指定 id 塞方案進去時會發生：資料列叫 A，但 data.id 是 B。以前 loadProject
+// 用網址的 id 當鏡像的 key、saveProject 用 plan.id 當 key，於是同一份圖在鏡像裡有
+// 兩筆，而網址那一筆伺服器上沒有對應的列——它會永遠顯示「尚未上傳」，而且
+// syncPending 推它的時候推到 plan.id（成功了），再把結果存回網址那個 key（還是
+// 沒有對應），所以永遠不會消。這台機器上就有一筆，每 20 秒把自己重寫一次。
+
+test('存檔裡的 id 跟網址不一樣時，以資料列的 id 為準', async () => {
+  server.plans.set('urlId', { name: '案子', data: plan('realId'), at: '2026-08-07T00:00:10Z' });
+  const loaded = await loadProject('urlId');
+  assert.equal(loaded?.id, 'urlId', '載進來的方案要認自己是 urlId');
+  assert.deepEqual(Object.keys(store.allPlans()), ['urlId'], '鏡像只該有一筆');
+});
+
+test('不一致的那一份不會被列成永遠尚未上傳', async () => {
+  server.plans.set('urlId', { name: '案子', data: plan('realId'), at: '2026-08-07T00:00:10Z' });
+  await loadProject('urlId');
+  const listed = await listProjects();
+  assert.equal(listed.filter(m => m.updatedAt === '尚未上傳').length, 0);
+});
+
+test('修正之後存檔會寫回原本那一列，不會生出新的', async () => {
+  server.plans.set('urlId', { name: '案子', data: plan('realId'), at: '2026-08-07T00:00:10Z' });
+  const loaded = await loadProject('urlId');
+  await saveProject(loaded!);
+  assert.deepEqual([...server.plans.keys()], ['urlId'], '不該冒出 realId 那一列');
+});
+
+test('一致的時候行為完全不變', async () => {
+  server.plans.set('p1', { name: '案子', data: plan('p1'), at: '2026-08-07T00:00:10Z' });
+  await loadProject('p1');
+  assert.deepEqual(Object.keys(store.allPlans()), ['p1']);
+});
+
+test('存檔裡沒有 id 就補上資料列的（舊存檔還讀得開）', async () => {
+  const noId = plan('x'); delete (noId as any).id;
+  server.plans.set('p1', { name: '舊的', data: noId, at: '2026-08-07T00:00:10Z' });
+  const loaded = await loadProject('p1');
+  assert.equal(loaded?.id, 'p1');
+  assert.deepEqual(Object.keys(store.allPlans()), ['p1']);
+});

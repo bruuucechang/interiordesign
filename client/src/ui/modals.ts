@@ -191,21 +191,84 @@ export async function openModal(editor: Editor, doc: Doc) {
   list.innerHTML = '';
   // import-from-file entry, always available (works even with no saved projects / offline)
   const imp = document.createElement('button');
-  imp.className = 'import-file'; imp.textContent = '⭱ 從檔案匯入專案檔…';
+  // `⭱` (U+2B71) rendered as a stack of horizontal bars — the same wrong-glyph
+  // fallback its neighbour `⭳` (U+2B73) got on the export button. Same block,
+  // same missing coverage; drawn instead.
+  imp.className = 'import-file';
+  imp.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">'
+    + '<path d="M12 16V5m0 0 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>'
+    + '<span>從檔案匯入專案檔…</span>';
   imp.onclick = () => { modal.classList.add('hidden'); $<HTMLInputElement>('#projectFileInput').click(); };
   list.appendChild(imp);
   if (!projects.length) { const m = document.createElement('div'); m.className = 'muted'; m.style.padding = '12px'; m.textContent = '尚無已儲存的專案'; list.appendChild(m); return; }
-  for (const p of projects) {
-    const row = document.createElement('div'); row.className = 'project-row';
-    row.innerHTML = `<span class="pname">${p.name}</span><span class="pdate">${p.updatedAt ?? ''}</span>`;
-    const del = document.createElement('button'); del.className = 'del'; del.textContent = '刪除';
-    del.onclick = async (e) => { e.stopPropagation(); if (confirm(`刪除「${p.name}」？`)) { await deleteProject(p.id); row.remove(); } };
-    row.appendChild(del);
-    row.onclick = async () => {
-      const proj = await loadProject(p.id);
-      if (proj) { doc.load(proj); $<HTMLInputElement>('#projectName').value = proj.name; editor.resetView(); }
-      modal.classList.add('hidden');
-    };
-    list.appendChild(row);
+
+  // 219 plans in one flat list is 9,300px of scrolling in a 611px box — fifteen
+  // screens to find one drawing, and most of the names are `s`, `m`, `c` from
+  // testing. A substring match on the name plus date buckets turns that into
+  // two keystrokes. Both are cheap and neither hides anything: an empty query
+  // shows every row, in the order the server returned them.
+  const rows: { meta: typeof projects[number]; el: HTMLElement; hay: string }[] = [];
+
+  const search = document.createElement('input');
+  search.type = 'search'; search.className = 'proj-search'; search.placeholder = '搜尋專案名稱…';
+  search.autocomplete = 'off';
+  const count = document.createElement('div'); count.className = 'proj-count';
+  list.append(search, count);
+
+  // Buckets by day rather than a formatted date on every row: what you want
+  // when reopening is almost always "the one I had this morning".
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const today = startOfDay(new Date());
+  const bucketOf = (iso?: string): string => {
+    if (!iso) return '尚未上傳';
+    // `updatedAt` is the database's local time with no zone marker (see the
+    // note in CLAUDE.md) — fine to bucket by, never to compare across zones.
+    const t = Date.parse(iso.replace(' ', 'T'));
+    if (Number.isNaN(t)) return '尚未上傳';
+    const days = Math.round((today - startOfDay(new Date(t))) / 86400000);
+    return days <= 0 ? '今天' : days === 1 ? '昨天' : days <= 7 ? '這一週' : days <= 30 ? '這個月' : '更早';
+  };
+  const ORDER = ['尚未上傳', '今天', '昨天', '這一週', '這個月', '更早'];
+  const heads = new Map<string, HTMLElement>();
+  for (const name of ORDER) {
+    const h = document.createElement('div'); h.className = 'proj-group'; h.textContent = name;
+    heads.set(name, h); list.appendChild(h);
+    for (const p of projects.filter(q => bucketOf(q.updatedAt) === name)) {
+      const row = document.createElement('div'); row.className = 'project-row';
+      // textContent, not innerHTML: the name is whatever was typed into the
+      // project field and it used to be interpolated into a template string.
+      const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name;
+      const dt = document.createElement('span'); dt.className = 'pdate'; dt.textContent = p.updatedAt ?? '';
+      const del = document.createElement('button'); del.className = 'del'; del.textContent = '刪除';
+      del.onclick = async (e) => { e.stopPropagation(); if (confirm(`刪除「${p.name}」？`)) { await deleteProject(p.id); row.remove(); apply(); } };
+      row.append(nm, dt, del);
+      row.onclick = async () => {
+        const proj = await loadProject(p.id);
+        if (proj) { doc.load(proj); $<HTMLInputElement>('#projectName').value = proj.name; editor.resetView(); }
+        modal.classList.add('hidden');
+      };
+      list.appendChild(row);
+      rows.push({ meta: p, el: row, hay: (p.name ?? '').toLowerCase() });
+    }
   }
+
+  function apply() {
+    const q = search.value.trim().toLowerCase();
+    let shown = 0;
+    for (const r of rows) {
+      const hit = !q || r.hay.includes(q);
+      r.el.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    }
+    // A heading with nothing under it reads as an empty category rather than as
+    // a category that this search did not match.
+    for (const [name, h] of heads) {
+      const any = rows.some(r => r.el.style.display !== 'none' && bucketOf(r.meta.updatedAt) === name);
+      h.style.display = any ? '' : 'none';
+    }
+    count.textContent = q ? `符合 ${shown} / ${rows.length}` : `共 ${rows.length} 份`;
+  }
+  search.oninput = apply;
+  apply();
+  search.focus();
 }

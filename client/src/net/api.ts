@@ -85,6 +85,26 @@ export async function loadProject(id: string): Promise<Project | null> {
     // Same rule as the array readers: a body without a usable `data` is not a
     // plan, and opening `undefined` as one blanks the editor.
     if (!d?.data || typeof d.data !== 'object') throw new Error('回應沒有 data');
+    // Make the plan's own id agree with the row it was actually loaded from.
+    //
+    // A script that POSTs under a chosen id can leave a row whose `data.id` is
+    // something else. Then the two halves of the mirror disagree: this function
+    // files by the requested id, `saveProject` files by `p.id`. One plan, two
+    // entries — and the one with no matching row lists as 尚未上傳 forever,
+    // because `syncPending` pushes it to `p.id` (which succeeds) and re-files
+    // the result under the other key (which resolves nothing). There is one of
+    // these on this machine, rewriting itself every 20 seconds.
+    //
+    // The row id wins, not `data.id`. This is the same lesson as the note in
+    // CLAUDE.md about writing plans in through the API: `saveProject` uses
+    // `p.id` as the address it writes to, so a plan whose id is not the row it
+    // came from saves itself somewhere nobody is looking.
+    const own = (d.data as any).id;
+    if (own !== id) {
+      console.warn(`[interior] 存檔列 ${id} 裡的 id 是 ${own ?? '(沒有)'}；改用 ${id}。`
+        + '不一致的話存檔會寫到一個沒有人在看的位址。');
+      (d.data as any).id = id;
+    }
     putPlan(id, d.data, d.updatedAtIso);
     return d.data;
   } catch {
