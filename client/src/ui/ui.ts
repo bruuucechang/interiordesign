@@ -276,31 +276,61 @@ function buildFloors(editor: Editor, doc: Doc) {
     name.onclick = () => doc.setActiveFloor(f.id);
     name.ondblclick = () => { const n = prompt('樓層名稱', f.name); if (n) doc.renameFloor(f.id, n); };
     const elev = document.createElement('span'); elev.className = 'felev'; elev.textContent = (f.elevation / 100).toFixed(1) + 'm';
-    const del = document.createElement('button'); del.textContent = '✕'; del.title = '刪除樓層';
+    const del = iconButton('close', '刪除樓層');
     del.onclick = (e) => { e.stopPropagation(); if (doc.floors.length > 1 && confirm(`刪除樓層「${f.name}」？`)) doc.removeFloor(f.id); };
     row.append(name, elev, del);
     host.appendChild(row);
   }
-  const add = document.createElement('button'); add.className = 'add-floor'; add.textContent = '＋ 新增樓層';
+  const add = document.createElement('button'); add.className = 'add-floor';
+  add.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${PANEL_ICON.plus}</svg><span>新增樓層</span>`;
   add.onclick = () => doc.addFloor();
   host.appendChild(add);
 }
 
 // ---- layers ----
+/**
+ * The panel icons, drawn rather than typed — same reason as the topbar's.
+ *
+ * Visible/hidden and locked/unlocked are **one shape in two states**, not two
+ * shapes. It was 👁 against 🚫 and 🔒 against 🔓: a toggle whose two positions
+ * are different pictures makes you read the picture to work out which way it is
+ * set, instead of seeing it. The eye keeps its outline and gains a slash; the
+ * padlock keeps its body and its shackle swings open.
+ */
+const PANEL_ICON: Record<string, string> = {
+  eyeOn: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/>',
+  eyeOff: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 20 20 4"/>',
+  lockOn: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/>',
+  lockOff: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0"/>',
+  up: '<path d="m6 14 6-6 6 6"/>',
+  down: '<path d="m6 10 6 6 6-6"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+};
+/** A button whose whole content is one of the icons above. */
+export function iconButton(icon: keyof typeof PANEL_ICON, title: string): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.title = title; b.setAttribute('aria-label', title);
+  b.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${PANEL_ICON[icon]}</svg>`;
+  return b;
+}
+
 function buildLayers(editor: Editor, doc: Doc) {
   const host = $('#layers'); host.innerHTML = '';
   // display top-of-stack first
   const layers = [...doc.project.layers].reverse();
   for (const l of layers) {
     const row = document.createElement('div'); row.className = 'layer-row';
-    const eye = document.createElement('button'); eye.textContent = l.visible ? '👁' : '🚫'; eye.className = l.visible ? 'on' : '';
+    const eye = iconButton(l.visible ? 'eyeOn' : 'eyeOff', l.visible ? '隱藏這個圖層' : '顯示這個圖層');
+    eye.className = l.visible ? 'on' : '';
     eye.onclick = () => { doc.toggleLayerVisible(l.id); };
-    const lock = document.createElement('button'); lock.textContent = l.locked ? '🔒' : '🔓'; lock.className = l.locked ? '' : 'on';
+    const lock = iconButton(l.locked ? 'lockOn' : 'lockOff', l.locked ? '解鎖這個圖層' : '鎖定這個圖層');
+    lock.className = l.locked ? '' : 'on';
     lock.onclick = () => { doc.toggleLayerLock(l.id); };
     const name = document.createElement('span'); name.className = 'name'; name.textContent = l.name;
     name.style.color = l.color;
-    const up = document.createElement('button'); up.textContent = '▲'; up.onclick = () => doc.moveLayer(l.id, 1);
-    const dn = document.createElement('button'); dn.textContent = '▼'; dn.onclick = () => doc.moveLayer(l.id, -1);
+    const up = iconButton('up', '往上一層'); up.onclick = () => doc.moveLayer(l.id, 1);
+    const dn = iconButton('down', '往下一層'); dn.onclick = () => doc.moveLayer(l.id, -1);
     row.append(eye, lock, name, up, dn);
     host.appendChild(row);
   }
