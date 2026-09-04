@@ -5,7 +5,7 @@ import { hitTest, furnitureCenter } from '../core/hit';
 import { snap, dist } from '../core/geometry';
 import { resizeBox, resizeFurniture, curveBulge, rotateAngle, openingEndpoint, Corner } from '../core/transform';
 import { computeSnap, drawSnap, WallSeg } from '../core/snap';
-import { fitOpeningToWall, furnitureClearOfWalls } from './place';
+import { fitOpeningToWall } from './place';
 
 type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'pan';
 
@@ -81,18 +81,6 @@ export class SelectTool implements Tool {
 
   private patch(o: Obj, patch: Partial<Obj>) { this.ctx.doc.update(o.id, patch); }
 
-  /**
-   * Where a piece of furniture ends up if it is asked to move to `at` (its
-   * top-left corner) — pushed clear of any wall it would otherwise sit inside.
-   *
-   * Asked about the *proposed* position rather than the current one, so a drag
-   * slides along the wall face instead of jumping: the push is recomputed from
-   * the cursor every frame, not accumulated.
-   */
-  private clear(o: Extract<Obj, { kind: 'furniture' }>, at: Vec): Vec {
-    return furnitureClearOfWalls(this.ctx.doc, { ...o, x: at.x, y: at.y });
-  }
-
   // translate one object by (cursor - start), from its drag-start snapshot
   private translate(o: Obj, snap: any, p: PointerInfo) {
     const d = { x: p.snapped.x - this.start.x, y: p.snapped.y - this.start.y };
@@ -106,10 +94,6 @@ export class SelectTool implements Tool {
     if (o.kind === 'room' && snap.poly) {   // move the polygon with its bbox (detaches an auto room)
       const poly = (snap.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y }));
       this.patch(o, { x: snap.x + d.x, y: snap.y + d.y, poly, auto: false } as any);
-    } else if (o.kind === 'furniture') {
-      // 拖到牆裡就被推回牆面。物件因此可能不在游標下——那是刻意的，見
-      // `keepOutOfWalls`：一個合法的位置勝過一個跟著游標但穿牆的位置。
-      this.patch(o, this.clear(o, { x: snap.x + d.x, y: snap.y + d.y }) as any);
     } else if ('x' in snap) this.patch(o, { x: snap.x + d.x, y: snap.y + d.y } as any);
     else if ('a' in snap) this.patch(o, { a: { x: snap.a.x + d.x, y: snap.a.y + d.y }, b: { x: snap.b.x + d.x, y: snap.b.y + d.y } } as any);
   }
@@ -162,9 +146,6 @@ export class SelectTool implements Tool {
     const c = 'w' in g ? furnitureCenter(g) : { x: g.x, y: g.y };
     const ang = rotateAngle(c, p.world, !!p.shift);
     this.patch(o, { angle: ang } as any);
-    // Turning a piece changes the ground it stands on — a sofa square to a wall
-    // sweeps into it at 45°. Re-clear after the angle is set, not before.
-    if (o.kind === 'furniture') this.patch(o, this.clear(o as any, { x: o.x, y: o.y }) as any);
 
     // live angle readout above the object; green when snapped to a right angle
     const deg = ((Math.round(ang) % 360) + 360) % 360;
@@ -205,7 +186,6 @@ export class SelectTool implements Tool {
       for (const o of objs) {
         const g: any = o;
         if (o.kind === 'room' && g.poly) { const poly = (g.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y })); this.patch(o, { x: g.x + d.x, y: g.y + d.y, poly, auto: false } as any); }
-        else if (o.kind === 'furniture') this.patch(o, this.clear(o, { x: g.x + d.x, y: g.y + d.y }) as any);
         else if ('x' in g) this.patch(o, { x: g.x + d.x, y: g.y + d.y } as any);
         else if ('a' in g) this.patch(o, { a: { x: g.a.x + d.x, y: g.a.y + d.y }, b: { x: g.b.x + d.x, y: g.b.y + d.y } } as any);
       }

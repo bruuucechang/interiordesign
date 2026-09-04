@@ -2,7 +2,7 @@ import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj, Vec } from '../model/schema';
 import { layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL_BY_ID } from '../model/catalogue';
-import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, pointInPolygon, pointInRect } from '../core/geometry';
+import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea } from '../core/geometry';
 import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
@@ -21,11 +21,7 @@ let unit: Unit = 'cm';   // shared across selections; toggled from the panel hea
 export function refreshProps(editor: Editor, doc: Doc) {
   const host = $('#properties'); host.innerHTML = '';
   const ids = doc.selectedIds;
-  if (!ids.length) {
-    host.innerHTML = '<div class="muted">未選取物件</div>';
-    renderFaceSteps(editor, doc, host);
-    return;
-  }
+  if (!ids.length) { host.innerHTML = '<div class="muted">未選取物件</div>'; return; }
   if (ids.length > 1) {   // multi-selection: align / distribute / duplicate / delete
     const head = document.createElement('div'); head.className = 'prop-head';
     head.innerHTML = `<span class="prop-type">已選取 ${ids.length} 個物件</span>`;
@@ -483,96 +479,6 @@ async function addDimensionChain(doc: Doc, wall: Extract<Obj, { kind: 'wall' }>)
               a: d.a, b: d.b, offset: d.offset, group: gid } as Obj);
   }
   flash(`已加入 ${dims.length} 段尺寸標註`);
-}
-
-/**
- * 「牆面對齊」——只在真的有東西可修的時候才出現。
- *
- * 這一區沒有入口、沒有按鈕、沒有選單項目：`findFaceSteps` 掃不到東西它就不存在。
- * 工具列已經因為兩個畫不出來的字符被抱怨過一次，再加一顆「檢查平面」按鈕等於要
- * 使用者記得去按一個九成時間沒有用的東西。
- *
- * 每一處都給兩顆按鈕而不是自動修，是因為兩面差一樣多（24 接 15 就是兩面各 4.5），
- * 幾何本身選不出來——哪一間房間拿到平整的那面是關於這棟房子的決定。所以按鈕上寫
- * 的是房間名字，不是「左」「右」。
- */
-function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
-  const steps = editor.faceSteps();
-  if (!steps.length) return;
-
-  const title = document.createElement('div');
-  title.className = 'panel-title'; title.style.borderTop = 'none';
-  title.textContent = `牆面對齊（${steps.length} 處）`;
-  const note = document.createElement('div');
-  note.className = 'muted'; note.style.cssText = 'padding: 0 10px 6px; font-size: 11px; line-height: 1.5;';
-  note.textContent = '這幾處的牆面差不到 5 公分——平面圖上看不出來，3D 會露出一條牆的端面。選一面拉齊，或略過。';
-  host.append(title, note);
-
-  // 房間名字比「左／右」好用得多，而房間本來就偵測過了。取牆面外側 20cm 的一點
-  // 落在哪個房間裡——20 是「一定出了牆、又還沒穿過對面那道牆」的距離。
-  const rooms = doc.objects.filter(o => o.kind === 'room') as Extract<Obj, { kind: 'room' }>[];
-  const roomAt = (p: Vec): string | null => {
-    for (const r of rooms) {
-      const inside = r.poly && r.poly.length >= 3 ? pointInPolygon(p, r.poly) : pointInRect(p, r.x, r.y, r.w, r.h);
-      if (inside) return r.name || null;
-    }
-    return null;
-  };
-
-  for (const s of steps) {
-    const row = document.createElement('div'); row.className = 'facestep';
-    const head = document.createElement('div'); head.className = 'facestep-head';
-    head.textContent = `落差 ${s.step.toFixed(1)} cm`;
-    row.appendChild(head);
-
-    // 兩處落差可以有一樣的數字和一樣的房間名字（同一道厚牆接兩段隔間就是這樣），
-    // 那時候這幾列在畫面上是一模一樣的。指到哪一列就在平面圖上圈出哪一處，這比
-    // 在標題裡多塞一組座標好讀，而且不動選取——選取會把這整個面板換掉。
-    row.onmouseenter = () => {
-      editor.setPreview(undefined, ctx => {
-        const p = editor.vp.toScreen(s.at);
-        ctx.save();
-        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, Math.PI * 2); ctx.stroke();
-        ctx.globalAlpha = 0.25; ctx.fillStyle = '#ffd166'; ctx.fill();
-        ctx.restore();
-      });
-      editor.render();
-    };
-    row.onmouseleave = () => { editor.setPreview(); editor.render(); };
-
-    const grid = document.createElement('div'); grid.className = 'facestep-acts';
-    const mover = doc.objects.find(o => o.id === s.moverId) as Extract<Obj, { kind: 'wall' }> | undefined;
-    const side = (which: 'left' | 'right') => {
-      const sign = which === 'left' ? 1 : -1;
-      // 從**要動的那道牆自己的中點**往外量，不是從接頭往外量。接頭是三、四道牆
-      // 交會的地方，往旁邊 20cm 常常落在另一間房間裡：實測 wall_20 從接頭問出來
-      // 是「主浴」，從它自己的中點問出來是「主臥室」——後者才是這顆按鈕會弄平的
-      // 那一面。名字錯的按鈕比沒有名字的按鈕更難用。
-      const off = (mover?.thickness ?? 12) / 2 + 20;
-      const from = mover
-        ? { x: (mover.a.x + mover.b.x) / 2, y: (mover.a.y + mover.b.y) / 2 }
-        : s.at;
-      const probe = { x: from.x + s.normal.x * sign * off, y: from.y + s.normal.y * sign * off };
-      const b = document.createElement('button'); b.className = 'align-btn';
-      const room = roomAt(probe);
-      b.textContent = room ?? (which === 'left' ? '這一面' : '另一面');
-      // 房間名字長到被切掉的時候，tooltip 是唯一看得到全名的地方。
-      b.title = `${room ? `${room}那一面拉平` : '把這一面拉平'}（另一面會留下 ${s.step.toFixed(1)} cm 的階）`;
-      b.onclick = () => {
-        editor.alignFaceStep(s, which);
-        flash(room ? `${room}那一面已拉齊` : '已拉齊一面');
-      };
-      return b;
-    };
-    grid.append(side('left'), side('right'));
-    const skip = document.createElement('button'); skip.className = 'align-btn'; skip.textContent = '略過';
-    skip.title = '這一處保持原狀';
-    skip.onclick = () => { row.remove(); if (!host.querySelector('.facestep')) { title.remove(); note.remove(); } };
-    grid.appendChild(skip);
-    row.appendChild(grid);
-    host.appendChild(row);
-  }
 }
 
 /**
