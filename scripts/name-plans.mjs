@@ -37,6 +37,19 @@ const j = async (url, opts) => {
 const isPlaceholder = (n) =>
   !n || !n.trim() || /^未命名平面圖$/.test(n.trim()) || /^[a-z]{1,2}$/i.test(n.trim());
 
+/**
+ * Strip a suffix this script added before adding another one.
+ *
+ * Without this the script is not idempotent, and running it twice is not a
+ * no-op: the second pass sees its own output as a deliberate name, so it keeps
+ * the whole thing as the stem and appends a second date. Three runs produced
+ * 「…｜腳本產生・8/17・8/17・8/17」. A script that has to be run exactly once is
+ * a script that will be run twice.
+ */
+const stripSuffix = (n) => String(n ?? '')
+  .replace(/(・\d{1,2}\/\d{1,2}(\s+\d{2}:\d{2})?)+(\s*#\d+)?\s*$/, '')
+  .trim();
+
 const polyArea = (pts) => {
   let a = 0;
   for (let i = 0, k = pts.length - 1; i < pts.length; k = i++)
@@ -81,9 +94,11 @@ for (const m of metas) {
   if (!data || typeof data !== 'object') continue;
   const objs = ((data.project ? data.project.floors : data.floors) ?? []).flatMap(f => f.objects ?? []);
   const at = parseAt(m.updatedAt ?? m.updatedAtIso);
+  const was = full.name ?? m.name;
+  const bare = stripSuffix(was);
   plans.push({
-    id: m.id, was: full.name ?? m.name, data, objs, at,
-    stem: isPlaceholder(full.name ?? m.name) ? describe(objs) : (full.name ?? m.name).trim(),
+    id: m.id, was, data, objs, at,
+    stem: isPlaceholder(bare) ? describe(objs) : bare,
   });
 }
 
