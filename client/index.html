@@ -152,6 +152,32 @@
       </div>
     </div>
 
+    <!-- new-plan route: trace an existing drawing, or draw from nothing -->
+    <div id="routeModal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-head"><span>新建平面圖</span><button data-act="close-route" aria-label="關閉">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button></div>
+        <div class="route-pick">
+          <button data-route="trace" class="route-card">
+            <svg class="route-ic" viewBox="0 0 48 36" aria-hidden="true">
+              <rect x="2" y="2" width="44" height="32" rx="2" opacity=".35"/>
+              <path d="M8 28V12h13v16M21 20h19" />
+            </svg>
+            <b>從底圖描</b>
+            <span>有平面圖的照片或掃描檔。匯入後<strong>先校正比例</strong>，之後描出來的每一道牆都是真實尺寸。</span>
+          </button>
+          <button data-route="scratch" class="route-card">
+            <svg class="route-ic" viewBox="0 0 48 36" aria-hidden="true">
+              <path d="M6 30V8h20v22zM26 18h16v12H26z" />
+            </svg>
+            <b>純手繪</b>
+            <span>沒有底圖，直接畫。畫的時候可以輸入精確長度，也隨時可以再匯入底圖。</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- keyboard shortcuts modal -->
     <div id="shortcutsModal" class="modal hidden">
       <div class="modal-box">

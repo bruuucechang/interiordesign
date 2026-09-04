@@ -9,6 +9,7 @@ import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, PartitionTool, RoomTool, DimensionTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall } from '../tools/place';
+import { CalibrateTool } from '../tools/calibrate';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { Obj, Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
@@ -35,6 +36,9 @@ export class Editor implements ToolCtx {
 
   // exportPano returns the message to show the user — it can decline (camera
   // outside the plan) as well as succeed, and both need explaining.
+  /** Set by the UI layer; the calibrate tool reports its outcome through it. */
+  onCalibrated?: (message: string, ok?: boolean) => void;
+
   hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => string; wallRef?: (r: Reference) => void } = {};
 
   private previewW?: DrawFn;
@@ -64,6 +68,7 @@ export class Editor implements ToolCtx {
       dimension: new DimensionTool(this),
       furniture: new FurnitureTool(this),
       electrical: new ElectricalTool(this),
+      calibrate: new CalibrateTool(this),
     };
     this.active = this.tools.select;
 
