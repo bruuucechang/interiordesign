@@ -184,6 +184,10 @@ button, input, select, textarea, optgroup { font-family: inherit; }
 .prop-body:empty { display: none; }
 .btn-danger { margin-top: 4px; }
 .align-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 8px; }
+.facestep { padding: 0 10px 8px; }
+.facestep-head { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.facestep-acts { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; }
+.facestep-acts .align-btn { font-size: 12px; padding: 5px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .align-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 6px 0; cursor: pointer; font-size: 15px; }
 .align-btn:hover { border-color: var(--accent); color: var(--accent); }
 .prop-action { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 6px 10px; cursor: pointer; width: 100%; margin-bottom: 6px; }
