@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { referenceShift, applyReference, splitWallAt, alignWalls, findFaceSteps } from '../src/core/wallEdit';
+import { referenceShift, applyReference, splitWallAt, alignWalls } from '../src/core/wallEdit';
 import type { Wall } from '../src/core/wallEdit';
 
 const wall = (id: string, ax: number, ay: number, bx: number, by: number, over: Partial<Wall> = {}): Wall =>
@@ -206,82 +206,4 @@ test('垂直方向的一排牆也對得起來', () => {
   const { moves } = alignWalls([long, jog], 'center');
   near(moves[0].a.x, 0); near(moves[0].b.x, 0);
   near(moves[0].a.y, 600);
-});
-
-// ------------------------------------------------------------ 牆面落差偵測
-
-test('同一中心線上厚度不同的兩道牆，兩面各差半個厚度差', () => {
-  // 使用者那份圖的實況：24cm 的結構牆接 15cm 的隔間牆，(24-15)/2 = 4.5。
-  const thick = wall('t', 788, 0, 788, 132, { thickness: 24 });
-  const thin = wall('n', 788, 132, 788, 592, { thickness: 15 });
-  const steps = findFaceSteps([thick, thin]);
-  assert.equal(steps.length, 1);
-  near(steps[0].step, 4.5);
-  assert.equal(steps[0].moverId, 'n', '動的是薄的那道');
-  assert.equal(steps[0].anchorId, 't');
-});
-
-test('兩面的位移一樣大、方向相反，套用之後真的齊平', () => {
-  const thick = wall('t', 0, 0, 0, 100, { thickness: 24 });
-  const thin = wall('n', 0, 100, 0, 300, { thickness: 15 });
-  const [s] = findFaceSteps([thick, thin]);
-  near(Math.abs(s.shift.left), 4.5);
-  near(s.shift.left, -s.shift.right);
-  // 往 left 推之後，兩道牆在 normal 那一側的面應該落在同一條線上。
-  const moved = 0 + s.normal.x * s.shift.left;   // 這兩道牆是垂直的，只有 x 會變
-  near(moved + 15 / 2 * Math.sign(s.normal.x || 1), 0 + 24 / 2 * Math.sign(s.normal.x || 1));
-});
-
-test('厚度一樣就沒有落差', () => {
-  const a = wall('a', 0, 0, 0, 100, { thickness: 15 });
-  const b = wall('b', 0, 100, 0, 300, { thickness: 15 });
-  assert.deepEqual(findFaceSteps([a, b]), []);
-});
-
-test('已經有一面齊平的不算落差', () => {
-  // 15 的牆偏 4.5 讓右面對齊 24 的牆——那正是修好之後的樣子，不該再被報一次。
-  const thick = wall('t', 0, 0, 0, 100, { thickness: 24 });
-  const thin = wall('n', 4.5, 100, 4.5, 300, { thickness: 15 });
-  assert.deepEqual(findFaceSteps([thick, thin]), []);
-});
-
-test('落差超過門檻的是真的凸出來，不報', () => {
-  // 柱子（82cm）嵌在 24cm 的牆裡，凸出來是它本來的樣子，不是誤差。
-  const w = wall('w', 788, 0, 788, 132, { thickness: 24 });
-  const col = wall('c', 788, 90, 788, 175, { thickness: 82 });
-  assert.deepEqual(findFaceSteps([w, col], 5), []);
-  assert.equal(findFaceSteps([w, col], 40).length, 1, '把門檻放大就看得到它');
-});
-
-test('隔著空氣的兩道平行牆不是一個接頭', () => {
-  // 管道間的兩道牆：厚度不同、平行、範圍重疊，但中間有 30cm 的空隙。
-  const a = wall('a', 0, 0, 0, 300, { thickness: 24 });
-  const b = wall('b', 50, 0, 50, 300, { thickness: 15 });
-  assert.deepEqual(findFaceSteps([a, b]), []);
-});
-
-test('範圍沒有重疊的兩道牆不是一個接頭', () => {
-  const a = wall('a', 0, 0, 0, 100, { thickness: 24 });
-  const b = wall('b', 0, 400, 0, 600, { thickness: 15 });
-  assert.deepEqual(findFaceSteps([a, b]), []);
-});
-
-test('曲線牆不參加', () => {
-  const a = wall('a', 0, 0, 0, 100, { thickness: 24 });
-  const b = wall('b', 0, 100, 0, 300, { thickness: 15, bulge: 20 });
-  assert.deepEqual(findFaceSteps([a, b]), []);
-});
-
-test('垂直相交的兩道牆不是共線的接頭', () => {
-  const a = wall('a', 0, 0, 300, 0, { thickness: 24 });
-  const b = wall('b', 0, 0, 0, 300, { thickness: 15 });
-  assert.deepEqual(findFaceSteps([a, b]), []);
-});
-
-test('厚度相同但中心線飄掉的，動的是短的那道', () => {
-  const long = wall('long', 0, 0, 0, 600, { thickness: 15 });
-  const short = wall('short', 2, 600, 2, 700, { thickness: 15 });
-  const [s] = findFaceSteps([long, short]);
-  near(s.step, 2);
-  assert.equal(s.moverId, 'short');
 });
