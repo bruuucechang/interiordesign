@@ -339,15 +339,36 @@ function importProjectFile(editor: Editor, doc: Doc, file: File) {
 // close (dynamic rendering — no idle DOM), keeping the topbar light.
 function wireExportMenu(editor: Editor, doc: Doc) {
   const wrap = $('#exportMenu'), toggle = $('#exportToggle');
-  const items: { label: string; act: string }[] = [
-    { label: '📐 匯入 DXF 圖檔…', act: 'import-dxf' },
-    { label: '💾 匯出專案檔（可再編輯）', act: 'export-project' },
-    { label: '匯出 PNG', act: 'export-png' },
-    { label: '匯出 PDF（快照）', act: 'export-pdf' },
-    { label: '📐 匯出施工圖 PDF…', act: 'plot-pdf' },
-    { label: '🌐 匯出 360 全景', act: 'export-pano' },
-    { label: '📊 匯出面積報表 (Excel)', act: 'export-report' },
-    { label: '🧊 匯出 3D 模型', act: 'export-glb' },
+  // Icons are drawn, not typed, for the same reason the toggle's are: an emoji
+  // is a font lookup that can miss. Two other things were wrong here and both
+  // were the kind you stop seeing after a week — `匯出 PNG` and `匯出 PDF` had
+  // no icon at all, so they sat 20px left of everything else, and 📐 was on
+  // both `匯入 DXF` and `匯出施工圖 PDF`, which are not the same thing.
+  const ic = (d: string, extra = '') =>
+    `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" ${extra}>${d}</svg>`;
+  const ICONS: Record<string, string> = {
+    'import-dxf': ic('<path d="M12 21V10m0 0 4 4m-4-4-4 4"/><path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/>'),
+    'export-project': ic('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/>'),
+    'export-png': ic('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 5-4 4 3 3-2 6 5"/>'),
+    'export-pdf': ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/><path d="M9 17h6"/>'),
+    'plot-pdf': ic('<path d="M3 20 20 3v17z"/><path d="M13 15h3M9.5 18.5h3"/>'),
+    'export-pano': ic('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/>'),
+    'export-report': ic('<path d="M3 21h18"/><rect x="5" y="11" width="4" height="7"/><rect x="10" y="6" width="4" height="12"/><rect x="15" y="14" width="4" height="4"/>'),
+    'export-glb': ic('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>'),
+  };
+  // `匯入 DXF` used to live in here — an import, in a menu labelled 匯出.
+  // It keeps its place in the list because that is where the muscle memory is,
+  // but it is now under its own heading and separated, so the menu no longer
+  // claims it is an export.
+  const items: { label: string; act: string; group?: string }[] = [
+    { label: '匯入 DXF 圖檔…', act: 'import-dxf', group: '匯入' },
+    { label: '專案檔（可再編輯）', act: 'export-project', group: '匯出' },
+    { label: 'PNG 影像', act: 'export-png' },
+    { label: 'PDF（畫面快照）', act: 'export-pdf' },
+    { label: '施工圖 PDF…', act: 'plot-pdf' },
+    { label: '360 全景', act: 'export-pano' },
+    { label: '面積報表（Excel）', act: 'export-report' },
+    { label: '3D 模型', act: 'export-glb' },
   ];
   let pop: HTMLElement | null = null;
   const onDoc = (e: Event) => { if (!wrap.contains(e.target as Node)) close(); };
@@ -361,7 +382,14 @@ function wireExportMenu(editor: Editor, doc: Doc) {
   function open() {
     pop = document.createElement('div'); pop.className = 'menu-pop';
     for (const it of items) {
-      const b = document.createElement('button'); b.textContent = it.label;
+      if (it.group) {
+        const h = document.createElement('div'); h.className = 'menu-group'; h.textContent = it.group;
+        pop.appendChild(h);
+      }
+      const b = document.createElement('button');
+      // innerHTML, not textContent: the icon is markup. Both halves are literals
+      // from ICONS and `items` above — nothing here comes from a plan or a file.
+      b.innerHTML = (ICONS[it.act] ?? '') + `<span>${it.label}</span>`;
       b.onclick = () => { close(); handle(it.act, editor, doc); };
       pop.appendChild(b);
     }

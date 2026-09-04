@@ -15,21 +15,64 @@
         <input id="projectName" class="proj-name" value="未命名平面圖" />
         <span id="saveStatus" class="save-status" aria-live="polite"></span>
         <div class="spacer"></div>
-        <button data-act="new">新建</button>
-        <button data-act="save">儲存</button>
-        <button data-act="open">開啟</button>
-        <button data-act="import-image" title="匯入底圖以描繪（可調整位置、大小、透明度）">🖼️ 底圖</button>
+        <!-- Every button carries an icon and a `.lbl`. Below the breakpoint in
+             style.css the labels go and the icons stay, which is what keeps all
+             21 items on one row: at 1512 — the Air's own screen — the labelled
+             bar wrapped to two rows, and by 1180 the zoom control had wrapped
+             off the end and could not be clicked at all.
+             Icons rather than emoji so a label-less bar reads as one set; the
+             time-of-day <select> keeps its emoji because option text cannot be
+             markup. -->
+        <button data-act="new" title="新建平面圖">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/><path d="M12 11v6m-3-3h6"/></svg>
+          <span class="lbl">新建</span>
+        </button>
+        <button data-act="save" title="儲存">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg>
+          <span class="lbl">儲存</span>
+        </button>
+        <button data-act="open" title="開啟專案">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 9H5z"/></svg>
+          <span class="lbl">開啟</span>
+        </button>
+        <button data-act="import-image" title="匯入底圖以描繪（可調整位置、大小、透明度）">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 5-4 4 3 3-2 6 5"/></svg>
+          <span class="lbl">底圖</span>
+        </button>
         <span class="sep"></span>
-        <button data-act="undo" title="復原 (Ctrl+Z)">↶ 復原</button>
-        <button data-act="redo" title="重做 (Ctrl+Shift+Z)">重做 ↷</button>
+        <button data-act="undo" title="復原 (Ctrl+Z)">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a6 6 0 0 1 0 12H8"/><path d="m7 4-4 4 4 4"/></svg>
+          <span class="lbl">復原</span>
+        </button>
+        <button data-act="redo" title="重做 (Ctrl+Shift+Z)">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8H10a6 6 0 0 0 0 12h6"/><path d="m17 4 4 4-4 4"/></svg>
+          <span class="lbl">重做</span>
+        </button>
         <span class="sep"></span>
-        <div id="exportMenu" class="menu"><button id="exportToggle" title="匯出檔案">⭳ 匯出 ▾</button></div>
-        <button data-act="shortcuts" title="鍵盤快捷鍵">⌨</button>
+        <!-- Drawn, not typed. These three were `⭳ 匯出 ▾` and `⌨`; Arial has no
+             glyph for any of them, so the export button read as `□ 匯出 □`. -->
+        <div id="exportMenu" class="menu"><button id="exportToggle" title="匯出檔案">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <span class="lbl">匯出</span>
+          <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button></div>
+        <button data-act="shortcuts" title="鍵盤快捷鍵" aria-label="鍵盤快捷鍵">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9.5 14h5"/></svg>
+        </button>
         <span class="sep"></span>
         <div class="view-modes" id="viewModes">
-          <button data-mode="2d" title="只看平面圖">📐 2D</button>
-          <button data-mode="split" title="平面圖與 3D 並排">▥ 分割</button>
-          <button data-mode="3d" title="只看 3D">🧊 3D</button>
+          <button data-mode="2d" title="只看平面圖">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 20 3v17z"/><path d="M13 15h3M9.5 18.5h3"/></svg>
+            <span class="lbl">2D</span>
+          </button>
+          <button data-mode="split" title="平面圖與 3D 並排">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>
+            <span class="lbl">分割</span>
+          </button>
+          <button data-mode="3d" title="只看 3D">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
+            <span class="lbl">3D</span>
+          </button>
         </div>
         <select id="timeOfDay" class="time-select" title="光線時段">
           <option value="morning">🌅 早晨</option>
@@ -38,11 +81,29 @@
           <option value="night">🌙 夜晚</option>
         </select>
         <span class="sep"></span>
-        <label class="chk"><input type="checkbox" id="snapToggle" checked /> 吸附</label>
+        <label class="chk" title="吸附到格線">
+          <input type="checkbox" id="snapToggle" checked />
+          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M9 4v16M15 4v16" opacity=".55"/><circle cx="15" cy="9" r="2.4"/></svg>
+          <span class="lbl">吸附</span>
+        </label>
+        <!-- The wall is drawn as its two faces, with the reference one picked out
+             heavy. A box with a thick left border and a box with a thick right
+             border are the same box once the labels collapse — which is how the
+             export button ended up as two meaningless squares in the first
+             place. Two faces plus one emphasis reads at 16px. -->
         <div class="view-modes" id="wallRef" title="畫牆時，點擊的線是牆的哪一條線（畫的途中按 R 切換）">
-          <button data-ref="center">⊹ 中心</button>
-          <button data-ref="left">◧ 左緣</button>
-          <button data-ref="right">◨ 右緣</button>
+          <button data-ref="center" title="中心線：點的線是牆的正中間">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M18 4v16" opacity=".45"/><path d="M12 3v18" stroke-width="2.6" stroke-dasharray="3.5 3"/></svg>
+            <span class="lbl">中心</span>
+          </button>
+          <button data-ref="left" title="左緣：點的線是牆的左面">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 4v16" opacity=".45"/><path d="M6 3v18" stroke-width="4"/></svg>
+            <span class="lbl">左緣</span>
+          </button>
+          <button data-ref="right" title="右緣：點的線是牆的右面">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16" opacity=".45"/><path d="M18 3v18" stroke-width="4"/></svg>
+            <span class="lbl">右緣</span>
+          </button>
         </div>
         <div class="zoom-ctl">
           <button id="zoomOut" title="縮小">−</button>
