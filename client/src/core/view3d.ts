@@ -199,6 +199,18 @@ export class View3D {
     // a non-US layout rewrites e.key (W becomes "Process" or a composition char) while
     // e.code stays "KeyW". Matching e.key was silently dropping WASD under an active IME.
     const MOVE: Record<string, string> = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
+    // The arrow keys slide the view without turning it: up is always up the
+    // screen, whichever way the camera is pointing.
+    //
+    // WASD is a fly — W goes where you are looking — so after orbiting 180° it
+    // walks the other way across the plan, which is correct for walking through
+    // a room and wrong for pushing a drawing around. Measured before changing
+    // anything: W tracked the camera's heading exactly at 8 headings × 7 pitches
+    // and D was on the right at every one, so the fly was never broken. What was
+    // missing was the other gesture, not a fix to this one.
+    const PAN: Record<string, string> = {
+      ArrowUp: 'panUp', ArrowDown: 'panDown', ArrowLeft: 'panLeft', ArrowRight: 'panRight',
+    };
     const isShift = (code: string) => code === 'ShiftLeft' || code === 'ShiftRight';
     // Real text entry (project name, labels) must keep the keys; but the property
     // panel's number inputs treat letters as junk, so WASD there should fly instead
@@ -222,16 +234,18 @@ export class View3D {
         this.flashChip(e.code === 'KeyE' ? 'e' : 'q', true);
         return;
       }
-      const mv = MOVE[e.code], up = isShift(e.code), down = e.code === 'Space';
-      if (!mv && !up && !down) return;
+      const mv = MOVE[e.code], pan = PAN[e.code], up = isShift(e.code), down = e.code === 'Space';
+      if (!mv && !pan && !up && !down) return;
       if (el && el !== document.body) el.blur();    // drop focus off a number field so it stops eating keys
       e.preventDefault();
       if (up) { this.pressed.add('up'); this.flashChip('shift', true); }         // Shift → rise
       else if (down) { this.pressed.add('down'); this.flashChip('space', true); } // Space → descend
+      else if (pan) this.pressed.add(pan);
       else { this.pressed.add(mv); this.flashChip(mv, true); }
     }, { capture: true });
     window.addEventListener('keyup', e => {
-      const mv = MOVE[e.code];
+      const mv = MOVE[e.code], pan = PAN[e.code];
+      if (pan) this.pressed.delete(pan);
       if (mv) { this.pressed.delete(mv); this.flashChip(mv, false); }
       else if (isShift(e.code)) { this.pressed.delete('up'); this.flashChip('shift', false); }
       else if (e.code === 'Space') { this.pressed.delete('down'); this.flashChip('space', false); }
@@ -424,6 +438,34 @@ export class View3D {
     if (!c) return;
     c.style.background = on ? '#7bc6ff' : 'rgba(255,255,255,0.06)';
     c.style.color = on ? '#0b0f14' : '#8b93a3';
+  }
+
+  /**
+   * Arrow keys: slide the view along the screen, not along the model.
+   *
+   * The axes are the camera's own right and up, so "up" is up the picture at
+   * any heading and any pitch — including looking straight down, where the
+   * fly's horizontal projection has no answer at all and falls back to a fixed
+   * direction. Camera and orbit target move together, so the pivot travels with
+   * the view and the next drag orbits around what is now in front of you.
+   */
+  private applyPan(dt: number) {
+    const P = this.pressed;
+    let x = 0, y = 0;
+    if (P.has('panRight')) x += 1;
+    if (P.has('panLeft')) x -= 1;
+    if (P.has('panUp')) y += 1;
+    if (P.has('panDown')) y -= 1;
+    if (!x && !y) return;
+    const m = this.camera.matrixWorld.elements;
+    const right = new THREE.Vector3(m[0], m[1], m[2]).normalize();
+    const up = new THREE.Vector3(m[4], m[5], m[6]).normalize();
+    const speed = this.moveSpeed * dt;
+    const move = new THREE.Vector3()
+      .addScaledVector(right, x * speed)
+      .addScaledVector(up, y * speed);
+    this.camera.position.add(move);
+    this.controls.target.add(move);
   }
 
   private applyFly(dt: number) {
@@ -986,7 +1028,7 @@ export class View3D {
 
     const t0 = mark();
     const dt = this.clock.getDelta();
-    if (this.fly) this.applyFly(dt);
+    if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
     this.controls.update();
     this.updateCeilingVisibility();
     this.composer.render();
