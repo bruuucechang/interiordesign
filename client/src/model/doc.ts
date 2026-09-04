@@ -174,6 +174,11 @@ export class Doc {
   isLayerLocked(id: LayerId) { return this.layer(id)?.locked ?? false; }
   toggleLayerVisible(id: LayerId) { const l = this.layer(id); if (l) { l.visible = !l.visible; this.emit(); } }
   toggleLayerLock(id: LayerId) { const l = this.layer(id); if (l) { l.locked = !l.locked; this.emit(); } }
+  /** Set the lock outright — the underlay is locked on import, not toggled. */
+  setLayerLocked(id: LayerId, locked: boolean) {
+    const l = this.layer(id);
+    if (l && l.locked !== locked) { l.locked = locked; this.emit(); }
+  }
   moveLayer(id: LayerId, dir: -1 | 1) {
     const ls = this.project.layers;
     const i = ls.findIndex(l => l.id === id);

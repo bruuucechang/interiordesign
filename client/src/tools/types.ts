@@ -26,6 +26,8 @@ export interface ToolCtx {
   setPreview(world?: DrawFn, screen?: DrawFn): void;
   setHint(s: string): void;
   selectTool(name: string): void;
+  /** Report the outcome of a scale calibration; `ok` advances the step strip. */
+  onCalibrated?(message: string, ok?: boolean): void;
 }
 
 export interface Tool {

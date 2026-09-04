@@ -23,6 +23,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
   const ids = doc.selectedIds;
   if (!ids.length) {
     host.innerHTML = '<div class="muted">未選取物件</div>';
+    renderUnderlay(editor, doc, host);
     renderFaceSteps(editor, doc, host);
     return;
   }
@@ -483,6 +484,55 @@ async function addDimensionChain(doc: Doc, wall: Extract<Obj, { kind: 'wall' }>)
               a: d.a, b: d.b, offset: d.offset, group: gid } as Obj);
   }
   flash(`已加入 ${dims.length} 段尺寸標註`);
+}
+
+/**
+ * 底圖的操作入口——**因為底圖被鎖住了，就點不到了**。
+ *
+ * 鎖定是刻意的（描圖時整個過程都在圖上拖曳，沒鎖的話第一次拖偏就把背景帶著跑），
+ * 但鎖了之後 `hitTest` 會跳過它，於是「選取它 → 用屬性面板」這條路整條斷掉。所以
+ * 入口要放在沒有選取任何東西的時候看得到的地方。
+ *
+ * 「調整底圖」是**暫時**解鎖：按下去解鎖並選起來，讓人拖、縮放、改透明度；再按
+ * 一次或改去別的工具就鎖回去。一個要自己記得鎖回去的解鎖，等於沒有鎖。
+ */
+function renderUnderlay(editor: Editor, doc: Doc, host: HTMLElement) {
+  const img = doc.objects.find(o => o.kind === 'image') as Extract<Obj, { kind: 'image' }> | undefined;
+  if (!img) return;
+  const locked = doc.isLayerLocked('underlay');
+
+  const title = document.createElement('div');
+  title.className = 'panel-title'; title.style.borderTop = 'none';
+  title.textContent = '底圖';
+  host.appendChild(title);
+
+  const note = document.createElement('div');
+  note.className = 'muted'; note.style.cssText = 'padding: 0 10px 6px; font-size: 11px; line-height: 1.5;';
+  note.textContent = locked
+    ? '已鎖定，描圖時不會被誤拖。'
+    : '⚠ 目前未鎖定 — 描圖時可能被拖到。';
+  host.appendChild(note);
+
+  const wrap = document.createElement('div'); wrap.className = 'facestep';
+  const grid = document.createElement('div'); grid.className = 'facestep-acts';
+  grid.style.gridTemplateColumns = '1fr 1fr';
+
+  const cal = document.createElement('button'); cal.className = 'align-btn'; cal.textContent = '校正比例';
+  cal.title = '沿圖上標有尺寸的一段拉一條線，輸入它的實際長度';
+  cal.onclick = () => editor.selectTool('calibrate');
+
+  const adj = document.createElement('button'); adj.className = 'align-btn';
+  adj.textContent = locked ? '調整底圖' : '完成調整';
+  adj.title = locked ? '暫時解鎖，可以拖曳、縮放、改透明度' : '鎖回去，繼續描圖';
+  adj.onclick = () => {
+    doc.setLayerLocked('underlay', !locked);
+    if (locked) { doc.select(img.id); editor.selectTool('select'); }
+    else doc.select(null);
+  };
+
+  grid.append(cal, adj);
+  wrap.appendChild(grid);
+  host.appendChild(wrap);
 }
 
 /**

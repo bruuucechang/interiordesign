@@ -9,6 +9,7 @@ import { snap } from '../core/geometry';
 import { exportPNG, exportPDF } from '../core/exporter';
 
 import { flash } from './feedback';
+import { askRoute, renderSteps, setRoute } from './onboarding';
 import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
 import { scheduleReconcile } from './rooms-sync';
 import { refreshProps } from './properties';
@@ -35,6 +36,7 @@ export function initUI(editor: Editor, doc: Doc) {
   wireTopbar(editor, doc);
 
   editor.hooks.toolChange = (name) => markActiveTool(name);
+  editor.onCalibrated = (msg, ok) => { flash(msg); if (ok) renderSteps(editor, doc); };
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };
   markActiveTool('select');
 
@@ -44,6 +46,7 @@ export function initUI(editor: Editor, doc: Doc) {
     // fields (it would replace the focused input); the edit is already applied.
     if (!$('#properties').contains(document.activeElement)) refreshProps(editor, doc);
     scheduleAutosave(doc); scheduleReconcile(doc); updateUndoRedo(doc);
+    renderSteps(editor, doc);   // 進度是從文件推出來的，不是記住的
   });
   startAutosave(doc);
   updateUndoRedo(doc);
@@ -456,7 +459,10 @@ async function handle(act: string, editor: Editor, doc: Doc) {
   switch (act) {
     case 'new':
       if (!confirm('新建會清空目前畫布，確定？')) return;
-      doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView(); break;
+      doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView();
+      setRoute(null); renderSteps(editor, doc);
+      askRoute(editor, doc);   // 空白畫布本身不會告訴人下一步是什麼
+      break;
     case 'save': doc.project.name = name(); markDirty(); await flushSave(doc); flash('已儲存'); break;
     case 'open': await openModal(editor, doc); break;
     case 'export-project': exportProjectFile(doc, name()); flash('已匯出專案檔（.floorplan.json）'); break;
@@ -514,13 +520,23 @@ function importImage(editor: Editor, doc: Doc, src: string) {
     const w = Math.round(probe.naturalWidth * s), h = Math.round(probe.naturalHeight * s);
     const vp = editor.vp;
     const cx = vp.origin.x + vp.width / 2 / vp.scale, cy = vp.origin.y + vp.height / 2 / vp.scale;
-    if (!doc.layer('underlay')) doc.project.layers.unshift({ id: 'underlay', name: '底圖', visible: true, locked: false, color: '#8b93a3' });
+    // Locked on arrival. Tracing means dragging across the image for minutes at
+    // a time, and an unlocked underlay is picked up by the first drag that
+    // starts a few pixels off a wall — after which every line traced since is
+    // against a background that has moved. It used to arrive unlocked with a
+    // note asking the user to remember to lock it.
+    if (!doc.layer('underlay')) doc.project.layers.unshift({ id: 'underlay', name: '底圖', visible: true, locked: true, color: '#8b93a3' });
+    else doc.setLayerLocked('underlay', true);
     doc.commit();
     const id = genId('img');
     doc.add({ id, kind: 'image', layer: 'underlay', x: cx - w / 2, y: cy - h / 2, w, h, src, opacity: 0.6 } as Obj);
-    doc.select(id);
-    editor.selectTool('select');
-    flash('已匯入底圖 — 拖曳/縮放對位，鎖定「底圖」圖層後即可描圖');
+    // **The size it came in at is a guess, not a measurement** — the longest
+    // side was fitted to about 10 m. Go straight to calibration rather than
+    // offering it: a plan traced at the guessed scale is self-consistent and
+    // entirely wrong, and nothing later in the app will notice.
+    doc.select(null);
+    editor.selectTool('calibrate');
+    flash('底圖已匯入並鎖定 — 接著沿圖上標有尺寸的一段拉一條線來校正比例');
   };
   probe.src = src;
 }
