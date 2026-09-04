@@ -3,6 +3,7 @@ import { genId, Doc } from '../model/doc';
 import { Vec, Obj } from '../model/schema';
 import { layerForKind, ELECTRICAL_BY_ID } from '../model/catalogue';
 import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, arcSpan, wallControl } from '../core/geometry';
+import { Box, wallBox, pushOut, groupPushOut } from '../core/clearance';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 
@@ -139,6 +140,80 @@ export function fitFurnitureToWall(
   return best;
 }
 
+/** 這一層樓所有直牆的包圍盒。 */
+function wallBoxes(doc: Doc): Box[] {
+  const walls: Box[] = [];
+  for (const o of doc.objects) {
+    if (o.kind !== 'wall' || !doc.isLayerVisible(o.layer)) continue;
+    // 曲線牆用弦當包圍盒會把弧的內側整片當成實心，把家具從房間中央推出去。
+    // 直牆才推——曲線牆的碰撞留著沒做，寫在這裡比讓它安靜地推錯誠實。
+    if (o.bulge) continue;
+    const wb = wallBox(o.a, o.b, o.thickness ?? 12);
+    if (wb) walls.push(wb);
+  }
+  return walls;
+}
+
+/**
+ * 家具不能放進牆壁裡面。
+ *
+ * `fitFurnitureToWall` 只在游標離牆 60cm 內才動作，而且它做的是「貼上去」——
+ * 離牆遠一點、或者用拖曳的、或者按方向鍵推過去，都可以把一張沙發推到牆的正中間。
+ * 2D 看起來只是畫在牆上面，像是一個決定；3D 是一面牆從沙發中間穿過去。
+ *
+ * 規則是**推出來**而不是擋住：重疊了就沿最短的方向推到剛好貼著牆面。物件因此
+ * 不一定跟著游標走，但它一定在一個合法的位置——這跟「靠牆家具的預覽當下就轉好」
+ * 是同一個取捨，寧可讓使用者看到最後的結果，也不要讓他對著一個不會成真的畫面瞄準。
+ *
+ * 三種東西不算違規，因為它們本來就該在牆上或牆裡：
+ *   · `mount: 'wall'`（壁燈、壁掛電視）——它掛在牆面上
+ *   · `mount: 'ceiling'`（吊燈、吊扇）——它在天花板高度，平面上的重疊不是碰撞
+ *   · 電氣配件（插座、開關）——`ElectricalTool` 本來就把它們吸到牆的中心線上
+ *
+ * 多選拖曳走 `groupClearOfWalls`，不是逐一呼叫這支——理由寫在那裡。
+ */
+export function keepOutOfWalls(
+  doc: Doc, box: Box, item?: { mount?: string },
+): Vec {
+  if (item?.mount === 'wall' || item?.mount === 'ceiling') return { x: box.cx, y: box.cy };
+  const walls = wallBoxes(doc);
+  if (!walls.length) return { x: box.cx, y: box.cy };
+  const out = pushOut(box, walls);
+  return { x: out.cx, y: out.cy };
+}
+
+/** `keepOutOfWalls` for an object already in the document. */
+export function furnitureClearOfWalls(
+  doc: Doc, o: Extract<Obj, { kind: 'furniture' }>,
+): Vec {
+  const item = FURNITURE_BY_ID[o.item];
+  const c = keepOutOfWalls(doc, { cx: o.x + o.w / 2, cy: o.y + o.h / 2, w: o.w, h: o.h, angle: o.angle }, item);
+  return { x: c.x - o.w / 2, y: c.y - o.h / 2 };
+}
+
+/**
+ * 一整組物件要移到 `at` 時，共用的那一個修正位移。
+ *
+ * **不是逐一物件推。** 逐一推是最直覺的寫法，也會安靜地把使用者排好的東西拆掉：
+ * 沙發、茶几、地毯一起拖過牆，三件各自拿到不同的修正量，到位之後就散開了。相對
+ * 位置是使用者親手排的，那才是要保住的東西。上一輪這個功能被還原，缺的就是這條。
+ *
+ * 非家具（牆、房間、門窗）不參與計算——它們有自己的規則，而且牆不需要躲開牆。
+ */
+export function groupClearOfWalls(
+  doc: Doc, items: { o: Obj; at: Vec }[],
+): Vec {
+  const boxes: Box[] = [];
+  for (const { o, at } of items) {
+    if (o.kind !== 'furniture') continue;
+    const item = FURNITURE_BY_ID[o.item];
+    if (item?.mount === 'wall' || item?.mount === 'ceiling') continue;
+    boxes.push({ cx: at.x + o.w / 2, cy: at.y + o.h / 2, w: o.w, h: o.h, angle: o.angle });
+  }
+  if (!boxes.length) return { x: 0, y: 0 };
+  return groupPushOut(boxes, wallBoxes(doc));
+}
+
 // Place the currently-selected furniture item, then switch to the select tool.
 export class FurnitureTool implements Tool {
   name = 'furniture'; cursor = 'crosshair'; hint = '點擊放置所選家具（可再選取調整）';
@@ -146,12 +221,21 @@ export class FurnitureTool implements Tool {
 
   private fit: { pos: Vec; angle: number } | null = null;
 
+
+  /** 貼牆轉向之後再推出牆體：先轉再推，因為轉過的家具佔的是不同一塊地。 */
+  private resolve(cursor: Vec, item: { w: number; h: number; height?: number; mount?: string }) {
+    const fit = fitFurnitureToWall(this.ctx.doc, cursor, item);
+    const angle = fit?.angle ?? 0, at = fit?.pos ?? cursor;
+    const pos = keepOutOfWalls(this.ctx.doc, { cx: at.x, cy: at.y, w: item.w, h: item.h, angle }, item);
+    return { pos, angle };
+  }
+
   onMove(p: PointerInfo) {
     const item = FURNITURE_BY_ID[this.ctx.currentFurniture];
     if (!item) { this.ctx.setPreview(); return; }
-    // 預覽就要轉好。放下去才轉的話，使用者是在對著一個跟結果不一樣的鬼影瞄準。
-    this.fit = fitFurnitureToWall(this.ctx.doc, p.snapped, item);
-    const c = this.fit?.pos ?? p.snapped, a = this.fit?.angle ?? 0;
+    // 預覽就要轉好、也要推好。放下去才動的話，使用者是在對著一個跟結果不一樣的鬼影瞄準。
+    this.fit = this.resolve(p.snapped, item);
+    const c = this.fit.pos, a = this.fit.angle;
     this.ctx.setPreview(ctx => {
       ctx.save(); ctx.globalAlpha = 0.55;
       ctx.translate(c.x, c.y); ctx.rotate(a * Math.PI / 180); ctx.translate(-item.w / 2, -item.h / 2);
@@ -170,9 +254,9 @@ export class FurnitureTool implements Tool {
     const ceiling = this.ctx.doc.activeFloor.height;
     const elevation = item.mount === 'ceiling' ? Math.max(0, ceiling - 60)
       : item.mount === 'wall' ? 150 : undefined;
-    const fit = this.fit ?? fitFurnitureToWall(this.ctx.doc, p.snapped, item);
-    const c = fit?.pos ?? p.snapped;
-    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: c.x - item.w / 2, y: c.y - item.h / 2, w: item.w, h: item.h, angle: fit?.angle ?? 0, label: item.name, ...(elevation ? { elevation } : {}), ...(item.height ? { height: item.height } : {}) });
+    const fit = this.fit ?? this.resolve(p.snapped, item);
+    const c = fit.pos;
+    this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: c.x - item.w / 2, y: c.y - item.h / 2, w: item.w, h: item.h, angle: fit.angle, label: item.name, ...(elevation ? { elevation } : {}), ...(item.height ? { height: item.height } : {}) });
     this.ctx.doc.select(id);
     this.ctx.selectTool('select');
   }

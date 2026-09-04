@@ -5,7 +5,7 @@ import { hitTest, furnitureCenter } from '../core/hit';
 import { snap, dist } from '../core/geometry';
 import { resizeBox, resizeFurniture, curveBulge, rotateAngle, openingEndpoint, Corner } from '../core/transform';
 import { computeSnap, drawSnap, WallSeg } from '../core/snap';
-import { fitOpeningToWall } from './place';
+import { fitOpeningToWall, furnitureClearOfWalls, groupClearOfWalls } from './place';
 
 type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'pan';
 
@@ -60,7 +60,7 @@ export class SelectTool implements Tool {
       return;
     }
     if (this.mode === 'idle') return;
-    if (this.mode === 'move') { for (const { o, snap } of this.origMany) this.translate(o, snap, p); this.ctx.render(); return; }
+    if (this.mode === 'move') { this.moveSelection(p); this.ctx.render(); return; }
     const o = this.ctx.doc.selected;
     if (!o || !this.orig) return;
     if (this.mode === 'corner') this.doResize(o, p);
@@ -81,9 +81,42 @@ export class SelectTool implements Tool {
 
   private patch(o: Obj, patch: Partial<Obj>) { this.ctx.doc.update(o.id, patch); }
 
-  // translate one object by (cursor - start), from its drag-start snapshot
-  private translate(o: Obj, snap: any, p: PointerInfo) {
+  /**
+   * Move the whole selection by one shared offset.
+   *
+   * The wall push has to be computed **once for the group**, not once per
+   * piece. Pushing each object out on its own is what a naive implementation
+   * does, and it quietly takes an arrangement apart: drag a sofa, coffee table
+   * and rug past a wall and the three of them get three different corrections,
+   * so they arrive spread out. The relative layout is the thing the user built;
+   * it has to survive the drag.
+   *
+   * `groupClearOfWalls` works out that one offset — iterated, because taking
+   * the deepest member's push once is not enough when clearing one member
+   * buries another.
+   */
+  private moveSelection(p: PointerInfo) {
     const d = { x: p.snapped.x - this.start.x, y: p.snapped.y - this.start.y };
+    const push = groupClearOfWalls(this.ctx.doc,
+      this.origMany.map(({ o, snap }) => ({ o, at: { x: snap.x + d.x, y: snap.y + d.y } })));
+    d.x += push.x; d.y += push.y;
+    for (const { o, snap } of this.origMany) this.translate(o, snap, d);
+  }
+
+  /**
+   * Where a piece of furniture ends up if it is asked to move to `at` (its
+   * top-left corner) — pushed clear of any wall it would otherwise sit inside.
+   *
+   * Asked about the *proposed* position rather than the current one, so a drag
+   * slides along the wall face instead of jumping: the push is recomputed from
+   * the cursor every frame, not accumulated.
+   */
+  private clear(o: Extract<Obj, { kind: 'furniture' }>, at: Vec): Vec {
+    return furnitureClearOfWalls(this.ctx.doc, { ...o, x: at.x, y: at.y });
+  }
+
+  // translate one object by an offset already decided for the whole selection
+  private translate(o: Obj, snap: any, d: Vec) {
     if (o.kind === 'door' || o.kind === 'window') {   // openings stay glued to the nearest wall
       const c = { x: snap.x + d.x, y: snap.y + d.y };
       const fit = fitOpeningToWall(this.ctx.doc, c, snap.width, o.kind === 'window', 80);
@@ -146,6 +179,9 @@ export class SelectTool implements Tool {
     const c = 'w' in g ? furnitureCenter(g) : { x: g.x, y: g.y };
     const ang = rotateAngle(c, p.world, !!p.shift);
     this.patch(o, { angle: ang } as any);
+    // Turning a piece changes the ground it stands on — a sofa square to a wall
+    // sweeps into it at 45°. Re-clear after the angle is set, not before.
+    if (o.kind === 'furniture') this.patch(o, this.clear(o as any, { x: o.x, y: o.y }) as any);
 
     // live angle readout above the object; green when snapped to a right angle
     const deg = ((Math.round(ang) % 360) + 360) % 360;
@@ -183,6 +219,11 @@ export class SelectTool implements Tool {
       if (e.key === 'ArrowLeft') d.x = -step; if (e.key === 'ArrowRight') d.x = step;
       if (e.key === 'ArrowUp') d.y = -step; if (e.key === 'ArrowDown') d.y = step;
       doc.commit();
+      // One shared correction for the whole selection, same reason as a drag:
+      // nudging a group into a wall must not redistribute its members.
+      const push = groupClearOfWalls(doc,
+        objs.map(o => ({ o, at: { x: (o as any).x + d.x, y: (o as any).y + d.y } })));
+      d.x += push.x; d.y += push.y;
       for (const o of objs) {
         const g: any = o;
         if (o.kind === 'room' && g.poly) { const poly = (g.poly as Vec[]).map(pt => ({ x: pt.x + d.x, y: pt.y + d.y })); this.patch(o, { x: g.x + d.x, y: g.y + d.y, poly, auto: false } as any); }
