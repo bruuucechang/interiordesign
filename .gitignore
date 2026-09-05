@@ -25,3 +25,7 @@ client/public/models/
 
 # 素材抓取的中繼檔（Quaternius 的 OBJ 原始檔）
 .cache/
+
+# 打包出來的 Windows 安裝程式（96MB）。跟 dist/ 一樣是建置產物，
+# 不是原始碼——`packaging/installer.iss` 才是。
+packaging/out/
