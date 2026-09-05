@@ -12,6 +12,24 @@ interface Meta { id: string; name: string; updatedAt: string; }
 interface ServerMeta extends Meta { updatedAtIso: string; }
 interface ServerPlan extends ServerMeta { data: Project; }
 
+/**
+ * What a sync round actually did.
+ *
+ * `failed` and `offline` are the point. This used to return only the two
+ * success counts, so a round that pushed nothing looked exactly like a round
+ * with nothing to push — and that is how a plan sat in the mirror rewriting
+ * itself every 20 seconds, listed as 尚未上傳, with nowhere in the UI saying
+ * why or offering to retry.
+ */
+export interface SyncResult {
+  pushed: number;
+  deleted: number;
+  /** Ids that could not be sent this round; the mirror still holds them. */
+  failed: string[];
+  /** The backend could not be asked at all. Not the same as "nothing to do". */
+  offline?: boolean;
+}
+
 async function j<T>(url: string, opts?: RequestInit, ms = 2500): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
@@ -140,8 +158,10 @@ export async function deleteProject(id: string): Promise<void> {
  * Called on startup and from the autosave heartbeat. Silent when there is
  * nothing to do, which is almost always.
  */
-export async function syncPending(): Promise<{ pushed: number; deleted: number }> {
+export async function syncPending(): Promise<SyncResult> {
   let pushed = 0, deleted = 0;
+  /** Plans the mirror holds that could not be pushed this round. */
+  const failed: string[] = [];
   let listed: ServerMeta[];
   try {
     const got = arrayField<ServerMeta>(await j<{ projects: ServerMeta[] }>('/api/projects'), 'projects');
@@ -150,10 +170,10 @@ export async function syncPending(): Promise<{ pushed: number; deleted: number }
     // backend answering 200 with an unexpected body made every beat throw, for
     // ever, and offline edits were never pushed — with the save indicator
     // still showing 已儲存.
-    if (!got) return { pushed, deleted };
+    if (!got) return { pushed, deleted, failed, offline: true };
     listed = got;
   } catch {
-    return { pushed, deleted };   // still offline; the next beat tries again
+    return { pushed, deleted, failed, offline: true };   // still offline; the next beat tries again
   }
 
   for (const id of Object.keys(tombstones())) {
@@ -161,7 +181,7 @@ export async function syncPending(): Promise<{ pushed: number; deleted: number }
       await j(`/api/projects/${id}`, { method: 'DELETE' });
       clearTombstone(id);
       deleted++;
-    } catch { /* leave the tombstone for the next attempt */ }
+    } catch { failed.push(id); }   // leave the tombstone for the next attempt
   }
 
   const onServer = new Map(listed.map(m => [m.id, m.updatedAtIso]));
@@ -178,9 +198,15 @@ export async function syncPending(): Promise<{ pushed: number; deleted: number }
       const plan = migrate(mine.plan);
       putPlan(id, plan, await put(plan));
       pushed++;
-    } catch { /* next beat */ }
+    } catch {
+      // Count it. Swallowing this is how a plan sat here rewriting itself every
+      // 20 seconds, listed as 尚未上傳, with nothing anywhere saying why or
+      // offering to try again — the user's only clue was a row that never
+      // changed. A failure nobody counts is a failure nobody can be told about.
+      failed.push(id);
+    }
   }
-  return { pushed, deleted };
+  return { pushed, deleted, failed };
 }
 
 // ---- compute served by the backend ----
