@@ -5,9 +5,11 @@ import { Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
 import { fmtLen, dist, angleDeg, alignWallEnd, bulgeFrom } from '../core/geometry';
 import { applyReference } from '../core/wallEdit';
+import { DEFAULTS } from '../model/locale-defaults';
 import { computeSnap, drawSnap, SnapResult, WallSeg } from '../core/snap';
 
-const WALL_THICKNESS = 12;   // cm
+/** 台灣住宅的預設牆厚。來源與其他在地預設值一起列在 locale-defaults.ts。 */
+const WALL_THICKNESS = DEFAULTS.wallThickness;
 const DIM_OFFSET = 40;       // cm
 const JOIN_PX = 14;          // screen-px radius for snapping onto other walls
 const PLACE_STEP = 1;        // cm — round placed endpoints to a clean grid

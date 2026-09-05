@@ -16,8 +16,10 @@ import { material as materialDef } from './materials';
 import { capturePanorama } from './panorama';
 import { nextResolution, onWorkloadChange, initialState, ResolutionState } from './resolution';
 import { mark, done } from './perf';
+import { DEFAULTS } from '../model/locale-defaults';
 
-const WALL_H = 270; // cm
+/** 台灣住宅的預設牆高——見 model/locale-defaults.ts。 */
+const WALL_H = DEFAULTS.wallHeight;
 
 // Time-of-day lighting presets: sun colour/intensity/angle, sky fills, exposure.
 type TimeKey = 'morning' | 'noon' | 'dusk' | 'night';

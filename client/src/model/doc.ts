@@ -2,6 +2,7 @@ import { Project, Obj, Layer, LayerId, Floor } from './schema';
 import { defaultLayers } from './catalogue';
 import { migrate, SCHEMA_VERSION } from './migrate';
 import { genId } from './ids';
+import { DEFAULTS } from './locale-defaults';
 
 // Re-exported: genId lives in ids.ts so migrate.ts can use it without a cycle,
 // but every caller already reaches for it here.
@@ -51,7 +52,7 @@ export class Doc {
   }
 
   static blank(): Project {
-    const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: 280, objects: [] };
+    const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: DEFAULTS.floorHeight, objects: [] };
     return {
       schemaVersion: SCHEMA_VERSION,
       id: genId('proj'), name: DEFAULT_PLAN_NAME,
@@ -69,7 +70,7 @@ export class Doc {
   addFloor() {
     this.commit();
     const top = this.project.floors.reduce((m, f) => Math.max(m, f.elevation + f.height), 0);
-    const floor: Floor = { id: genId('floor'), name: `${this.project.floors.length + 1}F`, elevation: top, height: 280, objects: [] };
+    const floor: Floor = { id: genId('floor'), name: `${this.project.floors.length + 1}F`, elevation: top, height: DEFAULTS.floorHeight, objects: [] };
     this.project.floors.push(floor);
     this.project.activeFloorId = floor.id;
     this.selectedIds = [];

@@ -8,6 +8,7 @@ import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
 import { t } from '../core/i18n';
 import { MaterialDef, floorMaterials, wallMaterials } from '../core/materials';
+import { DEFAULTS, defaultNote } from '../model/locale-defaults';
 import { Unit, ALL_UNITS, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
 
 // The properties panel: everything shown for the current selection, plus the
@@ -296,8 +297,14 @@ export function refreshProps(editor: Editor, doc: Doc) {
         const uy = cur > 1e-6 ? (o.b.y - o.a.y) / cur : 0;
         up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
       }, 1);
-      dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
-      dim(size.body, '高度', o.height ?? 270, v => up({ height: Math.max(10, v) } as any), 10);
+      const th = dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
+      const ht = dim(size.body, '高度', o.height ?? DEFAULTS.wallHeight, v => up({ height: Math.max(10, v) } as any), 10);
+      // Say where the number came from. 12 cm and 270 cm are Taiwanese
+      // residential figures, and on their own they read as properties of walls
+      // rather than as somebody's choice — which is exactly how a beginner ends
+      // up building a plan on assumptions nobody told them about.
+      th.title = defaultNote('牆厚', DEFAULTS.wallThickness);
+      ht.title = defaultNote('牆高', DEFAULTS.wallHeight);
       {
         // Split at a measured distance, which is how a wall gets a different
         // thickness or finish along part of its run. The field is committed on
