@@ -1,5 +1,6 @@
 import { Project, Vec } from '../model/schema';
 import { migrate } from '../model/migrate';
+import { isBlankPlan } from '../model/doc';
 import {
   allPlans, clearTombstone, dropPlan, getPlan, isNewer, markDeleted, nowIso,
   putPlan, tombstones,
@@ -249,6 +250,25 @@ export async function syncPending(): Promise<SyncResult> {
   const stillDeleted = tombstones();
   for (const [id, mine] of Object.entries(allPlans())) {
     if (id in stillDeleted) continue;
+
+    // A mirror entry filed under a key that is not its own plan's id can never
+    // resolve: `put` addresses `plan.id`, and the result is re-filed under this
+    // key, which still matches no row — so it is "newer" again on the next
+    // beat, for ever. There was one of these rewriting itself every 20 seconds.
+    // Re-file it and move on; the entry under its real id syncs normally.
+    if (mine.plan?.id && mine.plan.id !== id) {
+      console.warn(`[interior] 鏡像 ${id} 裡的方案其實是 ${mine.plan.id}；改歸檔到正確的 id`);
+      putPlan(mine.plan.id, mine.plan, mine.savedAt);
+      dropPlan(id);
+      continue;
+    }
+
+    // Never push a plan that would not have been created in the first place.
+    // Without this, a blank left behind by a crash or a bench run is pushed
+    // back the moment its row is deleted — the list grows again and the delete
+    // looks like it silently failed.
+    if (isBlankPlan(mine.plan)) { dropPlan(id); continue; }
+
     if (!isNewer(mine.savedAt, onServer.get(id) ?? '')) continue;
     try {
       // Migrate on the way out. The mirror holds whatever shape was current

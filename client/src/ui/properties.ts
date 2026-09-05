@@ -639,6 +639,26 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
   note.textContent = '這幾處的牆面差不到 5 公分——平面圖上看不出來，3D 會露出一條牆的端面。選一面拉齊，或略過。';
   host.append(title, note);
 
+  // 一次全部略過。
+  //
+  // 「不想處理這些」是一個決定，不是四個——而逐列按四次的過程裡，面板每按一次就
+  // 重畫一次，看起來就像沒有反應。使用者回報「一直跳出來」的時候，逐列按正是那個
+  // 體感的一部分。
+  if (steps.length > 1) {
+    const allWrap = document.createElement('div');
+    allWrap.style.cssText = 'padding: 0 10px 8px;';
+    const all = document.createElement('button');
+    all.className = 'linkish'; all.textContent = `全部略過（${steps.length} 處）`;
+    all.title = '這份圖的牆面落差都不處理；之後可以從「重新顯示」叫回來';
+    all.onclick = () => {
+      for (const s of steps) writeSkip(planId, stepId(s));
+      refreshProps(editor, doc);
+      flash(`已略過 ${steps.length} 處牆面落差 — 之後可從屬性面板叫回來`);
+    };
+    allWrap.appendChild(all);
+    host.appendChild(allWrap);
+  }
+
   // 房間名字比「左／右」好用得多，而房間本來就偵測過了。取牆面外側 20cm 的一點
   // 落在哪個房間裡——20 是「一定出了牆、又還沒穿過對面那道牆」的距離。
   const rooms = doc.objects.filter(o => o.kind === 'room') as Extract<Obj, { kind: 'room' }>[];

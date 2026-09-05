@@ -336,3 +336,44 @@ test('推不上去的那一份要被列進 failed', async () => {
   assert.equal(r.pushed, 0);
   assert.ok(!r.offline, '伺服器是通的，這不是離線');
 });
+
+// ---- 鏡像裡兩種永遠推不掉的東西 ----
+
+test('鏡像的 key 跟 plan.id 不一致時，改歸檔而不是每 20 秒重試一次', async () => {
+  // `put` 寫到 plan.id，結果卻存回這個 key，所以下一拍它又「比較新」——無限迴圈。
+  // 這台機器上就有一筆這樣的，每 20 秒把自己重寫一次。
+  server.plans.set('realId', { name: '案子', data: plan('realId'), at: '2026-08-07T00:00:10Z' });
+  storage.setItem('interior_projects', JSON.stringify({
+    wrongKey: { plan: plan('realId'), savedAt: '2026-08-08T00:00:00Z' },
+  }));
+  await syncPending();
+  const keys = Object.keys(store.allPlans());
+  assert.ok(!keys.includes('wrongKey'), '錯的 key 要消失');
+  assert.deepEqual(keys, ['realId']);
+});
+
+test('空白方案不會被鏡像推回伺服器', async () => {
+  // 沒有這一條，當機或 bench 留下的空白列一被刪掉就會在下一拍長回來，
+  // 而使用者看到的是「刪除好像沒有生效」。
+  const blank = plan('blank1');
+  blank.name = '未命名平面圖';
+  storage.setItem('interior_projects', JSON.stringify({
+    blank1: { plan: blank, savedAt: '2026-08-08T00:00:00Z' },
+  }));
+  const r = await syncPending();
+  assert.equal(r.pushed, 0);
+  assert.equal(server.plans.has('blank1'), false, '不該被建立出來');
+  assert.deepEqual(Object.keys(store.allPlans()), [], '鏡像裡那一筆也該清掉');
+});
+
+test('有內容的方案照常推上去', async () => {
+  const real = plan('real1');
+  real.floors[0].objects.push({ id: 'w', kind: 'wall', layer: 'walls',
+    a: { x: 0, y: 0 }, b: { x: 100, y: 0 }, thickness: 12 } as any);
+  storage.setItem('interior_projects', JSON.stringify({
+    real1: { plan: real, savedAt: '2026-08-08T00:00:00Z' },
+  }));
+  const r = await syncPending();
+  assert.equal(r.pushed, 1);
+  assert.equal(server.plans.has('real1'), true);
+});
