@@ -368,3 +368,65 @@ def test_a_stamp_for_a_plan_that_does_not_exist_yet_is_fine(client):
         headers={"If-Unmodified-Since": "2026-01-01T00:00:00+00:00"},
     )
     assert r.status_code == 200
+
+
+# ---- 擁有者：兩個人在同一台伺服器上不該共用一份清單 ----
+#
+# 這是**身分不是驗證**。沒有登入，所以 owner 是呼叫端自稱的，伺服器無法查證。它擋得住
+# 「兩個人在同一台機器上互相看到、改到、刪到對方的圖」——而那是真的發生過的傷害，
+# 而且發生時沒有任何一方是攻擊者。它擋不住刻意換 header 的人：那需要登入，規則 9.4.3
+# 明講了這件事，而不是讓這個欄位去暗示它做得到。
+
+def _mine(who):
+    return {"X-Owner": who}
+
+
+def test_two_people_do_not_see_each_others_plans(client):
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN}, headers=_mine("ann"))
+    client.put("/api/projects/b", json={"name": "B", "data": PLAN}, headers=_mine("bob"))
+    ann = [p["id"] for p in client.get("/api/projects", headers=_mine("ann")).json()["projects"]]
+    bob = [p["id"] for p in client.get("/api/projects", headers=_mine("bob")).json()["projects"]]
+    assert ann == ["a"]
+    assert bob == ["b"]
+
+
+def test_somebody_elses_plan_reads_as_absent(client):
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN}, headers=_mine("ann"))
+    # 404 而不是 403：404 沒有透露任何東西存不存在，而這裡沒有什麼值得確認的。
+    assert client.get("/api/projects/a", headers=_mine("bob")).status_code == 404
+
+
+def test_writing_over_somebody_elses_plan_is_refused_out_loud(client):
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN}, headers=_mine("ann"))
+    r = client.put("/api/projects/a", json={"name": "hijack", "data": PLAN}, headers=_mine("bob"))
+    assert r.status_code == 403, "回 200 然後把寫入丟掉，正是這一節要擋的無聲資料遺失"
+    assert client.get("/api/projects/a", headers=_mine("ann")).json()["name"] == "A"
+
+
+def test_deleting_somebody_elses_plan_is_refused(client):
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN}, headers=_mine("ann"))
+    assert client.delete("/api/projects/a", headers=_mine("bob")).status_code == 403
+    assert client.get("/api/projects/a", headers=_mine("ann")).status_code == 200
+
+
+def test_plans_from_before_ownership_stay_visible_to_everyone(client):
+    """升級不該把既有的 61 份從它們主人的清單裡清空——而事後也無從得知那是誰。"""
+    client.put("/api/projects/old", json={"name": "old", "data": PLAN})   # 沒有 X-Owner
+    for who in ("ann", "bob"):
+        ids = [p["id"] for p in client.get("/api/projects", headers=_mine(who)).json()["projects"]]
+        assert "old" in ids, who
+
+
+def test_the_first_person_to_save_an_unowned_plan_claims_it(client):
+    client.put("/api/projects/old", json={"name": "old", "data": PLAN})
+    client.put("/api/projects/old", json={"name": "old2", "data": PLAN}, headers=_mine("ann"))
+    assert [p["id"] for p in client.get("/api/projects", headers=_mine("ann")).json()["projects"]] == ["old"]
+    assert [p["id"] for p in client.get("/api/projects", headers=_mine("bob")).json()["projects"]] == []
+
+
+def test_no_header_still_sees_everything(client):
+    """沒有宣告身分時行為跟以前一樣——腳本、離線重播與舊的呼叫端都不帶這個標頭。"""
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN}, headers=_mine("ann"))
+    client.put("/api/projects/b", json={"name": "B", "data": PLAN}, headers=_mine("bob"))
+    ids = sorted(p["id"] for p in client.get("/api/projects").json()["projects"])
+    assert ids == ["a", "b"]

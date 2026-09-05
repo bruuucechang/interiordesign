@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from sqlalchemy import JSON, DateTime, String, create_engine, func, select
+from sqlalchemy import JSON, DateTime, String, create_engine, func, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -79,6 +79,22 @@ class Floorplan(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+    # Who this plan belongs to.
+    #
+    # **Identity, not authentication.** There is no login here, so this is a
+    # claim the client makes about itself, not one the server can check. What it
+    # buys is real anyway: two people on one server stop sharing a single global
+    # list, so neither can open, edit or delete the other's work by accident —
+    # which is the harm that actually happened, and it happened without anybody
+    # being an attacker.
+    #
+    # What it does not buy is protection from somebody who sends a different
+    # header on purpose. That needs a login, and pretending otherwise would be
+    # worse than saying so: see rule 9.4.3.
+    #
+    # NULL means "from before this existed" and is visible to everyone, so the
+    # 61 plans already here do not vanish from their owner's list.
+    owner: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None, index=True)
 
 
 #: How long a deleted plan stays recoverable.
@@ -94,6 +110,12 @@ def init_db() -> None:
         conn.exec_driver_sql(
             "ALTER TABLE floorplans ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ"
         )
+        conn.exec_driver_sql(
+            "ALTER TABLE floorplans ADD COLUMN IF NOT EXISTS owner VARCHAR(64)"
+        )
+        conn.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS ix_floorplans_owner ON floorplans (owner)"
+        )
 
 
 def get_db() -> Iterator[Session]:
@@ -105,7 +127,20 @@ def get_db() -> Iterator[Session]:
         session.close()
 
 
-def list_projects(db: Session, *, deleted: bool = False) -> list[dict[str, Any]]:
+def _visible(owner: str | None):
+    """Rows this caller may see.
+
+    Their own, plus everything that predates ownership (`owner IS NULL`). The
+    second half is what stops an upgrade emptying somebody's list — the 61 plans
+    already on this machine belong to whoever was using it, and there is no way
+    to work out who that was after the fact.
+    """
+    if owner is None:
+        return Floorplan.id.is_not(None)          # no claim made: behave as before
+    return or_(Floorplan.owner == owner, Floorplan.owner.is_(None))
+
+
+def list_projects(db: Session, *, deleted: bool = False, owner: str | None = None) -> list[dict[str, Any]]:
     """Live plans, or the ones in the bin.
 
     The default has to be "live". Anything that forgets the filter and lists
@@ -116,7 +151,7 @@ def list_projects(db: Session, *, deleted: bool = False) -> list[dict[str, Any]]
     rows = db.execute(
         select(
             Floorplan.id, Floorplan.name, Floorplan.updated_at, Floorplan.deleted_at
-        ).where(where).order_by(
+        ).where(where, _visible(owner)).order_by(
             (Floorplan.deleted_at if deleted else Floorplan.updated_at).desc()
         )
     ).all()
@@ -131,7 +166,7 @@ def list_projects(db: Session, *, deleted: bool = False) -> list[dict[str, Any]]
     ]
 
 
-def get_project(db: Session, project_id: str) -> dict[str, Any] | None:
+def get_project(db: Session, project_id: str, owner: str | None = None) -> dict[str, Any] | None:
     """A live plan, or None.
 
     A binned plan reads as absent. Returning it would let the client open one
@@ -142,6 +177,10 @@ def get_project(db: Session, project_id: str) -> dict[str, Any] | None:
     row = db.get(Floorplan, project_id)
     if row is None or row.deleted_at is not None:
         return None
+    # Somebody else's plan reads as absent rather than as forbidden: a 404 says
+    # nothing about what exists, and there is nothing here worth confirming.
+    if owner is not None and row.owner is not None and row.owner != owner:
+        return None
     return {
         "id": row.id,
         "name": row.name,
@@ -150,34 +189,48 @@ def get_project(db: Session, project_id: str) -> dict[str, Any] | None:
     }
 
 
-def save_project(db: Session, project_id: str, name: str, data: Any) -> dict[str, Any]:
+def save_project(db: Session, project_id: str, name: str, data: Any, owner: str | None = None) -> dict[str, Any]:
     row = db.get(Floorplan, project_id)
     now = datetime.now(timezone.utc)
     if row is None:
-        row = Floorplan(id=project_id, name=name, data=data, created_at=now, updated_at=now)
+        row = Floorplan(id=project_id, name=name, data=data, created_at=now, updated_at=now, owner=owner)
         db.add(row)
     else:
+        # Somebody else's row is not ours to overwrite. Raised rather than
+        # ignored: a save that silently did not happen is the failure this whole
+        # section exists to stop.
+        if owner is not None and row.owner is not None and row.owner != owner:
+            raise PermissionError(project_id)
         row.name = name
         row.data = data
         row.updated_at = now
+        # A plan that predates ownership is claimed by the first person to save
+        # it. Leaving it unowned for ever would mean it never becomes anybody's,
+        # and it is already visible to everybody.
+        if row.owner is None and owner is not None:
+            row.owner = owner
     db.commit()
     # The stored time comes back so the client can file its local mirror under
     # the server's clock rather than its own, and stop the two disagreeing.
     return {"id": project_id, "name": name, **_times(row.updated_at)}
 
 
-def delete_project(db: Session, project_id: str) -> None:
+def delete_project(db: Session, project_id: str, owner: str | None = None) -> None:
     """Move to the bin. The row and its data stay put."""
     row = db.get(Floorplan, project_id)
+    if row is not None and owner is not None and row.owner is not None and row.owner != owner:
+        raise PermissionError(project_id)
     if row is not None and row.deleted_at is None:
         row.deleted_at = datetime.now(timezone.utc)
         db.commit()
 
 
-def restore_project(db: Session, project_id: str) -> bool:
+def restore_project(db: Session, project_id: str, owner: str | None = None) -> bool:
     """Take it back out of the bin. False if there was nothing to restore."""
     row = db.get(Floorplan, project_id)
     if row is None or row.deleted_at is None:
+        return False
+    if owner is not None and row.owner is not None and row.owner != owner:
         return False
     row.deleted_at = None
     db.commit()

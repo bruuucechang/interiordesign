@@ -12,8 +12,9 @@ import { flash } from './feedback';
 import { askRoute, renderSteps, setRoute } from './onboarding';
 import { startTour, maybeStartTour } from './tour';
 import { t, setLang, currentLang, Lang } from '../core/i18n';
+import { DEFAULTS, defaultNote } from '../model/locale-defaults';
 import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
-import { setConflictHandler } from '../net/api';
+import { setConflictHandler, setNotYoursHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
 import { refreshProps } from './properties';
 import { dwgNotSupportedModal, dxfImportModal, plotModal, openModal } from './modals';
@@ -62,6 +63,25 @@ export function initUI(editor: Editor, doc: Doc) {
     markDirty();
     void flushSave(doc);
     flash('已另存為新的一份，原本那一份沒有被動到');
+  });
+
+  // 這份圖屬於別人。跟衝突走同一個原則：你的改動一直在本機，所以「另存新檔」永遠是
+  // 安全出口，不會有「選錯就沒了」的分支。
+  setNotYoursHandler(() => {
+    const keep = confirm(
+      '這份平面圖屬於另一個使用者（或另一個瀏覽器）。\n\n'
+      + '你的改動沒有被存進去，但完整地留在這台機器上。\n\n'
+      + '按「確定」另存成你自己的一份，按「取消」先不存。',
+    );
+    if (!keep) { flash('已暫停儲存 — 你的改動還在本機'); return; }
+    const copy = doc.serialize();
+    copy.id = genId('proj');
+    copy.name = `${copy.name}（我的版本）`;
+    doc.load(copy);
+    $<HTMLInputElement>('#projectName').value = copy.name;
+    markDirty();
+    void flushSave(doc);
+    flash('已另存為你自己的一份');
   });
 
   editor.hooks.command = (name) => { void handle(name === 'plot' ? 'plot-pdf' : name, editor, doc); };
@@ -327,6 +347,7 @@ function buildFloors(editor: Editor, doc: Doc) {
     name.onclick = () => doc.setActiveFloor(f.id);
     name.ondblclick = () => { const n = prompt('樓層名稱', f.name); if (n) doc.renameFloor(f.id, n); };
     const elev = document.createElement('span'); elev.className = 'felev'; elev.textContent = (f.elevation / 100).toFixed(1) + 'm';
+    elev.title = defaultNote('樓高', DEFAULTS.floorHeight);
     const del = iconButton('close', '刪除樓層');
     del.onclick = (e) => { e.stopPropagation(); if (doc.floors.length > 1 && confirm(`刪除樓層「${f.name}」？`)) doc.removeFloor(f.id); };
     row.append(name, elev, del);

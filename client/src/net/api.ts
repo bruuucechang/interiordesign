@@ -31,14 +31,52 @@ export interface SyncResult {
   offline?: boolean;
 }
 
+/**
+ * Who this browser says it is.
+ *
+ * A claim, not a credential — see the note on `Floorplan.owner`. Generated once
+ * per browser and kept, so a person's plans stay theirs across sessions on this
+ * machine. It is not sent anywhere except this server, and it identifies a
+ * browser rather than a person: clearing site data starts a new one, which
+ * loses the *association*, not the plans (they stay, unowned rows are visible
+ * to everyone).
+ */
+const OWNER_KEY = 'interior_owner';
+
+export function ownerId(): string {
+  try {
+    let v = localStorage.getItem(OWNER_KEY);
+    if (!v) {
+      v = 'own_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+      localStorage.setItem(OWNER_KEY, v);
+    }
+    return v;
+  } catch {
+    // Storage off: behave like a caller that makes no claim, which the server
+    // treats exactly as it did before ownership existed.
+    return '';
+  }
+}
+
+/** Headers every request carries. */
+function mine(extra?: HeadersInit): HeadersInit {
+  const id = ownerId();
+  return { ...(id ? { 'X-Owner': id } : {}), ...(extra as Record<string, string> ?? {}) };
+}
+
 async function j<T>(url: string, opts?: RequestInit, ms = 2500): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    const r = await fetch(url, { ...opts, headers: mine(opts?.headers), signal: ctrl.signal });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return await r.json() as T;
   } finally { clearTimeout(t); }
+}
+
+/** Raised when the plan belongs to somebody else. */
+export class NotYoursError extends Error {
+  constructor() { super('not yours'); }
 }
 
 /** Raised when the stored copy moved on since we last read it. */
@@ -62,12 +100,13 @@ async function put(p: Project): Promise<string> {
   const known = getPlan(p.id)?.savedAt;
   const r = await fetch(`/api/projects/${p.id}`, {
     method: 'PUT',
-    headers: {
+    headers: mine({
       'Content-Type': 'application/json',
       ...(known ? { 'If-Unmodified-Since': known } : {}),
-    },
+    }),
     body: JSON.stringify({ name: p.name, data: p }),
   });
+  if (r.status === 403) throw new NotYoursError();
   if (r.status === 409) {
     const body = await r.json().catch(() => ({}));
     throw new ConflictError(body?.detail?.storedAtIso ?? '');
@@ -163,6 +202,10 @@ export async function loadProject(id: string): Promise<Project | null> {
 export let onConflict: ((id: string, storedAtIso: string) => void) | null = null;
 export function setConflictHandler(fn: typeof onConflict) { onConflict = fn; }
 
+/** Told when a save was refused because the plan belongs to somebody else. */
+export let onNotYours: ((id: string) => void) | null = null;
+export function setNotYoursHandler(fn: typeof onNotYours) { onNotYours = fn; }
+
 export async function saveProject(p: Project): Promise<boolean> {
   // Mirrored first, under our own clock, so an interrupted send still leaves
   // the work somewhere and marked as ahead of the server.
@@ -177,6 +220,10 @@ export async function saveProject(p: Project): Promise<boolean> {
     // retrying on the heartbeat would just fail forever against a row that has
     // moved on — so it has to reach a human.
     if (e instanceof ConflictError) onConflict?.(p.id, e.storedAtIso);
+    // Refused because it is somebody else's. Retrying on the heartbeat would
+    // fail for ever, and silently — so it has to reach a person, and the local
+    // copy has to stay put so nothing is lost while they decide.
+    if (e instanceof NotYoursError) onNotYours?.(p.id);
     return false;
   }
 }
