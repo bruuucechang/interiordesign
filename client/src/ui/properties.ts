@@ -6,6 +6,7 @@ import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, poi
 import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
+import { t } from '../core/i18n';
 import { MaterialDef, floorMaterials, wallMaterials } from '../core/materials';
 import { Unit, ALL_UNITS, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
 
@@ -31,7 +32,9 @@ export function refreshProps(editor: Editor, doc: Doc) {
   const host = $('#properties'); host.innerHTML = '';
   const ids = doc.selectedIds;
   if (!ids.length) {
-    host.innerHTML = '<div class="muted">未選取物件</div>';
+    const empty = document.createElement('div');
+    empty.className = 'muted'; empty.textContent = t('未選取物件');
+    host.appendChild(empty);
     renderUnderlay(editor, doc, host);
     renderFaceSteps(editor, doc, host);
     return;

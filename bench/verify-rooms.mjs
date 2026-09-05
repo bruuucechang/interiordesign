@@ -33,6 +33,12 @@ const s=await new Promise(ok=>{const sv=createServer(async(req,res)=>{const p=de
  let f=join(DIST,p==='/'?'index.html':p); if(!existsSync(f))f=join(DIST,'index.html');
  res.writeHead(200,{'content-type':MIME[extname(f)]??'application/octet-stream'});res.end(await readFile(f))});sv.listen(0,()=>ok(sv))});
 const b=await chromium.launch();const page=await b.newPage({viewport:{width:1400,height:900}});
+await page.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 await page.goto(`http://127.0.0.1:${s.address().port}/?perf=1&plan=img0199`);
 await page.waitForTimeout(6000);
 const r = JSON.parse(await page.evaluate(()=>{

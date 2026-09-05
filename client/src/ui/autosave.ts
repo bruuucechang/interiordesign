@@ -1,3 +1,4 @@
+import { t } from '../core/i18n';
 import { Doc, isBlankPlan } from '../model/doc';
 import { saveProject, syncPending } from '../net/api';
 
@@ -39,10 +40,10 @@ function setSaveStatus(state: SaveState, detail?: string) {
   const el = document.querySelector('#saveStatus') as HTMLElement | null; if (!el) return;
   el.className = 'save-status ' + state;
   el.textContent = state === 'idle' ? ''
-    : state === 'saving' ? '儲存中…'
-    : state === 'offline' ? '離線・已暫存本機'
+    : state === 'saving' ? t('儲存中…')
+    : state === 'offline' ? t('離線・已暫存本機')
     : state === 'stuck' ? `${stuckCount} 份同步失敗`
-    : '已儲存 ✓';
+    : t('已儲存 ✓');
   el.title = detail ?? (
     state === 'stuck'
       ? '這幾份存在本機但送不上伺服器。點一下重試；仍然失敗的話用「匯出專案檔」把它們留下來。'

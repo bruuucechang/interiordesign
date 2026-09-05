@@ -62,6 +62,12 @@ const base = `http://127.0.0.1:${server.address().port}`;
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 400, height: 400 } });
+await page.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 page.on('pageerror', (e) => console.error('PAGEERROR', String(e).split('\n')[0]));
 PAGE = `<!doctype html><meta charset=utf8>
 <script type="importmap">{"imports":{"three":"${base}/three/build/three.module.js","three/addons/":"${base}/three/examples/jsm/"}}</script>

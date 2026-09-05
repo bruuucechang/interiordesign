@@ -198,6 +198,12 @@ const browser = await chromium.launch({
   args: ['--use-gl=angle', '--use-angle=metal', '--enable-gpu', '--js-flags=--expose-gc'],
 });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+await page.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 
 // Keep the stack, not just the message. A soak that reports
 // "TypeError: reading 'map'" with no location has found a bug and then hidden

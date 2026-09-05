@@ -1,3 +1,4 @@
+import { t } from './i18n';
 // Whether this machine can do 3D, and what to show when it cannot.
 //
 // Lives in its own module so the decision can be tested. It used to be implicit
@@ -35,7 +36,7 @@ export function show3DUnavailable(pane: HTMLElement, viewModes: HTMLElement): vo
   const msg = document.createElement('div');
   msg.className = 'pane-empty';
   const b = document.createElement('b');
-  b.textContent = '這台機器無法使用 3D';
+  b.textContent = t('這台機器無法使用 3D');
   const s = document.createElement('span');
   s.innerHTML = '瀏覽器拿不到 WebGL。常見原因是硬體加速被關掉、遠端桌面，或顯示卡驅動。'
     + '<br>2D 平面圖、匯出與所有繪圖功能都不受影響。';
@@ -44,7 +45,7 @@ export function show3DUnavailable(pane: HTMLElement, viewModes: HTMLElement): vo
   for (const btn of Array.from(viewModes.querySelectorAll('button'))) {
     if ((btn as HTMLElement).dataset.mode !== '2d') {
       (btn as HTMLButtonElement).disabled = true;
-      btn.setAttribute('title', '這台機器無法使用 3D');
+      btn.setAttribute('title', t('這台機器無法使用 3D'));
     }
   }
 }

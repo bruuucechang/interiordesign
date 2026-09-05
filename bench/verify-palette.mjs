@@ -40,6 +40,12 @@ const base = `http://127.0.0.1:${server.address().port}`;
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1400, height: 950 } });
+await page.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 page.on('pageerror', (e) => { console.error('PAGEERROR', String(e).split('\n')[0]); fail++; });
 let fail = 0;
 const check = (name, ok, detail = '') => {

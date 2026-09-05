@@ -17,6 +17,8 @@
 //   · **The window changing size underneath it.** The bubble is repositioned on
 //     resize and scroll rather than placed once.
 
+import { currentLang, t } from '../core/i18n';
+
 const SEEN = 'interior_tour_seen';
 
 interface Step {
@@ -34,7 +36,64 @@ interface Step {
  * because tracing is the common case; the reference line comes straight after
  * drawing because it is the one concept here that silently ruins a whole plan.
  */
-const STEPS: Step[] = [
+const STEPS_EN: Step[] = [
+  {
+    target: null,
+    title: 'This tool does one thing',
+    body: 'It draws a floor plan, and grows the 3D of it at the same time.\n\n'
+      + 'You draw on the left; the right becomes the actual rooms as you go.\n'
+      + 'You can press Skip at any point, and reopen this from the "?" in the toolbar.',
+  },
+  {
+    target: '#pane2d',
+    title: 'This is the plan',
+    body: 'Every wall, door, window and piece of furniture is drawn in this pane.\n\n'
+      + 'Scroll to zoom; drag empty space to move around.',
+  },
+  {
+    target: '#left',
+    title: 'Tools and furniture live on the left',
+    body: 'Drawing tools at the top — Wall is the one you will use most.\n'
+      + 'Below them, 251 pieces of furniture you can search and filter by style.\n\n'
+      + 'Pick a tool, then click on the plan.',
+  },
+  {
+    target: '[data-act="import-image"]',
+    title: 'Got a photo of a floor plan? Import it here',
+    body: 'If you have a drawing or a photo, import it and trace over it — much faster than starting empty.\n\n'
+      + 'You will be asked to **set the scale first**: draw a line along something the drawing gives a dimension for, and type that real length.\n'
+      + 'Skip that and the traced plan looks completely normal while every measurement in it is wrong.',
+  },
+  {
+    target: '#wallRef',
+    title: 'Which face of the wall are you clicking?',
+    body: 'A wall has thickness, so on the drawing it is really two lines.\n\n'
+      + 'Measuring on site with a tape against one face? Pick Left or Right face. Tracing a CAD drawing? Pick Centre.\n'
+      + 'Get it wrong and the whole flat is out by half a wall — on a 12 cm wall that is 12 cm per room.',
+  },
+  {
+    target: '#right',
+    title: 'Select something, set exact numbers here',
+    body: 'Click any wall or object and its size, position and finish appear here.\n\n'
+      + 'Units switch between cm, m, inches and feet.\n\n'
+      + 'Prefer not to use the mouse? While drawing a wall, type the length, Tab for the angle, Enter to place.',
+  },
+  {
+    target: '#viewModes',
+    title: '2D, split, 3D',
+    body: 'Split is the usual one: change something on the left, see it on the right immediately.\n\n'
+      + 'In 3D, WASD walks, the arrow keys slide the view, and dragging turns it.',
+  },
+  {
+    target: '#saveStatus',
+    title: 'You do not have to remember to save',
+    body: 'Every change is saved automatically; the status shows here.\n\n'
+      + 'You can keep working with no server — changes stay on this device and go up when it is reachable.\n'
+      + 'Deleted projects go to a bin and can be restored for 30 days.',
+  },
+];
+
+const STEPS_ZH: Step[] = [
   {
     target: null,
     title: '這個工具做一件事',
@@ -195,15 +254,15 @@ function render() {
 
   const acts = document.createElement('div'); acts.className = 'tour-acts';
   const skip = document.createElement('button');
-  skip.className = 'tour-skip'; skip.textContent = '跳過';
+  skip.className = 'tour-skip'; skip.textContent = t('跳過');
   skip.onclick = end;
   const prev = document.createElement('button');
-  prev.className = 'tour-prev'; prev.textContent = '上一步';
+  prev.className = 'tour-prev'; prev.textContent = t('上一步');
   prev.disabled = idx === 0;
   prev.onclick = () => go(-1);
   const next = document.createElement('button');
   next.className = 'tour-next';
-  next.textContent = idx === steps.length - 1 ? '開始使用' : '下一步';
+  next.textContent = t(idx === steps.length - 1 ? '開始使用' : '下一步');
   next.onclick = () => go(1);
   acts.append(skip, prev, next);
 
@@ -216,7 +275,10 @@ function render() {
 export function startTour() {
   cleanup();
   // Drop steps whose anchor is not on screen rather than pointing at nothing.
-  steps = STEPS.filter(s => !s.target || document.querySelector(s.target));
+  // 教學的內文是整段文章，不是零散的詞——用 `t()` 一句一句翻會把段落切碎，也讓譯者
+  // 看不到上下文。所以整份步驟表按語言各寫一份。
+  const table = currentLang() === 'en' ? STEPS_EN : STEPS_ZH;
+  steps = table.filter(s => !s.target || document.querySelector(s.target));
   if (!steps.length) return;
   idx = 0;
 

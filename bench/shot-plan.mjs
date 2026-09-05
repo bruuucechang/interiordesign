@@ -34,6 +34,12 @@ const server = await new Promise(ok => { const s = createServer(async (req,res) 
 const plan = JSON.parse(await readFile(PLAN, 'utf8'));
 await mkdir(OUT, { recursive: true });
 const b = await chromium.launch(); const page = await b.newPage({ viewport:{width:1700,height:1000} });
+await page.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 page.on('pageerror', e => console.error('PAGEERROR', String(e).split('\n')[0]));
 await page.goto(`http://127.0.0.1:${server.address().port}/?perf=1`);
 await page.waitForTimeout(2500);

@@ -31,6 +31,12 @@ const FRAME_MS = 16.7;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+await page.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 const errors = [];
 page.on('pageerror', e => errors.push(String(e)));
 await page.goto(`${BASE}/?perf=1`, { waitUntil: 'networkidle' });
