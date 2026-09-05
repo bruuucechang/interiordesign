@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import db as store
@@ -43,10 +43,34 @@ def get_project(project_id: str, db: Session = Depends(store.get_db)) -> dict[st
 
 @router.put("/projects/{project_id}")
 def put_project(
-    project_id: str, body: SaveBody, db: Session = Depends(store.get_db)
+    project_id: str,
+    body: SaveBody,
+    db: Session = Depends(store.get_db),
+    if_unmodified_since: str | None = Header(default=None, alias="If-Unmodified-Since"),
 ) -> dict[str, Any]:
+    """Save, unless somebody else saved first.
+
+    The client sends the `updatedAtIso` it last saw. If the stored row has moved
+    on since, this is two people editing one plan and the later write would
+    erase the earlier one **with neither of them told**. A 409 gives the client
+    something to show instead of a silent loss.
+
+    Absent header = no opinion, which keeps every existing caller working: the
+    offline replay, the trace scripts, and anything written before this existed.
+    """
     if body.data is None:
         raise HTTPException(status_code=400, detail="name and data required")
+    if if_unmodified_since:
+        current = store.get_project(db, project_id)
+        if current is not None and current["updatedAtIso"] != if_unmodified_since:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "conflict",
+                    "storedAtIso": current["updatedAtIso"],
+                    "yoursAtIso": if_unmodified_since,
+                },
+            )
     # Checked, not enforced: a save that does not match the schema is still the
     # user's work, and the client may legitimately be ahead of us.
     check_stored_plan(body.data, project_id=project_id)
