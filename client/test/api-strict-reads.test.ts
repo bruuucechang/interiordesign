@@ -115,6 +115,9 @@ test('syncPending：後端形狀不對要當成離線，而不是每 20 秒丟�
   for (const body of BAD_BODIES) {
     reply = { status: 200, body };
     const r = await syncPending();
-    assert.deepEqual(r, { pushed: 0, deleted: 0 }, JSON.stringify(body));
+    // `offline: true` 是這條測試現在多要求的一件事：形狀不對不只是「什麼都沒做」，
+    // 它跟連不上是同一件事，而且必須說得出來——不然畫面沒辦法分辨「沒東西要同步」
+    // 跟「後端一直在回垃圾」。
+    assert.deepEqual(r, { pushed: 0, deleted: 0, failed: [], offline: true }, JSON.stringify(body));
   }
 });
