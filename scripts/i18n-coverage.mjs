@@ -82,3 +82,33 @@ if (LIST && bare.length) {
   }
 }
 console.log('\n（目錄的家具名稱刻意不算——那是內容不是介面，而且要另一種審查。）');
+console.log('（這個數字會低估：欄位標籤是在建構函式裡翻的、教學是每種語言各一份表，');
+console.log('  兩者都翻好了但看起來像沒包。真正的量法是把介面切成英文再數畫面上的中文。）');
+
+// ---- 第二個數字：包起來了，但字典裡沒有 ----
+//
+// `t()` 的設計是缺字就退回中文，所以「包起來」不等於「翻好了」——一個全部包了 t()
+// 卻沒有任何英文條目的介面，覆蓋率是 100%，畫面上仍然全是中文。這裡把兩者分開數。
+{
+  const src = readFileSync(new URL('../client/src/core/i18n.ts', import.meta.url), 'utf8');
+  // Not `^\s*'key':` — the dictionary puts short pairs two to a line, so an
+  // anchored pattern saw only the first of each and reported 30 keys as missing
+  // that were sitting right there. Match every `'key':` instead.
+  const dict = new Set([...src.matchAll(/'((?:[^'\\]|\\.)+)'\s*:/g)].map(m => m[1]));
+  const keys = new Set();
+  for (const file of walk(SRC)) {
+    const rel2 = relative(SRC, file);
+    if (SKIP_FILES.includes(rel2)) continue;
+    const body = stripComments(readFileSync(file, 'utf8'));
+    for (const m of body.matchAll(/\bt\(\s*(['"`])((?:[^\\\n]|\\.)*?)\1/g)) {
+      if (CJK.test(m[2])) keys.add(m[2]);
+    }
+  }
+  const html = readFileSync(new URL('../client/index.html', import.meta.url), 'utf8');
+  for (const m of html.matchAll(/data-i18n(?:-title|-value)?="([^"]+)"/g)) {
+    if (CJK.test(m[1])) keys.add(m[1]);
+  }
+  const missing = [...keys].filter(k => !dict.has(k));
+  console.log(`已經過 t() 但字典裡沒有英文的：${missing.length} / ${keys.size}`);
+  if (LIST && missing.length) for (const k of missing.slice(0, 40)) console.log(`  ${k}`);
+}
