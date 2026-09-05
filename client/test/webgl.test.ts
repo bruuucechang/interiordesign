@@ -43,28 +43,32 @@ function fakeDom() {
   };
   const buttons = [mk('2d'), mk('split'), mk('3d')];
   const viewModes = { querySelectorAll: () => buttons } as unknown as HTMLElement;
+  const kids: any[] = [];
   const pane = {
     innerHTML: 'old',
-    children: [] as any[],
-    appendChild(c: any) { this.children.push(c); return c; },
+    children: kids,
+    appendChild: (c: any) => { kids.push(c); return c; },
   } as unknown as HTMLElement;
-  return { pane, viewModes, buttons };
+  return { pane, viewModes, buttons, kids };
 }
 
 // jsdom-free: the module only uses createElement/append, so stub document.
 (globalThis as any).document = {
-  createElement: () => ({
-    className: '', innerHTML: '', textContent: '',
-    children: [] as any[],
-    append(...c: any[]) { this.children.push(...c); },
-    appendChild(c: any) { this.children.push(c); return c; },
-  }),
+  createElement: () => {
+    const kids: any[] = [];
+    return {
+      className: '', innerHTML: '', textContent: '',
+      children: kids,
+      append: (...c: any[]) => { kids.push(...c); },
+      appendChild: (c: any) => { kids.push(c); return c; },
+    };
+  },
 };
 
 test('3D 不可用時，那一格要說出原因', () => {
-  const { pane } = fakeDom();
+  const { pane, kids } = fakeDom();
   show3DUnavailable(pane, fakeDom().viewModes);
-  const box: any = (pane as any).children[0];
+  const box: any = kids[0];
   assert.equal(box.className, 'pane-empty');
   const text = box.children.map((c: any) => c.textContent + c.innerHTML).join(' ');
   assert.match(text, /WebGL/, '要講出是 WebGL 拿不到');
