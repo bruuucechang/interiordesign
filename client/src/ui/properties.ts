@@ -603,6 +603,17 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
     return;
   }
 
+  // A cap, and it says so.
+  //
+  // One row per join, unbounded, meant 306 rows on a 324-wall plan — each with
+  // two buttons and two point-in-polygon room lookups. That was most of the
+  // 48.8 ms this panel cost on every document change. A list nobody can read is
+  // not more informative than a list of twelve; a *silently* truncated one is
+  // less, so the count says how many are hidden.
+  const MAX_ROWS = 12;
+  const shown = steps.slice(0, MAX_ROWS);
+  const more = steps.length - shown.length;
+
   const title = document.createElement('div');
   title.className = 'panel-title'; title.style.borderTop = 'none';
   title.textContent = `牆面對齊（${steps.length} 處）`;
@@ -622,7 +633,7 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
     return null;
   };
 
-  for (const s of steps) {
+  for (const s of shown) {
     const row = document.createElement('div'); row.className = 'facestep';
     const head = document.createElement('div'); head.className = 'facestep-head';
     head.textContent = `落差 ${s.step.toFixed(1)} cm`;
@@ -675,6 +686,14 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
     grid.appendChild(skip);
     row.appendChild(grid);
     host.appendChild(row);
+  }
+
+  if (more > 0) {
+    const rest = document.createElement('div');
+    rest.className = 'muted';
+    rest.style.cssText = 'padding: 2px 10px 8px; font-size: 11px;';
+    rest.textContent = `還有 ${more} 處（處理完上面幾處後會接著顯示）`;
+    host.appendChild(rest);
   }
 }
 
