@@ -40,11 +40,39 @@ async function j<T>(url: string, opts?: RequestInit, ms = 2500): Promise<T> {
   } finally { clearTimeout(t); }
 }
 
+/** Raised when the stored copy moved on since we last read it. */
+export class ConflictError extends Error {
+  constructor(readonly storedAtIso: string) { super('conflict'); }
+}
+
+/**
+ * Write, telling the server which version we are working from.
+ *
+ * The stamp is whatever the mirror recorded on the last successful read or
+ * write. If the row has moved since, somebody else saved in between and
+ * overwriting would erase their work with neither side told — so the server
+ * answers 409 and the caller gets to decide.
+ *
+ * Sent only when we actually have a stamp. A plan being created, or one
+ * replayed from a mirror written before this existed, has no opinion about what
+ * it is replacing, and inventing one would refuse writes that are fine.
+ */
 async function put(p: Project): Promise<string> {
-  const d = await j<{ updatedAtIso: string }>(`/api/projects/${p.id}`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+  const known = getPlan(p.id)?.savedAt;
+  const r = await fetch(`/api/projects/${p.id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(known ? { 'If-Unmodified-Since': known } : {}),
+    },
     body: JSON.stringify({ name: p.name, data: p }),
   });
+  if (r.status === 409) {
+    const body = await r.json().catch(() => ({}));
+    throw new ConflictError(body?.detail?.storedAtIso ?? '');
+  }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = await r.json() as { updatedAtIso: string };
   return d.updatedAtIso;
 }
 
@@ -130,6 +158,10 @@ export async function loadProject(id: string): Promise<Project | null> {
   }
 }
 
+/** Told when a save was refused because somebody else got there first. */
+export let onConflict: ((id: string, storedAtIso: string) => void) | null = null;
+export function setConflictHandler(fn: typeof onConflict) { onConflict = fn; }
+
 export async function saveProject(p: Project): Promise<boolean> {
   // Mirrored first, under our own clock, so an interrupted send still leaves
   // the work somewhere and marked as ahead of the server.
@@ -139,7 +171,13 @@ export async function saveProject(p: Project): Promise<boolean> {
     // when its write genuinely did not arrive.
     putPlan(p.id, p, await put(p));
     return true;
-  } catch { return false; }
+  } catch (e) {
+    // A conflict is not "offline". The work is still in the mirror, but
+    // retrying on the heartbeat would just fail forever against a row that has
+    // moved on — so it has to reach a human.
+    if (e instanceof ConflictError) onConflict?.(p.id, e.storedAtIso);
+    return false;
+  }
 }
 
 /** Plans in the bin, newest deletion first. Empty when the backend is down. */

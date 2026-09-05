@@ -39,9 +39,22 @@ app = FastAPI(title="Interior Designer API", version="1.0.0", lifespan=lifespan)
 
 # The Vite dev server proxies /api, but the client can also be served from a
 # different origin in production.
+# `allow_origins=["*"]` with no authentication meant any page in any tab could
+# read and rewrite every plan on this server. That is survivable on a localhost
+# tool used by one person and not survivable anywhere else, and nothing in the
+# code said which of those it was.
+#
+# Default to the origins this app is actually served from; `INTERIOR_ORIGINS`
+# (comma-separated) widens it deliberately rather than by oversight.
+_DEFAULT_ORIGINS = [
+    "http://localhost:5180", "http://127.0.0.1:5180",     # vite dev
+    "http://localhost:8791", "http://127.0.0.1:8791",     # served by this app
+    "http://localhost:18791", "http://127.0.0.1:18791",   # docker
+]
+_origins = [o.strip() for o in os.environ.get("INTERIOR_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins or _DEFAULT_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

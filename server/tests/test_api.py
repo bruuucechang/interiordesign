@@ -323,3 +323,48 @@ def test_dimension_chain_ignores_objects_it_cannot_read(client):
     r = client.post("/api/dimensions/chain", json={"wall": w, "objects": objs})
     assert r.status_code == 200
     assert len(r.json()["dimensions"]) == 1
+
+
+def test_a_second_writer_gets_a_409_instead_of_erasing_the_first(client):
+    """兩個人開同一份圖，後寫的原本直接蓋掉前一個人，而且兩邊都不會知道。"""
+    first = client.put("/api/projects/a", json={"name": "A", "data": PLAN}).json()
+    stamp = first["updatedAtIso"]
+    # 另一個人存了一次
+    client.put("/api/projects/a", json={"name": "A2", "data": PLAN})
+    # 我拿著舊的版本戳記再存
+    r = client.put(
+        "/api/projects/a",
+        json={"name": "A3", "data": PLAN},
+        headers={"If-Unmodified-Since": stamp},
+    )
+    assert r.status_code == 409
+    assert r.json()["detail"]["error"] == "conflict"
+    # 而且沒有蓋掉別人的
+    assert client.get("/api/projects/a").json()["name"] == "A2"
+
+
+def test_the_right_stamp_saves_normally(client):
+    first = client.put("/api/projects/a", json={"name": "A", "data": PLAN}).json()
+    r = client.put(
+        "/api/projects/a",
+        json={"name": "A2", "data": PLAN},
+        headers={"If-Unmodified-Since": first["updatedAtIso"]},
+    )
+    assert r.status_code == 200
+    assert client.get("/api/projects/a").json()["name"] == "A2"
+
+
+def test_no_header_still_saves(client):
+    """離線重播、描圖腳本、以及這個功能存在之前寫的東西都沒有戳記可以帶。"""
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN})
+    assert client.put("/api/projects/a", json={"name": "A2", "data": PLAN}).status_code == 200
+
+
+def test_a_stamp_for_a_plan_that_does_not_exist_yet_is_fine(client):
+    """第一次建立時沒有「已存的版本」可以比，不該被擋。"""
+    r = client.put(
+        "/api/projects/brand-new",
+        json={"name": "N", "data": PLAN},
+        headers={"If-Unmodified-Since": "2026-01-01T00:00:00+00:00"},
+    )
+    assert r.status_code == 200

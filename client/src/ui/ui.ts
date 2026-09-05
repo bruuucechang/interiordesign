@@ -11,6 +11,7 @@ import { exportPNG, exportPDF } from '../core/exporter';
 import { flash } from './feedback';
 import { askRoute, renderSteps, setRoute } from './onboarding';
 import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
+import { setConflictHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
 import { refreshProps } from './properties';
 import { dwgNotSupportedModal, dxfImportModal, plotModal, openModal } from './modals';
@@ -37,6 +38,30 @@ export function initUI(editor: Editor, doc: Doc) {
 
   // ⌘S / ⌘O / ⌘N / ⌘P go through the same `handle()` as the toolbar buttons —
   // one implementation, so a shortcut can never drift from the button it mirrors.
+  // 衝突要看得見，不能靜靜覆蓋。
+  //
+  // 兩個人開同一份圖時，後寫的原本直接蓋掉前一個人——而且兩邊都不會知道。現在
+  // 伺服器會擋下來，這裡負責把它變成一個人看得懂、而且有得選的東西：你的版本還
+  // 完整地留在本機，所以「另存新檔」永遠是安全出口。
+  setConflictHandler((id, storedAtIso) => {
+    const when = storedAtIso ? storedAtIso.replace('T', ' ').slice(0, 19) : '剛剛';
+    const keep = confirm(
+      `這份圖在別的地方被存過了（${when}）。\n\n`
+      + `直接存下去會蓋掉那一版。\n\n`
+      + `按「確定」另存成新的一份（兩版都保住），\n`
+      + `按「取消」先不存 — 你的改動仍在本機，什麼都不會弄丟。`,
+    );
+    if (!keep) { flash('已暫停儲存 — 你的改動還在，重新載入可以看到別人的版本'); return; }
+    const copy = doc.serialize();
+    copy.id = genId('proj');
+    copy.name = `${copy.name}（我的版本）`;
+    doc.load(copy);
+    $<HTMLInputElement>('#projectName').value = copy.name;
+    markDirty();
+    void flushSave(doc);
+    flash('已另存為新的一份，原本那一份沒有被動到');
+  });
+
   editor.hooks.command = (name) => { void handle(name === 'plot' ? 'plot-pdf' : name, editor, doc); };
   editor.hooks.toolChange = (name) => markActiveTool(name);
   editor.onCalibrated = (msg, ok) => { flash(msg); if (ok) renderSteps(editor, doc); };
