@@ -80,6 +80,21 @@ export function refreshProps(editor: Editor, doc: Doc) {
       wb('⊹', 'center', '中心線對齊');
       wb('◨', 'right', '右緣對齊');
       host.append(wl, wg);
+
+      // 被略過的落差要叫得回來，但入口放在這裡而不是沒有選取的面板上：那個常駐的
+      // 「已略過 N 處」本身就是使用者說不要再看到的東西。選了兩道以上的牆，代表
+      // 你正在想牆面的事，這時候提起它才有意義；平常它根本不存在。
+      const hiddenCount = readSkips(doc.project.id).size;
+      if (hiddenCount) {
+        const back = document.createElement('div');
+        back.style.cssText = 'padding: 0 10px 8px;';
+        const a = document.createElement('button');
+        a.className = 'linkish';
+        a.textContent = `重新顯示已略過的 ${hiddenCount} 處落差`;
+        a.onclick = () => { clearSkips(doc.project.id); refreshProps(editor, doc); flash('已恢復顯示'); };
+        back.appendChild(a);
+        host.appendChild(back);
+      }
     }
 
     const grp = document.createElement('button'); grp.className = 'prop-action';
@@ -604,21 +619,13 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
   const skipped = readSkips(planId);
   const all = editor.faceSteps();
   const steps = all.filter(s => !skipped.has(stepId(s)));
-  const hidden = all.length - steps.length;
-  if (!steps.length) {
-    // 全部略過之後留一行可以叫回來的入口——不然那個決定就變成不可逆的了。
-    if (hidden > 0) {
-      const back = document.createElement('div');
-      back.className = 'muted';
-      back.style.cssText = 'padding: 8px 10px; font-size: 11px;';
-      const a = document.createElement('button');
-      a.className = 'linkish'; a.textContent = `已略過 ${hidden} 處牆面落差 — 重新顯示`;
-      a.onclick = () => { clearSkips(planId); refreshProps(editor, doc); };
-      back.appendChild(a);
-      host.appendChild(back);
-    }
-    return;
-  }
+  // 全部略過之後，這一區完全消失——連「已略過 N 處」那一行都不留。
+  //
+  // 那一行本來是為了讓決定可逆，但它自己就是使用者不想看到的東西的一部分：他要的
+  // 是「處理完了，不要再提」，而一行寫著「已略過 4 處」的常駐提示正好是在提。
+  // 叫回來的入口移到多選牆體時的「牆面對齊」區——那時候你本來就在想牆面的事，
+  // 而平常它不存在。
+  if (!steps.length) return;
 
   // A cap, and it says so.
   //
