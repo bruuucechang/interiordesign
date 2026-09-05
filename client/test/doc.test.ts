@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Doc } from '../src/model/doc';
+import { Doc, isBlankPlan } from '../src/model/doc';
 
 const sofa = (id: string) => ({ id, kind: 'furniture', layer: 'furniture', item: 'sofa', x: 0, y: 0, w: 100, h: 50, angle: 0, label: '' }) as any;
 
@@ -66,4 +66,49 @@ test('an old flat project migrates into a single floor', () => {
   assert.equal(d.floors.length, 1);
   assert.equal(d.objects.length, 2);
   assert.equal((d.project as any).objects, undefined);     // legacy field removed
+});
+
+// ---- 空白專案不該被建立成一列 ----
+//
+// 219 份存檔裡有 150 份叫「未命名平面圖」，其中 13 份完全是空的、85 份只有一兩道牆。
+// 來源就是「開啟 App 不帶 ?plan= 就會在第一次 autosave 建一列」——每看一眼工具、每跑
+// 一次 bench、每重載一次都留下一份，而且彼此之間、以及跟真正的工作之間都分不出來。
+
+test('剛開的空白專案算空白', () => {
+  assert.equal(isBlankPlan(Doc.blank()), true);
+});
+
+test('畫了任何東西就不算空白', () => {
+  const p = Doc.blank();
+  p.floors[0].objects.push({ id: 'w', kind: 'wall', layer: 'walls',
+    a: { x: 0, y: 0 }, b: { x: 100, y: 0 }, thickness: 12 } as any);
+  assert.equal(isBlankPlan(p), false);
+});
+
+test('底圖也算東西', () => {
+  // 匯入底圖之後還沒描任何一道牆，那份圖也已經存在了。
+  const p = Doc.blank();
+  p.floors[0].objects.push({ id: 'i', kind: 'image', layer: 'underlay',
+    x: 0, y: 0, w: 100, h: 100, src: 'data:,', opacity: 0.6 } as any);
+  assert.equal(isBlankPlan(p), false);
+});
+
+test('取了名字就不算空白，即使什麼都還沒畫', () => {
+  // 打了專案名再去找底圖的人已經表達了「這份圖存在」，因為還沒畫而弄丟它是另一種錯。
+  const p = Doc.blank();
+  p.name = '王宅 3F';
+  assert.equal(isBlankPlan(p), false);
+});
+
+test('名字前後的空白不算取名', () => {
+  const p = Doc.blank();
+  p.name = '  未命名平面圖  ';
+  assert.equal(isBlankPlan(p), true);
+});
+
+test('第二層樓有東西也不算空白', () => {
+  const p = Doc.blank();
+  p.floors.push({ id: 'f2', name: '2F', elevation: 280, height: 280,
+    objects: [{ id: 'w', kind: 'wall', layer: 'walls', a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, thickness: 12 } as any] });
+  assert.equal(isBlankPlan(p), false);
 });

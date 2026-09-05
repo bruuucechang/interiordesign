@@ -1,4 +1,4 @@
-import { Doc } from '../model/doc';
+import { Doc, isBlankPlan } from '../model/doc';
 import { saveProject, syncPending } from '../net/api';
 
 // Saving is debounced rather than periodic, so edits reach the backend almost
@@ -31,14 +31,15 @@ let saveTimer: number | undefined;
  * lands — and it is not "saved" either. Without a name of its own it was
  * reported as one or the other, both of which are lies.
  */
-type SaveState = 'saving' | 'saved' | 'offline' | 'stuck';
+type SaveState = 'saving' | 'saved' | 'offline' | 'stuck' | 'idle';
 
 let stuckCount = 0;
 
 function setSaveStatus(state: SaveState, detail?: string) {
   const el = document.querySelector('#saveStatus') as HTMLElement | null; if (!el) return;
   el.className = 'save-status ' + state;
-  el.textContent = state === 'saving' ? '儲存中…'
+  el.textContent = state === 'idle' ? ''
+    : state === 'saving' ? '儲存中…'
     : state === 'offline' ? '離線・已暫存本機'
     : state === 'stuck' ? `${stuckCount} 份同步失敗`
     : '已儲存 ✓';
@@ -71,6 +72,11 @@ export async function flushSave(doc: Doc): Promise<boolean> {
   if (!dirty) return true;
   dirty = false;
   const p = doc.serialize();
+  // An untouched blank plan is not work, and filing it as one is how the list
+  // grew 150 rows called 未命名平面圖. `lastSaved` is empty only for a document
+  // that has never been loaded from anywhere or saved — so a real plan that the
+  // user has emptied still saves, which is the case this must not break.
+  if (lastSaved === '' && isBlankPlan(p)) { setSaveStatus('idle'); return true; }
   const json = JSON.stringify(p);
   if (json === lastSaved) { setSaveStatus('saved'); return true; }   // nothing meaningful changed
   const ok = await saveProject(p);
