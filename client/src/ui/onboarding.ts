@@ -42,7 +42,8 @@ export function stepsFor(doc: Doc): { label: string; done: boolean }[] {
   if (route === 'scratch') {
     return [
       { label: '選左側「直線牆」開始畫', done: p.traced },
-      { label: '拖曳端點微調，屬性面板可輸入精確長度', done: false },
+      { label: '要精確長度就直接打數字（Tab 切角度、Enter 放置）', done: false },
+      { label: '工具列的「中心／左緣／右緣」＝你點的線是牆的哪一面', done: false },
     ];
   }
   return [
