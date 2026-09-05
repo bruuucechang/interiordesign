@@ -13,12 +13,23 @@ cd /d "%~dp0"
 
 echo ==^> preparing python environment
 if not exist .venv python -m venv .venv || exit /b 1
-.venv\Scripts\pip install --quiet --upgrade pip
-.venv\Scripts\pip install --quiet -r server\requirements.txt pyinstaller || exit /b 1
+REM `python -m pip`, not `pip.exe` — on Windows pip cannot replace its own
+REM running executable, so upgrading through the wrapper fails every time with
+REM "To modify pip, please run the following command".
+.venv\Scripts\python -m pip install --quiet --upgrade pip || exit /b 1
+.venv\Scripts\python -m pip install --quiet -r server\requirements.txt pyinstaller || exit /b 1
 
-echo ==^> fetching 3D assets (existing ones are skipped)
-for %%S in (fetch_models fetch_kenney fetch_quaternius fetch_sweethome) do (
-  .venv\Scripts\python scripts\%%S.py || exit /b 1
+REM Check before fetching — see the comment in build-desktop.sh.
+node scripts\check-assets.mjs client\public >nul 2>&1
+if errorlevel 1 (
+  echo ==^> fetching 3D assets
+  .venv\Scripts\python -m pip install --quiet gdown || exit /b 1
+  for %%S in (fetch_models fetch_kenney fetch_quaternius fetch_sweethome) do (
+    .venv\Scripts\python scripts\%%S.py || exit /b 1
+  )
+  node scripts\check-assets.mjs client\public || exit /b 1
+) else (
+  echo ==^> 3D assets already present, skipping download
 )
 
 echo ==^> building client
@@ -35,6 +46,9 @@ if exist dist rmdir /s /q dist
 
 echo ==^> checking assets reached the package
 node scripts\check-assets.mjs dist\InteriorDesigner\_internal\static || exit /b 1
+
+echo ==^> writing the note for whoever receives this
+node scripts\make-user-readme.mjs dist\InteriorDesigner || exit /b 1
 
 echo.
 echo done: dist\InteriorDesigner\InteriorDesigner.exe
