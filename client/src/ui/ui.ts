@@ -333,11 +333,19 @@ function buildLayers(editor: Editor, doc: Doc) {
     const lock = iconButton(l.locked ? 'lockOn' : 'lockOff', l.locked ? '解鎖這個圖層' : '鎖定這個圖層');
     lock.className = l.locked ? '' : 'on';
     lock.onclick = () => { doc.toggleLayerLock(l.id); };
+    // 顏色不是唯一的編碼。
+    //
+    // 原本圖層只靠**文字顏色**區分，於是色覺不同的人拿到的是七行灰字；而深色底
+    // 上的彩色細字本來就是對比最差的組合。改成名字用一般前景色、顏色另外給一個
+    // 有邊框的色塊——顏色仍然在，但它不再是唯一在講話的東西。
+    const swatch = document.createElement('span');
+    swatch.className = 'layer-swatch';
+    swatch.style.background = l.color;
+    swatch.setAttribute('aria-hidden', 'true');
     const name = document.createElement('span'); name.className = 'name'; name.textContent = l.name;
-    name.style.color = l.color;
     const up = iconButton('up', '往上一層'); up.onclick = () => doc.moveLayer(l.id, 1);
     const dn = iconButton('down', '往下一層'); dn.onclick = () => doc.moveLayer(l.id, -1);
-    row.append(eye, lock, name, up, dn);
+    row.append(eye, lock, swatch, name, up, dn);
     host.appendChild(row);
   }
 }
