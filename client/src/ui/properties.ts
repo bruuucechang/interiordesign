@@ -546,9 +546,62 @@ function renderUnderlay(editor: Editor, doc: Doc, host: HTMLElement) {
  * 幾何本身選不出來——哪一間房間拿到平整的那面是關於這棟房子的決定。所以按鈕上寫
  * 的是房間名字，不是「左」「右」。
  */
+/**
+ * 「略過」要記得住。
+ *
+ * 第一版只把那一列從 DOM 移掉，而 `refreshProps` 在每一次文件變動時都會重畫整個
+ * 面板——於是下一次移動任何東西，被略過的那幾處全部回來。使用者按了「略過」，
+ * 而軟體的回答是「我知道了，但我還是要問」。
+ *
+ * 存 localStorage 而不是存進方案：這是「我看過了，不打算改」的個人判斷，不是圖的
+ * 一部分——把它寫進存檔，等於讓一個人的決定跟著檔案傳給下一個人。
+ */
+const SKIP_KEY = 'interior_facestep_skipped';
+const stepId = (s: { moverId: string; anchorId: string }) => `${s.moverId}|${s.anchorId}`;
+
+function readSkips(planId: string): Set<string> {
+  try {
+    const all = JSON.parse(localStorage.getItem(SKIP_KEY) || '{}');
+    return new Set<string>(all[planId] ?? []);
+  } catch { return new Set(); }
+}
+
+function writeSkip(planId: string, id: string) {
+  try {
+    const all = JSON.parse(localStorage.getItem(SKIP_KEY) || '{}');
+    all[planId] = [...new Set([...(all[planId] ?? []), id])];
+    localStorage.setItem(SKIP_KEY, JSON.stringify(all));
+  } catch { /* 記不住總比壞掉好 */ }
+}
+
+function clearSkips(planId: string) {
+  try {
+    const all = JSON.parse(localStorage.getItem(SKIP_KEY) || '{}');
+    delete all[planId];
+    localStorage.setItem(SKIP_KEY, JSON.stringify(all));
+  } catch { /* 同上 */ }
+}
+
 function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
-  const steps = editor.faceSteps();
-  if (!steps.length) return;
+  const planId = doc.project.id;
+  const skipped = readSkips(planId);
+  const all = editor.faceSteps();
+  const steps = all.filter(s => !skipped.has(stepId(s)));
+  const hidden = all.length - steps.length;
+  if (!steps.length) {
+    // 全部略過之後留一行可以叫回來的入口——不然那個決定就變成不可逆的了。
+    if (hidden > 0) {
+      const back = document.createElement('div');
+      back.className = 'muted';
+      back.style.cssText = 'padding: 8px 10px; font-size: 11px;';
+      const a = document.createElement('button');
+      a.className = 'linkish'; a.textContent = `已略過 ${hidden} 處牆面落差 — 重新顯示`;
+      a.onclick = () => { clearSkips(planId); refreshProps(editor, doc); };
+      back.appendChild(a);
+      host.appendChild(back);
+    }
+    return;
+  }
 
   const title = document.createElement('div');
   title.className = 'panel-title'; title.style.borderTop = 'none';
@@ -618,7 +671,7 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
     grid.append(side('left'), side('right'));
     const skip = document.createElement('button'); skip.className = 'align-btn'; skip.textContent = '略過';
     skip.title = '這一處保持原狀';
-    skip.onclick = () => { row.remove(); if (!host.querySelector('.facestep')) { title.remove(); note.remove(); } };
+    skip.onclick = () => { writeSkip(planId, stepId(s)); refreshProps(editor, doc); };
     grid.appendChild(skip);
     row.appendChild(grid);
     host.appendChild(row);
