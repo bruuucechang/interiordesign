@@ -54,6 +54,16 @@ export const ELECTRICAL: ElectricalSpec[] = [
 export const ELECTRICAL_BY_ID: Record<string, ElectricalSpec> =
   Object.fromEntries(ELECTRICAL.map(e => [e.id, e]));
 
+/**
+ * The default layers.
+ *
+ * The names are stored **in the plan**, so they are data, not interface — a
+ * plan created in one language and opened in another must not silently change
+ * what its layers are called, and a layer the user renamed must keep the name
+ * they typed. So these stay canonical here and are translated where they are
+ * *drawn* (`buildLayers`), which leaves a renamed layer untouched because its
+ * name is not a key in any dictionary.
+ */
 export function defaultLayers(): Layer[] {
   return [
     { id: 'underlay', name: '底圖', visible: true, locked: false, color: '#8b93a3' },

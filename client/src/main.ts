@@ -18,6 +18,7 @@ import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
 import { flash } from './ui/feedback';
 import { webglAvailable, show3DUnavailable } from './core/webgl';
+import { applyStatic, currentLang } from './core/i18n';
 import { savePanorama, isInsidePlan } from './core/panorama';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -31,6 +32,10 @@ const stage = document.getElementById('stage') as HTMLElement;
 
 const doc = new Doc();
 const editor = new Editor(canvas, doc, hint);
+// Translate the shipped markup before anything is measured or shown: the
+// toolbar collapses on width, and English labels are wider than Chinese ones.
+document.documentElement.lang = currentLang();
+applyStatic();
 initUI(editor, doc);
 
 /**

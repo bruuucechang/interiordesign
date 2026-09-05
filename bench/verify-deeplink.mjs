@@ -36,6 +36,12 @@ const want = {
 console.log(`對照 ${PLAN}：${want.name}，牆 ${want.walls} 道、房 ${want.rooms.length} 間、天花板 ${want.height}cm\n`);
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1500, height: 900 } });
+await page.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 const errs = [];
 page.on('pageerror', (e) => errs.push('pageerror: ' + String(e).split('\n')[0]));
 // The unknown-plan case deliberately asks for a 404, so that one is expected.

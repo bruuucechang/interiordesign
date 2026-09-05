@@ -29,7 +29,10 @@ button, input, select, textarea, optgroup { font-family: inherit; }
 
 /* top bar */
 #topbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
-.brand { font-weight: 700; }
+.brand { font-weight: 700; white-space: nowrap; }
+/* A wordmark that wraps is not a wordmark. Without this, adding one control to
+   the bar pushed the title into a vertical column of single characters down the
+   left edge and shoved every other row down with it. */
 .proj-name { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 5px 10px; width: 200px; }
 .save-status { font-size: 12px; color: var(--muted); min-width: 84px; white-space: nowrap; transition: color .2s; }
 .save-status.saving { color: var(--muted); }
@@ -70,6 +73,11 @@ button, input, select, textarea, optgroup { font-family: inherit; }
    labels keeps every control reachable on one row; the titles carry the names,
    so nothing becomes unknowable, only unlabelled. 1700 rather than 1512 because
    the first wrap already happened at 1680. */
+/* English labels are wider than the Chinese ones, so the same bar runs out of
+   room sooner. Measured: with labels, the English build was already overflowing
+   at 1920 while Chinese was fine. */
+html[lang="en"] #topbar .lbl { display: none; }
+html[lang="en"] #topbar button { gap: 0; }
 @media (max-width: 1700px) {
   #topbar .lbl { display: none; }
   #topbar .brand { font-size: 0; }               /* keep the 🏡, drop the words */
@@ -82,7 +90,7 @@ button, input, select, textarea, optgroup { font-family: inherit; }
    rather than controls go: the dividers, the wordmark, and half the gap. The
    save status goes too — it is the only item here that says something rather
    than doing something, and `已儲存 ✓` is repeated by the title bar anyway. */
-@media (max-width: 1180px) {
+@media (max-width: 1320px) {
   #topbar { gap: 4px; padding: 8px; }
   #topbar .sep { display: none; }
   #topbar .brand { display: none; }
@@ -196,6 +204,22 @@ button, input, select, textarea, optgroup { font-family: inherit; }
   align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; }
 .pane-empty b { font-size: 14px; color: var(--text); }
 .pane-empty span { font-size: 12px; color: var(--muted); line-height: 1.7; max-width: 34em; }
+
+/* Two characters wide, because language is set once and then never touched —
+   it does not earn permanent width on a bar that already had to drop its labels
+   to fit. The full names were 104px and pushed the whole bar over budget: the
+   English build was being cut off even at 1920. */
+.lang-select { background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 6px; padding: 6px 4px; font-size: 12px; cursor: pointer; width: 46px; text-align: center; }
+/* The last squeeze. Below this the bar is icons, a name field and a zoom
+   readout — there is nothing left that is not a control, so what gives is
+   padding rather than anything you could need. */
+@media (max-width: 1060px) {
+  #topbar { gap: 3px; padding: 8px 6px; }
+  #topbar button { padding: 6px 7px; }
+  .time-select { max-width: 74px; }
+  .proj-name { width: 88px; }
+}
 
 /* first-run tour: a dimmed page with one thing cut out of it */
 .tour { position: fixed; inset: 0; z-index: 200; }

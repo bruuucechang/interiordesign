@@ -10,6 +10,12 @@ import { chromium } from 'playwright';
 const BASE = process.argv[2] ?? 'http://localhost:5180';
 const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: 1200, height: 800 } });
+await p.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e).split('\n')[0]));
 await p.goto(`${BASE}/?perf=1`, { waitUntil: 'networkidle' });

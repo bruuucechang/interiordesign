@@ -11,6 +11,7 @@ import { exportPNG, exportPDF } from '../core/exporter';
 import { flash } from './feedback';
 import { askRoute, renderSteps, setRoute } from './onboarding';
 import { startTour, maybeStartTour } from './tour';
+import { t, setLang, currentLang, Lang } from '../core/i18n';
 import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
 import { setConflictHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
@@ -82,6 +83,12 @@ export function initUI(editor: Editor, doc: Doc) {
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
   nameInput.addEventListener('input', () => { doc.project.name = nameInput.value || '未命名平面圖'; scheduleAutosave(doc); });
+
+  // 語言切換。整頁重載而不是即時重繪：面板、教學、家具目錄的字串散在十幾個模組裡，
+  // 而重載一定正確——這是「做對」比「做順」重要的地方，切換語言不是每分鐘會做的事。
+  const langSel = $<HTMLSelectElement>('#langSel');
+  langSel.value = currentLang();
+  langSel.onchange = () => { setLang(langSel.value as Lang); location.reload(); };
 
   const imgInput = $<HTMLInputElement>('#imageInput');
   imgInput.addEventListener('change', () => {
@@ -380,7 +387,10 @@ function buildLayers(editor: Editor, doc: Doc) {
     swatch.className = 'layer-swatch';
     swatch.style.background = l.color;
     swatch.setAttribute('aria-hidden', 'true');
-    const name = document.createElement('span'); name.className = 'name'; name.textContent = l.name;
+    // Translated at draw time, not at creation. A default layer shows in the
+    // reader's language; one the user renamed is not in any dictionary, so `t`
+    // hands it straight back and their name survives.
+    const name = document.createElement('span'); name.className = 'name'; name.textContent = t(l.name);
     const up = iconButton('up', '往上一層'); up.onclick = () => doc.moveLayer(l.id, 1);
     const dn = iconButton('down', '往下一層'); dn.onclick = () => doc.moveLayer(l.id, -1);
     row.append(eye, lock, swatch, name, up, dn);

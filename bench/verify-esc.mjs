@@ -16,6 +16,12 @@ const PLAN = process.argv[3] ?? 'img0199-gen';
 
 const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
+await p.addInitScript(() => {
+  // Benches are not testing onboarding, and the first-run tour would eat the
+  // first Escape (its capture listener) and cover the app with an overlay.
+  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+});
+
 const errs = [];
 p.on('pageerror', (e) => errs.push('例外: ' + String(e).split('\n')[0]));
 await p.goto(`${BASE}/?plan=${PLAN}&perf=1`, { waitUntil: 'networkidle' });

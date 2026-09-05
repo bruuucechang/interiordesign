@@ -12,7 +12,7 @@
       <!-- top bar -->
       <header id="topbar">
         <span class="brand">🏡 室內設計繪圖</span>
-        <input id="projectName" class="proj-name" value="未命名平面圖" />
+        <input id="projectName" class="proj-name" value="未命名平面圖" data-i18n-value="未命名平面圖" />
         <span id="saveStatus" class="save-status" aria-live="polite"></span>
         <div class="spacer"></div>
         <!-- Every button carries an icon and a `.lbl`. Below the breakpoint in
@@ -25,37 +25,41 @@
              markup. -->
         <button data-act="new" title="新建平面圖">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/><path d="M12 11v6m-3-3h6"/></svg>
-          <span class="lbl">新建</span>
+          <span class="lbl" data-i18n="新建">新建</span>
         </button>
         <button data-act="save" title="儲存">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg>
-          <span class="lbl">儲存</span>
+          <span class="lbl" data-i18n="儲存">儲存</span>
         </button>
         <button data-act="open" title="開啟專案">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 9H5z"/></svg>
-          <span class="lbl">開啟</span>
+          <span class="lbl" data-i18n="開啟">開啟</span>
         </button>
         <button data-act="import-image" title="匯入底圖以描繪（可調整位置、大小、透明度）">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 5-4 4 3 3-2 6 5"/></svg>
-          <span class="lbl">底圖</span>
+          <span class="lbl" data-i18n="底圖">底圖</span>
         </button>
         <span class="sep"></span>
         <button data-act="undo" title="復原 (Ctrl+Z)">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a6 6 0 0 1 0 12H8"/><path d="m7 4-4 4 4 4"/></svg>
-          <span class="lbl">復原</span>
+          <span class="lbl" data-i18n="復原">復原</span>
         </button>
         <button data-act="redo" title="重做 (Ctrl+Shift+Z)">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8H10a6 6 0 0 0 0 12h6"/><path d="m17 4 4 4-4 4"/></svg>
-          <span class="lbl">重做</span>
+          <span class="lbl" data-i18n="重做">重做</span>
         </button>
         <span class="sep"></span>
         <!-- Drawn, not typed. These three were `⭳ 匯出 ▾` and `⌨`; Arial has no
              glyph for any of them, so the export button read as `□ 匯出 □`. -->
         <div id="exportMenu" class="menu"><button id="exportToggle" title="匯出檔案">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-          <span class="lbl">匯出</span>
+          <span class="lbl" data-i18n="匯出">匯出</span>
           <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </button></div>
+        <select id="langSel" class="lang-select" title="Interface language / 介面語言" aria-label="Interface language">
+          <option value="zh-Hant">中</option>
+          <option value="en">EN</option>
+        </select>
         <button data-act="tour" title="新手教學（指著介面一步一步說明）" aria-label="新手教學">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.8c0 1.7-2.4 2-2.4 3.5M12 17h.01"/></svg>
         </button>
@@ -66,19 +70,19 @@
         <div class="view-modes" id="viewModes">
           <button data-mode="2d" title="只看平面圖">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 20 3v17z"/><path d="M13 15h3M9.5 18.5h3"/></svg>
-            <span class="lbl">2D</span>
+            <span class="lbl" data-i18n="2D">2D</span>
           </button>
           <button data-mode="split" title="平面圖與 3D 並排">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>
-            <span class="lbl">分割</span>
+            <span class="lbl" data-i18n="分割">分割</span>
           </button>
           <button data-mode="3d" title="只看 3D">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
-            <span class="lbl">3D</span>
+            <span class="lbl" data-i18n="3D">3D</span>
           </button>
         </div>
         <select id="timeOfDay" class="time-select" title="光線時段">
-          <option value="morning">🌅 早晨</option>
+          <option value="morning" data-i18n="早晨" data-i18n-emoji="🌅">🌅 早晨</option>
           <option value="noon" selected>☀️ 正午</option>
           <option value="dusk">🌆 黃昏</option>
           <option value="night">🌙 夜晚</option>
@@ -87,7 +91,7 @@
         <label class="chk" title="吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。&#10;關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。">
           <input type="checkbox" id="snapToggle" checked />
           <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M9 4v16M15 4v16" opacity=".55"/><circle cx="15" cy="9" r="2.4"/></svg>
-          <span class="lbl">吸附</span>
+          <span class="lbl" data-i18n="吸附">吸附</span>
         </label>
         <!-- The wall is drawn as its two faces, with the reference one picked out
              heavy. A box with a thick left border and a box with a thick right
@@ -97,15 +101,15 @@
         <div class="view-modes" id="wallRef" title="你在圖上點的那條線，是牆的哪一面？&#10;量錯面，整間房子會差半個牆厚（12cm 的牆就是 6cm，四面牆下來一間房差 12cm）。&#10;現場量內緣就選「左緣/右緣」，量中心線才選「中心」。畫的途中可按 R 切換。">
           <button data-ref="center" title="中心線 — 你點的線是牆的正中間。&#10;從 CAD 圖描牆通常用這個（圖上兩條線的中點）。">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M18 4v16" opacity=".45"/><path d="M12 3v18" stroke-width="2.6" stroke-dasharray="3.5 3"/></svg>
-            <span class="lbl">中心</span>
+            <span class="lbl" data-i18n="中心">中心</span>
           </button>
           <button data-ref="left" title="左緣 — 你點的線是牆的左面，牆往右長出厚度。&#10;拿捲尺貼著牆的這一面量出來的數字，選這個才對得上。">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 4v16" opacity=".45"/><path d="M6 3v18" stroke-width="4"/></svg>
-            <span class="lbl">左緣</span>
+            <span class="lbl" data-i18n="左緣">左緣</span>
           </button>
           <button data-ref="right" title="右緣 — 你點的線是牆的右面，牆往左長出厚度。&#10;拿捲尺貼著牆的另一面量的話選這個。">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16" opacity=".45"/><path d="M18 3v18" stroke-width="4"/></svg>
-            <span class="lbl">右緣</span>
+            <span class="lbl" data-i18n="右緣">右緣</span>
           </button>
         </div>
         <div class="zoom-ctl">
@@ -137,12 +141,12 @@
 
         <!-- right: layers + properties -->
         <aside id="right">
-          <div class="panel-title">樓層</div>
+          <div class="panel-title" data-i18n="樓層">樓層</div>
           <div id="floors"></div>
-          <div class="panel-title collapsible collapsed" data-collapse="layers">圖層</div>
+          <div class="panel-title collapsible collapsed" data-collapse="layers" data-i18n="圖層">圖層</div>
           <div id="layers"></div>
-          <div class="panel-title">屬性</div>
-          <div id="properties"><div class="muted">未選取物件</div></div>
+          <div class="panel-title" data-i18n="屬性">屬性</div>
+          <div id="properties"><div class="muted" data-i18n="未選取物件">未選取物件</div></div>
         </aside>
       </div>
     </div>
@@ -150,7 +154,7 @@
     <!-- open-project modal -->
     <div id="modal" class="modal hidden">
       <div class="modal-box">
-        <div class="modal-head"><span>開啟專案</span><button data-act="close-modal">✕</button></div>
+        <div class="modal-head"><span data-i18n="開啟專案">開啟專案</span><button data-act="close-modal">✕</button></div>
         <div id="projectList" class="project-list"></div>
       </div>
     </div>
@@ -158,7 +162,7 @@
     <!-- new-plan route: trace an existing drawing, or draw from nothing -->
     <div id="routeModal" class="modal hidden">
       <div class="modal-box">
-        <div class="modal-head"><span>新建平面圖</span><button data-act="close-route" aria-label="關閉">
+        <div class="modal-head"><span data-i18n="新建平面圖">新建平面圖</span><button data-act="close-route" aria-label="關閉">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button></div>
         <div class="route-pick">
@@ -167,14 +171,14 @@
               <rect x="2" y="2" width="44" height="32" rx="2" opacity=".35"/>
               <path d="M8 28V12h13v16M21 20h19" />
             </svg>
-            <b>從底圖描</b>
+            <b data-i18n="從底圖描">從底圖描</b>
             <span>有平面圖的照片或掃描檔。匯入後<strong>先校正比例</strong>，之後描出來的每一道牆都是真實尺寸。</span>
           </button>
           <button data-route="scratch" class="route-card">
             <svg class="route-ic" viewBox="0 0 48 36" aria-hidden="true">
               <path d="M6 30V8h20v22zM26 18h16v12H26z" />
             </svg>
-            <b>純手繪</b>
+            <b data-i18n="純手繪">純手繪</b>
             <span>沒有底圖，直接畫。畫的時候可以輸入精確長度，也隨時可以再匯入底圖。</span>
           </button>
         </div>
@@ -184,7 +188,7 @@
     <!-- keyboard shortcuts modal -->
     <div id="shortcutsModal" class="modal hidden">
       <div class="modal-box">
-        <div class="modal-head"><span>鍵盤快捷鍵</span><button data-act="close-shortcuts">✕</button></div>
+        <div class="modal-head"><span data-i18n="鍵盤快捷鍵">鍵盤快捷鍵</span><button data-act="close-shortcuts">✕</button></div>
         <div class="shortcuts">
           <div><kbd>V</kbd>/<kbd>H</kbd> 平移（拖曳物件移動 / 拖曳空白處移動視角）　<kbd>N</kbd> 窗　<kbd>M</kbd> 尺寸</div>
           <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 2D 平移視角 / 3D 往視線方向飛（轉了視角就跟著轉）</div>
