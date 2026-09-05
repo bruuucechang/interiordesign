@@ -16,6 +16,8 @@ import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
+import { flash } from './ui/feedback';
+import { webglAvailable, show3DUnavailable } from './core/webgl';
 import { savePanorama, isInsidePlan } from './core/panorama';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -31,17 +33,52 @@ const doc = new Doc();
 const editor = new Editor(canvas, doc, hint);
 initUI(editor, doc);
 
-const view3d = new View3D(c3d);
+/**
+ * 3D is an addition, not a precondition.
+ *
+ * This used to be a bare `new View3D(c3d)` at module scope, and `View3D`'s
+ * constructor opens with `new THREE.WebGLRenderer()`. On a machine without
+ * WebGL — an old laptop, hardware acceleration switched off, a remote desktop,
+ * a locked-down corporate VM — that throws while the module is still
+ * evaluating, so **nothing after this line ever runs** and the user gets a
+ * blank page. Including the 2D editor, which does not use WebGL at all and is
+ * the part of this app that actually draws the plan.
+ *
+ * So: check first, and carry on without it. `view3d` is nullable from here and
+ * every call site is `?.` — the compiler then refuses to let a new one be
+ * added without deciding what happens when there is no 3D.
+ */
+let view3d: View3D | null = null;
+if (webglAvailable()) {
+  try {
+    view3d = new View3D(c3d);
+  } catch (e) {
+    // Available but unusable — a driver that advertises WebGL and then fails to
+    // give a context. Same outcome for the user, so same handling.
+    console.warn('[interior] 3D 無法啟動，改用純 2D：', e);
+  }
+}
+if (!view3d) show3DUnavailable(c3d, viewModes);
+
 // Place objects by clicking in the 3D view (when 3D is the main view): furniture
 // drops on the floor point; a door/window snaps onto the wall under the cursor.
-view3d.onFloorClick = (floor, sceneHit) => {
+if (view3d) view3d.onFloorClick = (floor, sceneHit) => {
   if (mode === '2d') return;
   const t = editor.toolName;
   if (t === 'furniture') editor.placeFurnitureAt(floor.x, floor.y);
   else if (t === 'door' || t === 'window') editor.placeOpeningAt(t, sceneHit ?? floor);
 };
-view3d.onRotate90 = (deg) => editor.rotateSelection(deg);   // Q/E in 3D rotate the selected object 90°
-editor.hooks.export3d = (name) => view3d.exportGLB(name);   // 匯出 3D → GLTFExporter
+if (view3d) view3d.onRotate90 = (deg) => editor.rotateSelection(deg);
+if (view3d) {
+  view3d.onContextLost = () => flash('3D 繪圖環境被系統收回了，正在等它回來 — 平面圖不受影響');
+  view3d.onContextRestored = () => {
+    view3d!.resize();
+    view3d!.build(doc, false);
+    if (mode !== '2d') view3d!.start();
+    flash('3D 已恢復');
+  };
+}   // Q/E in 3D rotate the selected object 90°
+editor.hooks.export3d = (name) => view3d?.exportGLB(name);   // 匯出 3D → GLTFExporter
 
 type Mode = '2d' | 'split' | '3d';
 const MODE_KEY = 'interior_view_mode', SPLIT_KEY = 'interior_view_split';
@@ -53,7 +90,9 @@ const MODE_KEY = 'interior_view_mode', SPLIT_KEY = 'interior_view_split';
  * having to re-drag the divider on every reload is the kind of small friction
  * that makes a tool feel borrowed.
  */
-let mode: Mode = (localStorage.getItem(MODE_KEY) as Mode) || '2d';
+// A remembered '3d' or 'split' has to give way to what the machine can do —
+// otherwise someone who last worked in split opens the app to a dead pane.
+let mode: Mode = view3d ? ((localStorage.getItem(MODE_KEY) as Mode) || '2d') : '2d';
 let split = Number(localStorage.getItem(SPLIT_KEY)) || 55;   // 2D pane, percent
 
 /**
@@ -77,6 +116,7 @@ editor.hooks.exportPano = (name) => {
   if (mode === '2d') {
     return '請先開啟 3D（分割或 3D 檢視）— 全景是從 3D 相機的位置拍的，還沒進去過就沒有位置可拍';
   }
+  if (!view3d) return '這台機器沒有 3D（WebGL 無法使用），全景需要它';
   const pose = view3d.panoramaPose();
   const boxes = doc.objects.filter(o => o.kind !== 'image').map(bounds);
   if (!isInsidePlan(pose.position, boxes, doc.activeFloor.height)) {
@@ -92,17 +132,17 @@ let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 function updatePlacementPreview() {
   const t = mode === '2d' ? '' : editor.toolName;
   const it = t === 'furniture' ? FURNITURE_BY_ID[editor.currentFurniture] : null;
-  view3d.setPlacementPreview(it ? { id: it.id, w: it.w, h: it.h } : null);
+  view3d?.setPlacementPreview(it ? { id: it.id, w: it.w, h: it.h } : null);
   if (t === 'door' || t === 'window') {
     const kind = t, width = kind === 'door' ? 90 : 120;
-    view3d.onHover = (floor, sceneHit) => {
+    if (view3d) view3d.onHover = (floor, sceneHit) => {
       const pt = sceneHit ?? floor;
       const fit = pt ? fitOpeningToWall(doc, pt, width, kind === 'window', 200) : null;
-      view3d.setOpeningGhost(fit ? { kind, x: fit.pos.x, y: fit.pos.y, angle: fit.angle, width: fit.width } : null);
+      view3d?.setOpeningGhost(fit ? { kind, x: fit.pos.x, y: fit.pos.y, angle: fit.angle, width: fit.width } : null);
     };
   } else {
-    view3d.onHover = null;
-    view3d.setOpeningGhost(null);
+    if (view3d) view3d.onHover = null;
+    view3d?.setOpeningGhost(null);
   }
 }
 const _prevToolChange = editor.hooks.toolChange;
@@ -161,11 +201,11 @@ function applyMode() {
       saved2D = { scale: editor.vp.scale, origin: { ...editor.vp.origin } };
     }
     if (show3d) {
-      view3d.resize();
-      view3d.build(doc, true);   // reframe for the new pane size
-      view3d.start();
+      view3d?.resize();
+      view3d?.build(doc, true);   // reframe for the new pane size
+      view3d?.start();
     } else {
-      view3d.stop();             // nothing to draw into a pane that is not laid out
+      view3d?.stop();             // nothing to draw into a pane that is not laid out
     }
   });
 }
@@ -173,7 +213,7 @@ function applyMode() {
 /**
  * Point the keyboard at one pane.
  *
- * `editor.inputEnabled` gates the plan's WASD panning and `view3d.setFly` gates
+ * `editor.inputEnabled` gates the plan's WASD panning and `view3d?.setFly` gates
  * the camera's; both listen on the window, so leaving both on in a split makes
  * every W both pan the plan and fly the camera. The mouse needs no such rule —
  * pointer events already go to whichever pane is under the cursor.
@@ -181,13 +221,13 @@ function applyMode() {
 function applyFocus() {
   const on2d = focus === '2d';
   editor.inputEnabled = on2d;
-  view3d.setFly(!on2d);
+  view3d?.setFly(!on2d);
   pane2d.classList.toggle('focused', on2d && mode === 'split');
   c3d.classList.toggle('focused', !on2d && mode === 'split');
   // The unfocused pane in a split still composites — it is a full-size view, and
   // dropping ambient occlusion on it would make the image visibly change every
   // time the pointer crossed the divider.
-  view3d.setBudget(mode === 'split' && on2d ? 'shared' : 'full');
+  view3d?.setBudget(mode === 'split' && on2d ? 'shared' : 'full');
 }
 
 // 畫牆基準線。空白鍵在畫的途中也能切，所以按鈕狀態由 editor 反向通知，
@@ -242,7 +282,7 @@ splitter.addEventListener('pointerdown', (e) => {
     pane2d.style.flexBasis = split + '%';
     c3d.style.flexBasis = (100 - split) + '%';
     editor.vp.resize(); editor.renderNow();
-    view3d.resize();
+    view3d?.resize();
   };
   const up = () => {
     splitter.classList.remove('dragging');
@@ -262,19 +302,19 @@ splitter.addEventListener('dblclick', () => {
 });
 
 const timeSel = document.getElementById('timeOfDay') as HTMLSelectElement;
-timeSel.onchange = () => view3d.setTimeOfDay(timeSel.value as any);
+timeSel.onchange = () => view3d?.setTimeOfDay(timeSel.value as any);
 
 // live sync: any plan change rebuilds the (always-present) 3D view; if 2D is the
 // PiP, keep it fitted too
 let rebuildTimer: number | undefined;
 doc.onChange(() => {
   clearTimeout(rebuildTimer);
-  rebuildTimer = window.setTimeout(() => { if (mode !== '2d') view3d.build(doc, false); }, 120);
+  rebuildTimer = window.setTimeout(() => { if (mode !== '2d') view3d?.build(doc, false); }, 120);
 });
 
 window.addEventListener('resize', () => {
   if (mode !== '3d') { editor.vp.resize(); editor.render(); }
-  if (mode !== '2d') view3d.resize();
+  if (mode !== '2d') view3d?.resize();
 });
 
 requestAnimationFrame(() => { editor.vp.resize(); editor.render(); applyMode(); });
@@ -303,7 +343,7 @@ async function openFromUrl() {
   editor.resetView();
   editor.vp.resize();
   fit2D();
-  if (mode !== '2d') { view3d.resize(); view3d.build(doc, true); }
+  if (mode !== '2d') { view3d?.resize(); view3d?.build(doc, true); }
 }
 void openFromUrl();
 
@@ -346,8 +386,8 @@ function warmFinishes() {
 // A photographed material can land after the 3D view has already drawn the
 // generated stand-in. Rebuilding is the only way the surfaces pick it up —
 // materials were handed out per surface and each holds its own clone.
-onTexturesReady(() => { if (mode !== '2d') view3d.build(doc, false); });
-onModelsReady(() => { view3d.refreshGhost(); if (mode !== '2d') view3d.build(doc, false); });
+onTexturesReady(() => { if (mode !== '2d') view3d?.build(doc, false); });
+onModelsReady(() => { view3d?.refreshGhost(); if (mode !== '2d') view3d?.build(doc, false); });
 
 doc.onChange(() => { clearTimeout(warmTimer); warmTimer = window.setTimeout(warmFinishes, 400); });
 let warmTimer: number | undefined;
