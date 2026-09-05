@@ -6,6 +6,7 @@ and serves the built client — nothing that could be called business logic.
 """
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,10 +19,19 @@ from fastapi.staticfiles import StaticFiles
 from . import db as store
 from .routers import router as api_router
 
+log = logging.getLogger("interior.app")
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     store.init_db()
+    # Empty the bin of anything past the grace period, on the way up. A tool
+    # that is not running is not accumulating either, so this beats a scheduler
+    # — one less moving part that can be wrong while nobody is looking.
+    with store.SessionLocal() as db:
+        gone = store.purge_deleted(db)
+    if gone:
+        log.info("purged %d plan(s) deleted more than %d days ago", gone, store.PURGE_AFTER_DAYS)
     yield
 
 

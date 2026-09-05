@@ -308,6 +308,8 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .project-row .pname { flex: 1; }
 .project-row .pdate { color: var(--muted); font-size: 12px; }
 .project-row .del { color: var(--danger); background: none; border: none; cursor: pointer; }
+.project-row.binned .pname { color: var(--muted); text-decoration: line-through; }
+.project-row .restore { color: var(--accent); background: none; border: none; cursor: pointer; }
 .import-file { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 6px; background: var(--panel2); border: 1px dashed var(--line); border-radius: 6px; color: var(--text); cursor: pointer; }
 .import-file:hover { border-color: var(--accent); color: var(--accent); }
 

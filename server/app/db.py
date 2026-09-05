@@ -20,7 +20,7 @@ created before this change has `jsonb` — a schema difference for no gain.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -69,10 +69,31 @@ class Floorplan(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    # Deletion is a soft delete. A plan is hours of somebody's work and the only
+    # copy; a `刪除` next to a row whose name is one of sixteen near-identical
+    # ones is a mis-click waiting to happen, and until now the only way back was
+    # a `pg_dump` taken beforehand — which a user does not have.
+    #
+    # NULL means live. Set means in the bin, and `purge_deleted` clears it out
+    # after the grace period.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
+
+#: How long a deleted plan stays recoverable.
+PURGE_AFTER_DAYS = 30
 
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    # `create_all` only creates missing *tables*, never missing columns, so an
+    # existing install needs the column added by hand. Additive and idempotent,
+    # so it is safe to run on every boot.
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "ALTER TABLE floorplans ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ"
+        )
 
 
 def get_db() -> Iterator[Session]:
@@ -84,20 +105,42 @@ def get_db() -> Iterator[Session]:
         session.close()
 
 
-def list_projects(db: Session) -> list[dict[str, Any]]:
+def list_projects(db: Session, *, deleted: bool = False) -> list[dict[str, Any]]:
+    """Live plans, or the ones in the bin.
+
+    The default has to be "live". Anything that forgets the filter and lists
+    everything puts deleted plans back in the open dialog, where opening one
+    and editing it would resurrect it by the back door.
+    """
+    where = Floorplan.deleted_at.is_not(None) if deleted else Floorplan.deleted_at.is_(None)
     rows = db.execute(
-        select(Floorplan.id, Floorplan.name, Floorplan.updated_at).order_by(
-            Floorplan.updated_at.desc()
+        select(
+            Floorplan.id, Floorplan.name, Floorplan.updated_at, Floorplan.deleted_at
+        ).where(where).order_by(
+            (Floorplan.deleted_at if deleted else Floorplan.updated_at).desc()
         )
     ).all()
     return [
-        {"id": r.id, "name": r.name, **_times(r.updated_at)} for r in rows
+        {
+            "id": r.id,
+            "name": r.name,
+            **_times(r.updated_at),
+            **({"deletedAtIso": r.deleted_at.isoformat()} if r.deleted_at else {}),
+        }
+        for r in rows
     ]
 
 
 def get_project(db: Session, project_id: str) -> dict[str, Any] | None:
+    """A live plan, or None.
+
+    A binned plan reads as absent. Returning it would let the client open one
+    from a stale link, edit it, and have autosave write it straight back —
+    resurrecting it without anyone choosing to. Restoring is a deliberate act
+    (`/restore`), not a side effect of looking at something.
+    """
     row = db.get(Floorplan, project_id)
-    if row is None:
+    if row is None or row.deleted_at is not None:
         return None
     return {
         "id": row.id,
@@ -124,10 +167,41 @@ def save_project(db: Session, project_id: str, name: str, data: Any) -> dict[str
 
 
 def delete_project(db: Session, project_id: str) -> None:
+    """Move to the bin. The row and its data stay put."""
     row = db.get(Floorplan, project_id)
-    if row is not None:
-        db.delete(row)
+    if row is not None and row.deleted_at is None:
+        row.deleted_at = datetime.now(timezone.utc)
         db.commit()
+
+
+def restore_project(db: Session, project_id: str) -> bool:
+    """Take it back out of the bin. False if there was nothing to restore."""
+    row = db.get(Floorplan, project_id)
+    if row is None or row.deleted_at is None:
+        return False
+    row.deleted_at = None
+    db.commit()
+    return True
+
+
+def purge_deleted(db: Session, older_than_days: int = PURGE_AFTER_DAYS) -> int:
+    """Really remove what has been in the bin past the grace period.
+
+    Called on startup rather than on a timer: a tool that is not running is not
+    accumulating anything either, and a scheduler is a second thing to get
+    wrong.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+    rows = db.execute(
+        select(Floorplan).where(
+            Floorplan.deleted_at.is_not(None), Floorplan.deleted_at < cutoff
+        )
+    ).scalars().all()
+    for row in rows:
+        db.delete(row)
+    if rows:
+        db.commit()
+    return len(rows)
 
 
 def _times(dt: datetime | None) -> dict[str, str]:

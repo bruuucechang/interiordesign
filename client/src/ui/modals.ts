@@ -3,7 +3,7 @@ import { Doc, genId } from '../model/doc';
 import { Obj } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
-import { listProjects, loadProject, deleteProject, inspectDxf, importDxf } from '../net/api';
+import { listProjects, loadProject, deleteProject, listDeleted, restoreProject, inspectDxf, importDxf } from '../net/api';
 import { flash } from './feedback';
 
 // Every dialog the app puts up. They share only the .modal markup convention,
@@ -240,7 +240,17 @@ export async function openModal(editor: Editor, doc: Doc) {
       const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name;
       const dt = document.createElement('span'); dt.className = 'pdate'; dt.textContent = p.updatedAt ?? '';
       const del = document.createElement('button'); del.className = 'del'; del.textContent = '刪除';
-      del.onclick = async (e) => { e.stopPropagation(); if (confirm(`刪除「${p.name}」？`)) { await deleteProject(p.id); row.remove(); apply(); } };
+      del.onclick = async (e) => {
+        e.stopPropagation();
+        // Say what is about to go. Sixteen rows shared one name until today, and
+        // the only thing separating them was content — so the confirm has to
+        // carry the content, not just the name again.
+        const full = await loadProject(p.id);
+        const n = full ? (full.floors ?? []).reduce((a, f) => a + (f.objects?.length ?? 0), 0) : null;
+        const detail = n === null ? '' : `\n\n這份有 ${n} 個物件，上次編輯 ${p.updatedAt ?? '不明'}。`;
+        if (!confirm(`把「${p.name}」移到回收桶？${detail}\n\n30 天內都可以從「回收桶」還原。`)) return;
+        await deleteProject(p.id); row.remove(); apply();
+      };
       row.append(nm, dt, del);
       row.onclick = async () => {
         const proj = await loadProject(p.id);
@@ -271,4 +281,38 @@ export async function openModal(editor: Editor, doc: Doc) {
   search.oninput = apply;
   apply();
   search.focus();
+
+  await renderBin(editor, doc, list, modal);
+}
+
+/**
+ * The bin, at the bottom of the open dialog.
+ *
+ * Not a separate screen: a recycle bin nobody finds is the same as not having
+ * one, and the moment somebody needs it is the moment they are already in this
+ * dialog looking for the thing they cannot see.
+ */
+async function renderBin(editor: Editor, doc: Doc, list: HTMLElement, modal: HTMLElement) {
+  const binned = await listDeleted();
+  if (!binned.length) return;
+
+  const head = document.createElement('div');
+  head.className = 'proj-group'; head.style.marginTop = '14px';
+  head.textContent = `回收桶（${binned.length}）· 30 天後自動清除`;
+  list.appendChild(head);
+
+  for (const p of binned) {
+    const row = document.createElement('div'); row.className = 'project-row binned';
+    const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name;
+    const dt = document.createElement('span'); dt.className = 'pdate';
+    dt.textContent = p.deletedAtIso ? `刪除於 ${p.deletedAtIso.slice(0, 10)}` : '已刪除';
+    const back = document.createElement('button'); back.className = 'restore'; back.textContent = '還原';
+    back.onclick = async (e) => {
+      e.stopPropagation();
+      if (await restoreProject(p.id)) { modal.classList.add('hidden'); await openModal(editor, doc); }
+      else flash('還原失敗 — 伺服器沒有回應');
+    };
+    row.append(nm, dt, back);
+    list.appendChild(row);
+  }
 }

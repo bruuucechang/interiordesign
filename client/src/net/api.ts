@@ -142,6 +142,29 @@ export async function saveProject(p: Project): Promise<boolean> {
   } catch { return false; }
 }
 
+/** Plans in the bin, newest deletion first. Empty when the backend is down. */
+export async function listDeleted(): Promise<(Meta & { deletedAtIso?: string })[]> {
+  try {
+    const d = await j<{ projects: ServerMeta[] }>('/api/projects-deleted');
+    return arrayField<ServerMeta>(d, 'projects') ?? [];
+  } catch { return []; }
+}
+
+/**
+ * Take a plan back out of the bin.
+ *
+ * The mirror's tombstone has to go too, or the next `syncPending` replays the
+ * deletion and puts it straight back in — the restore would appear to work and
+ * then silently undo itself within 20 seconds.
+ */
+export async function restoreProject(id: string): Promise<boolean> {
+  try {
+    await j(`/api/projects/${id}/restore`, { method: 'POST' });
+    clearTombstone(id);
+    return true;
+  } catch { return false; }
+}
+
 export async function deleteProject(id: string): Promise<void> {
   dropPlan(id);
   markDeleted(id, nowIso());

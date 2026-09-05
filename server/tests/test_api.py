@@ -93,12 +93,66 @@ def test_missing_project_is_404(client):
     assert client.get("/api/projects/nope").status_code == 404
 
 
-def test_delete_removes_it_and_is_forgiving_of_repeats(client):
+def test_delete_hides_it_and_is_forgiving_of_repeats(client):
     client.put("/api/projects/a", json={"name": "A", "data": PLAN})
     assert client.delete("/api/projects/a").json() == {"ok": True}
     assert client.get("/api/projects/a").status_code == 404
+    assert [p["id"] for p in client.get("/api/projects").json()["projects"]] == []
     # the client fires delete without checking existence first
     assert client.delete("/api/projects/a").json() == {"ok": True}
+
+
+def test_a_deleted_plan_is_in_the_bin_not_gone(client):
+    """Deletion is recoverable. A plan is hours of work and the only copy."""
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN})
+    client.delete("/api/projects/a")
+    binned = client.get("/api/projects-deleted").json()["projects"]
+    assert [p["id"] for p in binned] == ["a"]
+    assert binned[0]["deletedAtIso"], "要說得出什麼時候刪的，使用者才知道還剩多久"
+
+
+def test_restore_brings_it_back_with_its_data(client):
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN})
+    client.delete("/api/projects/a")
+    assert client.post("/api/projects/a/restore").json() == {"ok": True}
+    assert client.get("/api/projects/a").status_code == 200
+    assert client.get("/api/projects/a").json()["data"] == PLAN
+    assert [p["id"] for p in client.get("/api/projects").json()["projects"]] == ["a"]
+    assert client.get("/api/projects-deleted").json()["projects"] == []
+
+
+def test_restoring_something_that_is_not_in_the_bin_is_a_404(client):
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN})
+    assert client.post("/api/projects/a/restore").status_code == 404
+    assert client.post("/api/projects/nope/restore").status_code == 404
+
+
+def test_a_deleted_plan_does_not_come_back_through_the_open_list(client):
+    """The list defaults to live. Forgetting the filter would put deleted plans
+    back in the open dialog, where opening and editing one resurrects it."""
+    client.put("/api/projects/a", json={"name": "A", "data": PLAN})
+    client.put("/api/projects/b", json={"name": "B", "data": PLAN})
+    client.delete("/api/projects/a")
+    assert [p["id"] for p in client.get("/api/projects").json()["projects"]] == ["b"]
+
+
+def test_purge_only_takes_what_is_past_the_grace_period(client):
+    """The bin is a grace period, not a second archive — but it must not eat
+    something deleted this morning."""
+    from datetime import datetime, timedelta, timezone
+
+    from app import db as store
+
+    client.put("/api/projects/old", json={"name": "old", "data": PLAN})
+    client.put("/api/projects/new", json={"name": "new", "data": PLAN})
+    client.delete("/api/projects/old")
+    client.delete("/api/projects/new")
+    with store.SessionLocal() as db:
+        row = db.get(store.Floorplan, "old")
+        row.deleted_at = datetime.now(timezone.utc) - timedelta(days=store.PURGE_AFTER_DAYS + 1)
+        db.commit()
+        assert store.purge_deleted(db) == 1
+    assert [p["id"] for p in client.get("/api/projects-deleted").json()["projects"]] == ["new"]
 
 
 def test_a_blank_name_is_rejected(client):
