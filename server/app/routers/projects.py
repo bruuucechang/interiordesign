@@ -23,6 +23,16 @@ def list_projects(db: Session = Depends(store.get_db)) -> dict[str, list[dict[st
     return {"projects": store.list_projects(db)}
 
 
+@router.get("/projects-deleted")
+def list_deleted(db: Session = Depends(store.get_db)) -> dict[str, list[dict[str, Any]]]:
+    """The bin. A separate path, not a flag on /projects.
+
+    Anything that forgets a flag would list deleted plans as live ones; there is
+    no way to forget a URL you did not call.
+    """
+    return {"projects": store.list_projects(db, deleted=True)}
+
+
 @router.get("/projects/{project_id}")
 def get_project(project_id: str, db: Session = Depends(store.get_db)) -> dict[str, Any]:
     project = store.get_project(db, project_id)
@@ -45,5 +55,13 @@ def put_project(
 
 @router.delete("/projects/{project_id}")
 def remove_project(project_id: str, db: Session = Depends(store.get_db)) -> dict[str, bool]:
+    """Move to the bin — recoverable for `PURGE_AFTER_DAYS`, then really gone."""
     store.delete_project(db, project_id)
+    return {"ok": True}
+
+
+@router.post("/projects/{project_id}/restore")
+def restore(project_id: str, db: Session = Depends(store.get_db)) -> dict[str, bool]:
+    if not store.restore_project(db, project_id):
+        raise HTTPException(status_code=404, detail="not in the bin")
     return {"ok": True}
