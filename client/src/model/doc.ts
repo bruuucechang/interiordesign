@@ -8,6 +8,26 @@ import { genId } from './ids';
 export { genId };
 
 // The editor document: project data + selection + undo/redo history.
+/** What a plan is called before anybody names it. */
+export const DEFAULT_PLAN_NAME = '未命名平面圖';
+
+/**
+ * Nothing in it, and nobody has named it.
+ *
+ * Opening the app without `?plan=` used to file a row on the first autosave,
+ * whether or not anything was drawn. That is where 150 of the 219 saved plans
+ * came from — every glance at the tool, every bench run, every reload left one
+ * behind, and they were indistinguishable from each other and from real work.
+ *
+ * The name counts as content on purpose: somebody who types a project name and
+ * then goes to find their underlay has told us this plan exists, and losing it
+ * because they had not drawn anything yet would be its own kind of wrong.
+ */
+export function isBlankPlan(p: Project): boolean {
+  if ((p.name ?? '').trim() !== DEFAULT_PLAN_NAME) return false;
+  return (p.floors ?? []).every(f => !(f.objects ?? []).length);
+}
+
 export class Doc {
   project: Project;
   selectedIds: string[] = [];
@@ -34,7 +54,7 @@ export class Doc {
     const floor: Floor = { id: genId('floor'), name: '1F', elevation: 0, height: 280, objects: [] };
     return {
       schemaVersion: SCHEMA_VERSION,
-      id: genId('proj'), name: '未命名平面圖',
+      id: genId('proj'), name: DEFAULT_PLAN_NAME,
       layers: defaultLayers(), floors: [floor], activeFloorId: floor.id,
     };
   }
