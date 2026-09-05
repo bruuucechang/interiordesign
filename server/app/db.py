@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from sqlalchemy import JSON, DateTime, String, create_engine, func, or_, select
+from sqlalchemy import JSON, DateTime, String, create_engine, func, inspect, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -103,16 +103,30 @@ PURGE_AFTER_DAYS = 30
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
-    # `create_all` only creates missing *tables*, never missing columns, so an
-    # existing install needs the column added by hand. Additive and idempotent,
-    # so it is safe to run on every boot.
+    # `create_all` only creates missing *tables*, never missing columns, so a
+    # database created before `deleted_at` and `owner` existed needs them added
+    # by hand. Additive and idempotent, so it is safe to run on every boot.
+    #
+    # **Not `ADD COLUMN IF NOT EXISTS`.** That clause is PostgreSQL-only, and
+    # SQLite does not merely ignore it — it is a syntax error, raised inside the
+    # lifespan handler, so the desktop build died on startup with "Application
+    # startup failed" and never bound a port. The whole standalone application
+    # was unlaunchable while the entire test suite stayed green, because the
+    # tests run against PostgreSQL (`tests/conftest.py`) and this file's two
+    # supported backends were never both exercised.
+    #
+    # Ask what columns are there instead. The inspector speaks both dialects,
+    # which is the property this code needed in the first place.
+    existing = {c["name"] for c in inspect(engine).get_columns("floorplans")}
+    # SQLite has no TIMESTAMPTZ. It would accept the word and store no zone,
+    # which is worse than failing; PostgreSQL needs it to match the mapping.
+    stamp = "TIMESTAMPTZ" if engine.dialect.name == "postgresql" else "TIMESTAMP"
     with engine.begin() as conn:
-        conn.exec_driver_sql(
-            "ALTER TABLE floorplans ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ"
-        )
-        conn.exec_driver_sql(
-            "ALTER TABLE floorplans ADD COLUMN IF NOT EXISTS owner VARCHAR(64)"
-        )
+        if "deleted_at" not in existing:
+            conn.exec_driver_sql(f"ALTER TABLE floorplans ADD COLUMN deleted_at {stamp}")
+        if "owner" not in existing:
+            conn.exec_driver_sql("ALTER TABLE floorplans ADD COLUMN owner VARCHAR(64)")
+        # This one both dialects do support.
         conn.exec_driver_sql(
             "CREATE INDEX IF NOT EXISTS ix_floorplans_owner ON floorplans (owner)"
         )
