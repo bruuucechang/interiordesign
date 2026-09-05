@@ -11,7 +11,7 @@
     <div id="app">
       <!-- top bar -->
       <header id="topbar">
-        <span class="brand">🏡 室內設計繪圖</span>
+        <span class="brand">🏡 <span data-i18n="室內設計繪圖">室內設計繪圖</span></span>
         <input id="projectName" class="proj-name" value="未命名平面圖" data-i18n-value="未命名平面圖" />
         <span id="saveStatus" class="save-status" aria-live="polite"></span>
         <div class="spacer"></div>
@@ -82,10 +82,10 @@
           </button>
         </div>
         <select id="timeOfDay" class="time-select" title="光線時段">
-          <option value="morning" data-i18n="早晨" data-i18n-emoji="🌅">🌅 早晨</option>
-          <option value="noon" selected>☀️ 正午</option>
-          <option value="dusk">🌆 黃昏</option>
-          <option value="night">🌙 夜晚</option>
+          <option value="morning" data-i18n="早晨" data-i18n-emoji="🌅" data-i18n-opt="早晨">🌅 早晨</option>
+          <option value="noon" selected data-i18n-opt="正午">☀️ 正午</option>
+          <option value="dusk" data-i18n-opt="黃昏">🌆 黃昏</option>
+          <option value="night" data-i18n-opt="夜晚">🌙 夜晚</option>
         </select>
         <span class="sep"></span>
         <label class="chk" title="吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。&#10;關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。">

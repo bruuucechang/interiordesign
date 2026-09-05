@@ -94,22 +94,22 @@ export function refreshProps(editor: Editor, doc: Doc) {
         back.style.cssText = 'padding: 0 10px 8px;';
         const a = document.createElement('button');
         a.className = 'linkish';
-        a.textContent = `重新顯示已略過的 ${hiddenCount} 處落差`;
-        a.onclick = () => { clearSkips(doc.project.id); refreshProps(editor, doc); flash('已恢復顯示'); };
+        a.textContent = `${t('重新顯示已略過的落差')}（${hiddenCount}）`;
+        a.onclick = () => { clearSkips(doc.project.id); refreshProps(editor, doc); flash(t('已恢復顯示')); };
         back.appendChild(a);
         host.appendChild(back);
       }
     }
 
     const grp = document.createElement('button'); grp.className = 'prop-action';
-    if (doc.canUngroup) { grp.textContent = '解散群組 (⇧⌘G)'; grp.onclick = () => doc.ungroupSelection(); }
-    else { grp.textContent = '組成群組 (⌘G)'; grp.onclick = () => doc.groupSelection(); }
+    if (doc.canUngroup) { grp.textContent = t('解散群組 (⇧⌘G)'); grp.onclick = () => doc.ungroupSelection(); }
+    else { grp.textContent = t('組成群組 (⌘G)'); grp.onclick = () => doc.groupSelection(); }
     host.appendChild(grp);
 
-    const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = '複製 (⌘D)';
+    const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = t('複製 (⌘D)');
     dup.onclick = () => editor.duplicateSelection();
     host.appendChild(dup);
-    const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = '刪除全部';
+    const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = t('刪除全部');
     del.onclick = () => { doc.commit(); for (const o of doc.selectedObjects) doc.remove(o.id); };
     host.appendChild(del);
     return;
@@ -120,7 +120,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
   // field builders (append to a given parent)
   const dim = (parent: HTMLElement, label: string, cm: number, setCm: (v: number) => void, min = 0) => {
     const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = `${label} (${unitLabel(unit)})`;
+    const l = document.createElement('label'); l.textContent = `${t(label)} (${unitLabel(unit)})`;
     const inp = document.createElement('input'); inp.type = 'number';
     inp.value = fieldValue(cm, unit); inp.step = stepFor(unit);
     inp.addEventListener('focus', () => doc.commit());
@@ -130,7 +130,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
   };
   const deg = (parent: HTMLElement, label: string, value: number, set: (v: number) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = `${label} (°)`;
+    const l = document.createElement('label'); l.textContent = `${t(label)} (°)`;
     const inp = document.createElement('input'); inp.type = 'number'; inp.value = String(Math.round(value)); inp.step = '1';
     inp.addEventListener('focus', () => doc.commit());
     inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (!isNaN(v)) set(v); });
@@ -138,7 +138,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
   };
   const text = (parent: HTMLElement, label: string, value: string, set: (v: string) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = label;
+    const l = document.createElement('label'); l.textContent = t(label);
     const inp = document.createElement('input'); inp.type = 'text'; inp.value = value;
     inp.addEventListener('focus', () => doc.commit());
     inp.addEventListener('input', () => set(inp.value));
@@ -146,17 +146,21 @@ export function refreshProps(editor: Editor, doc: Doc) {
   };
   const info = (parent: HTMLElement, label: string, value: string) => {
     const row = document.createElement('div'); row.className = 'prop';
-    row.innerHTML = `<label>${label}</label><span>${value}</span>`; parent.appendChild(row);
+    // Built as nodes, not markup: `value` can be a plan's name or a room's,
+    // which is whatever the user typed.
+    const l = document.createElement('label'); l.textContent = t(label);
+    const v = document.createElement('span'); v.textContent = value;
+    row.append(l, v); parent.appendChild(row);
   };
   const section = (title: string) => {
     const el = document.createElement('details'); el.className = 'prop-sec'; el.open = true;
-    const s = document.createElement('summary'); s.textContent = title; el.appendChild(s);
+    const s = document.createElement('summary'); s.textContent = t(title); el.appendChild(s);
     const body = document.createElement('div'); body.className = 'prop-body'; el.appendChild(body);
     return { el, body };
   };
   const colorRow = (parent: HTMLElement, label: string, value: string, set: (v: string) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = label;
+    const l = document.createElement('label'); l.textContent = t(label);
     const inp = document.createElement('input'); inp.type = 'color'; inp.value = value; inp.className = 'color-input';
     let committed = false;
     inp.addEventListener('input', () => { if (!committed) { doc.commit(); committed = true; } set(inp.value); });
@@ -186,7 +190,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
   ];
   const swatchRow = (parent: HTMLElement, current: string | undefined, set: (v: string | undefined) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
-    const l = document.createElement('label'); l.textContent = '材質';
+    const l = document.createElement('label'); l.textContent = t('材質');
     const wrap = document.createElement('div'); wrap.className = 'swatches';
     for (const f of FINISHES) {
       const b = document.createElement('button');
@@ -197,7 +201,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
     }
     const reset = document.createElement('button');
     reset.className = 'swatch reset' + (current ? '' : ' active');
-    reset.textContent = '↺'; reset.title = '恢復目錄預設';
+    reset.textContent = '↺'; reset.title = t('恢復目錄預設');
     reset.onclick = () => { doc.commit(); set(undefined); };
     wrap.appendChild(reset);
     row.append(l, wrap); parent.appendChild(row);
@@ -212,7 +216,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
    */
   const matRow = (parent: HTMLElement, label: string, defs: MaterialDef[], current: string, set: (v: string) => void) => {
     const row = document.createElement('div'); row.className = 'prop prop-mat';
-    const l = document.createElement('label'); l.textContent = label;
+    const l = document.createElement('label'); l.textContent = t(label);
     const wrap = document.createElement('div'); wrap.className = 'mat-grid';
     for (const d of defs) {
       const b = document.createElement('button');
@@ -276,7 +280,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
       // divides the area take-off but builds nothing is a distinction worth
       // stating where the person is looking at it.
       const note = document.createElement('div'); note.className = 'muted'; note.style.fontSize = '12px';
-      note.textContent = '只在平面上分割區域：計入面積報表，3D 不出現，不計價';
+      note.textContent = t('只在平面上分割區域：計入面積報表，3D 不出現，不計價');
       basics.appendChild(note);
       dim(size.body, '長度', dist(o.a, o.b), v => {
         const L = Math.max(1, v), cur = dist(o.a, o.b);
@@ -311,14 +315,14 @@ export function refreshProps(editor: Editor, doc: Doc) {
         // the button, not on every keystroke: splitting live would cut the wall
         // at 1, then 12, then 120 as the number is typed.
         const row = document.createElement('div'); row.className = 'prop';
-        const l = document.createElement('label'); l.textContent = `分割於 (${unitLabel(unit)})`;
+        const l = document.createElement('label'); l.textContent = `${t('分割於')} (${unitLabel(unit)})`;
         const inp = document.createElement('input'); inp.type = 'number';
         inp.value = fieldValue(dist(o.a, o.b) / 2, unit); inp.step = stepFor(unit);
         const go = document.createElement('button'); go.className = 'align-btn'; go.textContent = '✂';
-        go.title = '從 a 端量這個距離把牆切成兩道';
+        go.title = t('從 a 端量這個距離把牆切成兩道');
         go.onclick = () => {
           const cm = parseLength(inp.value, unit, 0);
-          if (cm === null) { flash('請先輸入距離'); return; }
+          if (cm === null) { flash(t('請先輸入距離')); return; }
           flash(editor.splitSelectedWall(cm)
             ? '已分割'
             : (o as any).bulge
@@ -330,8 +334,8 @@ export function refreshProps(editor: Editor, doc: Doc) {
       }
       {
         const b = document.createElement('button');
-        b.className = 'prop-action'; b.textContent = '📏 自動標註這道牆';
-        b.title = '沿牆產生連續尺寸鏈，在門窗與牆交會處斷開';
+        b.className = 'prop-action'; b.textContent = t('📏 自動標註這道牆');
+        b.title = t('沿牆產生連續尺寸鏈，在門窗與牆交會處斷開');
         b.onclick = () => addDimensionChain(doc, o);
         basics.appendChild(b);
       }
@@ -352,7 +356,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
       const styles = o.kind === 'door' ? DOOR_STYLES : WINDOW_STYLES;
       const cur = o.style || styles[0].id;
       const srow = document.createElement('div'); srow.className = 'prop';
-      const sl = document.createElement('label'); sl.textContent = '樣式';
+      const sl = document.createElement('label'); sl.textContent = t('樣式');
       const swrap = document.createElement('div'); swrap.className = 'mat-btns'; swrap.style.flexWrap = 'wrap';
       for (const s of styles) {
         const b = document.createElement('button'); b.className = 'mat-btn' + (cur === s.id ? ' active' : ''); b.textContent = s.label;
@@ -369,7 +373,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
       // "hinge right + swing out" is one fact about a door, not two.
       if (o.kind === 'door') {
         const hrow = document.createElement('div'); hrow.className = 'prop prop-mat';
-        const hl = document.createElement('label'); hl.textContent = '開口朝向';
+        const hl = document.createElement('label'); hl.textContent = t('開口朝向');
         const hwrap = document.createElement('div'); hwrap.className = 'align-grid';
         hwrap.style.gridTemplateColumns = 'repeat(2, 1fr)';
         const hands: [string, 'left' | 'right', 'in' | 'out'][] = [
@@ -463,8 +467,8 @@ export function refreshProps(editor: Editor, doc: Doc) {
     }
     case 'image': {
       rangeRow(basics, '透明度', Math.round((o.opacity ?? 1) * 100), v => up({ opacity: Math.max(0, Math.min(1, v / 100)) } as any));
-      const gen = document.createElement('button'); gen.className = 'prop-action'; gen.textContent = '🪄 自動偵測牆體';
-      gen.title = '從底圖自動生成牆體（適合清晰的平面線稿）';
+      const gen = document.createElement('button'); gen.className = 'prop-action'; gen.textContent = t('🪄 自動偵測牆體');
+      gen.title = t('從底圖自動生成牆體（適合清晰的平面線稿）');
       gen.onclick = () => autoWallsFromImage(editor, doc, o);
       basics.appendChild(gen);
       dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
@@ -498,10 +502,10 @@ export function refreshProps(editor: Editor, doc: Doc) {
   }
   if (material.body.children.length) host.appendChild(material.el);
 
-  const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = '複製 (⌘D)';
+  const dup = document.createElement('button'); dup.className = 'prop-action'; dup.textContent = t('複製 (⌘D)');
   dup.onclick = () => editor.duplicateSelection();
   host.appendChild(dup);
-  const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = '刪除物件';
+  const del = document.createElement('button'); del.className = 'btn-danger'; del.textContent = t('刪除物件');
   del.onclick = () => { doc.commit(); doc.remove(o.id); };
   host.appendChild(del);
 }
@@ -514,10 +518,10 @@ function kindLabel(k: string) {
 // Dimension one wall the way a plan does it: a run of measurements broken at
 // the openings and junctions along it, rather than a single overall figure.
 async function addDimensionChain(doc: Doc, wall: Extract<Obj, { kind: 'wall' }>) {
-  flash('正在計算尺寸鏈…');
+  flash(t('正在計算尺寸鏈…'));
   const dims = await dimensionChain(wall, doc.objects);
-  if (!dims) { flash('無法計算 — 後端未連線'); return; }
-  if (!dims.length) { flash('這道牆太短，沒有可標註的區段'); return; }
+  if (!dims) { flash(t('無法計算 — 後端未連線')); return; }
+  if (!dims.length) { flash(t('這道牆太短，沒有可標註的區段')); return; }
   doc.commit();
   // Grouped, so the whole chain can be moved or deleted in one go.
   const gid = genId('grp');
@@ -545,7 +549,7 @@ function renderUnderlay(editor: Editor, doc: Doc, host: HTMLElement) {
 
   const title = document.createElement('div');
   title.className = 'panel-title'; title.style.borderTop = 'none';
-  title.textContent = '底圖';
+  title.textContent = t('底圖');
   host.appendChild(title);
 
   const note = document.createElement('div');
@@ -559,8 +563,8 @@ function renderUnderlay(editor: Editor, doc: Doc, host: HTMLElement) {
   const grid = document.createElement('div'); grid.className = 'facestep-acts';
   grid.style.gridTemplateColumns = '1fr 1fr';
 
-  const cal = document.createElement('button'); cal.className = 'align-btn'; cal.textContent = '校正比例';
-  cal.title = '沿圖上標有尺寸的一段拉一條線，輸入它的實際長度';
+  const cal = document.createElement('button'); cal.className = 'align-btn'; cal.textContent = t('校正比例');
+  cal.title = t('沿圖上標有尺寸的一段拉一條線，輸入它的實際長度');
   cal.onclick = () => editor.selectTool('calibrate');
 
   const adj = document.createElement('button'); adj.className = 'align-btn';
@@ -650,10 +654,10 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
 
   const title = document.createElement('div');
   title.className = 'panel-title'; title.style.borderTop = 'none';
-  title.textContent = `牆面對齊（${steps.length} 處）`;
+  title.textContent = `${t('牆面對齊')}（${steps.length}）`;
   const note = document.createElement('div');
   note.className = 'muted'; note.style.cssText = 'padding: 0 10px 6px; font-size: 11px; line-height: 1.5;';
-  note.textContent = '這幾處的牆面差不到 5 公分——平面圖上看不出來，3D 會露出一條牆的端面。選一面拉齊，或略過。';
+  note.textContent = t('這幾處的牆面差不到 5 公分——平面圖上看不出來，3D 會露出一條牆的端面。選一面拉齊，或略過。');
   host.append(title, note);
 
   // 一次全部略過。
@@ -665,8 +669,8 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
     const allWrap = document.createElement('div');
     allWrap.style.cssText = 'padding: 0 10px 8px;';
     const all = document.createElement('button');
-    all.className = 'linkish'; all.textContent = `全部略過（${steps.length} 處）`;
-    all.title = '這份圖的牆面落差都不處理；之後可以從「重新顯示」叫回來';
+    all.className = 'linkish'; all.textContent = `${t('全部略過')}（${steps.length}）`;
+    all.title = t('這份圖的牆面落差都不處理；之後可以從「重新顯示」叫回來');
     all.onclick = () => {
       for (const s of steps) writeSkip(planId, stepId(s));
       refreshProps(editor, doc);
@@ -690,7 +694,7 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
   for (const s of shown) {
     const row = document.createElement('div'); row.className = 'facestep';
     const head = document.createElement('div'); head.className = 'facestep-head';
-    head.textContent = `落差 ${s.step.toFixed(1)} cm`;
+    head.textContent = `${t('落差')} ${s.step.toFixed(1)} cm`;
     row.appendChild(head);
 
     // 兩處落差可以有一樣的數字和一樣的房間名字（同一道厚牆接兩段隔間就是這樣），
@@ -724,7 +728,7 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
       const probe = { x: from.x + s.normal.x * sign * off, y: from.y + s.normal.y * sign * off };
       const b = document.createElement('button'); b.className = 'align-btn';
       const room = roomAt(probe);
-      b.textContent = room ?? (which === 'left' ? '這一面' : '另一面');
+      b.textContent = room ?? t(which === 'left' ? '這一面' : '另一面');
       // 房間名字長到被切掉的時候，tooltip 是唯一看得到全名的地方。
       b.title = `${room ? `${room}那一面拉平` : '把這一面拉平'}（另一面會留下 ${s.step.toFixed(1)} cm 的階）`;
       b.onclick = () => {
@@ -734,8 +738,8 @@ function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {
       return b;
     };
     grid.append(side('left'), side('right'));
-    const skip = document.createElement('button'); skip.className = 'align-btn'; skip.textContent = '略過';
-    skip.title = '這一處保持原狀';
+    const skip = document.createElement('button'); skip.className = 'align-btn'; skip.textContent = t('略過');
+    skip.title = t('這一處保持原狀');
     skip.onclick = () => { writeSkip(planId, stepId(s)); refreshProps(editor, doc); };
     grid.appendChild(skip);
     row.appendChild(grid);
@@ -791,9 +795,9 @@ function collapseColumns(walls: [Vec, Vec, number][]) {
 
 // Auto-generate walls from an underlay image, then let room detection fill in rooms.
 async function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { kind: 'image' }>) {
-  flash('正在辨識牆體…');
+  flash(t('正在辨識牆體…'));
   const traced = await detectWalls(o.src);
-  if (!traced) { flash('無法辨識牆體 — 後端未連線'); return; }
+  if (!traced) { flash(t('無法辨識牆體 — 後端未連線')); return; }
   {
     const { segments, thickness, w: iw, h: ih } = traced;
     const grid = editor.gridSize || 10;
@@ -820,7 +824,7 @@ async function autoWallsFromImage(editor: Editor, doc: Doc, o: Extract<Obj, { ki
       const seq = [a, ...mids.map(m => m.p), b];
       for (let i = 1; i < seq.length; i++) if (Math.hypot(seq[i].x - seq[i - 1].x, seq[i].y - seq[i - 1].y) >= grid) walls.push([seq[i - 1], seq[i], t]);
     }
-    if (!walls.length) { flash('偵測不到牆體 — 請確認是清晰、線條分明的平面圖'); return; }
+    if (!walls.length) { flash(t('偵測不到牆體 — 請確認是清晰、線條分明的平面圖')); return; }
     doc.commit();
     // **柱子是柱子，不是四道牆。** 底圖上的柱子是一個實心黑塊，四邊各描一條線，
     // 於是辨識出來會是四道圍成小方框的牆。那在 2D 看得過去，3D 就是一個空心的

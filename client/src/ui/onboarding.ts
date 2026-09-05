@@ -1,3 +1,4 @@
+import { t } from '../core/i18n';
 // What a new, empty plan tells you to do.
 //
 // Two routes, and they are genuinely different pieces of work: trace an
@@ -71,7 +72,7 @@ export function renderSteps(editor: Editor, doc: Doc) {
   const head = document.createElement('div'); head.className = 'step-head';
   head.textContent = route === 'trace' ? '從底圖描' : '純手繪';
   const close = document.createElement('button'); close.className = 'step-close';
-  close.title = '不再顯示'; close.setAttribute('aria-label', '不再顯示');
+  close.title = t('不再顯示'); close.setAttribute('aria-label', '不再顯示');
   close.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   close.onclick = () => { localStorage.setItem(DISMISSED, '1'); box.remove(); };
   head.appendChild(close);

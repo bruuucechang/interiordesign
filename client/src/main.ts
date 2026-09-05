@@ -18,7 +18,7 @@ import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
 import { flash } from './ui/feedback';
 import { webglAvailable, show3DUnavailable } from './core/webgl';
-import { applyStatic, currentLang } from './core/i18n';
+import { applyStatic, currentLang, t } from './core/i18n';
 import { savePanorama, isInsidePlan } from './core/panorama';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -75,12 +75,12 @@ if (view3d) view3d.onFloorClick = (floor, sceneHit) => {
 };
 if (view3d) view3d.onRotate90 = (deg) => editor.rotateSelection(deg);
 if (view3d) {
-  view3d.onContextLost = () => flash('3D 繪圖環境被系統收回了，正在等它回來 — 平面圖不受影響');
+  view3d.onContextLost = () => flash(t('3D 繪圖環境被系統收回了，正在等它回來 — 平面圖不受影響'));
   view3d.onContextRestored = () => {
     view3d!.resize();
     view3d!.build(doc, false);
     if (mode !== '2d') view3d!.start();
-    flash('3D 已恢復');
+    flash(t('3D 已恢復'));
   };
 }   // Q/E in 3D rotate the selected object 90°
 editor.hooks.export3d = (name) => view3d?.exportGLB(name);   // 匯出 3D → GLTFExporter

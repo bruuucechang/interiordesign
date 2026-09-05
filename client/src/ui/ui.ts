@@ -54,7 +54,7 @@ export function initUI(editor: Editor, doc: Doc) {
       + `按「確定」另存成新的一份（兩版都保住），\n`
       + `按「取消」先不存 — 你的改動仍在本機，什麼都不會弄丟。`,
     );
-    if (!keep) { flash('已暫停儲存 — 你的改動還在，重新載入可以看到別人的版本'); return; }
+    if (!keep) { flash(t('已暫停儲存 — 你的改動還在，重新載入可以看到別人的版本')); return; }
     const copy = doc.serialize();
     copy.id = genId('proj');
     copy.name = `${copy.name}（我的版本）`;
@@ -62,7 +62,7 @@ export function initUI(editor: Editor, doc: Doc) {
     $<HTMLInputElement>('#projectName').value = copy.name;
     markDirty();
     void flushSave(doc);
-    flash('已另存為新的一份，原本那一份沒有被動到');
+    flash(t('已另存為新的一份，原本那一份沒有被動到'));
   });
 
   // 這份圖屬於別人。跟衝突走同一個原則：你的改動一直在本機，所以「另存新檔」永遠是
@@ -73,7 +73,7 @@ export function initUI(editor: Editor, doc: Doc) {
       + '你的改動沒有被存進去，但完整地留在這台機器上。\n\n'
       + '按「確定」另存成你自己的一份，按「取消」先不存。',
     );
-    if (!keep) { flash('已暫停儲存 — 你的改動還在本機'); return; }
+    if (!keep) { flash(t('已暫停儲存 — 你的改動還在本機')); return; }
     const copy = doc.serialize();
     copy.id = genId('proj');
     copy.name = `${copy.name}（我的版本）`;
@@ -81,7 +81,7 @@ export function initUI(editor: Editor, doc: Doc) {
     $<HTMLInputElement>('#projectName').value = copy.name;
     markDirty();
     void flushSave(doc);
-    flash('已另存為你自己的一份');
+    flash(t('已另存為你自己的一份'));
   });
 
   editor.hooks.command = (name) => { void handle(name === 'plot' ? 'plot-pdf' : name, editor, doc); };
@@ -151,16 +151,19 @@ export function initUI(editor: Editor, doc: Doc) {
 // ---- unified catalog: 常用 tools first, then furniture by room ----
 function buildCatalog(editor: Editor) {
   const host = $('#catalog'); host.innerHTML = '';
-  const title = (text: string) => { const d = document.createElement('div'); d.className = 'panel-title'; d.textContent = text; host.appendChild(d); };
+  const title = (text: string) => { const d = document.createElement('div'); d.className = 'panel-title'; d.textContent = t(text); host.appendChild(d); };
 
   // 常用 — everyday drawing tools
   title('常用');
   const pal = document.createElement('div'); pal.className = 'palette';
-  for (const t of COMMON_TOOLS) {
+  // `tool`, not `t` — the loop variable used to shadow the translator, which is
+  // why this palette stayed Chinese while everything around it translated.
+  for (const tool of COMMON_TOOLS) {
     const b = document.createElement('button');
-    b.className = 'tool-btn'; b.dataset.tool = t.name;
-    b.innerHTML = `<span class="ic">${t.ic}</span>${t.label}`;
-    b.onclick = () => editor.selectTool(t.name);
+    b.className = 'tool-btn'; b.dataset.tool = tool.name;
+    const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = tool.ic;
+    b.append(ic, document.createTextNode(t(tool.label)));
+    b.onclick = () => editor.selectTool(tool.name);
     pal.appendChild(b);
   }
   host.appendChild(pal);
@@ -183,17 +186,17 @@ function buildCatalog(editor: Editor) {
 
   const bar = document.createElement('div'); bar.className = 'furn-filter';
   const search = document.createElement('input');
-  search.type = 'search'; search.placeholder = '搜尋家具…'; search.className = 'furn-search';
+  search.type = 'search'; search.placeholder = t('搜尋家具…'); search.className = 'furn-search';
   bar.appendChild(search);
   const chips = document.createElement('div'); chips.className = 'furn-chips';
   const STYLES = ['現代', '北歐', '日式', '古典', '鄉村', '工業', '中式'];
   const chipEls = new Map<string, HTMLButtonElement>();
   const allChip = document.createElement('button');
-  allChip.className = 'chip'; allChip.textContent = '全部';
+  allChip.className = 'chip'; allChip.textContent = t('全部');
   chips.appendChild(allChip);
   for (const st of STYLES) {
     const c = document.createElement('button');
-    c.className = 'chip'; c.textContent = st;
+    c.className = 'chip'; c.textContent = t(st);
     // 單選。複選的聯集在這裡是反效果：現代 75 件加古典 37 件不會幫你找到東西，
     // 只是把兩堆風格不同的家具倒在一起——而使用者按第二個鍵的意思幾乎一定是
     // 「改看這個」，不是「兩個都要」。再按一次同一顆等於回到全部。
@@ -343,7 +346,7 @@ function buildFloors(editor: Editor, doc: Doc) {
   for (const f of [...doc.floors].reverse()) {   // highest level on top
     const row = document.createElement('div'); row.className = 'floor-row' + (f.id === doc.project.activeFloorId ? ' active' : '');
     const name = document.createElement('span'); name.className = 'fname'; name.textContent = f.name;
-    name.title = '點擊切換樓層，雙擊重新命名';
+    name.title = t('點擊切換樓層，雙擊重新命名');
     name.onclick = () => doc.setActiveFloor(f.id);
     name.ondblclick = () => { const n = prompt('樓層名稱', f.name); if (n) doc.renameFloor(f.id, n); };
     const elev = document.createElement('span'); elev.className = 'felev'; elev.textContent = (f.elevation / 100).toFixed(1) + 'm';
@@ -434,17 +437,17 @@ function importProjectFile(editor: Editor, doc: Doc, file: File) {
   reader.onload = () => {
     let proj: Project;
     try { proj = JSON.parse(String(reader.result)) as Project; }
-    catch { flash('檔案毀損或不是有效的 JSON'); return; }
+    catch { flash(t('檔案毀損或不是有效的 JSON')); return; }
     // accept both the current floors model and older single-list projects (doc.load → normalize migrates them)
     const ok = proj && typeof proj === 'object' &&
       (Array.isArray((proj as any).floors) || Array.isArray((proj as any).objects) || Array.isArray(proj.layers));
-    if (!ok) { flash('這不是室內設計專案檔'); return; }
+    if (!ok) { flash(t('這不是室內設計專案檔')); return; }
     doc.load(proj);
     $<HTMLInputElement>('#projectName').value = doc.project.name;
     editor.resetView();
-    flash('已從檔案開啟，可繼續編輯');   // the change emit re-enters auto-save, persisting it to the backend
+    flash(t('已從檔案開啟，可繼續編輯'));   // the change emit re-enters auto-save, persisting it to the backend
   };
-  reader.onerror = () => flash('讀取檔案失敗');
+  reader.onerror = () => flash(t('讀取檔案失敗'));
   reader.readAsText(file);
 }
 
@@ -553,7 +556,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       break;
     }
     case 'open': await openModal(editor, doc); break;
-    case 'export-project': exportProjectFile(doc, name()); flash('已匯出專案檔（.floorplan.json）'); break;
+    case 'export-project': exportProjectFile(doc, name()); flash(t('已匯出專案檔（.floorplan.json）')); break;
     case 'import-project': $<HTMLInputElement>('#projectFileInput').click(); break;
     case 'import-dxf': $<HTMLInputElement>('#dxfInput').click(); break;
     case 'undo': doc.undo(); break;
@@ -562,27 +565,27 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     // not happen is indistinguishable from one the browser put somewhere the
     // user has not looked yet.
     case 'export-png':
-      try { exportPNG(doc, name()); flash('已匯出 PNG'); }
-      catch (e) { console.error(e); flash('匯出 PNG 失敗'); }
+      try { exportPNG(doc, name()); flash(t('已匯出 PNG')); }
+      catch (e) { console.error(e); flash(t('匯出 PNG 失敗')); }
       break;
     case 'export-pdf':
-      try { exportPDF(doc, name()); flash('已匯出 PDF'); }
-      catch (e) { console.error(e); flash('匯出 PDF 失敗'); }
+      try { exportPDF(doc, name()); flash(t('已匯出 PDF')); }
+      catch (e) { console.error(e); flash(t('匯出 PDF 失敗')); }
       break;
     case 'plot-pdf':
-      if (!doc.project.floors.some(f => f.objects.some(o => o.kind !== 'image'))) { flash('尚無可出圖的內容'); break; }
+      if (!doc.project.floors.some(f => f.objects.some(o => o.kind !== 'image'))) { flash(t('尚無可出圖的內容')); break; }
       plotModal(doc, name());
       break;
     case 'export-report':
       // The report is built from the stored copy, so make sure what is on
       // screen has actually reached the database first.
       doc.project.name = name(); markDirty();
-      if (!await flushSave(doc)) { flash('無法匯出報表 — 後端未連線'); break; }
+      if (!await flushSave(doc)) { flash(t('無法匯出報表 — 後端未連線')); break; }
       // Ask for it before announcing it. `location.href` to an endpoint that
       // answers 422 leaves the user on the same page with a cheerful 已匯出 and
       // no file — and the backend does answer 422 here, on purpose, when it
       // cannot parse the stored plan.
-      flash('正在產生報表…');
+      flash(t('正在產生報表…'));
       try {
         const r = await fetch(`/api/projects/${doc.project.id}/report.xlsx`);
         if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -591,26 +594,26 @@ async function handle(act: string, editor: Editor, doc: Doc) {
         a.href = url; a.download = `${name() || 'report'}.xlsx`;
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 10_000);
-        flash('已匯出面積報表 (.xlsx)');
+        flash(t('已匯出面積報表 (.xlsx)'));
       } catch (e) {
         console.error(e);
-        flash('報表產生失敗 — 後端無法解析這份存檔');
+        flash(t('報表產生失敗 — 後端無法解析這份存檔'));
       }
       break;
     case 'export-pano':
-      if (!doc.objects.length) { flash('尚無可拍攝的 3D 內容'); break; }
-      flash('正在算全景…');
+      if (!doc.objects.length) { flash(t('尚無可拍攝的 3D 內容')); break; }
+      flash(t('正在算全景…'));
       // Yield so the message paints before the capture blocks the main thread.
       // setTimeout, not requestAnimationFrame: rAF is suspended while the tab is
       // in the background, which would hang the export instead of delaying it.
       await new Promise(r => setTimeout(r, 32));
       try { flash(editor.hooks.exportPano?.(name()) ?? ''); }
-      catch (e) { console.error(e); flash('匯出全景失敗'); }
+      catch (e) { console.error(e); flash(t('匯出全景失敗')); }
       break;
     case 'export-glb':
-      if (!doc.objects.length) { flash('尚無可匯出的 3D 內容'); break; }
-      try { await editor.hooks.export3d?.(name()); flash('已匯出 3D 模型 (.glb)'); }
-      catch (e) { console.error(e); flash('匯出 3D 失敗'); }
+      if (!doc.objects.length) { flash(t('尚無可匯出的 3D 內容')); break; }
+      try { await editor.hooks.export3d?.(name()); flash(t('已匯出 3D 模型 (.glb)')); }
+      catch (e) { console.error(e); flash(t('匯出 3D 失敗')); }
       break;
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
     case 'tour': startTour(); break;
@@ -650,7 +653,7 @@ function importImage(editor: Editor, doc: Doc, src: string) {
     // entirely wrong, and nothing later in the app will notice.
     doc.select(null);
     editor.selectTool('calibrate');
-    flash('底圖已匯入並鎖定 — 接著沿圖上標有尺寸的一段拉一條線來校正比例');
+    flash(t('底圖已匯入並鎖定 — 接著沿圖上標有尺寸的一段拉一條線來校正比例'));
   };
   probe.src = src;
 }

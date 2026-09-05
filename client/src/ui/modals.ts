@@ -1,3 +1,4 @@
+import { t } from '../core/i18n';
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj } from '../model/schema';
@@ -50,10 +51,10 @@ export function dwgNotSupportedModal() {
 // of layers and importing all of them yields hundreds of nonsense walls: the
 // file is inspected first, then only the ticked layers are converted.
 export async function dxfImportModal(editor: Editor, doc: Doc, file: string) {
-  flash('正在讀取 DXF…');
+  flash(t('正在讀取 DXF…'));
   const info = await inspectDxf(file);
-  if ('error' in info) { flash('無法讀取這個 DXF 檔'); return; }
-  if (!info.layers.length) { flash('這個 DXF 沒有可匯入的線段'); return; }
+  if ('error' in info) { flash(t('無法讀取這個 DXF 檔')); return; }
+  if (!info.layers.length) { flash(t('這個 DXF 沒有可匯入的線段')); return; }
 
   const wrap = document.createElement('div');
   wrap.className = 'modal';
@@ -101,12 +102,12 @@ export async function dxfImportModal(editor: Editor, doc: Doc, file: string) {
   wrap.onclick = (e) => { if (e.target === wrap) close(); };
   sel<HTMLButtonElement>('[data-go]').onclick = async () => {
     const layers = [...host.querySelectorAll<HTMLInputElement>('input:checked')].map(i => i.value);
-    if (!layers.length) { flash('請至少勾選一個圖層'); return; }
+    if (!layers.length) { flash(t('請至少勾選一個圖層')); return; }
     close();
-    flash('正在轉換…');
+    flash(t('正在轉換…'));
     const walls = await importDxf(file, layers, unitEl.value);
-    if (!walls) { flash('匯入失敗 — 後端未連線'); return; }
-    if (!walls.length) { flash('勾選的圖層裡沒有可用的線段'); return; }
+    if (!walls) { flash(t('匯入失敗 — 後端未連線')); return; }
+    if (!walls.length) { flash(t('勾選的圖層裡沒有可用的線段')); return; }
     doc.commit();
     for (const w of walls) {
       doc.add({
@@ -181,10 +182,10 @@ export function plotModal(doc: Doc, name: string) {
         orientation: orientEl.value as Orientation,
       });
       close();
-      flash('已匯出施工圖 PDF');
+      flash(t('已匯出施工圖 PDF'));
     } catch (e) {
       console.error(e);
-      flash('施工圖產生失敗 — 試試較小的紙張或比例');
+      flash(t('施工圖產生失敗 — 試試較小的紙張或比例'));
     }
   };
 }
@@ -209,7 +210,7 @@ export async function openModal(editor: Editor, doc: Doc) {
     + '<span>從檔案匯入專案檔…</span>';
   imp.onclick = () => { modal.classList.add('hidden'); $<HTMLInputElement>('#projectFileInput').click(); };
   list.appendChild(imp);
-  if (!projects.length) { const m = document.createElement('div'); m.className = 'muted'; m.style.padding = '12px'; m.textContent = '尚無已儲存的專案'; list.appendChild(m); return; }
+  if (!projects.length) { const m = document.createElement('div'); m.className = 'muted'; m.style.padding = '12px'; m.textContent = t('尚無已儲存的專案'); list.appendChild(m); return; }
 
   // 219 plans in one flat list is 9,300px of scrolling in a 611px box — fifteen
   // screens to find one drawing, and most of the names are `s`, `m`, `c` from
@@ -219,7 +220,7 @@ export async function openModal(editor: Editor, doc: Doc) {
   const rows: { meta: typeof projects[number]; el: HTMLElement; hay: string }[] = [];
 
   const search = document.createElement('input');
-  search.type = 'search'; search.className = 'proj-search'; search.placeholder = '搜尋專案名稱…';
+  search.type = 'search'; search.className = 'proj-search'; search.placeholder = t('搜尋專案名稱…');
   search.autocomplete = 'off';
   const count = document.createElement('div'); count.className = 'proj-count';
   list.append(search, count);
@@ -248,7 +249,7 @@ export async function openModal(editor: Editor, doc: Doc) {
       // project field and it used to be interpolated into a template string.
       const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name;
       const dt = document.createElement('span'); dt.className = 'pdate'; dt.textContent = p.updatedAt ?? '';
-      const del = document.createElement('button'); del.className = 'del'; del.textContent = '刪除';
+      const del = document.createElement('button'); del.className = 'del'; del.textContent = t('刪除');
       del.onclick = async (e) => {
         e.stopPropagation();
         // Say what is about to go. Sixteen rows shared one name until today, and
@@ -315,11 +316,11 @@ async function renderBin(editor: Editor, doc: Doc, list: HTMLElement, modal: HTM
     const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name;
     const dt = document.createElement('span'); dt.className = 'pdate';
     dt.textContent = p.deletedAtIso ? `刪除於 ${p.deletedAtIso.slice(0, 10)}` : '已刪除';
-    const back = document.createElement('button'); back.className = 'restore'; back.textContent = '還原';
+    const back = document.createElement('button'); back.className = 'restore'; back.textContent = t('還原');
     back.onclick = async (e) => {
       e.stopPropagation();
       if (await restoreProject(p.id)) { modal.classList.add('hidden'); await openModal(editor, doc); }
-      else flash('還原失敗 — 伺服器沒有回應');
+      else flash(t('還原失敗 — 伺服器沒有回應'));
     };
     row.append(nm, dt, back);
     list.appendChild(row);
