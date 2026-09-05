@@ -499,15 +499,32 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       setRoute(null); renderSteps(editor, doc);
       askRoute(editor, doc);   // 空白畫布本身不會告訴人下一步是什麼
       break;
-    case 'save': doc.project.name = name(); markDirty(); await flushSave(doc); flash('已儲存'); break;
+    case 'save': {
+      // `flushSave` returns whether the stored copy is now up to date, and this
+      // used to throw that away and say 已儲存 either way. Exactly the failure
+      // 9.2.1 exists to stop, through a different door — and the correct
+      // pattern was already three lines below, in export-report.
+      doc.project.name = name(); markDirty();
+      flash(await flushSave(doc) ? '已儲存' : '存不上去 — 改動留在本機，連上線會自動送出');
+      break;
+    }
     case 'open': await openModal(editor, doc); break;
     case 'export-project': exportProjectFile(doc, name()); flash('已匯出專案檔（.floorplan.json）'); break;
     case 'import-project': $<HTMLInputElement>('#projectFileInput').click(); break;
     case 'import-dxf': $<HTMLInputElement>('#dxfInput').click(); break;
     case 'undo': doc.undo(); break;
     case 'redo': doc.redo(); break;
-    case 'export-png': exportPNG(doc, name()); break;
-    case 'export-pdf': exportPDF(doc, name()); break;
+    // These two said nothing at all, either way. A download that silently does
+    // not happen is indistinguishable from one the browser put somewhere the
+    // user has not looked yet.
+    case 'export-png':
+      try { exportPNG(doc, name()); flash('已匯出 PNG'); }
+      catch (e) { console.error(e); flash('匯出 PNG 失敗'); }
+      break;
+    case 'export-pdf':
+      try { exportPDF(doc, name()); flash('已匯出 PDF'); }
+      catch (e) { console.error(e); flash('匯出 PDF 失敗'); }
+      break;
     case 'plot-pdf':
       if (!doc.project.floors.some(f => f.objects.some(o => o.kind !== 'image'))) { flash('尚無可出圖的內容'); break; }
       plotModal(doc, name());
@@ -517,8 +534,24 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       // screen has actually reached the database first.
       doc.project.name = name(); markDirty();
       if (!await flushSave(doc)) { flash('無法匯出報表 — 後端未連線'); break; }
-      window.location.href = `/api/projects/${doc.project.id}/report.xlsx`;
-      flash('已匯出面積報表 (.xlsx)');
+      // Ask for it before announcing it. `location.href` to an endpoint that
+      // answers 422 leaves the user on the same page with a cheerful 已匯出 and
+      // no file — and the backend does answer 422 here, on purpose, when it
+      // cannot parse the stored plan.
+      flash('正在產生報表…');
+      try {
+        const r = await fetch(`/api/projects/${doc.project.id}/report.xlsx`);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const url = URL.createObjectURL(await r.blob());
+        const a = document.createElement('a');
+        a.href = url; a.download = `${name() || 'report'}.xlsx`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+        flash('已匯出面積報表 (.xlsx)');
+      } catch (e) {
+        console.error(e);
+        flash('報表產生失敗 — 後端無法解析這份存檔');
+      }
       break;
     case 'export-pano':
       if (!doc.objects.length) { flash('尚無可拍攝的 3D 內容'); break; }

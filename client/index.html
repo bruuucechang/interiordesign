@@ -81,7 +81,7 @@
           <option value="night">🌙 夜晚</option>
         </select>
         <span class="sep"></span>
-        <label class="chk" title="吸附到格線">
+        <label class="chk" title="吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。&#10;關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。">
           <input type="checkbox" id="snapToggle" checked />
           <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M9 4v16M15 4v16" opacity=".55"/><circle cx="15" cy="9" r="2.4"/></svg>
           <span class="lbl">吸附</span>
@@ -91,16 +91,16 @@
              border are the same box once the labels collapse — which is how the
              export button ended up as two meaningless squares in the first
              place. Two faces plus one emphasis reads at 16px. -->
-        <div class="view-modes" id="wallRef" title="畫牆時，點擊的線是牆的哪一條線（畫的途中按 R 切換）">
-          <button data-ref="center" title="中心線：點的線是牆的正中間">
+        <div class="view-modes" id="wallRef" title="你在圖上點的那條線，是牆的哪一面？&#10;量錯面，整間房子會差半個牆厚（12cm 的牆就是 6cm，四面牆下來一間房差 12cm）。&#10;現場量內緣就選「左緣/右緣」，量中心線才選「中心」。畫的途中可按 R 切換。">
+          <button data-ref="center" title="中心線 — 你點的線是牆的正中間。&#10;從 CAD 圖描牆通常用這個（圖上兩條線的中點）。">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M18 4v16" opacity=".45"/><path d="M12 3v18" stroke-width="2.6" stroke-dasharray="3.5 3"/></svg>
             <span class="lbl">中心</span>
           </button>
-          <button data-ref="left" title="左緣：點的線是牆的左面">
+          <button data-ref="left" title="左緣 — 你點的線是牆的左面，牆往右長出厚度。&#10;拿捲尺貼著牆的這一面量出來的數字，選這個才對得上。">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 4v16" opacity=".45"/><path d="M6 3v18" stroke-width="4"/></svg>
             <span class="lbl">左緣</span>
           </button>
-          <button data-ref="right" title="右緣：點的線是牆的右面">
+          <button data-ref="right" title="右緣 — 你點的線是牆的右面，牆往左長出厚度。&#10;拿捲尺貼著牆的另一面量的話選這個。">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16" opacity=".45"/><path d="M18 3v18" stroke-width="4"/></svg>
             <span class="lbl">右緣</span>
           </button>

@@ -11,19 +11,32 @@
 // Pure functions over numbers and strings. The panel owns the DOM and the
 // current unit.
 
-export type Unit = 'cm' | 'm';
+/**
+ * The units a length can be shown in.
+ *
+ * `ft` is decimal feet, not feet-and-inches. Two reasons: the fields are
+ * `<input type="number">`, and `12' 6"` is not a number; and a plan is edited
+ * by nudging values, which a two-part string cannot survive. Somebody working
+ * in imperial reads 12.5 ft and 150 in perfectly well — what they cannot do is
+ * work in a tool that only speaks metric, which is where this started.
+ */
+export type Unit = 'cm' | 'm' | 'in' | 'ft';
 
 /** Centimetres per display unit. Area uses the square of this. */
-const PER = { cm: 1, m: 100 } as const;
+const PER = { cm: 1, m: 100, in: 2.54, ft: 30.48 } as const;
 
 /** Decimals shown, and the input's step. A centimetre is already fine enough. */
-const DECIMALS = { cm: 0, m: 2 } as const;
+const DECIMALS = { cm: 0, m: 2, in: 1, ft: 2 } as const;
 
-export const unitLabel = (u: Unit) => u;
-export const areaLabel = (u: Unit) => (u === 'm' ? 'm²' : 'cm²');
+const LABEL = { cm: 'cm', m: 'm', in: 'in', ft: 'ft' } as const;
+const AREA_LABEL = { cm: 'cm²', m: 'm²', in: 'in²', ft: 'ft²' } as const;
+
+export const ALL_UNITS: Unit[] = ['cm', 'm', 'in', 'ft'];
+export const unitLabel = (u: Unit) => LABEL[u];
+export const areaLabel = (u: Unit) => AREA_LABEL[u];
 
 /** The step for a number input, so the arrow keys move by one displayed digit. */
-export const stepFor = (u: Unit) => (u === 'm' ? '0.01' : '1');
+export const stepFor = (u: Unit) => (DECIMALS[u] ? (10 ** -DECIMALS[u]).toFixed(DECIMALS[u]) : '1');
 
 /** A stored length (cm) as a number in the display unit. */
 export const toDisplay = (cm: number, u: Unit) => cm / PER[u];

@@ -170,13 +170,22 @@ export function plotModal(doc: Doc, name: string) {
   sel<HTMLButtonElement>('[data-x]').onclick = close;
   wrap.onclick = (e) => { if (e.target === wrap) close(); };
   sel<HTMLButtonElement>('[data-go]').onclick = () => {
-    plotPDF(doc, name, {
-      scale: +scaleEl.value,
-      paper: paperEl.value as PaperId,
-      orientation: orientEl.value as Orientation,
-    });
-    close();
-    flash('已匯出施工圖 PDF');
+    // Announce it after it happened, not after it was asked for. Rasterising
+    // Chinese into the sheet is the slowest thing this app does and the most
+    // likely to run out of memory on a big plan; saying 已匯出 first would make
+    // that failure look like a success with a missing file.
+    try {
+      plotPDF(doc, name, {
+        scale: +scaleEl.value,
+        paper: paperEl.value as PaperId,
+        orientation: orientEl.value as Orientation,
+      });
+      close();
+      flash('已匯出施工圖 PDF');
+    } catch (e) {
+      console.error(e);
+      flash('施工圖產生失敗 — 試試較小的紙張或比例');
+    }
   };
 }
 

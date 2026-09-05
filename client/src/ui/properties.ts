@@ -7,7 +7,7 @@ import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
 import { MaterialDef, floorMaterials, wallMaterials } from '../core/materials';
-import { Unit, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
+import { Unit, ALL_UNITS, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
 
 // The properties panel: everything shown for the current selection, plus the
 // two actions reachable only from it (dimension a wall, trace walls from the
@@ -16,7 +16,16 @@ import { Unit, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLe
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
-let unit: Unit = 'cm';   // shared across selections; toggled from the panel header
+const UNIT_KEY = 'interior_unit';
+const UNIT_NAME: Record<Unit, string> = { cm: '公分', m: '公尺', in: '英寸', ft: '英尺' };
+
+/** shared across selections; toggled from the panel header, remembered per person */
+let unit: Unit = (() => {
+  try {
+    const saved = localStorage.getItem(UNIT_KEY) as Unit | null;
+    return saved && ALL_UNITS.includes(saved) ? saved : 'cm';
+  } catch { return 'cm'; }
+})();
 
 export function refreshProps(editor: Editor, doc: Doc) {
   const host = $('#properties'); host.innerHTML = '';
@@ -202,9 +211,17 @@ export function refreshProps(editor: Editor, doc: Doc) {
   // header: type + unit toggle
   const head = document.createElement('div'); head.className = 'prop-head';
   const type = document.createElement('span'); type.className = 'prop-type'; type.textContent = kindLabel(o.kind);
-  const uBtn = document.createElement('button'); uBtn.className = 'unit-toggle'; uBtn.textContent = unit === 'cm' ? '公分' : '公尺';
-  uBtn.title = '切換單位（公分 / 公尺）';
-  uBtn.onclick = () => { unit = unit === 'cm' ? 'm' : 'cm'; refreshProps(editor, doc); };
+  // 循環四種單位，而不是公分／公尺二選一。英制不是裝飾：一個只講公制的工具，
+  // 對習慣英尺英寸的人來說不是「用起來不順」，是每一個數字都要自己換算。
+  // 記在 localStorage——單位是個人偏好，不是這張圖的屬性。
+  const uBtn = document.createElement('button'); uBtn.className = 'unit-toggle';
+  uBtn.textContent = UNIT_NAME[unit];
+  uBtn.title = `切換單位（目前 ${UNIT_NAME[unit]}）—— ${ALL_UNITS.map(u => UNIT_NAME[u]).join(' → ')}`;
+  uBtn.onclick = () => {
+    unit = ALL_UNITS[(ALL_UNITS.indexOf(unit) + 1) % ALL_UNITS.length];
+    try { localStorage.setItem(UNIT_KEY, unit); } catch { /* 記不住不影響使用 */ }
+    refreshProps(editor, doc);
+  };
   head.append(type, uBtn); host.appendChild(head);
 
   // basic params

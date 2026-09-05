@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toDisplay, fromDisplay, fieldValue, formatLength, formatArea, parseLength, stepFor } from '../src/core/units';
+
+const near = (a: number, b: number, tol = 1e-9) =>
+  assert.ok(Math.abs(a - b) < tol, `${a} ≉ ${b}`);
+import { toDisplay, fromDisplay, fieldValue, formatLength, formatArea, parseLength, stepFor, ALL_UNITS, areaToDisplay, areaLabel, unitLabel } from '../src/core/units';
 
 // ---------------------------------------------------------------- 換算
 
@@ -102,4 +105,52 @@ test('沒給下限時允許零與負值', () => {
 test('後面接單位文字仍讀得到數字', () => {
   // number input 一般不會有，但貼上的內容會。
   assert.equal(parseLength('3.5 m', 'm'), 350);
+});
+
+// ---- 英制 ----
+//
+// 一個只講公制的工具，對習慣英尺英寸的人不是「用起來不順」，是每一個數字都要自己
+// 換算。`ft` 是**十進位英尺**不是英尺加英寸：欄位是 <input type="number">，而
+// `12' 6"` 不是一個數字；而且平面圖是靠微調數值編輯的，兩段式字串撐不過那個流程。
+
+test('英寸與英尺的換算是精確值', () => {
+  // 2.54 是定義值，不是近似值——寫錯這裡，整份圖會慢慢歪掉而且看起來很合理。
+  near(fromDisplay(1, 'in'), 2.54);
+  near(fromDisplay(1, 'ft'), 30.48);
+  near(fromDisplay(12, 'in'), fromDisplay(1, 'ft'));
+});
+
+test('來回換算不會漂移', () => {
+  for (const u of ALL_UNITS) {
+    for (const cm of [1, 12.7, 100, 350, 1230.5]) {
+      near(fromDisplay(toDisplay(cm, u), u), cm, 1e-9);
+    }
+  }
+});
+
+test('面積的因子要平方', () => {
+  // 這一條是「看起來對的時候正好是錯的」那一種：1 ft² = 929.03 cm²，不是 30.48。
+  near(areaToDisplay(929.0304, 'ft'), 1, 1e-9);
+  near(areaToDisplay(6.4516, 'in'), 1, 1e-9);
+});
+
+test('每一種單位都有標籤與面積標籤', () => {
+  for (const u of ALL_UNITS) {
+    assert.ok(unitLabel(u).length > 0, u);
+    assert.match(areaLabel(u), /²$/, u);
+  }
+});
+
+test('step 跟顯示的小數位數一致', () => {
+  // 不一致的話，按一次上下鍵會提交一個欄位沒有顯示過的數字。
+  assert.equal(stepFor('cm'), '1');
+  assert.equal(stepFor('in'), '0.1');
+  assert.equal(stepFor('ft'), '0.01');
+  assert.equal(stepFor('m'), '0.01');
+});
+
+test('英制的欄位值不會顯示出比 step 更細的位數', () => {
+  // 顯示 12.3456 而 step 是 0.01 的話，下一次按上鍵會提交 12.3556。
+  assert.equal(fieldValue(376.1234, 'ft').split('.')[1]?.length, 2);
+  assert.equal(fieldValue(376.1234, 'in').split('.')[1]?.length, 1);
 });
