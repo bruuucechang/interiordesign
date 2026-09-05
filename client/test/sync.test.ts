@@ -158,13 +158,13 @@ test('syncPending pushes what never reached the backend', async () => {
 
 test('syncPending does nothing when the two already agree', async () => {
   await saveProject(plan('p1'));
-  assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0 });
+  assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0, failed: [] });
 });
 
 test('syncPending is a no-op while still offline', async () => {
   await saveProject(plan('p1'));
   server.up = false;
-  assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0 });
+  assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0, failed: [], offline: true });
 });
 
 // ---- listing ----
@@ -248,7 +248,7 @@ test('an untimestamped entry still loses to a copy the server does have', async 
   storage.setItem('interior_projects', JSON.stringify({ p1: plan('p1', '舊鏡像') }));
   server.plans.set('p1', { name: '伺服器', data: plan('p1', '伺服器'),
                            at: '2026-08-07T00:00:01.000Z' });
-  assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0 });
+  assert.deepEqual(await syncPending(), { pushed: 0, deleted: 0, failed: [] });
   assert.equal((await loadProject('p1'))?.name, '伺服器');
 });
 
@@ -293,4 +293,46 @@ test('存檔裡沒有 id 就補上資料列的（舊存檔還讀得開）', asyn
   const loaded = await loadProject('p1');
   assert.equal(loaded?.id, 'p1');
   assert.deepEqual(Object.keys(store.allPlans()), ['p1']);
+});
+
+// ---- 同步失敗要數得出來 ----
+//
+// 原本 syncPending 只回兩個成功計數，所以「什麼都沒推」跟「沒有東西要推」長得
+// 一模一樣。那正是為什麼一份存檔可以在鏡像裡每 20 秒重寫自己一次、清單上永遠寫著
+// 「尚未上傳」，而畫面上沒有任何地方說得出為什麼、也沒有地方可以重試。
+
+test('連不上的時候要說 offline，不是回一個看起來成功的空結果', async () => {
+  server.up = false;
+  const r = await syncPending();
+  assert.equal(r.offline, true);
+  assert.deepEqual(r.failed, []);
+});
+
+test('推得上去的時候不是 offline，也沒有失敗', async () => {
+  storage.setItem('interior_projects', JSON.stringify({
+    p1: { plan: plan('p1'), savedAt: '2026-08-08T00:00:00Z' },
+  }));
+  const r = await syncPending();
+  assert.equal(r.pushed, 1);
+  assert.deepEqual(r.failed, []);
+  assert.ok(!r.offline);
+});
+
+test('推不上去的那一份要被列進 failed', async () => {
+  // 伺服器活著、清單讀得到，但這一筆的 PUT 會失敗。
+  storage.setItem('interior_projects', JSON.stringify({
+    bad: { plan: plan('bad'), savedAt: '2026-08-08T00:00:00Z' },
+  }));
+  const realFetch = server.fetch;
+  (server as any).fetch = async (url: string, opts: any = {}) => {
+    if ((opts.method ?? 'GET') === 'PUT' && url.endsWith('/bad')) throw new Error('nope');
+    return realFetch(url, opts);
+  };
+  (globalThis as any).fetch = (server as any).fetch;
+  const r = await syncPending();
+  (server as any).fetch = realFetch;
+  (globalThis as any).fetch = realFetch;
+  assert.deepEqual(r.failed, ['bad']);
+  assert.equal(r.pushed, 0);
+  assert.ok(!r.offline, '伺服器是通的，這不是離線');
 });
