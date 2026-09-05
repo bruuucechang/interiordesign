@@ -42,6 +42,14 @@ npm run migrate      # SQLite → PostgreSQL 遷移
 
 **桌面版打包**：`./build-desktop.sh`（macOS/Linux）或 `build-desktop.bat`（Windows）→ `dist/InteriorDesigner/`。PyInstaller **不能跨平台編譯**，要在每個目標平台各跑一次。進入點是 `server/desktop.py`：一個本機程序同時跑 API 與前端，存 SQLite 檔，開瀏覽器指過去——使用者不需要 Node、Python 或 PostgreSQL。瀏覽器就是視窗，這是為了維持單一執行檔刻意做的取捨（要原生外殼就得換 Tauri 或 Electron，是完全不同的建置）。
 
+**要把它交給不會用 GitHub 的人，看 [`docs/handoff-windows.md`](docs/handoff-windows.md)**：
+發安裝精靈而不是 zip（zip 在 Windows 上看起來就是資料夾，沒解壓縮過的人會在裡面
+雙擊 exe，`_internal\` 不會跟著，死在找不到 Python DLL）、兩台 Windows worker 哪台
+建得起來、以及 SmartScreen 為什麼只有買憑證能解。建置腳本的順序是
+**venv → 素材 → 前端 → 打包**，素材必須在前端建置之前到位（Vite 是在 build 當下才把
+`public/` 複製進 `dist/`），且前後各驗一次——少了模型不會報錯，只會安靜地少掉三分之二
+的家具。
+
 ## 三條使用者反覆講的規則，現在都有程式在守
 
 ### 一、靠牆的家具要背對牆
