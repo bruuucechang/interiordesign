@@ -10,6 +10,7 @@ import { exportPNG, exportPDF } from '../core/exporter';
 
 import { flash } from './feedback';
 import { askRoute, renderSteps, setRoute } from './onboarding';
+import { startTour, maybeStartTour } from './tour';
 import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
 import { setConflictHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
@@ -99,6 +100,18 @@ export function initUI(editor: Editor, doc: Doc) {
     reader.onload = () => { dxfImportModal(editor, doc, reader.result as string); };
     reader.readAsDataURL(file);   // the backend accepts a data URL directly
   });
+
+  // First run on this machine: teach, once.
+  //
+  // After `initUI` has built the catalog, floors, layers and the property panel,
+  // because every step points at one of them — starting earlier would drop the
+  // steps whose anchors did not exist yet, which is the quiet failure mode of
+  // anything that decorates the DOM.
+  //
+  // A frame's delay so the first paint is the app, not an overlay on top of a
+  // blank one; somebody who has never seen this should see the tool before
+  // being told about it.
+  requestAnimationFrame(() => maybeStartTour());
 
   const projFileInput = $<HTMLInputElement>('#projectFileInput');
   projFileInput.addEventListener('change', () => {
@@ -569,6 +582,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       catch (e) { console.error(e); flash('匯出 3D 失敗'); }
       break;
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
+    case 'tour': startTour(); break;
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
   }
 }
