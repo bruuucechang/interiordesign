@@ -86,6 +86,10 @@ export class View3D {
   private raf = 0;
   private clock = new THREE.Clock();
   private pressed = new Set<string>();
+  /** True between `webglcontextlost` and `webglcontextrestored`. */
+  contextLost = false;
+  onContextLost?: () => void;
+  onContextRestored?: () => void;
   private keyChips: Record<string, HTMLElement> = {};
   private fly = false;   // WASD/QE camera movement
   private moveSpeed = 500; // cm/s, scaled to the scene in build()
@@ -103,6 +107,28 @@ export class View3D {
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(this.pixelRatio);   // adaptive from here on — see adaptResolution
+
+    // A lost context is not a crash, it is a pause — the browser takes the GPU
+    // back when a tab is backgrounded for long enough, when the driver resets,
+    // or when another tab is greedy. Without these two the view goes black and
+    // stays black for the life of the page, and the only fix a user finds is
+    // reloading and losing the last autosave interval.
+    //
+    // `preventDefault()` on the loss is what makes the browser promise to send
+    // `webglcontextrestored` at all; skip it and the restore never fires.
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.contextLost = true;
+      this.stop();
+      this.onContextLost?.();
+    });
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      this.contextLost = false;
+      // Everything on the GPU went with the context — textures, geometry,
+      // compiled programs. Rebuilding the scene is the only honest recovery;
+      // resuming the loop alone draws with handles that no longer exist.
+      this.onContextRestored?.();
+    });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.shadowMap.autoUpdate = false;   // we refresh shadows only on rebuild
