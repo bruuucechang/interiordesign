@@ -1,4 +1,5 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
+import { DynamicState, emptyDynamic, isEmpty, applyKey, resolveEnd, describe } from '../core/dynamicInput';
 import { genId } from '../model/doc';
 import { Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
@@ -24,10 +25,33 @@ export function placePoint(pt: Vec, snap: SnapResult | null): Vec {
 // Endpoints snap onto nearby walls (foolproof joining); otherwise they soft-snap
 // to 0/45/90° for grid alignment (Shift = force).
 export class WallTool implements Tool {
-  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置牆的端點；R 切換基準線（中心/左緣/右緣）；自動貼合牆體端點/中點/牆面；近軸對齊格線（Shift 強制）；Esc 結束';
+  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置端點，或直接輸入長度（Tab 切角度、Enter 放置、Backspace 修改）；R 切換基準線；Esc 結束';
   private start: Vec | null = null;
   private snap: SnapResult | null = null;   // set when the current end snapped to a wall / alignment
+  /** Last pointer position, so typed input has a direction to fall back on. */
+  private at: Vec = { x: 0, y: 0 };
+  private dyn: DynamicState = emptyDynamic();
   constructor(private ctx: ToolCtx) {}
+
+  /** Where the next point goes: what was typed, else where the pointer is. */
+  private target(): Vec {
+    if (this.start && !isEmpty(this.dyn)) {
+      const e = resolveEnd(this.dyn, this.start, this.at);
+      if (e) return e;
+    }
+    return this.at;
+  }
+
+  /** Place the next point — the keyboard's equivalent of a click. */
+  private commitPoint(end: Vec) {
+    if (!this.start) { this.start = end; this.dyn = emptyDynamic(); return; }
+    if (dist(this.start, end) < 1) return;
+    this.ctx.doc.commit();
+    const seg = applyReference(this.start, end, this.ctx.wallRef, WALL_THICKNESS);
+    this.ctx.doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a: seg.a, b: seg.b, thickness: WALL_THICKNESS });
+    this.start = end;
+    this.dyn = emptyDynamic();
+  }
 
   // endpoint for the current cursor: prefer a smart wall/alignment snap, else grid/angle align
   private end(p: PointerInfo): Vec {
@@ -42,18 +66,14 @@ export class WallTool implements Tool {
   }
 
   onDown(p: PointerInfo) {
-    const end = placePoint(this.end(p), this.snap);   // this.end() sets this.snap
-    if (!this.start) { this.start = end; return; }
-    if (dist(this.start, end) < 1) return;
-    this.ctx.doc.commit();
-    // The clicked line is whichever face the setting says; the stored wall is
-    // always its centreline.
-    const seg = applyReference(this.start, end, this.ctx.wallRef, WALL_THICKNESS);
-    this.ctx.doc.add({ id: genId('wall'), kind: 'wall', layer: layerForKind('wall'), a: seg.a, b: seg.b, thickness: WALL_THICKNESS });
-    this.start = end;
+    // Clicking and typing go through the same `commitPoint`, so a run can mix
+    // them freely — click a start on the underlay, then type the length off it.
+    this.at = placePoint(this.end(p), this.snap);   // this.end() sets this.snap
+    this.commitPoint(this.target());
   }
   onMove(p: PointerInfo) {
-    const e = this.end(p);           // updates this.snap
+    this.at = this.end(p);           // updates this.snap
+    const e = this.target();
     const s = this.start, snap = this.snap;
     const ang = s ? ((Math.round(angleDeg(s, e)) % 360) + 360) % 360 : 0;
     this.ctx.setPreview(
@@ -72,7 +92,16 @@ export class WallTool implements Tool {
         }
       },
       ctx => {
-        if (s) { const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }); ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#4c8dff'; ctx.fillText(`${fmtLen(dist(s, e))} · ${ang}°`, m.x, m.y - 6); }
+        if (s) {
+          const m = this.ctx.vp.toScreen({ x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 });
+          ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center';
+          // While something is being typed, show what was typed — not the
+          // pointer's reading. Showing the mouse value would contradict the
+          // keys as they are pressed.
+          const typing = !isEmpty(this.dyn);
+          ctx.fillStyle = typing ? '#ffd166' : '#4c8dff';
+          ctx.fillText(typing ? describe(this.dyn, 'cm') : `${fmtLen(dist(s, e))} · ${ang}°`, m.x, m.y - 6);
+        }
         if (snap) drawSnap(ctx, this.ctx.vp, snap);
       },
     );
@@ -80,11 +109,28 @@ export class WallTool implements Tool {
   }
   onUp() {}
   onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') { this.start = null; this.snap = null; this.ctx.setPreview(); this.ctx.render(); }
+    // Escape never reaches here, and that is correct.
+    //
+    // `editor.ts` handles it as a document-level action ahead of every tool —
+    // deliberately, because it used to sit behind the input guards and so did
+    // nothing at all in the 3D and split views, which is exactly where you want
+    // out. A two-stage Escape (clear the typing, then end the run) was tried
+    // here and would have meant undoing that; `Backspace` clears the digits
+    // instead, and it is already the key for "undo my last keystroke".
+    if (e.key === 'Escape') return;
     // R cycles the reference line mid-draw, which is when you find out the tape
     // was against the other face. Not Space, which Coohom uses — here Space is
     // already hold-to-pan, and that is the stronger habit of the two.
-    if (e.key === 'r' || e.key === 'R') { this.ctx.cycleWallRef(); this.ctx.render(); }
+    if (e.key === 'r' || e.key === 'R') { this.ctx.cycleWallRef(); this.ctx.render(); return; }
+    if (e.key === 'Enter') {
+      // Enter is the keyboard's click. With nothing started it drops the first
+      // point where the pointer last was, so a run can begin without one.
+      this.commitPoint(this.target());
+      e.preventDefault(); this.ctx.render();
+      return;
+    }
+    const next = applyKey(this.dyn, e.key);
+    if (next) { this.dyn = next; e.preventDefault(); this.ctx.render(); }
   }
   deactivate() { this.start = null; this.snap = null; this.ctx.setPreview(); }
 }

@@ -123,7 +123,7 @@
           <div id="pane2d" class="pane">
             <canvas id="canvas"></canvas>
             <div class="pane-tag">2D 平面</div>
-            <div id="hint" class="hint"></div>
+            <div id="hint" class="hint" role="status" aria-live="polite" aria-atomic="true"></div>
           </div>
           <div id="splitter" title="拖曳調整比例，雙擊回到對半"></div>
           <div id="view3d" class="pane view3d">
@@ -195,6 +195,8 @@
           <div><kbd>方向鍵</kbd> 2D 微移物件（+<kbd>Shift</kbd> 一格）/ 3D 沿畫面平移，上永遠是畫面的上</div>
           <div><kbd>Delete</kbd> 刪除　<kbd>Esc</kbd> 取消 / 回到選取</div>
           <div>畫牆自動貼合牆端點；近水平/垂直/45° 對齊格線（<kbd>Shift</kbd> 強制）</div>
+          <div><b>不用滑鼠畫牆</b>：選「直線牆」→ <kbd>Enter</kbd> 放起點 → 打長度 →
+            <kbd>Tab</kbd> 切到角度 → <kbd>Enter</kbd> 放置。<kbd>Backspace</kbd> 改，<kbd>Esc</kbd> 結束</div>
         </div>
       </div>
     </div>

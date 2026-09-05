@@ -182,10 +182,10 @@
 
 | # | 規則 | 為什麼 | 誰在守 |
 |---|---|---|---|
-| 9.7.1 | **每一個只能用滑鼠做的動作，都要有鍵盤路徑** | 畫牆只有 canvas 拖曳（`draw.ts` 的 `onKey` 只處理 Escape） | ❌ |
-| 9.7.2 | **顏色不能是唯一的編碼** | 圖層只用顏色區分 | ❌ |
+| 9.7.1 | **每一個只能用滑鼠做的動作，都要有鍵盤路徑** | 畫牆只有 canvas 拖曳（`draw.ts` 的 `onKey` 只處理 Escape） | `core/dynamicInput.ts`；`dynamicInput.test.ts` 15 條 |
+| 9.7.2 | **顏色不能是唯一的編碼** | 圖層只用顏色區分 | 圖層列加了色塊，名字改回一般前景色 |
 | 9.6.2 | **上限要說出來** | 把清單截斷而不說，讀的人會以為那就是全部 | `renderFaceSteps` 最多 12 列並顯示「還有 N 處」 |
-| 9.7.3 | **會消失的提示要進 aria-live** | `flash()` 沒有，只有 `saveStatus` 有 | ❌ |
+| 9.7.3 | **會消失的提示要進 aria-live** | `flash()` 沒有，只有 `saveStatus` 有 | `#hint` 加 `role="status" aria-live="polite"`；另加 `:focus-visible` 焦點框 |
 
 ---
 
