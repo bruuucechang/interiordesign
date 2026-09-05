@@ -35,6 +35,9 @@ export function initUI(editor: Editor, doc: Doc) {
   refreshProps(editor, doc);
   wireTopbar(editor, doc);
 
+  // ⌘S / ⌘O / ⌘N / ⌘P go through the same `handle()` as the toolbar buttons —
+  // one implementation, so a shortcut can never drift from the button it mirrors.
+  editor.hooks.command = (name) => { void handle(name === 'plot' ? 'plot-pdf' : name, editor, doc); };
   editor.hooks.toolChange = (name) => markActiveTool(name);
   editor.onCalibrated = (msg, ok) => { flash(msg); if (ok) renderSteps(editor, doc); };
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };

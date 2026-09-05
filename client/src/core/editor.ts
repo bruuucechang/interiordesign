@@ -39,7 +39,7 @@ export class Editor implements ToolCtx {
   /** Set by the UI layer; the calibrate tool reports its outcome through it. */
   onCalibrated?: (message: string, ok?: boolean) => void;
 
-  hooks: { toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => string; wallRef?: (r: Reference) => void } = {};
+  hooks: { command?: (name: string) => void; toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => string; wallRef?: (r: Reference) => void } = {};
 
   private previewW?: DrawFn;
   private previewS?: DrawFn;
@@ -240,6 +240,29 @@ export class Editor implements ToolCtx {
         return;
       }
       if (typing) return;
+
+      // ---- document-level shortcuts, before the 2D/3D focus guard ----
+      //
+      // Same lesson as Esc: 存檔、開啟、新建、出圖、縮放 are things you do to the
+      // *project*, not to the 2D pane, so gating them on which pane has the
+      // keyboard makes ⌘S silently do nothing whenever the 3D view is in front —
+      // and the one time you notice is the time you needed it.
+      const cmd = e.metaKey || e.ctrlKey;
+      if (cmd && !e.altKey) {
+        const k = e.key.toLowerCase();
+        const doc: Record<string, () => void> = {
+          s: () => this.hooks.command?.('save'),
+          o: () => this.hooks.command?.('open'),
+          n: () => this.hooks.command?.('new'),
+          p: () => this.hooks.command?.('plot'),
+          '0': () => this.resetView(),
+          '=': () => this.zoomBy(1.2),
+          '+': () => this.zoomBy(1.2),
+          '-': () => this.zoomBy(1 / 1.2),
+        };
+        if (doc[k]) { doc[k](); e.preventDefault(); return; }
+      }
+
       if (!this.inputEnabled) return; // 2D is only the preview — ignore shortcuts
       if (e.code === 'Space') { this.space = true; this.canvas.style.cursor = 'grab'; return; }
       const meta = e.metaKey || e.ctrlKey;
@@ -248,6 +271,8 @@ export class Editor implements ToolCtx {
       if (meta && e.key.toLowerCase() === 'c') { this.copySelection(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'v') { this.pasteClipboard(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'd') { this.duplicateSelection(); e.preventDefault(); return; }
+      if (meta && e.key.toLowerCase() === 'x') { this.cutSelection(); e.preventDefault(); return; }
+      if (meta && e.key.toLowerCase() === 'a') { this.selectAll(); e.preventDefault(); return; }
       if (meta && e.key.toLowerCase() === 'g') {
         e.shiftKey ? this.doc.ungroupSelection() : this.doc.groupSelection();
         e.preventDefault(); return;
@@ -324,6 +349,30 @@ export class Editor implements ToolCtx {
     this.doc.selectMany(clones.map(c => c.id));
   }
   pasteClipboard() { this.addClones(this.clipboard); }
+
+  /** Copy, then remove. The single commit makes it one step of undo, not two. */
+  cutSelection() {
+    const objs = this.doc.selectedObjects;
+    if (!objs.length) return;
+    this.copySelection();
+    this.doc.commit();
+    for (const o of objs) this.doc.remove(o.id);
+  }
+
+  /**
+   * Select everything on the active floor that can actually be edited.
+   *
+   * Locked and hidden layers are left out on purpose — `hitTest` already skips
+   * them, so including them here would build a selection the mouse could never
+   * have made, and the first drag would move the underlay everyone locked
+   * precisely so it would not move.
+   */
+  selectAll() {
+    const ids = this.doc.objects
+      .filter(o => this.doc.isLayerVisible(o.layer) && !this.doc.isLayerLocked(o.layer))
+      .map(o => o.id);
+    if (ids.length) this.doc.selectMany(ids);
+  }
   duplicateSelection() { this.addClones(this.doc.selectedObjects); }
 
   // ---- align / distribute a multi-selection ----
