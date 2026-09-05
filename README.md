@@ -188,12 +188,30 @@ docker compose -f docker-compose.dev.yml up --build
 build-desktop.bat         # Windows
 ```
 
-產出在 `dist/InteriorDesigner/`（約 165 MB，含 OpenCV 與 Python 直譯器）。
-把整個資料夾壓縮起來就是可下載的軟體；使用者解壓後執行裡面的 `InteriorDesigner`
-（Windows 是 `InteriorDesigner.exe`）。
+產出在 `dist/InteriorDesigner/`（約 250 MB，含 OpenCV、Python 直譯器與 224 件 3D 模型）。
+
+建置腳本會在建置後與打包後各驗一次素材（`scripts/check-assets.mjs`）。這道閘門存在
+是因為它的失敗**完全安靜**：`client/public/models/` 是 gitignore 擋掉的，少了它 app
+照常啟動、照常畫圖、不會有任何錯誤，只是三分之二的家具渲成無特徵方塊——而且作者
+自己永遠看不到，因為他的機器上一直都有。
 
 **必須在目標平台上建置。** PyInstaller 是把當下這台機器的直譯器和二進位擴充模組凍結
 起來，不能交叉編譯——Windows 版要在 Windows 上跑 `build-desktop.bat`。
+
+### 要把它交給一個不會用 GitHub 的人
+
+**不要發 zip**，發安裝精靈：
+
+```bat
+ISCC.exe packaging\installer.iss      →  packaging\out\室內設計繪圖-安裝程式.exe
+```
+
+打包出來的是一個**資料夾**（exe ＋ `_internal\`），而 Windows 把 zip 顯示得跟資料夾
+一模一樣——沒解壓縮過的人會直接在裡面雙擊 exe，於是只有那一個檔被解到暫存目錄，
+程式當場死在找不到 Python DLL。安裝精靈沒有這個步驟可以跳過。
+
+完整的交付流程、兩台 Windows worker 的現況，以及 **SmartScreen 為什麼只有買憑證能解**，
+在 **[`docs/handoff-windows.md`](docs/handoff-windows.md)**。
 
 ### 單機版與伺服器版的差異
 
