@@ -70,6 +70,26 @@ ssh desk 'cd /d E:\Project\interior-designer\client\public && tar xzf models.tgz
 
 ---
 
+### 對方那台要跑得動：Windows 8.1 以上、64 位元
+
+**Windows 7 不行,而且卡住的不是前端。** 前端建置目標是 `es2020`,Win7 上的
+Chrome 停在 109,那一版跑得動 es2020 也有 WebGL2——畫圖那一半是好的。跑不動的是
+「不用裝 Python」的那個外殼:
+
+| | |
+|---|---|
+| `numpy 2.5.1` | `requires-python >=3.12` |
+| Python 3.12 官方文件 | supports **Windows 8.1 and newer**;要 Win7 請用 3.8 |
+| Win7 能跑的最後一版 Python | **3.8** |
+
+中間差四個版本。PyInstaller 凍的是**建置那台機器的直譯器**,所以 exe 裡就是一份
+Python 3.12,在 Win7 上連啟動都不會啟動,而且錯誤會是缺某個 `api-ms-win-*.dll`
+這種看不出成因的東西。
+
+真要支援就是整個後端降版(numpy、FastAPI、pydantic、opencv 全部退到還有 3.8
+wheel 的世代,PyInstaller 也要退),那是換掉後端再重驗一次,不是相容性設定。
+`installer.iss` 的 `ArchitecturesAllowed=x64compatible` 另外擋掉 32 位元。
+
 ## 三、交付：安裝精靈，不要發 zip
 
 ```bat
