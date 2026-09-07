@@ -45,7 +45,9 @@ npm run migrate      # SQLite → PostgreSQL 遷移
 **要把它交給不會用 GitHub 的人，看 [`docs/handoff-windows.md`](docs/handoff-windows.md)**：
 發安裝精靈而不是 zip（zip 在 Windows 上看起來就是資料夾，沒解壓縮過的人會在裡面
 雙擊 exe，`_internal\` 不會跟著，死在找不到 Python DLL）、兩台 Windows worker 哪台
-建得起來、以及 SmartScreen 為什麼只有買憑證能解。建置腳本的順序是
+建得起來、以及 SmartScreen 為什麼只有買憑證能解。**要走 LINE 送的話，那個單一的
+安裝精靈仍然要包一層 zip**——LINE 會把 `.exe` 靜默吃掉（對方聊天室裡連訊息都沒有），
+而包單一自足的安裝檔跟壓整個 `dist` 資料夾是兩件事，理由寫在同一份文件的五之二。建置腳本的順序是
 **venv → 素材 → 前端 → 打包**，素材必須在前端建置之前到位（Vite 是在 build 當下才把
 `public/` 複製進 `dist/`），且前後各驗一次——少了模型不會報錯，只會安靜地少掉三分之二
 的家具。
