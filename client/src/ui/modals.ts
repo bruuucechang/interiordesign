@@ -210,7 +210,17 @@ export async function openModal(editor: Editor, doc: Doc) {
     + '<span>從檔案匯入專案檔…</span>';
   imp.onclick = () => { modal.classList.add('hidden'); $<HTMLInputElement>('#projectFileInput').click(); };
   list.appendChild(imp);
-  if (!projects.length) { const m = document.createElement('div'); m.className = 'muted'; m.style.padding = '12px'; m.textContent = t('尚無已儲存的專案'); list.appendChild(m); return; }
+  // No live plans is **not** a reason to skip the bin — it is the strongest
+  // reason to show it. This used to `return` here, so the one moment somebody
+  // needs the recycle bin (they deleted the only drawing they had and want it
+  // back) was the one moment it was unreachable, while the tour went on
+  // promising that deleted plans are recoverable for 30 days.
+  if (!projects.length) {
+    const m = document.createElement('div'); m.className = 'muted'; m.style.padding = '12px';
+    m.textContent = t('尚無已儲存的專案'); list.appendChild(m);
+    await renderBin(editor, doc, list, modal);
+    return;
+  }
 
   // 219 plans in one flat list is 9,300px of scrolling in a 611px box — fifteen
   // screens to find one drawing, and most of the names are `s`, `m`, `c` from
