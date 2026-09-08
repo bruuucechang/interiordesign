@@ -30,7 +30,7 @@
 ; certificate — see docs/handoff-windows.md.
 
 #define AppName "室內設計繪圖"
-#define AppVer "1.0.0"
+#define AppVer "1.0.1"
 #define SrcDir "..\dist\InteriorDesigner"
 
 [Setup]
