@@ -173,3 +173,80 @@ def test_save_bin_and_restore_round_trip_on_sqlite(tmp_path):
     r = _run(tmp_path / "roundtrip.sqlite3", ROUNDTRIP)
     assert r.returncode == 0, r.stderr
     assert "OK" in r.stdout
+
+
+# ---- 時區：SQLite 讀回來的是 naive，而 naive 不是本地時間 ----
+#
+# `DateTime(timezone=True)` 在 SQLite 上寫進去的是它拿到的那組數字（這裡一律是
+# UTC），讀回來時區被拔掉。對一個 naive 值呼叫 `astimezone()` 會**假設它是本機
+# 時區**，於是整個時間點被平移了本機的偏移量——這台機器是八小時。
+#
+# 在外面長成兩個症狀：`save_project` 從記憶體裡的物件回答（帶時區、對的），
+# `get_project` 從資料列讀回來（沒時區、被平移過），所以並行守衛拿兩者相比永遠不
+# 相等——桌面版只有一個人在寫，卻**第一次之後每一次存檔都 409**，而每個 409 都會
+# 彈出一個說別人存過這份圖的對話框。另一半是離線鏡像的「較新者勝」：伺服器的時間
+# 晚八小時，本機那份就永遠比較新。
+#
+# 這幾條**必須跑在 SQLite 上**。Postgres 的 timestamptz 回的是帶時區的值，
+# 整個 bug 在那裡不存在——而這個專案交出去的正是 SQLite 那一半。
+
+TZ_CONSISTENT = """
+from datetime import datetime, timezone
+from app.db import init_db, SessionLocal, save_project, get_project, list_projects
+
+init_db()
+before = datetime.now(timezone.utc)
+with SessionLocal() as s:
+    saved = save_project(s, "p_tz", "案子", {"x": 1})
+    read = get_project(s, "p_tz")
+    listed = [r for r in list_projects(s) if r["id"] == "p_tz"][0]
+after = datetime.now(timezone.utc)
+
+assert saved["updatedAtIso"] == read["updatedAtIso"], (
+    f'存檔回傳 {saved["updatedAtIso"]}，讀回來卻是 {read["updatedAtIso"]}')
+assert saved["updatedAtIso"] == listed["updatedAtIso"], "清單上的也必須是同一個"
+
+got = datetime.fromisoformat(read["updatedAtIso"])
+assert before <= got <= after, f"{got} 不在 {before}–{after} 之間——被時區平移了"
+print("OK")
+"""
+
+
+def test_同一列的_updatedAtIso_在存與讀之間必須一致(tmp_path):
+    r = _run(tmp_path / "tz.sqlite3", TZ_CONSISTENT)
+    assert r.returncode == 0, r.stderr
+    assert "OK" in r.stdout
+
+
+GUARD = """
+from app.db import init_db, SessionLocal, save_project, get_project
+
+init_db()
+with SessionLocal() as s:
+    first = save_project(s, "p_g", "案子", {"n": 1})
+    # 前端把上一次存檔拿回來的 iso 原封不動送回來，並行守衛就是這樣比的
+    current = get_project(s, "p_g")
+    assert current["updatedAtIso"] == first["updatedAtIso"], (
+        "守衛會拿這兩個相比；不相等就是每一次存檔都被判成衝突")
+print("OK")
+"""
+
+
+def test_並行守衛比得起來_同一個人連續存兩次不會被判成衝突(tmp_path):
+    r = _run(tmp_path / "guard.sqlite3", GUARD)
+    assert r.returncode == 0, r.stderr
+    assert "OK" in r.stdout
+
+
+def test_naive_一律當成_UTC():
+    """`as_utc` 本身是純函式，不碰資料庫，所以這條可以直接跑。"""
+    from datetime import datetime, timezone
+    from app.db import as_utc
+    naive = datetime(2026, 9, 8, 3, 1, 38)
+    assert as_utc(naive) == datetime(2026, 9, 8, 3, 1, 38, tzinfo=timezone.utc)
+    # 帶時區的也要換算過去：PostgreSQL 回的是 session 時區的 timestamptz，
+    # 偏移是真的但不是零，不換算就會出現同一個時間點的兩種寫法。
+    from datetime import timedelta
+    aware = datetime(2026, 9, 8, 11, 1, 38, tzinfo=timezone(timedelta(hours=8)))
+    assert as_utc(aware) == datetime(2026, 9, 8, 3, 1, 38, tzinfo=timezone.utc)
+    assert as_utc(aware).utcoffset().total_seconds() == 0

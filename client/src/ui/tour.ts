@@ -42,7 +42,7 @@ const STEPS_EN: Step[] = [
     title: 'This tool does one thing',
     body: 'It draws a floor plan, and grows the 3D of it at the same time.\n\n'
       + 'You draw on the left; the right becomes the actual rooms as you go.\n'
-      + 'You can press Skip at any point, and reopen this from the "?" in the toolbar.',
+      + 'You can press Skip at any point. The "?" in the toolbar opens the full guide, and this tour can be replayed from there.',
   },
   {
     target: '#pane2d',
@@ -99,7 +99,7 @@ const STEPS_ZH: Step[] = [
     title: '這個工具做一件事',
     body: '把一張平面圖畫出來，並且同時長出 3D。\n\n'
       + '左邊是你畫圖的地方，右邊會即時變成立體的房子。\n'
-      + '整段教學隨時可以按「跳過」，之後從工具列的「?」再叫出來。',
+      + '整段教學隨時可以按「跳過」。工具列的「?」是完整使用說明，這份教學也可以從那裡再播一次。',
   },
   {
     target: '#pane2d',
@@ -153,6 +153,7 @@ const STEPS_ZH: Step[] = [
 let idx = 0;
 let steps: Step[] = [];
 let root: HTMLElement | null = null;
+let onEnd: (() => void) | null = null;
 
 export const tourSeen = () => localStorage.getItem(SEEN) === '1';
 
@@ -167,7 +168,12 @@ function cleanup() {
   window.removeEventListener('resize', place);
 }
 
-function end() { markSeen(); cleanup(); }
+function end() {
+  markSeen();
+  cleanup();
+  const fn = onEnd; onEnd = null;
+  fn?.();
+}
 
 function onKey(e: KeyboardEvent) {
   if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); end(); return; }
@@ -272,14 +278,15 @@ function render() {
 }
 
 /** Run the tour. Safe to call when it is already open — it restarts. */
-export function startTour() {
+export function startTour(whenDone?: () => void) {
   cleanup();
+  onEnd = whenDone ?? null;
   // Drop steps whose anchor is not on screen rather than pointing at nothing.
   // 教學的內文是整段文章，不是零散的詞——用 `t()` 一句一句翻會把段落切碎，也讓譯者
   // 看不到上下文。所以整份步驟表按語言各寫一份。
   const table = currentLang() === 'en' ? STEPS_EN : STEPS_ZH;
   steps = table.filter(s => !s.target || document.querySelector(s.target));
-  if (!steps.length) return;
+  if (!steps.length) { const fn = onEnd; onEnd = null; fn?.(); return; }
   idx = 0;
 
   root = document.createElement('div');
@@ -294,9 +301,23 @@ export function startTour() {
   render();
 }
 
-/** First run on this machine? Then teach, once. */
-export function maybeStartTour() {
+/**
+ * First run on this machine? Then teach, **once**.
+ *
+ * "Once" is recorded the moment it opens, not when it is finished. It used to
+ * be written only by `end()`, so somebody who met the tour, read two bubbles
+ * and closed the window met the identical tour on the next launch — and the
+ * report was that the instructions "跳出來的時機很奇怪". They were not random;
+ * they were the same first run, over and over, because nothing had recorded it.
+ *
+ * (The desktop build had a second, larger version of that: it fell back to a
+ * random port when 8791 was taken, and a new port is a new origin, so every
+ * launch got an empty localStorage. Fixed in `server/desktop.py` — this flag is
+ * only as durable as the origin it is written to.)
+ */
+export function maybeStartTour(whenDone?: () => void) {
   if (tourSeen()) return false;
-  startTour();
+  markSeen();
+  startTour(whenDone);
   return true;
 }

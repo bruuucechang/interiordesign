@@ -92,7 +92,18 @@ export function renderSteps(editor: Editor, doc: Doc) {
   pane.appendChild(box);
 }
 
-/** Ask which route this plan is. Resolves once one is chosen. */
+/** Let the strip come back after it has been dismissed — the help panel does. */
+export function clearStepsDismissed() { localStorage.removeItem(DISMISSED); }
+
+/**
+ * Ask which route this plan is.
+ *
+ * **Only ever shown once, straight after the first-run tour.** It used to open
+ * on every 新建, which is how the checklist and this dialog ended up in the
+ * "instructions appear at odd moments" report: you press New because you want a
+ * blank sheet, and you get a question instead. Afterwards the same choice lives
+ * in 使用說明 (the `?` button), where it is asked for rather than pushed.
+ */
 export function askRoute(editor: Editor, doc: Doc) {
   const modal = $('#routeModal');
   modal.classList.remove('hidden');

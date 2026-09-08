@@ -30,7 +30,9 @@ PLAN = {
 def test_health(client):
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json() == {"ok": True}
+    # 名字是給桌面版的啟動器用的：它要分得出「另一份自己已經在跑了」跟「這個埠
+    # 被別的東西佔著」。單純的 {"ok": true} 兩種情況長得一樣。
+    assert r.json() == {"ok": True, "app": "InteriorDesigner"}
 
 
 def test_list_is_empty_to_start(client):

@@ -174,7 +174,7 @@ def list_projects(db: Session, *, deleted: bool = False, owner: str | None = Non
             "id": r.id,
             "name": r.name,
             **_times(r.updated_at),
-            **({"deletedAtIso": r.deleted_at.isoformat()} if r.deleted_at else {}),
+            **({"deletedAtIso": as_utc(r.deleted_at).isoformat()} if r.deleted_at else {}),
         }
         for r in rows
     ]
@@ -271,19 +271,57 @@ def purge_deleted(db: Session, older_than_days: int = PURGE_AFTER_DAYS) -> int:
     return len(rows)
 
 
+def as_utc(dt: datetime) -> datetime:
+    """The instant this value means, as an aware UTC datetime.
+
+    **A datetime with no zone on it came from SQLite, and SQLite is where the
+    desktop build stores everything.** It has no timestamp type, so
+    `DateTime(timezone=True)` writes the components it is given — always UTC
+    here, every writer in this module uses `datetime.now(timezone.utc)` — and
+    hands them back with the zone stripped off.
+
+    `astimezone()` on a naive value assumes **the machine's local zone**, which
+    silently moves the instant by the local offset. Eight hours, on the machines
+    this project runs on. That is not a rounding error, it is a different time,
+    and two things read it:
+
+      · The concurrency guard. `save_project` answers from the object still in
+        memory (aware, correct) while `get_project` reads the row back (naive,
+        shifted) — so a client that faithfully echoed the stamp its own save
+        just returned was told it had a conflict. In the desktop build, where
+        one person is the only writer, **every save after the first one 409'd**,
+        and each 409 raised a dialog saying somebody else had saved the plan.
+      · The offline mirror's newest-wins rule. A server stamp eight hours behind
+        makes the local copy look newer for ever — and east of UTC it goes the
+        other way, and the server silently wins over work done offline.
+
+    Naive means UTC, because that is what was written. An **aware** value still
+    has to be converted: PostgreSQL hands back `timestamptz` in the session's
+    zone, so the offset is real but it is not zero, and printing it unconverted
+    gives two spellings of the same instant that no equality test will match.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _times(dt: datetime | None) -> dict[str, str]:
     """Both forms of a timestamp: one to show, one to compare.
 
-    `updatedAt` is what the project list prints and the old Node backend sent —
-    "YYYY-MM-DD HH:MM:SS", in whatever zone the database hands back, with no
-    marker saying which. That is fine to display and useless to compare, and
-    the offline mirror has to compare: a plan saved locally while the backend
-    was unreachable is only newer if the two times mean the same thing.
-    `updatedAtIso` is therefore the same instant in UTC, spelled out.
+    `updatedAt` is what the project list prints — "YYYY-MM-DD HH:MM:SS" with no
+    marker saying which zone, so it is fine to display and useless to compare.
+    It is rendered in **this machine's local time**, which is the right answer
+    for the desktop build (the server and the person are the same computer) and
+    no worse than before anywhere else: it used to print UTC components, so a
+    plan saved at 11:01 was listed as 03:01.
+
+    `updatedAtIso` is the same instant in UTC, spelled out, and it is the one
+    thing here that may ever be compared.
     """
     if dt is None:
         return {"updatedAt": "", "updatedAtIso": ""}
+    utc = as_utc(dt)
     return {
-        "updatedAt": dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "updatedAtIso": dt.astimezone(timezone.utc).isoformat(),
+        "updatedAt": utc.astimezone().strftime("%Y-%m-%d %H:%M:%S"),
+        "updatedAtIso": utc.isoformat(),
     }

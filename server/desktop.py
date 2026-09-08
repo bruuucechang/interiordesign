@@ -11,11 +11,14 @@ a different build entirely.
 """
 from __future__ import annotations
 
+import json
 import os
 import socket
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -46,13 +49,38 @@ def data_dir() -> Path:
     return d
 
 
-def free_port(preferred: int = 8791) -> int:
-    """Use the usual port when it is free, otherwise let the OS pick one.
+# Tried in order. **The order matters more than the numbers do**, because the
+# port is part of the origin, and the origin is what the browser files
+# localStorage under: language, the "you have seen the tour" flag, the panel
+# state, and the offline mirror of anything not yet written to the database.
+#
+# This used to be `(8791, 0)` — the usual port, else let the OS pick one. On a
+# machine where 8791 never binds, "let the OS pick" means **a different port on
+# every launch**, so every launch is a fresh origin with an empty localStorage,
+# so every launch is a first run: the tour again, the language again, the
+# folded panels again. That is what was reported as 「instruction 有時候會在奇怪
+# 時機跳出來」 — not odd timing, the same first run over and over.
+#
+# And 8791 failing is not hypothetical: on Windows it sits inside the range
+# Hyper-V reserves dynamically (8712–8811 on the machines this project has
+# met), where bind fails with a permissions error that names nothing. Every
+# fallback below is deliberately outside that range, so a machine that cannot
+# have 8791 still gets the *same* second choice every time.
+PORTS = (8791, 18791, 28791, 38791)
 
-    A fixed port would fail for the second copy, or when something else on the
-    machine already holds it — neither should stop the app opening.
+
+def free_port(ports: tuple[int, ...] = PORTS) -> int:
+    """The first port on the list that binds — the same one on every launch.
+
+    Falls back to an OS-assigned port only if all four are taken, which needs
+    four copies running at once. That case gets a working app with a fresh
+    origin; the alternative is refusing to open at all.
+
+    `ports` is a parameter so the tests can supply a list they control: this
+    machine may well have something on 8791 already, and a test that depends on
+    what happens to be listening is a test that reports the machine, not the code.
     """
-    for port in (preferred, 0):
+    for port in tuple(ports) + (0,):
         with socket.socket() as s:
             try:
                 s.bind(("127.0.0.1", port))
@@ -60,6 +88,30 @@ def free_port(preferred: int = 8791) -> int:
             except OSError:
                 continue
     raise RuntimeError("no port available")
+
+
+def running_instance(ports: tuple[int, ...] = PORTS) -> int | None:
+    """The port a copy of this app is already serving on, if there is one.
+
+    **Double-clicking the icon twice must not start a second server.** It used
+    to: the first copy holds 8791, so the second one took whatever was next —
+    and a different port is a different origin, which means an empty
+    localStorage, which means the app greets a long-time user as a first-time
+    one. The tour again, the language again, the folded panels again. That is
+    the "instructions appear at odd moments" report, in its second form.
+
+    Asked by name, not just by "is something listening": handing the user's
+    browser to whatever else happens to own the port would be worse than
+    starting a second copy.
+    """
+    for port in ports:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=0.5) as r:
+                if json.load(r).get("app") == APP_NAME:
+                    return port
+        except (urllib.error.URLError, OSError, ValueError):
+            continue
+    return None
 
 
 def wait_until_up(port: int, timeout: float = 30.0) -> bool:
@@ -85,6 +137,15 @@ def main() -> int:
     # Must be set before app.db is imported — it reads this at import time.
     os.environ.setdefault("DATABASE_URL", f"sqlite+pysqlite:///{db_file}")
     os.environ.setdefault("INTERIOR_STATIC_DIR", str(resource_dir() / "static"))
+
+    # Already running? Then this launch is somebody asking to see it — open the
+    # window they wanted and leave the one server alone.
+    existing = running_instance()
+    if existing is not None:
+        url = f"http://127.0.0.1:{existing}/"
+        print(f"{APP_NAME} 已經在執行中，開啟現有的視窗： {url}")
+        webbrowser.open(url)
+        return 0
 
     port = free_port()
     url = f"http://127.0.0.1:{port}/"

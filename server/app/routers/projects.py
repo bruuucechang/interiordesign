@@ -14,8 +14,18 @@ router = APIRouter(tags=["projects"])
 
 
 @router.get("/health")
-def health() -> dict[str, bool]:
-    return {"ok": True}
+def health() -> dict[str, object]:
+    """Alive, and **which** application is alive.
+
+    The name is what the desktop launcher uses to tell "another copy of me is
+    already running on this port" from "something else on this machine owns it".
+    A bare `{"ok": true}` cannot distinguish those, and getting it wrong either
+    way is bad: hand the browser to a stranger's server, or start a second copy
+    on a different port — and a different port is a different origin, so the
+    second copy looks like a brand-new installation to everything the browser
+    remembers.
+    """
+    return {"ok": True, "app": "InteriorDesigner"}
 
 
 def owner_of(x_owner: str | None) -> str | None:

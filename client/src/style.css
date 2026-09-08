@@ -329,6 +329,24 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .modal-box { width: 460px; max-height: 70vh; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
 .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 600; }
 .modal-head button { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+/* 使用說明：一整份可捲動的文字，所以比其他 modal 寬、而且自己捲。 */
+.modal-box.wide { width: min(720px, 92vw); max-height: 82vh; }
+.help-body { padding: 4px 20px 20px; overflow-y: auto; user-select: text; line-height: 1.75; font-size: 13.5px; }
+.help-acts { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 12px 0 10px; background: var(--panel); }
+.help-btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.help-btn:hover { border-color: var(--accent); color: var(--accent); }
+.help-strip { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel2); font-size: 13px; }
+.help-select { background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 8px; }
+.help-h { margin: 22px 0 6px; font-size: 14px; color: var(--accent); font-weight: 600; }
+.help-h:first-of-type { margin-top: 8px; }
+.help-p { margin: 0 0 8px; color: var(--text); }
+.help-p strong { color: #fff; font-weight: 600; }
+
 .plot-form { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .plot-form label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .plot-form select { flex: 0 0 160px; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
