@@ -177,3 +177,44 @@ test('第二層樓有東西也不算空白', () => {
     objects: [{ id: 'w', kind: 'wall', layer: 'walls', a: { x: 0, y: 0 }, b: { x: 1, y: 0 }, thickness: 12 } as any] });
   assert.equal(isBlankPlan(p), false);
 });
+
+// ---- 圖層的顯示與鎖定也是一步歷史 ----
+//
+// 它們本來只 mutate 不 commit，而 `layers` 一直都在快照裡——於是兩件事同時成立：
+// 隱藏一個圖層自己不可復原，但**別的東西**的復原會安靜地把顯示狀態改回去。對著
+// 鍵盤的人看到的是：鎖了一個圖層、按 Ctrl+Z 想解鎖，結果不見的是剛剛畫的那道牆。
+
+test('鎖定圖層是一步可以復原的動作', () => {
+  const d = new Doc();
+  d.add(sofa('a'));
+  assert.equal(d.isLayerLocked('furniture'), false);
+  d.toggleLayerLock('furniture');
+  assert.equal(d.isLayerLocked('furniture'), true);
+  d.undo();
+  assert.equal(d.isLayerLocked('furniture'), false, '復原要解鎖，不是把沙發弄不見');
+  assert.equal(d.objects.length, 1, '沙發不該被動到');
+});
+
+test('隱藏圖層是一步可以復原的動作', () => {
+  const d = new Doc();
+  d.toggleLayerVisible('walls');
+  assert.equal(d.isLayerVisible('walls'), false);
+  d.undo();
+  assert.equal(d.isLayerVisible('walls'), true);
+});
+
+test('調整圖層順序也可以復原', () => {
+  const d = new Doc();
+  const before = d.project.layers.map(l => l.id).join(',');
+  d.moveLayer(d.project.layers[1].id, -1);
+  assert.notEqual(d.project.layers.map(l => l.id).join(','), before);
+  d.undo();
+  assert.equal(d.project.layers.map(l => l.id).join(','), before);
+});
+
+test('圖層沒有真的變的時候不會產生一步', () => {
+  const d = new Doc();
+  d.add(sofa('a'));
+  d.setLayerLocked('furniture', false);   // 本來就是 false
+  assert.equal(d.canUndo, false);
+});
