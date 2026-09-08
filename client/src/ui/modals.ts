@@ -242,7 +242,7 @@ export async function openModal(editor: Editor, doc: Doc) {
   const bucketOf = (iso?: string): string => {
     if (!iso) return '尚未上傳';
     // `updatedAt` is the database's local time with no zone marker (see the
-    // note in CLAUDE.md) — fine to bucket by, never to compare across zones.
+    // note in AGENTS.md) — fine to bucket by, never to compare across zones.
     const t = Date.parse(iso.replace(' ', 'T'));
     if (Number.isNaN(t)) return '尚未上傳';
     const days = Math.round((today - startOfDay(new Date(t))) / 86400000);

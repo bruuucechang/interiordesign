@@ -24,6 +24,18 @@ from pathlib import Path
 
 APP_NAME = "InteriorDesigner"
 
+# The standalone build opens in Traditional Chinese, and says so rather than
+# leaving the front end to infer it from `navigator.language`.
+#
+# The browser's language is not the person's. This build is handed to one named
+# recipient by somebody who knows what they read, and plenty of Chinese-reading
+# people run an English-language Chrome because that is what the laptop shipped
+# with — in which case the app would greet them, and teach them, in English.
+#
+# Only a default: the front end keeps whatever the user has chosen, so the EN
+# toggle in the toolbar still works and still sticks.
+LANG_QUERY = "?lang=zh-Hant"
+
 
 def resource_dir() -> Path:
     """Where the bundled files live — inside the archive when frozen."""
@@ -142,13 +154,13 @@ def main() -> int:
     # window they wanted and leave the one server alone.
     existing = running_instance()
     if existing is not None:
-        url = f"http://127.0.0.1:{existing}/"
+        url = f"http://127.0.0.1:{existing}/{LANG_QUERY}"
         print(f"{APP_NAME} 已經在執行中，開啟現有的視窗： {url}")
         webbrowser.open(url)
         return 0
 
     port = free_port()
-    url = f"http://127.0.0.1:{port}/"
+    url = f"http://127.0.0.1:{port}/{LANG_QUERY}"
 
     import uvicorn
     from app.main import app
