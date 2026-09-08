@@ -190,7 +190,7 @@ export async function loadProject(id: string): Promise<Project | null> {
     // these on this machine, rewriting itself every 20 seconds.
     //
     // The row id wins, not `data.id`. This is the same lesson as the note in
-    // CLAUDE.md about writing plans in through the API: `saveProject` uses
+    // AGENTS.md about writing plans in through the API: `saveProject` uses
     // `p.id` as the address it writes to, so a plan whose id is not the row it
     // came from saves itself somewhere nobody is looking.
     const own = (d.data as any).id;

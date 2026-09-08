@@ -157,14 +157,65 @@ const EN: Record<string, string> = {
 
 const DICTS: Record<Lang, Record<string, string>> = { 'zh-Hant': {}, en: EN };
 
+/**
+ * Which language to open in, first time on this machine.
+ *
+ * Order: what the user chose > what the launcher asked for > the browser.
+ *
+ * **The middle one exists for the desktop build.** `navigator.language` is the
+ * *browser's* language, not the person's, and those come apart constantly:
+ * plenty of Chinese-reading people run an English-language Chrome because that
+ * is what the machine shipped with. The standalone build is handed to one
+ * specific person by somebody who knows what they read, so its launcher opens
+ * `/?lang=zh-Hant` and says so outright instead of guessing from the browser.
+ *
+ * It is only a **default**: a saved choice always wins, and the answer is
+ * written to storage on first sight, so switching to English with the toolbar
+ * toggle sticks and a later launch does not undo it.
+ *
+ * The stakes are lopsided, which is why this is not left to the browser. The
+ * English side of this app is knowingly incomplete — furniture and material
+ * names, the shortcut sheet, and the hint strip are still Chinese — so guessing
+ * English wrong hands somebody a half-translated interface, while guessing
+ * Chinese wrong costs one click on a toggle that is always visible.
+ */
+/**
+ * The three inputs, injected so this can be tested.
+ *
+ * `navigator` and `location` are read-only globals under Node, so a test cannot
+ * assign to them — and this is precisely the decision that has to be tested,
+ * because getting it wrong is invisible on the machine that builds the app and
+ * only shows up on the recipient's.
+ */
+export interface LangInputs {
+  saved: string | null;
+  /** The `lang` query parameter, if any. */
+  asked: string | null;
+  /** `navigator.language`. */
+  browser: string;
+}
+
+const asLang = (v: string | null): Lang | null => (v === 'en' || v === 'zh-Hant' ? v : null);
+
+/** Pure: which language, given what we know. Exported for the tests. */
+export function chooseLang({ saved, asked, browser }: LangInputs): Lang {
+  return asLang(saved)
+    ?? asLang(asked)
+    // Anything Chinese stays Chinese; everybody else gets English rather than a
+    // language they cannot read.
+    ?? (/^zh/i.test(browser || '') ? 'zh-Hant' : 'en');
+}
+
 function detect(): Lang {
-  try {
-    const saved = localStorage.getItem(KEY) as Lang | null;
-    if (saved === 'en' || saved === 'zh-Hant') return saved;
-  } catch { /* storage off; fall through to the browser */ }
-  // Anything Chinese stays Chinese; everybody else gets English rather than a
-  // language they cannot read.
-  return /^zh/i.test(navigator.language || '') ? 'zh-Hant' : 'en';
+  let saved: string | null = null;
+  try { saved = localStorage.getItem(KEY); } catch { /* storage off */ }
+  let asked: string | null = null;
+  try { asked = new URLSearchParams(location.search).get('lang'); } catch { /* no URL */ }
+  const picked = chooseLang({ saved, asked, browser: navigator.language || '' });
+  // Remembered, so the choice survives a reload without the parameter — opening
+  // the app from a bookmark must not silently switch languages.
+  if (!asLang(saved)) { try { localStorage.setItem(KEY, picked); } catch { /* not fatal */ } }
+  return picked;
 }
 
 let lang: Lang = detect();

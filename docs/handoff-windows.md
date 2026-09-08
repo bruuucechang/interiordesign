@@ -47,7 +47,7 @@ build-desktop.bat
 
 `client/public/models/`（224 件、61MB）是 `.gitignore` 擋掉的，所以 clone 之後
 不會有。可以讓建置腳本自己抓，但 `fetch_quaternius.py` 走 **Google Drive，會被
-限流**（見 CLAUDE.md）。區網複製是確定性的：
+限流**（見 AGENTS.md）。區網複製是確定性的：
 
 ```bash
 cd ~/Projects/interior-designer/client/public && tar czf /tmp/models.tgz models
