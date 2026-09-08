@@ -13,6 +13,7 @@ import { CalibrateTool } from '../tools/calibrate';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { Obj, Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
+import { hintChanged } from '../ui/feedback';
 
 export class Editor implements ToolCtx {
   vp: Viewport;
@@ -115,7 +116,12 @@ export class Editor implements ToolCtx {
     this.renderer.render({ world: this.previewW, screen: this.previewS });
   }
   setPreview(world?: DrawFn, screen?: DrawFn) { this.previewW = world; this.previewS = screen; }
-  setHint(s: string) { this.hintEl.textContent = s; }
+  setHint(s: string) {
+    // Tell `flash` its baseline moved. Without this, a flash fired just before a
+    // tool change repaints the *old* tool's hint 1.2 s later.
+    hintChanged();
+    this.hintEl.textContent = s;
+  }
   selectTool(name: string) {
     if (!this.tools[name]) return;
     this.active.deactivate?.();
