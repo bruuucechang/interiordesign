@@ -48,6 +48,48 @@ export const TAIWAN_RESIDENTIAL: LocaleDefaults = {
 export const DEFAULTS = TAIWAN_RESIDENTIAL;
 
 /**
+ * How much room a person needs around things, in cm.
+ *
+ * Same rule as the table above, and for the same reason: **these are defaults,
+ * not facts.** 70 cm beside a bed is what you need to get out of it, make it and
+ * clean under it — in a Taiwanese flat. It is not a law, it is not the same in
+ * a wheelchair-accessible home, and it is not the same for somebody who has
+ * decided a 60 cm gap on one side is the price of a bigger bed. `core/health.ts`
+ * reads these; the panel names them as 「台灣住宅的預設值，可以直接改」.
+ *
+ * They come from ordinary interior-design ergonomics — the figures in any
+ * planning reference — not from a code or a standard, because building
+ * regulations here have very little to say about furniture inside a dwelling.
+ * Saying that plainly matters: a number presented as a regulation, that is not
+ * one, is worse than no number.
+ */
+export interface ClearanceDefaults {
+  /** Beside a bed, at least one side. */
+  bedSide: number;
+  /** To pull a dining chair out and sit down. */
+  diningPullOut: number;
+  /** Each side of a WC pan. */
+  toiletSide: number;
+  /** In front of a washbasin. */
+  basinFront: number;
+  /** In front of an appliance, so its door opens and things go in. */
+  applianceFront: number;
+  /** In front of a hinged wardrobe. */
+  wardrobeFront: number;
+}
+
+export const TAIWAN_CLEARANCE: ClearanceDefaults = {
+  bedSide: 70,
+  diningPullOut: 60,
+  toiletSide: 20,
+  basinFront: 60,
+  applianceFront: 60,
+  wardrobeFront: 60,
+};
+
+export const CLEARANCE = TAIWAN_CLEARANCE;
+
+/**
  * A note for a field that is showing one of these.
  *
  * Deliberately says the region *and* that it is only a starting value. "12" on

@@ -153,6 +153,12 @@ const EN: Record<string, string> = {
   '重新播放新手教學': 'Replay the getting-started tour',
   '畫面上的繪圖步驟提示': 'On-screen drawing checklist',
   '新建會清空目前畫布，確定？': 'New clears the current drawing. Continue?',
+
+  // 空間健檢
+  '空間健檢': 'Space check', '指給我看': 'Show me', '接上': 'Join up',
+  '忽略這一條': 'Ignore this', '把忽略過的': 'Bring back the', '條叫回來': 'ignored',
+  '目前沒有提醒。': 'Nothing to flag.',
+  '還沒有東西可以檢查——先畫幾道牆。': 'Nothing to check yet — draw a few walls first.',
 };
 
 const DICTS: Record<Lang, Record<string, string>> = { 'zh-Hant': {}, en: EN };
