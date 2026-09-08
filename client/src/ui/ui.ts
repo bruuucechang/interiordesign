@@ -664,9 +664,12 @@ function importImage(editor: Editor, doc: Doc, src: string) {
     // starts a few pixels off a wall — after which every line traced since is
     // against a background that has moved. It used to arrive unlocked with a
     // note asking the user to remember to lock it.
+    // Committed *before* the layer is touched, so locking the underlay and
+    // placing the picture are one step: undoing an import that you did not mean
+    // to make should not leave a locked layer behind for a second press.
+    doc.commit();
     if (!doc.layer('underlay')) doc.project.layers.unshift({ id: 'underlay', name: '底圖', visible: true, locked: true, color: '#8b93a3' });
     else doc.setLayerLocked('underlay', true);
-    doc.commit();
     const id = genId('img');
     doc.add({ id, kind: 'image', layer: 'underlay', x: cx - w / 2, y: cy - h / 2, w, h, src, opacity: 0.6 } as Obj);
     // **The size it came in at is a guess, not a measurement** — the longest
