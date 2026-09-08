@@ -60,6 +60,71 @@ test('undo reverts an addFloor and the edits after it (whole-stack snapshot)', (
   assert.equal(d.objects.length, 1);   // sofa a still on 1F
 });
 
+// ---- 一次 commit 不等於一步歷史 ----
+//
+// 使用者回報「復原按鈕沒辦法用」。實測：畫一道牆之後單純點它四下（沒有拖動），
+// 歷史就多出四筆內容一模一樣的紀錄，於是前四次按復原都是把畫面還原成它本來的
+// 樣子——按鈕是亮的、歷史是滿的、畫面完全不動。這幾條把那件事釘住。
+
+test('點選但沒有改到任何東西，不會產生一步歷史', () => {
+  const d = new Doc();
+  d.commit();
+  d.add(sofa('a'));
+  assert.equal(d.canUndo, true);
+  // 四次「拿起來又放下」：SelectTool 每次點到物件都會 commit
+  for (let i = 0; i < 4; i++) { d.commit(); d.emit(); }
+  d.undo();
+  assert.equal(d.objects.length, 0, '一次復原就該回到空的，不是第五次');
+  assert.equal(d.canUndo, false);
+});
+
+test('一次拖曳只算一步，不管中間動了幾幀', () => {
+  const d = new Doc();
+  d.add(sofa('a'));
+  d.commit();                                  // 按下把手
+  for (let x = 1; x <= 10; x++) d.update('a', { x } as any);   // 十幀
+  assert.equal((d.get('a') as any).x, 10);
+  d.undo();
+  assert.equal((d.get('a') as any).x, 0);
+  assert.equal(d.canUndo, false);
+});
+
+test('改回原值不算一步', () => {
+  const d = new Doc();
+  d.add(sofa('a'));
+  d.commit();
+  d.update('a', { x: 50 } as any);
+  d.undo();                                    // 回到 x=0
+  assert.equal((d.get('a') as any).x, 0);
+  d.commit();
+  d.update('a', { x: 0 } as any);              // 設成本來就是的值
+  assert.equal(d.canUndo, false, '值沒變就不該有東西可以復原');
+});
+
+test('底圖的圖檔資料不會被複製進每一筆歷史', () => {
+  const big = 'data:image/png;base64,' + 'A'.repeat(200_000);
+  const d = new Doc();
+  d.commit();
+  d.add({ id: 'i', kind: 'image', layer: 'underlay', x: 0, y: 0, w: 100, h: 100, src: big, opacity: 0.6 } as any);
+  for (let i = 0; i < 20; i++) { d.commit(); d.add(sofa('s' + i)); }
+  const bytes = (d as any).past.reduce((n: number, s: string) => n + s.length, 0);
+  assert.ok(bytes < big.length, `歷史共 ${bytes} 字元，單一張底圖就 ${big.length}`);
+  // 而且復原回去照樣拿得到原圖
+  for (let i = 0; i < 20; i++) d.undo();
+  assert.equal((d.get('i') as any).src, big);
+});
+
+test('undo 之後 redo 拿回來的底圖仍然是原圖', () => {
+  const big = 'data:image/png;base64,' + 'B'.repeat(1000);
+  const d = new Doc();
+  d.commit();
+  d.add({ id: 'i', kind: 'image', layer: 'underlay', x: 0, y: 0, w: 10, h: 10, src: big, opacity: 0.6 } as any);
+  d.undo();
+  assert.equal(d.objects.length, 0);
+  d.redo();
+  assert.equal((d.get('i') as any).src, big);
+});
+
 test('an old flat project migrates into a single floor', () => {
   const legacy = { id: 'p', name: 'x', layers: [], objects: [sofa('a'), sofa('b')] } as any;
   const d = new Doc(legacy);

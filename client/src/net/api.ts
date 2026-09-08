@@ -3,7 +3,7 @@ import { migrate } from '../model/migrate';
 import { isBlankPlan } from '../model/doc';
 import {
   allPlans, clearTombstone, dropPlan, getPlan, isNewer, markDeleted, nowIso,
-  putPlan, tombstones,
+  putPlan, putPlanFromServer, tombstones,
 } from './store';
 
 // CRUD for projects, over an offline mirror that can disagree with the backend.
@@ -87,17 +87,25 @@ export class ConflictError extends Error {
 /**
  * Write, telling the server which version we are working from.
  *
- * The stamp is whatever the mirror recorded on the last successful read or
- * write. If the row has moved since, somebody else saved in between and
- * overwriting would erase their work with neither side told — so the server
- * answers 409 and the caller gets to decide.
+ * The stamp is `basedOn`: the server's own time for the version this copy was
+ * built on, written only from a server response. If the row has moved since,
+ * somebody else saved in between and overwriting would erase their work with
+ * neither side told — so the server answers 409 and the caller gets to decide.
+ *
+ * **It is deliberately not `savedAt`.** That field becomes a local time as soon
+ * as a save is attempted, so that "local is newer" means "the write did not
+ * land". Sending it here offered the server a timestamp minted in this browser,
+ * which can never equal the row's own — so any save interrupted after the
+ * server had taken it (closing the window is enough) turned into a plan that
+ * answered 409 on every retry, for ever, and told a single user that somebody
+ * else had saved their drawing.
  *
  * Sent only when we actually have a stamp. A plan being created, or one
  * replayed from a mirror written before this existed, has no opinion about what
  * it is replacing, and inventing one would refuse writes that are fine.
  */
 async function put(p: Project): Promise<string> {
-  const known = getPlan(p.id)?.savedAt;
+  const known = getPlan(p.id)?.basedOn;
   const r = await fetch(`/api/projects/${p.id}`, {
     method: 'PUT',
     headers: mine({
@@ -191,7 +199,7 @@ export async function loadProject(id: string): Promise<Project | null> {
         + '不一致的話存檔會寫到一個沒有人在看的位址。');
       (d.data as any).id = id;
     }
-    putPlan(id, d.data, d.updatedAtIso);
+    putPlanFromServer(id, d.data, d.updatedAtIso);
     return d.data;
   } catch {
     return mine?.plan ?? null;
@@ -212,8 +220,9 @@ export async function saveProject(p: Project): Promise<boolean> {
   putPlan(p.id, p, nowIso());
   try {
     // Re-filed under the server's clock: now the mirror only reads as newer
-    // when its write genuinely did not arrive.
-    putPlan(p.id, p, await put(p));
+    // when its write genuinely did not arrive, and `basedOn` advances to the
+    // version we just wrote.
+    putPlanFromServer(p.id, p, await put(p));
     return true;
   } catch (e) {
     // A conflict is not "offline". The work is still in the mirror, but
@@ -305,7 +314,7 @@ export async function syncPending(): Promise<SyncResult> {
     // Re-file it and move on; the entry under its real id syncs normally.
     if (mine.plan?.id && mine.plan.id !== id) {
       console.warn(`[interior] 鏡像 ${id} 裡的方案其實是 ${mine.plan.id}；改歸檔到正確的 id`);
-      putPlan(mine.plan.id, mine.plan, mine.savedAt);
+      putPlan(mine.plan.id, mine.plan, mine.savedAt, mine.basedOn);
       dropPlan(id);
       continue;
     }
@@ -324,7 +333,7 @@ export async function syncPending(): Promise<SyncResult> {
       // then refused to build a report from, with a 422. Everything the editor
       // opens goes through the same ladder; this path had been skipping it.
       const plan = migrate(mine.plan);
-      putPlan(id, plan, await put(plan));
+      putPlanFromServer(id, plan, await put(plan));
       pushed++;
     } catch {
       // Count it. Swallowing this is how a plan sat here rewriting itself every

@@ -28,6 +28,28 @@ export interface Mirrored {
   plan: Project;
   /** ISO-8601 UTC. The server's stamp when the save reached it, ours when it did not. */
   savedAt: string;
+  /**
+   * The server's stamp for the version this copy was built on.
+   *
+   * **Only ever written from a server response, never from this machine's
+   * clock** — that is the whole point of it existing separately from
+   * `savedAt`. `savedAt` has to become a local time the moment we start a save
+   * (that is what makes "local is newer" mean "the write did not land"), and
+   * the concurrency header needs the opposite: the version we are replacing.
+   *
+   * Sending `savedAt` for both is a bug this project shipped. Close the window
+   * while a save is in flight and the mirror keeps the local stamp; every retry
+   * from then on offers the server a timestamp minted here, which cannot equal
+   * the row's own — so it answers 409 for ever. On the desktop build, where
+   * there is exactly one user and a conflict is impossible by construction,
+   * that surfaced as 「1 份同步失敗」 and a dialog claiming somebody else had
+   * saved the plan.
+   *
+   * Undefined on entries written before this existed, and on plans the server
+   * has never seen. Both mean "no opinion about what I am replacing", which is
+   * how the header behaved before it was added.
+   */
+  basedOn?: string;
 }
 
 /** Older than any real timestamp — see the note about pre-timestamp entries. */
@@ -62,7 +84,11 @@ export function allPlans(): Record<string, Mirrored> {
   const out: Record<string, Mirrored> = {};
   for (const [id, value] of Object.entries(raw)) {
     if (value && typeof value === 'object' && 'plan' in value) {
-      out[id] = { plan: value.plan, savedAt: typeof value.savedAt === 'string' ? value.savedAt : NEVER };
+      out[id] = {
+        plan: value.plan,
+        savedAt: typeof value.savedAt === 'string' ? value.savedAt : NEVER,
+        ...(typeof value.basedOn === 'string' ? { basedOn: value.basedOn } : {}),
+      };
     } else if (value && typeof value === 'object') {
       out[id] = { plan: value as Project, savedAt: NEVER };
     }
@@ -74,11 +100,23 @@ export function getPlan(id: string): Mirrored | undefined {
   return allPlans()[id];
 }
 
-export function putPlan(id: string, plan: Project, savedAt: string): void {
+/**
+ * File a copy locally. `basedOn` carries over untouched unless given.
+ *
+ * Carrying it over is the important half: a save that is about to be attempted
+ * re-files the plan under this machine's clock, and it must not lose track of
+ * which server version it is replacing while doing so.
+ */
+export function putPlan(id: string, plan: Project, savedAt: string, basedOn?: string): void {
   const all = allPlans();
-  all[id] = { plan, savedAt };
+  all[id] = { plan, savedAt, ...((basedOn ?? all[id]?.basedOn) ? { basedOn: basedOn ?? all[id]?.basedOn } : {}) };
   write(PLANS_KEY, all);
   clearTombstone(id);
+}
+
+/** File a copy that the server has just confirmed, at the server's own stamp. */
+export function putPlanFromServer(id: string, plan: Project, serverIso: string): void {
+  putPlan(id, plan, serverIso, serverIso);
 }
 
 export function dropPlan(id: string): void {

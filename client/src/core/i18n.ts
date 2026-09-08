@@ -147,6 +147,12 @@ const EN: Record<string, string> = {
   // tour
   '跳過': 'Skip', '略過': 'Skip', '上一步': 'Back', '下一步': 'Next', '開始使用': 'Start',
   '新手教學': 'Getting started',
+
+  // 使用說明（完整說明面板）。內文本身按語言各寫一份，見 ui/help.ts——這裡只有外框。
+  '使用說明': 'User guide',
+  '重新播放新手教學': 'Replay the getting-started tour',
+  '畫面上的繪圖步驟提示': 'On-screen drawing checklist',
+  '新建會清空目前畫布，確定？': 'New clears the current drawing. Continue?',
 };
 
 const DICTS: Record<Lang, Record<string, string>> = { 'zh-Hant': {}, en: EN };

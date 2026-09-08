@@ -20,6 +20,7 @@ class FakeServer {
   plans = new Map<string, { name: string; data: Project; at: string }>();
   up = true;
   requests: string[] = [];
+  conflicts: string[] = [];
   clock = Date.parse('2026-08-07T00:00:00Z');
 
   private tick() { this.clock += 1000; return new Date(this.clock).toISOString(); }
@@ -45,6 +46,16 @@ class FakeServer {
     }
     if (method === 'PUT') {
       const body = JSON.parse(opts.body);
+      // The real backend's concurrency guard: refuse when the row has moved on
+      // since the version the client says it is replacing. Modelled here because
+      // the bug it caused was invisible without it — every retry answered 409
+      // and the tests all passed.
+      const ius = opts.headers?.['If-Unmodified-Since'];
+      const row = this.plans.get(id);
+      if (ius && row && row.at !== ius) {
+        this.conflicts.push(`${id} yours=${ius} stored=${row.at}`);
+        return { ok: false, status: 409, json: async () => ({ detail: { error: 'conflict', storedAtIso: row.at } }) };
+      }
       const at = this.tick();
       this.plans.set(id, { name: body.name, data: body.data, at });
       return ok({ id, name: body.name, updatedAt: at, updatedAtIso: at });
@@ -77,6 +88,7 @@ beforeEach(() => {
   server.plans.clear();
   server.up = true;
   server.requests = [];
+  server.conflicts = [];
   server.clock = Date.parse('2026-08-07T00:00:00Z');
 });
 
@@ -92,6 +104,61 @@ test('work saved offline is not lost when the tab is closed and reopened', async
   // a new session: nothing in memory, only the mirror and the server
   const loaded = await loadProject('p1');
   assert.equal(loaded?.name, '離線改的', 'the newer local copy must win');
+});
+
+// ---- 並行守衛送出去的必須是伺服器的時間，不能是這台機器的 ----
+//
+// `If-Unmodified-Since` 要回答的是「我要取代的是哪一版」，那個答案只有伺服器給得出來。
+// 舊版送的是鏡像的 `savedAt`，而 `savedAt` 在**開始存檔的那一刻**就被改成本機時間了
+// （那是「本機比較新 ＝ 這次寫入沒送到」成立的原因）。於是只要一次存檔中途被打斷
+// ——把視窗關掉就夠了——之後每一次重試送出去的都是一個本機時間，永遠不可能等於那一列
+// 自己的時間，所以永遠 409。桌面版只有一個使用者、結構上不可能有衝突，卻會看到
+// 「1 份同步失敗」和一個說別人存過這份圖的對話框。
+
+test('存檔成功之後，鏡像記的是伺服器的時間', async () => {
+  await saveProject(plan('p1'));
+  const m = store.getPlan('p1')!;
+  assert.equal(m.basedOn, server.plans.get('p1')!.at);
+  assert.equal(m.savedAt, m.basedOn);
+});
+
+test('一次沒送到的存檔，之後補送不會變成永遠 409', async () => {
+  await saveProject(plan('p1', '第一版'));      // 有送到
+  server.up = false;
+  await saveProject(plan('p1', '第二版'));      // 沒送到，鏡像換成本機時間
+  server.up = true;
+
+  const r = await syncPending();
+  assert.deepEqual(r.failed, [], '補送不該失敗');
+  assert.deepEqual(server.conflicts, [], '不該有任何 409');
+  assert.equal(server.plans.get('p1')?.data.name, '第二版');
+});
+
+test('補送成功之後鏡像不再落後，下一輪心跳什麼都不做', async () => {
+  await saveProject(plan('p1', '第一版'));
+  server.up = false;
+  await saveProject(plan('p1', '第二版'));
+  server.up = true;
+  await syncPending();
+  const again = await syncPending();
+  assert.equal(again.pushed, 0, '推完就該安靜下來');
+  assert.deepEqual(server.conflicts, []);
+});
+
+test('真的有別人先存過的時候，守衛仍然擋得下來', async () => {
+  await saveProject(plan('p1', '我的'));
+  // 另一台機器直接改了那一列——沒有經過這個鏡像
+  server.plans.set('p1', { name: '別人的', data: plan('p1', '別人的'), at: '2026-09-01T00:00:00.000Z' });
+  const ok = await saveProject(plan('p1', '我再存一次'));
+  assert.equal(ok, false, '要被擋下來');
+  assert.equal(server.conflicts.length, 1);
+  assert.equal(server.plans.get('p1')?.data.name, '別人的', '別人的版本不能被蓋掉');
+});
+
+test('伺服器沒見過的方案不帶條件送出（不會被自己的守衛擋掉）', async () => {
+  const ok = await saveProject(plan('p9', '全新的'));
+  assert.equal(ok, true);
+  assert.deepEqual(server.conflicts, []);
 });
 
 test('the newer copy is pushed back, not just shown', async () => {

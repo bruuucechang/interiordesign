@@ -9,8 +9,9 @@ import { snap } from '../core/geometry';
 import { exportPNG, exportPDF } from '../core/exporter';
 
 import { flash } from './feedback';
-import { askRoute, renderSteps, setRoute } from './onboarding';
+import { askRoute, renderSteps } from './onboarding';
 import { startTour, maybeStartTour } from './tour';
+import { openHelp, wireHelp } from './help';
 import { t, setLang, currentLang, Lang } from '../core/i18n';
 import { DEFAULTS, defaultNote } from '../model/locale-defaults';
 import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
@@ -138,7 +139,9 @@ export function initUI(editor: Editor, doc: Doc) {
   // A frame's delay so the first paint is the app, not an overlay on top of a
   // blank one; somebody who has never seen this should see the tool before
   // being told about it.
-  requestAnimationFrame(() => maybeStartTour());
+  // The route question is asked once, at the end of that first tour — never on
+  // 新建, and never again. From then on it lives in 使用說明.
+  requestAnimationFrame(() => maybeStartTour(() => askRoute(editor, doc)));
 
   const projFileInput = $<HTMLInputElement>('#projectFileInput');
   projFileInput.addEventListener('change', () => {
@@ -275,13 +278,23 @@ function buildCatalog(editor: Editor) {
       // Swapped in on load rather than used directly: the drawn one is the
       // fallback for anything with no model, and building it first means no
       // gap while the picture arrives and nothing to undo if it never does.
-      const img = new Image();
-      // 不用 loading="lazy"：面板是一條長清單，懶載入下離開視窗的那些永遠不會
-      // 發出請求，onload 也就永遠不觸發——實測 72 個按鈕換上 0 張。72 張小圖總共
-      // 約 1MB，一次載完比較單純。
-      img.alt = ''; img.decoding = 'async';
-      img.src = new URL(`models/${item.id}/thumb.png`, document.baseURI).href;
-      img.onload = () => { if (cv.parentNode === b) b.replaceChild(img, cv); };
+      //
+      // **Not asked for at all when there is nothing to ask for.** The 27 items
+      // marked `proc` are built by `furniture3d.ts` and have no downloaded
+      // model, so they have no `thumb.png` either — and requesting one anyway
+      // put 27 red 404s in the console on every single load. Nothing looked
+      // wrong, because the drawn pictogram is the fallback and it stayed; the
+      // cost was that a console full of expected errors is a console nobody
+      // reads, which is where a real error goes to hide.
+      if (!item.proc) {
+        const img = new Image();
+        // 不用 loading="lazy"：面板是一條長清單，懶載入下離開視窗的那些永遠不會
+        // 發出請求，onload 也就永遠不觸發——實測 72 個按鈕換上 0 張。72 張小圖總共
+        // 約 1MB，一次載完比較單純。
+        img.alt = ''; img.decoding = 'async';
+        img.src = new URL(`models/${item.id}/thumb.png`, document.baseURI).href;
+        img.onload = () => { if (cv.parentNode === b) b.replaceChild(img, cv); };
+      }
       b.appendChild(document.createTextNode(item.name));
       b.onclick = () => {
         editor.currentFurniture = item.id;
@@ -521,6 +534,7 @@ function wireTopbar(editor: Editor, doc: Doc) {
     (btn as HTMLElement).onclick = () => handle((btn as HTMLElement).dataset.act!, editor, doc);
   });
   wireExportMenu(editor, doc);
+  wireHelp();
   // `:not(.furn-head)` — 家具面板的分類標題自己有處理器（要存摺疊狀態、要重跑
   // 篩選）。這一行是在 buildCatalog 之後跑的，少了排除條件就會把它整個蓋掉：
   // 外觀完全正常（class 照樣 toggle、CSS 照樣把下一個 div 收起來），只是狀態
@@ -541,10 +555,17 @@ async function handle(act: string, editor: Editor, doc: Doc) {
   const name = () => $<HTMLInputElement>('#projectName').value || '未命名平面圖';
   switch (act) {
     case 'new':
-      if (!confirm('新建會清空目前畫布，確定？')) return;
+      // A blank sheet, and nothing else. This used to follow the clear with the
+      // 從底圖描／純手繪 dialog — you press 新建 because you want to draw, and
+      // what arrives is a question. That, the checklist strip it turned on, and
+      // a first-run tour that never recorded itself are the three things the
+      // user meant by 「instruction 有時候會在奇怪時機跳出來」.
+      //
+      // The confirm stays: it guards against losing work, which is not the same
+      // as teaching. The route choice moved into 使用說明 (the `?` button).
+      if (!confirm(t('新建會清空目前畫布，確定？'))) return;
       doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView();
-      setRoute(null); renderSteps(editor, doc);
-      askRoute(editor, doc);   // 空白畫布本身不會告訴人下一步是什麼
+      renderSteps(editor, doc);
       break;
     case 'save': {
       // `flushSave` returns whether the stored copy is now up to date, and this
@@ -616,7 +637,8 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       catch (e) { console.error(e); flash(t('匯出 3D 失敗')); }
       break;
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
-    case 'tour': startTour(); break;
+    case 'help': openHelp(editor, doc); break;
+    case 'tour': startTour(); break;   // kept so an old bookmark/keystroke still works
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
   }
 }
