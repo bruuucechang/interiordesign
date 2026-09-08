@@ -32,6 +32,7 @@ node bench/shot2d.mjs               # 平面圖的材質填充並排
 node bench/shot-split.mjs           # 三種檢視模式
 node bench/verify-wall.mjs          # 端對端：基準線／對齊／分割
 node bench/verify-partition.mjs     # 端對端：隔間線（**需要後端在 :8791**）
+node bench/verify-bin.mjs [url]     # 端對端：刪除 → 回收桶 → 還原（含「一份都不剩」那個狀態）
 node bench/coldstart.mjs            # 第一次進 3D 的成本（含預熱前後對照）
 ```
 
