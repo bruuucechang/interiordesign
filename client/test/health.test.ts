@@ -215,3 +215,35 @@ test('還沒畫牆的時候不要唸門窗', () => {
   const door: Obj = { id: 'd', kind: 'door', layer: 'openings', x: 0, y: 0, width: 90, angle: 0 } as Obj;
   assert.deepEqual(checkPlan([door]).filter(x => x.rule === 'orphan-opening'), []);
 });
+
+// ---- 乾濕分離太小（量它自己，不是量它旁邊） ----
+//
+// 目錄預設 90×90 正好是建議值，所以這一條只在使用者把它縮小之後才會響——而淋浴間
+// 正是最常為了擠出空間被拉小的東西。
+
+test('淋浴間短邊小於 80 要抓', () => {
+  const f = checkPlan([...BOX, furn('s', 'shower', 100, 100, 78, 90)]).filter(x => x.rule === 'min-size');
+  assert.equal(f.length, 1);
+  assert.match(f[0].detail, /78/);
+  assert.match(f[0].detail, /80/);   // 門檻要講出來
+  assert.match(f[0].detail, /90/);   // 建議值也要
+});
+
+test('目錄預設的 90×90 不該被唸', () => {
+  assert.deepEqual(checkPlan([...BOX, furn('s', 'shower', 100, 100, 90, 90)]).filter(x => x.rule === 'min-size'), []);
+  assert.deepEqual(checkPlan([...BOX, furn('s', 'shower_round', 100, 100, 90, 90)]).filter(x => x.rule === 'min-size'), []);
+});
+
+test('80×120 的長形是建議做法，不該被唸', () => {
+  assert.deepEqual(checkPlan([...BOX, furn('s', 'shower', 100, 100, 80, 120)]).filter(x => x.rule === 'min-size'), []);
+});
+
+test('淋浴門不是隔間，短邊 22cm 是對的', () => {
+  // sh_shower_door 是 90×22 的門片；把它一起抓進來就是誤報
+  assert.deepEqual(checkPlan([...BOX, furn('d', 'sh_shower_door', 100, 100, 90, 22)]).filter(x => x.rule === 'min-size'), []);
+});
+
+test('轉過角度不影響短邊的判斷', () => {
+  const f = checkPlan([...BOX, furn('s', 'shower', 100, 100, 78, 90, 45)]).filter(x => x.rule === 'min-size');
+  assert.equal(f.length, 1);
+});
