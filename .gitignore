@@ -29,3 +29,6 @@ client/public/models/
 # 打包出來的 Windows 安裝程式（96MB）。跟 dist/ 一樣是建置產物，
 # 不是原始碼——`packaging/installer.iss` 才是。
 packaging/out/
+
+# 查存檔問題時做的資料庫備份，留在磁碟上就好
+.backups/
