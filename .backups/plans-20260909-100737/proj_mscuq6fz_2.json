@@ -1,0 +1,221 @@
+{
+ "id": "proj_mscuq6fz_2",
+ "name": "未命名平面圖",
+ "data": {
+  "id": "proj_mscuq6fz_2",
+  "name": "未命名平面圖",
+  "floors": [
+   {
+    "id": "floor_mscuq6fz_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": -690,
+       "y": -230
+      },
+      "b": {
+       "x": 60,
+       "y": -230
+      },
+      "id": "wall_mscuqml6_3",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 60,
+       "y": -230
+      },
+      "b": {
+       "x": 60,
+       "y": 399
+      },
+      "id": "wall_mscuqncz_4",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 60,
+       "y": 399
+      },
+      "b": {
+       "x": -690,
+       "y": 399
+      },
+      "id": "wall_mscuqo4q_5",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": -690,
+       "y": 399
+      },
+      "b": {
+       "x": -690,
+       "y": -230
+      },
+      "id": "wall_mscuqowj_6",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "h": 629,
+      "w": 750,
+      "x": -690,
+      "y": -230,
+      "id": "room_mscuqqgy_7",
+      "auto": true,
+      "kind": "room",
+      "name": "房間",
+      "poly": [
+       {
+        "x": -690,
+        "y": 399
+       },
+       {
+        "x": 60,
+        "y": 399
+       },
+       {
+        "x": 60,
+        "y": -230
+       },
+       {
+        "x": -690,
+        "y": -230
+       }
+      ],
+      "layer": "rooms"
+     },
+     {
+      "a": {
+       "x": -690,
+       "y": -230
+      },
+      "b": {
+       "x": 60,
+       "y": -230
+      },
+      "id": "wall_mscurwvt_8",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 60,
+       "y": -230
+      },
+      "b": {
+       "x": 60,
+       "y": 399
+      },
+      "id": "wall_mscurxnn_9",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 60,
+       "y": 399
+      },
+      "b": {
+       "x": -690,
+       "y": 399
+      },
+      "id": "wall_mscuryfe_10",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": -690,
+       "y": 399
+      },
+      "b": {
+       "x": -690,
+       "y": -230
+      },
+      "id": "wall_mscurz77_11",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mscuq6fz_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-09-04 17:06:09",
+ "updatedAtIso": "2026-09-04T09:06:09.954591+00:00"
+}

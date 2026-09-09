@@ -1,0 +1,255 @@
+{
+ "id": "proj_mroes0x2_2",
+ "name": "70㎡・1 室・6 件家具・7/17",
+ "data": {
+  "id": "proj_mroes0x2_2",
+  "name": "70㎡・1 室・6 件家具・7/17",
+  "floors": [
+   {
+    "id": "floor_mroes0x2_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": -70,
+       "y": -110
+      },
+      "b": {
+       "x": 920,
+       "y": -110
+      },
+      "id": "wall_mroes30r_3",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 920,
+       "y": -110
+      },
+      "b": {
+       "x": 920,
+       "y": 600
+      },
+      "id": "wall_mroes341_4",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 920,
+       "y": 600
+      },
+      "b": {
+       "x": -70,
+       "y": 600
+      },
+      "id": "wall_mroes36s_5",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": -70,
+       "y": 600
+      },
+      "b": {
+       "x": -70,
+       "y": -110
+      },
+      "id": "wall_mroes3a1_6",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "h": 710,
+      "w": 990,
+      "x": -70,
+      "y": -110,
+      "id": "room_mroes3sr_7",
+      "auto": true,
+      "kind": "room",
+      "name": "房間",
+      "poly": [
+       {
+        "x": -70,
+        "y": 600
+       },
+       {
+        "x": 920,
+        "y": 600
+       },
+       {
+        "x": 920,
+        "y": -110
+       },
+       {
+        "x": -70,
+        "y": -110
+       }
+      ],
+      "layer": "rooms"
+     },
+     {
+      "x": -70,
+      "y": 300,
+      "id": "door_mroes3ut_8",
+      "kind": "door",
+      "angle": -90,
+      "layer": "openings",
+      "width": 90
+     },
+     {
+      "x": 400,
+      "y": -110,
+      "id": "window_mroes4qq_9",
+      "kind": "window",
+      "angle": 0,
+      "layer": "openings",
+      "width": 120
+     },
+     {
+      "h": 50,
+      "w": 100,
+      "x": 110,
+      "y": 465,
+      "id": "furn_mroes6f4_10",
+      "item": "dresser",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "五斗櫃",
+      "layer": "furniture"
+     },
+     {
+      "h": 30,
+      "w": 100,
+      "x": 470,
+      "y": 475,
+      "id": "furn_mroes83d_11",
+      "item": "bookshelf",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "書櫃",
+      "layer": "furniture"
+     },
+     {
+      "h": 40,
+      "w": 90,
+      "x": 735,
+      "y": 470,
+      "id": "furn_mroes9db_12",
+      "item": "display_cabinet",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "展示櫃",
+      "layer": "furniture"
+     },
+     {
+      "h": 60,
+      "w": 120,
+      "x": 100,
+      "y": 10,
+      "id": "furn_mroesao7_13",
+      "item": "wardrobe",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "衣櫃",
+      "layer": "furniture"
+     },
+     {
+      "h": 50,
+      "w": 60,
+      "x": 610,
+      "y": 15,
+      "id": "furn_mroesbyx_14",
+      "item": "tall_cabinet",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "高櫃",
+      "layer": "furniture"
+     },
+     {
+      "h": 40,
+      "w": 45,
+      "x": 757.5,
+      "y": 190,
+      "id": "furn_mroescvb_15",
+      "item": "nightstand",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "床頭櫃",
+      "layer": "furniture"
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mroes0x2_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-17 11:59:20",
+ "updatedAtIso": "2026-07-17T03:59:20+00:00"
+}

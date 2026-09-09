@@ -1,0 +1,948 @@
+{
+ "id": "proj_msqbolza_4",
+ "name": "A1 單元（IMG_9720 描繪）・9/4 15:53",
+ "data": {
+  "id": "proj_msqbolza_4",
+  "name": "A1 單元（IMG_9720 描繪）・9/4 15:53",
+  "floors": [
+   {
+    "id": "f1",
+    "name": "1F",
+    "height": 300,
+    "objects": [
+     {
+      "a": {
+       "x": 0,
+       "y": 132
+      },
+      "b": {
+       "x": 489,
+       "y": 132
+      },
+      "id": "wall_1",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 489,
+       "y": 132
+      },
+      "b": {
+       "x": 788,
+       "y": 132
+      },
+      "id": "wall_2",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 788,
+       "y": 0
+      },
+      "b": {
+       "x": 1197,
+       "y": 0
+      },
+      "id": "wall_3",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 788,
+       "y": 0
+      },
+      "b": {
+       "x": 788,
+       "y": 132
+      },
+      "id": "wall_4",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 1197,
+       "y": 0
+      },
+      "b": {
+       "x": 1197,
+       "y": 132
+      },
+      "id": "wall_5",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 1197,
+       "y": 132
+      },
+      "b": {
+       "x": 1376,
+       "y": 132
+      },
+      "id": "wall_6",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 1376,
+       "y": 132
+      },
+      "b": {
+       "x": 1376,
+       "y": 619
+      },
+      "id": "wall_7",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 132
+      },
+      "b": {
+       "x": 0,
+       "y": 592
+      },
+      "id": "wall_8",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 592
+      },
+      "b": {
+       "x": 190,
+       "y": 592
+      },
+      "id": "wall_9",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 190,
+       "y": 592
+      },
+      "b": {
+       "x": 190,
+       "y": 1260
+      },
+      "id": "wall_10",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 1260
+      },
+      "b": {
+       "x": 1230,
+       "y": 1260
+      },
+      "id": "wall_11",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 1230,
+       "y": 699
+      },
+      "b": {
+       "x": 1230,
+       "y": 1260
+      },
+      "id": "wall_12",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 1197,
+       "y": 619
+      },
+      "b": {
+       "x": 1230,
+       "y": 699
+      },
+      "id": "wall_13",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 1376,
+       "y": 619
+      },
+      "b": {
+       "x": 1197,
+       "y": 619
+      },
+      "id": "wall_14",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 24
+     },
+     {
+      "a": {
+       "x": 489,
+       "y": 132
+      },
+      "b": {
+       "x": 489,
+       "y": 592
+      },
+      "id": "wall_15",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 788,
+       "y": 132
+      },
+      "b": {
+       "x": 788,
+       "y": 592
+      },
+      "id": "wall_16",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 1197,
+       "y": 132
+      },
+      "b": {
+       "x": 1197,
+       "y": 619
+      },
+      "id": "wall_17",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 489,
+       "y": 592
+      },
+      "b": {
+       "x": 926,
+       "y": 592
+      },
+      "id": "wall_18",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 926,
+       "y": 592
+      },
+      "b": {
+       "x": 926,
+       "y": 619
+      },
+      "id": "wall_19",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 926,
+       "y": 619
+      },
+      "b": {
+       "x": 1197,
+       "y": 619
+      },
+      "id": "wall_20",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 529,
+       "y": 699
+      },
+      "b": {
+       "x": 529,
+       "y": 1034
+      },
+      "id": "wall_21",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 830,
+       "y": 699
+      },
+      "b": {
+       "x": 830,
+       "y": 1260
+      },
+      "id": "wall_22",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 529,
+       "y": 699
+      },
+      "b": {
+       "x": 926,
+       "y": 699
+      },
+      "id": "wall_23",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 926,
+       "y": 619
+      },
+      "b": {
+       "x": 1230,
+       "y": 619
+      },
+      "id": "wall_24",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 926,
+       "y": 619
+      },
+      "b": {
+       "x": 926,
+       "y": 791
+      },
+      "id": "wall_25",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 926,
+       "y": 791
+      },
+      "b": {
+       "x": 1230,
+       "y": 791
+      },
+      "id": "wall_26",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 529,
+       "y": 1034
+      },
+      "b": {
+       "x": 1230,
+       "y": 1034
+      },
+      "id": "wall_27",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 190,
+       "y": 1034
+      },
+      "b": {
+       "x": 529,
+       "y": 1034
+      },
+      "id": "wall_28",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 15
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 592
+      },
+      "b": {
+       "x": 489,
+       "y": 592
+      },
+      "id": "partition_29",
+      "kind": "partition",
+      "layer": "rooms"
+     },
+     {
+      "h": 460,
+      "w": 489,
+      "x": 0,
+      "y": 132,
+      "id": "room_30",
+      "kind": "room",
+      "name": "客廳",
+      "floor": "wood",
+      "layer": "rooms"
+     },
+     {
+      "h": 460,
+      "w": 299,
+      "x": 489,
+      "y": 132,
+      "id": "room_31",
+      "kind": "room",
+      "name": "臥室",
+      "floor": "wood",
+      "layer": "rooms"
+     },
+     {
+      "h": 619,
+      "w": 409,
+      "x": 788,
+      "y": 0,
+      "id": "room_32",
+      "kind": "room",
+      "name": "主臥室",
+      "poly": [
+       {
+        "x": 788,
+        "y": 0
+       },
+       {
+        "x": 1197,
+        "y": 0
+       },
+       {
+        "x": 1197,
+        "y": 619
+       },
+       {
+        "x": 926,
+        "y": 619
+       },
+       {
+        "x": 926,
+        "y": 592
+       },
+       {
+        "x": 788,
+        "y": 592
+       }
+      ],
+      "floor": "wood",
+      "layer": "rooms"
+     },
+     {
+      "h": 487,
+      "w": 179,
+      "x": 1197,
+      "y": 132,
+      "id": "room_33",
+      "kind": "room",
+      "name": "主浴",
+      "floor": "tile",
+      "layer": "rooms"
+     },
+     {
+      "h": 442,
+      "w": 339,
+      "x": 190,
+      "y": 592,
+      "id": "room_34",
+      "kind": "room",
+      "name": "餐廳",
+      "floor": "wood",
+      "layer": "rooms"
+     },
+     {
+      "h": 107,
+      "w": 397,
+      "x": 529,
+      "y": 592,
+      "id": "room_35",
+      "kind": "room",
+      "name": "走廊",
+      "floor": "tile",
+      "layer": "rooms"
+     },
+     {
+      "h": 172,
+      "w": 304,
+      "x": 926,
+      "y": 619,
+      "id": "room_36",
+      "kind": "room",
+      "name": "浴室",
+      "floor": "tile",
+      "layer": "rooms"
+     },
+     {
+      "h": 226,
+      "w": 339,
+      "x": 190,
+      "y": 1034,
+      "id": "room_37",
+      "kind": "room",
+      "name": "廚房",
+      "floor": "tile",
+      "layer": "rooms"
+     },
+     {
+      "h": 335,
+      "w": 301,
+      "x": 529,
+      "y": 699,
+      "id": "room_38",
+      "kind": "room",
+      "name": "臥室",
+      "floor": "wood",
+      "layer": "rooms"
+     },
+     {
+      "h": 243,
+      "w": 400,
+      "x": 830,
+      "y": 791,
+      "id": "room_39",
+      "kind": "room",
+      "name": "臥室",
+      "floor": "wood",
+      "layer": "rooms"
+     },
+     {
+      "h": 226,
+      "w": 301,
+      "x": 529,
+      "y": 1034,
+      "id": "room_40",
+      "kind": "room",
+      "name": "陽台",
+      "floor": "terrazzo",
+      "layer": "rooms"
+     },
+     {
+      "h": 226,
+      "w": 400,
+      "x": 830,
+      "y": 1034,
+      "id": "room_41",
+      "kind": "room",
+      "name": "陽台",
+      "floor": "terrazzo",
+      "layer": "rooms"
+     },
+     {
+      "x": 992.5,
+      "y": 0,
+      "id": "window_42",
+      "kind": "window",
+      "angle": 0,
+      "layer": "openings",
+      "width": 300
+     },
+     {
+      "x": 638.5,
+      "y": 132,
+      "id": "window_43",
+      "kind": "window",
+      "angle": 0,
+      "layer": "openings",
+      "width": 180
+     },
+     {
+      "x": 0,
+      "y": 362,
+      "id": "window_44",
+      "kind": "window",
+      "angle": 90,
+      "layer": "openings",
+      "width": 240
+     },
+     {
+      "x": 679.5,
+      "y": 1034,
+      "id": "window_45",
+      "kind": "window",
+      "angle": 0,
+      "layer": "openings",
+      "width": 200
+     },
+     {
+      "x": 1030,
+      "y": 1034,
+      "id": "window_46",
+      "kind": "window",
+      "angle": 0,
+      "layer": "openings",
+      "width": 260
+     },
+     {
+      "x": 730,
+      "y": 592,
+      "id": "door_47",
+      "kind": "door",
+      "angle": 0,
+      "layer": "openings",
+      "width": 90
+     },
+     {
+      "x": 828,
+      "y": 592,
+      "id": "door_48",
+      "kind": "door",
+      "angle": 0,
+      "layer": "openings",
+      "width": 90
+     },
+     {
+      "x": 1197,
+      "y": 495.5,
+      "id": "door_49",
+      "kind": "door",
+      "angle": 90,
+      "layer": "openings",
+      "width": 80
+     },
+     {
+      "x": 594,
+      "y": 699,
+      "id": "door_50",
+      "kind": "door",
+      "angle": 0,
+      "layer": "openings",
+      "width": 90
+     },
+     {
+      "x": 940,
+      "y": 791,
+      "id": "door_51",
+      "kind": "door",
+      "angle": 0,
+      "layer": "openings",
+      "width": 90
+     },
+     {
+      "x": 926,
+      "y": 705,
+      "id": "door_52",
+      "kind": "door",
+      "angle": 90,
+      "layer": "openings",
+      "width": 80
+     },
+     {
+      "x": 529,
+      "y": 974,
+      "id": "door_53",
+      "kind": "door",
+      "angle": 90,
+      "layer": "openings",
+      "width": 80
+     },
+     {
+      "a": {
+       "x": 807,
+       "y": 90
+      },
+      "b": {
+       "x": 807,
+       "y": 175
+      },
+      "id": "wall_54",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 82
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 132
+      },
+      "b": {
+       "x": 496,
+       "y": 132
+      },
+      "id": "dimension_55",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": -150
+     },
+     {
+      "a": {
+       "x": 496,
+       "y": 132
+      },
+      "b": {
+       "x": 846,
+       "y": 132
+      },
+      "id": "dimension_56",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": -150
+     },
+     {
+      "a": {
+       "x": 846,
+       "y": 132
+      },
+      "b": {
+       "x": 1208,
+       "y": 132
+      },
+      "id": "dimension_57",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": -150
+     },
+     {
+      "a": {
+       "x": 1208,
+       "y": 132
+      },
+      "b": {
+       "x": 1381.5,
+       "y": 132
+      },
+      "id": "dimension_58",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": -150
+     },
+     {
+      "a": {
+       "x": 190,
+       "y": 1260
+      },
+      "b": {
+       "x": 518,
+       "y": 1260
+      },
+      "id": "dimension_59",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": 150
+     },
+     {
+      "a": {
+       "x": 518,
+       "y": 1260
+      },
+      "b": {
+       "x": 817,
+       "y": 1260
+      },
+      "id": "dimension_60",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": 150
+     },
+     {
+      "a": {
+       "x": 817,
+       "y": 1260
+      },
+      "b": {
+       "x": 1217,
+       "y": 1260
+      },
+      "id": "dimension_61",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": 150
+     },
+     {
+      "a": {
+       "x": 1376,
+       "y": 0
+      },
+      "b": {
+       "x": 1376,
+       "y": 161.5
+      },
+      "id": "dimension_62",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": 150
+     },
+     {
+      "a": {
+       "x": 1376,
+       "y": 161.5
+      },
+      "b": {
+       "x": 1376,
+       "y": 614.5
+      },
+      "id": "dimension_63",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": 150
+     },
+     {
+      "a": {
+       "x": 1376,
+       "y": 614.5
+      },
+      "b": {
+       "x": 1376,
+       "y": 1086
+      },
+      "id": "dimension_64",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": 150
+     },
+     {
+      "a": {
+       "x": 1376,
+       "y": 1086
+      },
+      "b": {
+       "x": 1376,
+       "y": 1316
+      },
+      "id": "dimension_65",
+      "kind": "dimension",
+      "layer": "dims",
+      "offset": 150
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "f1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-09-05 14:50:09",
+ "updatedAtIso": "2026-09-05T06:50:09.002945+00:00"
+}

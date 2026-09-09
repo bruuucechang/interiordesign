@@ -1,0 +1,189 @@
+{
+ "id": "proj_mroe03i2_2",
+ "name": "house・7/17",
+ "data": {
+  "id": "proj_mroe03i2_2",
+  "name": "house・7/17",
+  "floors": [
+   {
+    "id": "floor_mroe03i2_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": 160,
+       "y": -30
+      },
+      "b": {
+       "x": 640,
+       "y": -30
+      },
+      "id": "wall_mroe05of_3",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 640,
+       "y": -30
+      },
+      "b": {
+       "x": 640,
+       "y": 450
+      },
+      "id": "wall_mroe05rs_4",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 640,
+       "y": 450
+      },
+      "b": {
+       "x": 160,
+       "y": 450
+      },
+      "id": "wall_mroe05vj_5",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 160,
+       "y": 450
+      },
+      "b": {
+       "x": 160,
+       "y": -30
+      },
+      "id": "wall_mroe05z7_6",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "h": 480,
+      "w": 480,
+      "x": 160,
+      "y": -30,
+      "id": "room_mroe06mh_7",
+      "auto": true,
+      "kind": "room",
+      "name": "房間",
+      "poly": [
+       {
+        "x": 160,
+        "y": 450
+       },
+       {
+        "x": 640,
+        "y": 450
+       },
+       {
+        "x": 640,
+        "y": -30
+       },
+       {
+        "x": 160,
+        "y": -30
+       }
+      ],
+      "layer": "rooms"
+     },
+     {
+      "h": 90,
+      "w": 200,
+      "x": 300,
+      "y": 165,
+      "id": "furn_mroe06p2_8",
+      "item": "sofa",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "沙發",
+      "layer": "furniture"
+     },
+     {
+      "h": 60,
+      "w": 180,
+      "x": 310,
+      "y": 180,
+      "id": "furn_mroe07oq_9",
+      "item": "cabinet_kitchen",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "廚櫃",
+      "layer": "furniture"
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mroe03i2_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-17 11:37:26",
+ "updatedAtIso": "2026-07-17T03:37:26+00:00"
+}

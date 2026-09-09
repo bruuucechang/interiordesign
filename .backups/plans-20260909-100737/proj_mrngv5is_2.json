@@ -1,0 +1,186 @@
+{
+ "id": "proj_mrngv5is_2",
+ "name": "1 道牆・7/16",
+ "data": {
+  "id": "proj_mrngv5is_2",
+  "name": "1 道牆・7/16",
+  "floors": [
+   {
+    "id": "floor_mrngv5is_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": 0,
+       "y": 0
+      },
+      "b": {
+       "x": 307,
+       "y": 0
+      },
+      "id": "wall_mrnh1d19_3",
+      "kind": "wall",
+      "layer": "walls",
+      "height": 255,
+      "thickness": 2
+     },
+     {
+      "x": 147.5,
+      "y": 0,
+      "id": "window_mrnh2sqt_4",
+      "kind": "window",
+      "angle": 0,
+      "layer": "openings",
+      "width": 103,
+      "height": 62,
+      "elevation": 92
+     },
+     {
+      "h": 60,
+      "w": 90,
+      "x": 0,
+      "y": 0,
+      "id": "furn_mrnh4qxn_5",
+      "item": "stove",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "爐具",
+      "layer": "furniture",
+      "height": 90
+     },
+     {
+      "h": 60,
+      "w": 97,
+      "x": 210,
+      "y": 0,
+      "id": "furn_mrnh6ffw_8",
+      "item": "sink",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "水槽",
+      "layer": "furniture"
+     },
+     {
+      "h": 60,
+      "w": 60,
+      "x": 90.5,
+      "y": 0,
+      "id": "furn_mrnh8w5e_9",
+      "item": "nightstand",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "床頭櫃",
+      "layer": "furniture",
+      "height": 90
+     },
+     {
+      "h": 60,
+      "w": 60,
+      "x": 150.5,
+      "y": 0,
+      "id": "furniture_mrnhais8_10",
+      "item": "nightstand",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "床頭櫃",
+      "layer": "furniture",
+      "height": 90
+     },
+     {
+      "a": {
+       "x": 290,
+       "y": 0
+      },
+      "b": {
+       "x": 290,
+       "y": 148
+      },
+      "id": "beam_mrnhbfd6_11",
+      "kind": "beam",
+      "layer": "beams",
+      "width": 36,
+      "height": 20,
+      "elevation": 235
+     },
+     {
+      "h": 45,
+      "w": 105,
+      "x": 232,
+      "y": 90,
+      "id": "furn_mrnhdj5e_12",
+      "item": "cabinet_kitchen",
+      "kind": "furniture",
+      "angle": 90,
+      "label": "廚櫃",
+      "layer": "furniture",
+      "height": 90
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mrngv5is_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-16 21:47:19",
+ "updatedAtIso": "2026-07-16T13:47:19+00:00"
+}
