@@ -90,6 +90,27 @@ export const TAIWAN_CLEARANCE: ClearanceDefaults = {
 export const CLEARANCE = TAIWAN_CLEARANCE;
 
 /**
+ * 某些東西**本身**小於這個尺寸就不好用了——跟「周圍要留多少」是兩件事。
+ *
+ * 分開命名而不是塞進 `ClearanceDefaults`，因為它們回答的不是同一個問題：淨距問
+ * 「這件家具旁邊夠不夠人走」，這裡問「這件家具自己夠不夠人用」。混在一起的話，
+ * 之後要調其中一個的人會分不出他在調哪一種。
+ */
+export interface MinimumSizes {
+  /** 乾濕分離的短邊。再小連轉身都受限。 */
+  showerShortSide: number;
+  /** 短邊的舒適值——不是門檻，只拿來在訊息裡講「建議多少」。 */
+  showerComfortable: number;
+}
+
+export const TAIWAN_MIN_SIZES: MinimumSizes = {
+  showerShortSide: 80,
+  showerComfortable: 90,
+};
+
+export const MIN_SIZES = TAIWAN_MIN_SIZES;
+
+/**
  * A note for a field that is showing one of these.
  *
  * Deliberately says the region *and* that it is only a starting value. "12" on

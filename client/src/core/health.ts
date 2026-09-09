@@ -22,7 +22,7 @@
 import { Obj, Vec } from '../model/schema';
 import { dist, distToSegment, closestOnSegment, pointInPolygon, polygonCentroid } from './geometry';
 import { Box, wallBox } from './clearance';
-import { CLEARANCE, DEFAULTS } from '../model/locale-defaults';
+import { CLEARANCE, DEFAULTS, MIN_SIZES } from '../model/locale-defaults';
 
 type Wall = Extract<Obj, { kind: 'wall' }>;
 type Furniture = Extract<Obj, { kind: 'furniture' }>;
@@ -328,6 +328,35 @@ function clearances(furniture: Furniture[], blockers: Box[]): Finding[] {
   return out;
 }
 
+/**
+ * 有些東西小於某個尺寸就不好用了——量的是**它自己**，不是它旁邊。
+ *
+ * 目前只有乾濕分離。目錄的預設是 90×90（正好是建議值），所以這一條只在使用者把它
+ * 縮小之後才會響——而那正是會發生的事：淋浴間是最常為了擠出空間被拉小的東西。
+ *
+ * `sh_shower_door`（淋浴門，90×22）刻意不算：它是門片不是隔間，短邊 22cm 是對的。
+ */
+function tooSmall(furniture: Furniture[]): Finding[] {
+  const out: Finding[] = [];
+  for (const f of furniture) {
+    if (!/^shower(_|$)/.test(f.item)) continue;   // 排除 sh_shower_door 之類
+    const short = Math.min(f.w, f.h);
+    if (short >= MIN_SIZES.showerShortSide) continue;
+    out.push({
+      id: `small:${f.id}:${Math.round(short)}`,
+      rule: 'min-size',
+      severity: 'clearance',
+      title: '乾濕分離太小',
+      detail: `${f.label || f.item}：短邊只有 ${cm(short)}（最小 ${MIN_SIZES.showerShortSide}、建議 ${MIN_SIZES.showerComfortable}）`,
+      why: `${MIN_SIZES.showerShortSide}×${MIN_SIZES.showerShortSide}cm 是連轉身都受限的下限，`
+        + `一般建議 ${MIN_SIZES.showerComfortable}×${MIN_SIZES.showerComfortable}；`
+        + '要放洗澡椅、或幫小孩與長輩洗澡的話，選 80×120 或 90×120 的長形，操作動線才順。',
+      targets: [f.id],
+    });
+  }
+  return out;
+}
+
 /** 門前要開得出來：門扇掃過的那一塊不該被家具佔住。 */
 function doorSwings(openings: Opening[], furniture: Furniture[]): Finding[] {
   const out: Finding[] = [];
@@ -400,6 +429,7 @@ export function checkPlan(objects: Obj[]): Finding[] {
     ...orphanOpenings(openings, walls),
     ...noRooms(walls, rooms),
     ...clearances(furniture, blockers),
+    ...tooSmall(furniture),
     ...doorSwings(openings, furniture),
     ...strays(furniture, rooms),
   ];
