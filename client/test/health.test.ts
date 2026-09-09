@@ -186,3 +186,32 @@ test('兩道不同的縫仍然各報一次', () => {
   ]);
   assert.equal(f.filter(x => x.rule === 'wall-join').length, 2);
 });
+
+// ---- 門窗掉在牆外面（2026-08-13 真的發生過） ----
+//
+// 柱子合併那一輪把 58 道牆變成 40 道，掛在被移走的 18 道牆上的 9 個門窗原地留下。
+// 沒有任何東西報錯，使用者三個星期後才發現「門都跑掉了」。
+
+test('門離最近的牆很遠，要抓出來', () => {
+  const door: Obj = { id: 'd', kind: 'door', layer: 'openings', x: 300, y: 200, width: 90, angle: 0 } as Obj;
+  const f = checkPlan([...BOX, door]).filter(x => x.rule === 'orphan-opening');
+  assert.equal(f.length, 1);
+  assert.match(f[0].title, /門不在任何牆上/);
+  assert.match(f[0].detail, /\d/);
+});
+
+test('好好嵌在牆上的門窗完全不該被唸', () => {
+  const door: Obj = { id: 'd', kind: 'door', layer: 'openings', x: 300, y: 0, width: 90, angle: 0 } as Obj;
+  const win: Obj = { id: 'w', kind: 'window', layer: 'openings', x: 600, y: 200, width: 120, angle: 90 } as Obj;
+  assert.deepEqual(checkPlan([...BOX, door, win]).filter(x => x.rule === 'orphan-opening'), []);
+});
+
+test('差幾公分沒對準不算孤兒（那是另一條規則的事）', () => {
+  const door: Obj = { id: 'd', kind: 'door', layer: 'openings', x: 300, y: 12, width: 90, angle: 0 } as Obj;
+  assert.deepEqual(checkPlan([...BOX, door]).filter(x => x.rule === 'orphan-opening'), []);
+});
+
+test('還沒畫牆的時候不要唸門窗', () => {
+  const door: Obj = { id: 'd', kind: 'door', layer: 'openings', x: 0, y: 0, width: 90, angle: 0 } as Obj;
+  assert.deepEqual(checkPlan([door]).filter(x => x.rule === 'orphan-opening'), []);
+});

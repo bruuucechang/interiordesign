@@ -173,6 +173,43 @@ function wallJoins(walls: Wall[]): Finding[] {
   return out;
 }
 
+/**
+ * 門窗掉在牆外面。
+ *
+ * **這一條是從真實資料回頭補的。** 使用者的 A1 單元在 2026-08-13 晚上被柱子合併／
+ * 牆體清理動過一輪，58 道牆變成 40 道——而掛在被移走的那 18 道牆上的 9 個門窗
+ * **原地不動留在原本的絕對座標**。門片畫在房間中央、離最近的牆 134 公分。
+ *
+ * 沒有任何東西報錯：面積照算、房間照偵測、PDF 照出、3D 照渲。使用者是三個星期
+ * 之後打開檔案看到「門都跑掉了」才發現的，而那時候已經分不清哪一份存檔是好的。
+ *
+ * `door`／`window` 的座標是絕對的，不是掛在某一道牆上的參照——所以刪掉或換掉一道
+ * 牆，程式沒有任何機會知道有東西正靠著它。與其改資料模型（那會動到 schema 與所有
+ * 讀取端），不如讓它變成一條看得見的檢查。
+ *
+ * 門檻用 `JOIN_MAX`（30cm）：一個門窗離最近的牆超過半道牆厚的好幾倍，就不可能是
+ * 「稍微沒對準」，只可能是它的牆不見了。
+ */
+function orphanOpenings(openings: Opening[], walls: Wall[]): Finding[] {
+  if (!walls.length) return [];
+  const out: Finding[] = [];
+  for (const o of openings) {
+    const d = Math.min(...walls.map(w => distToSegment({ x: o.x, y: o.y }, w.a, w.b)));
+    if (d <= JOIN_MAX) continue;
+    out.push({
+      id: `orphan:${o.id}:${Math.round(d)}`,
+      rule: 'orphan-opening',
+      severity: 'geometry',
+      title: o.kind === 'door' ? '門不在任何牆上' : '窗不在任何牆上',
+      detail: `離最近的牆 ${cm(d)}`,
+      why: '門窗的座標是絕對的，不是黏在某一道牆上。它靠著的那道牆被刪掉或換掉時，'
+        + '它會留在原地——面積照算、3D 照渲、出圖照出，沒有任何地方會報錯。',
+      targets: [o.id],
+    });
+  }
+  return out;
+}
+
 /** 牆圍不出房間——畫了牆卻一個房間都沒偵測到，多半是有一處沒封起來。 */
 function noRooms(walls: Wall[], rooms: Room[]): Finding[] {
   if (walls.length < 3 || rooms.length > 0) return [];
@@ -360,6 +397,7 @@ export function checkPlan(objects: Obj[]): Finding[] {
 
   return [
     ...wallJoins(walls),
+    ...orphanOpenings(openings, walls),
     ...noRooms(walls, rooms),
     ...clearances(furniture, blockers),
     ...doorSwings(openings, furniture),

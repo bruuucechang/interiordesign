@@ -1,0 +1,108 @@
+{
+ "id": "proj_mrof2qqr_2",
+ "name": "menu-test・7/17",
+ "data": {
+  "id": "proj_mrof2qqr_2",
+  "name": "menu-test・7/17",
+  "floors": [
+   {
+    "id": "floor_mrof2qqr_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": 160,
+       "y": 110
+      },
+      "b": {
+       "x": 640,
+       "y": 110
+      },
+      "id": "wall_mrof2svw_3",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 640,
+       "y": 110
+      },
+      "b": {
+       "x": 640,
+       "y": 490
+      },
+      "id": "wall_mrof2syu_4",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mrof2qqr_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-17 12:07:27",
+ "updatedAtIso": "2026-07-17T04:07:27+00:00"
+}

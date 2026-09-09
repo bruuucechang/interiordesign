@@ -1,0 +1,201 @@
+{
+ "id": "proj_mszp1t5p_3",
+ "name": "36㎡・1 室・4 件家具・8/19",
+ "data": {
+  "id": "proj_mszp1t5p_3",
+  "name": "36㎡・1 室・4 件家具・8/19",
+  "floors": [
+   {
+    "id": "f1",
+    "base": 0,
+    "name": "1F",
+    "height": 270,
+    "objects": [
+     {
+      "h": 400,
+      "w": 900,
+      "x": 0,
+      "y": 0,
+      "id": "r",
+      "kind": "room",
+      "name": "x",
+      "floor": "oaklight",
+      "layer": "rooms"
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 0
+      },
+      "b": {
+       "x": 900,
+       "y": 0
+      },
+      "id": "w0",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 900,
+       "y": 0
+      },
+      "b": {
+       "x": 900,
+       "y": 400
+      },
+      "id": "w1",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 900,
+       "y": 400
+      },
+      "b": {
+       "x": 0,
+       "y": 400
+      },
+      "id": "w2",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 400
+      },
+      "b": {
+       "x": 0,
+       "y": 0
+      },
+      "id": "w3",
+      "kind": "wall",
+      "layer": "walls",
+      "finish": "paint",
+      "thickness": 12
+     },
+     {
+      "h": 60,
+      "w": 120,
+      "x": 60,
+      "y": 120,
+      "id": "f0",
+      "item": "wardrobe",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "wardrobe",
+      "layer": "furniture",
+      "height": 200
+     },
+     {
+      "h": 50,
+      "w": 60,
+      "x": 220,
+      "y": 120,
+      "id": "f1",
+      "item": "tall_cabinet",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "tall_cabinet",
+      "layer": "furniture",
+      "height": 200
+     },
+     {
+      "h": 40,
+      "w": 90,
+      "x": 320,
+      "y": 120,
+      "id": "f2",
+      "item": "cabinet_storage",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "cabinet_storage",
+      "layer": "furniture",
+      "height": 82
+     },
+     {
+      "h": 40,
+      "w": 150,
+      "x": 450,
+      "y": 120,
+      "id": "f3",
+      "item": "tv",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "tv",
+      "layer": "furniture",
+      "height": 45
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "walls",
+    "name": "牆",
+    "color": "#eee",
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房",
+    "color": "#4c8dff",
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "visible": true
+   },
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "f1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-08-19 14:12:04",
+ "updatedAtIso": "2026-08-19T06:12:04+00:00"
+}

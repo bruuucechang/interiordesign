@@ -1,0 +1,116 @@
+{
+ "id": "proj_mrq3xoou_2",
+ "name": "3 個物件・7/18",
+ "data": {
+  "id": "proj_mrq3xoou_2",
+  "name": "3 個物件・7/18",
+  "floors": [
+   {
+    "id": "floor_mrq3xoou_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "h": 40,
+      "w": 40,
+      "x": 15.817453582061603,
+      "y": -142.6125176615442,
+      "id": "furn_mrq3xwyh_3",
+      "item": "plant",
+      "kind": "furniture",
+      "angle": 180,
+      "label": "植栽",
+      "layer": "furniture"
+     },
+     {
+      "h": 40,
+      "w": 150,
+      "x": -368.1178421779533,
+      "y": 0.6629113910803426,
+      "id": "furn_mrq3y14g_4",
+      "item": "tv",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "電視櫃",
+      "layer": "furniture"
+     },
+     {
+      "h": 50,
+      "w": 100,
+      "x": -577.5988529670171,
+      "y": -826.9478893557614,
+      "id": "furn_mrq3y8wj_5",
+      "item": "dresser",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "五斗櫃",
+      "layer": "furniture"
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mrq3xoou_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-18 16:31:35",
+ "updatedAtIso": "2026-07-18T08:31:35+00:00"
+}

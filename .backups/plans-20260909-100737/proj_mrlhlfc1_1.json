@@ -1,0 +1,102 @@
+{
+ "id": "proj_mrlhlfc1_1",
+ "name": "45㎡・1 室・1 件家具・7/15",
+ "data": {
+  "id": "proj_mrlhlfc1_1",
+  "name": "45㎡・1 室・1 件家具・7/15",
+  "floors": [
+   {
+    "id": "floor_msihx8q3_17",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "h": 600,
+      "w": 750,
+      "x": 30,
+      "y": 0,
+      "id": "room_mrlhlii1_2",
+      "kind": "room",
+      "name": "房間",
+      "layer": "rooms"
+     },
+     {
+      "h": 90,
+      "w": 200,
+      "x": 300,
+      "y": 175,
+      "id": "furn_mrlhlitn_3",
+      "item": "sofa",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "沙發",
+      "layer": "furniture"
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_msihx8q3_17",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-15 10:54:41",
+ "updatedAtIso": "2026-07-15T02:54:41+00:00"
+}

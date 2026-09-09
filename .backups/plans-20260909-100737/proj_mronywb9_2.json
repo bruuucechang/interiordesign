@@ -1,0 +1,227 @@
+{
+ "id": "proj_mronywb9_2",
+ "name": "25㎡・1 室・2 件家具・7/17",
+ "data": {
+  "id": "proj_mronywb9_2",
+  "name": "25㎡・1 室・2 件家具・7/17",
+  "floors": [
+   {
+    "id": "floor_mronywb9_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": 0,
+       "y": 0
+      },
+      "b": {
+       "x": 500,
+       "y": 0
+      },
+      "id": "wall_mronzin8_3",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 0
+      },
+      "b": {
+       "x": 0,
+       "y": 500
+      },
+      "id": "wall_mronzx96_4",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 0,
+       "y": 500
+      },
+      "b": {
+       "x": 500,
+       "y": 500
+      },
+      "id": "wall_mronzzzb_5",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 500,
+       "y": 0
+      },
+      "b": {
+       "x": 500,
+       "y": 500
+      },
+      "id": "wall_mroo04k4_6",
+      "kind": "wall",
+      "bulge": -110,
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "h": 500,
+      "w": 500,
+      "x": 0,
+      "y": 0,
+      "id": "room_mroo04oc_7",
+      "auto": true,
+      "kind": "room",
+      "name": "房間",
+      "poly": [
+       {
+        "x": 0,
+        "y": 500
+       },
+       {
+        "x": 500,
+        "y": 500
+       },
+       {
+        "x": 500,
+        "y": 0
+       },
+       {
+        "x": 0,
+        "y": 0
+       }
+      ],
+      "layer": "rooms"
+     },
+     {
+      "x": 523.0119789760638,
+      "y": 241.7862877655445,
+      "id": "window_mroo1ayy_8",
+      "kind": "window",
+      "angle": 88.34757841239816,
+      "bulge": -86.82447911143437,
+      "layer": "openings",
+      "width": 444.4308810361908
+     },
+     {
+      "x": 120,
+      "y": 0,
+      "id": "door_mroo3ihf_9",
+      "kind": "door",
+      "angle": 0,
+      "layer": "openings",
+      "width": 90
+     },
+     {
+      "x": 0,
+      "y": 330,
+      "id": "window_mroo41t9_10",
+      "kind": "window",
+      "angle": 90,
+      "layer": "openings",
+      "width": 120
+     },
+     {
+      "x": 250,
+      "y": 500,
+      "id": "window_mroo42tu_11",
+      "kind": "window",
+      "angle": 0,
+      "layer": "openings",
+      "width": 120
+     },
+     {
+      "h": 80,
+      "w": 80,
+      "x": 390,
+      "y": 30,
+      "id": "furn_mroo5j6k_12",
+      "item": "armchair",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "單椅",
+      "layer": "furniture"
+     },
+     {
+      "h": 50,
+      "w": 100,
+      "x": 380,
+      "y": 145,
+      "id": "furn_mroo5pmh_13",
+      "item": "coffee",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "茶几",
+      "layer": "furniture"
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mronywb9_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-17 16:21:39",
+ "updatedAtIso": "2026-07-17T08:21:39+00:00"
+}

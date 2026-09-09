@@ -1,0 +1,213 @@
+{
+ "id": "proj_mrn5hj0o_2",
+ "name": "17㎡・1 室・4 件家具・7/16",
+ "data": {
+  "id": "proj_mrn5hj0o_2",
+  "name": "17㎡・1 室・4 件家具・7/16",
+  "floors": [
+   {
+    "id": "floor_mrn5hj0o_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": 180,
+       "y": 70
+      },
+      "b": {
+       "x": 630,
+       "y": 70
+      },
+      "id": "wall_mrn5hl9g_3",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 630,
+       "y": 70
+      },
+      "b": {
+       "x": 630,
+       "y": 450
+      },
+      "id": "wall_mrn5hlc5_4",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 630,
+       "y": 450
+      },
+      "b": {
+       "x": 180,
+       "y": 450
+      },
+      "id": "wall_mrn5hlel_5",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 180,
+       "y": 450
+      },
+      "b": {
+       "x": 180,
+       "y": 70
+      },
+      "id": "wall_mrn5hlh1_6",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "h": 380,
+      "w": 450,
+      "x": 180,
+      "y": 70,
+      "id": "room_mrn5hlnq_7",
+      "auto": true,
+      "kind": "room",
+      "name": "房間",
+      "poly": [
+       {
+        "x": 630,
+        "y": 70
+       },
+       {
+        "x": 180,
+        "y": 70
+       },
+       {
+        "x": 180,
+        "y": 450
+       },
+       {
+        "x": 630,
+        "y": 450
+       }
+      ],
+      "layer": "rooms"
+     },
+     {
+      "h": 90,
+      "w": 200,
+      "x": 210,
+      "y": 135,
+      "id": "furn_mrn5hlzh_8",
+      "item": "sofa",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "沙發",
+      "layer": "furniture"
+     },
+     {
+      "h": 90,
+      "w": 200,
+      "x": 390,
+      "y": 135,
+      "id": "furn_mrn5hmef_9",
+      "item": "sofa",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "沙發",
+      "layer": "furniture"
+     },
+     {
+      "h": 50,
+      "w": 100,
+      "x": 350,
+      "y": 275,
+      "id": "furn_mrn5hmj1_10",
+      "item": "coffee",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "茶几",
+      "layer": "furniture"
+     },
+     {
+      "h": 40,
+      "w": 40,
+      "x": 230,
+      "y": 350,
+      "id": "furn_mrn5hn2b_11",
+      "item": "plant",
+      "kind": "furniture",
+      "angle": 0,
+      "label": "植栽",
+      "layer": "furniture"
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mrn5hj0o_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-16 14:51:17",
+ "updatedAtIso": "2026-07-16T06:51:17+00:00"
+}

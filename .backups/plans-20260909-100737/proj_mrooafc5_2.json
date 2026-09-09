@@ -1,0 +1,228 @@
+{
+ "id": "proj_mrooafc5_2",
+ "name": "124㎡・1 室・7/17",
+ "data": {
+  "id": "proj_mrooafc5_2",
+  "name": "124㎡・1 室・7/17",
+  "floors": [
+   {
+    "id": "floor_mrooafc5_1",
+    "name": "1F",
+    "height": 280,
+    "objects": [
+     {
+      "a": {
+       "x": -500,
+       "y": -10
+      },
+      "b": {
+       "x": 1010,
+       "y": -10
+      },
+      "id": "wall_mrooaifp_3",
+      "kind": "wall",
+      "bulge": -440,
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": -500,
+       "y": -10
+      },
+      "b": {
+       "x": -500,
+       "y": 520
+      },
+      "id": "wall_mrooapj9_4",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": -500,
+       "y": 520
+      },
+      "b": {
+       "x": 1000,
+       "y": 520
+      },
+      "id": "wall_mrooaql8_5",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "a": {
+       "x": 1000,
+       "y": 520
+      },
+      "b": {
+       "x": 1010,
+       "y": -10
+      },
+      "id": "wall_mrooarg8_6",
+      "kind": "wall",
+      "layer": "walls",
+      "thickness": 12
+     },
+     {
+      "h": 970,
+      "w": 1510,
+      "x": -500,
+      "y": -450,
+      "id": "room_mrooarkg_7",
+      "auto": true,
+      "kind": "room",
+      "name": "房間",
+      "poly": [
+       {
+        "x": -500,
+        "y": 520
+       },
+       {
+        "x": 1000,
+        "y": 520
+       },
+       {
+        "x": 1010,
+        "y": -10
+       },
+       {
+        "x": 902.1428571428571,
+        "y": -126.73469387755098
+       },
+       {
+        "x": 794.2857142857142,
+        "y": -225.51020408163274
+       },
+       {
+        "x": 686.4285714285714,
+        "y": -306.32653061224494
+       },
+       {
+        "x": 578.5714285714287,
+        "y": -369.1836734693877
+       },
+       {
+        "x": 470.7142857142858,
+        "y": -414.0816326530612
+       },
+       {
+        "x": 362.85714285714283,
+        "y": -441.02040816326524
+       },
+       {
+        "x": 255,
+        "y": -450
+       },
+       {
+        "x": 147.1428571428571,
+        "y": -441.02040816326524
+       },
+       {
+        "x": 39.28571428571435,
+        "y": -414.0816326530612
+       },
+       {
+        "x": -68.57142857142857,
+        "y": -369.1836734693877
+       },
+       {
+        "x": -176.4285714285714,
+        "y": -306.32653061224494
+       },
+       {
+        "x": -284.2857142857144,
+        "y": -225.51020408163265
+       },
+       {
+        "x": -392.14285714285717,
+        "y": -126.73469387755104
+       },
+       {
+        "x": -500,
+        "y": -10
+       }
+      ],
+      "layer": "rooms"
+     },
+     {
+      "x": 280.13448255338216,
+      "y": -269.6163498670958,
+      "id": "window_mrooaxtv_8",
+      "kind": "window",
+      "angle": 0,
+      "bulge": -184.33983638109845,
+      "layer": "openings",
+      "width": 1089.3869262419887
+     }
+    ],
+    "elevation": 0
+   }
+  ],
+  "layers": [
+   {
+    "id": "underlay",
+    "name": "底圖",
+    "color": "#8b93a3",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "walls",
+    "name": "牆體",
+    "color": "#c9cfdb",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "beams",
+    "name": "樑",
+    "color": "#b07de0",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "rooms",
+    "name": "房間",
+    "color": "#6d7890",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "openings",
+    "name": "門窗",
+    "color": "#7bc6ff",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "furniture",
+    "name": "家具",
+    "color": "#e0b45a",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "electrical",
+    "name": "水電配置",
+    "color": "#ffd166",
+    "locked": false,
+    "visible": true
+   },
+   {
+    "id": "dims",
+    "name": "尺寸標註",
+    "color": "#8bffb0",
+    "locked": false,
+    "visible": true
+   }
+  ],
+  "activeFloorId": "floor_mrooafc5_1",
+  "schemaVersion": 1
+ },
+ "updatedAt": "2026-07-17 16:26:12",
+ "updatedAtIso": "2026-07-17T08:26:12+00:00"
+}
