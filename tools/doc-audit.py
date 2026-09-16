@@ -43,6 +43,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 #
 # 這支要問的是：**現在每次都被讀進去的那份規則，還對得上程式碼嗎。**
 DOCS = [p for p in (ROOT / "AGENTS.md", ROOT / "CLAUDE.md") if p.exists()]
+# 2026-09-16：.claude/rules/*.md 是帶 paths: 的活規則，動到對應檔案就會載入，
+# 所以跟 AGENTS.md 一樣要對得上程式碼。不加的話，從 AGENTS.md 搬過去的內容
+# 會安靜退出稽核範圍——搬家不該讓檢查變少。（docs/ 仍然不掃，理由見上。）
+DOCS += sorted((ROOT / ".claude" / "rules").glob("*.md"))
 
 PATH_RE = re.compile(r"`([^`\n]+)`")
 
