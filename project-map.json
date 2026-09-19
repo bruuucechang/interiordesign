@@ -1,51 +1,184 @@
 {
   "project": "interior-designer",
   "summary": "室內設計 2D 平面圖繪圖軟體。Canvas/TS 編輯器 + three.js 3D，後端負責儲存、房間偵測、底圖辨識與報表。存檔的形狀只有一份真相（schema.ts），往兩個方向產生。",
-
   "lanes": [
-    { "id": "ui", "label": "前端 · 5180" },
-    { "id": "core", "label": "純函式核心" },
-    { "id": "model", "label": "存檔模型" },
-    { "id": "api", "label": "後端 · 8791" },
-    { "id": "data", "label": "儲存" }
+    {
+      "id": "ui",
+      "label": "前端 · 5180"
+    },
+    {
+      "id": "core",
+      "label": "純函式核心"
+    },
+    {
+      "id": "model",
+      "label": "存檔模型"
+    },
+    {
+      "id": "api",
+      "label": "後端 · 8791"
+    },
+    {
+      "id": "data",
+      "label": "儲存"
+    }
   ],
-
   "nodes": [
-    { "id": "editor", "lane": "ui", "name": "client/", "meta": "Canvas 2D 編輯器 · Vite :5180", "live": { "port": 5180 } },
-    { "id": "view3d", "lane": "ui", "name": "view3d / three.js", "meta": "3D 檢視" },
-    { "id": "net", "lane": "ui", "name": "net/store.ts", "meta": "離線鏡像的規則" },
-
-    { "id": "geometry", "lane": "core", "name": "core/ 純函式", "meta": "geometry units snap arrange wallEdit" },
-    { "id": "materials", "lane": "core", "name": "materials.ts", "meta": "半純 · 種子亂數與鋪法是純的" },
-
-    { "id": "schema", "lane": "model", "name": "model/schema.ts", "meta": "存檔形狀的唯一真相" },
-    { "id": "migrate", "lane": "model", "name": "model/migrate.ts", "meta": "遷移只有這一份" },
-    { "id": "planschema", "lane": "model", "name": "plan_schema.py", "meta": "codegen 產物 · 勿手改" },
-
-    { "id": "routers", "lane": "api", "name": "server/app/routers/", "meta": "FastAPI :8791", "live": { "port": 8791 } },
-    { "id": "calc", "lane": "api", "name": "五支運算模組", "meta": "rooms detect report dxf dimensions" },
-
-    { "id": "pg", "lane": "data", "name": "PostgreSQL", "meta": "floorplans · JSONB", "live": { "dep": "postgres" } },
-    { "id": "mirror", "lane": "data", "name": "localStorage 鏡像", "meta": "較新者勝 · 不是快取" },
-    { "id": "sqlite", "lane": "data", "name": "桌面版 SQLite", "meta": "PyInstaller 單一執行檔" }
+    {
+      "id": "editor",
+      "lane": "ui",
+      "name": "client/",
+      "meta": "Canvas 2D 編輯器 · Vite :5180",
+      "live": {
+        "port": 5180
+      },
+      "what": "Canvas 2D 的平面圖編輯器，Vite :5180。畫牆、開門窗、擺家具、標尺寸。**在滑鼠移動或每幀路徑上、或需要 Canvas／WebGL 的東西留在這裡**，其餘搬到後端——PDF/PNG 出圖也在前端，因為 jsPDF 畫中文得先光柵化。"
+    },
+    {
+      "id": "view3d",
+      "lane": "ui",
+      "name": "view3d / three.js",
+      "meta": "3D 檢視",
+      "what": "three.js 的 3D 檢視。同一份平面圖立起來看，材質由 materials.ts 程序化畫出來再由 textures3d.ts 綁到 three。"
+    },
+    {
+      "id": "net",
+      "lane": "ui",
+      "name": "net/store.ts",
+      "meta": "離線鏡像的規則",
+      "what": "離線鏡像的**規則**（流量在 api.ts）。**它不是快取**：localStorage 每筆存 savedAt，較新者勝。成立的前提是存檔成功時鏡像記的是伺服器的時間不是瀏覽器的，所以「本機比較新」精確等於「這次寫入沒送到」。刪除寫 tombstone，不然下次同步會把伺服器那份當成別處新建的而復活。"
+    },
+    {
+      "id": "geometry",
+      "lane": "core",
+      "name": "core/ 純函式",
+      "meta": "geometry units snap arrange wallEdit",
+      "what": "純函式核心：幾何、單位換算、吸附、自動排列、牆體編輯。**不碰 DOM、Canvas、document**，所以直接測得起來。改到它們就把測試一起改，不要為了省事把狀態塞回去。"
+    },
+    {
+      "id": "materials",
+      "lane": "core",
+      "name": "materials.ts",
+      "meta": "半純 · 種子亂數與鋪法是純的",
+      "what": "材質庫，**畫出來的不是下載的**：沒有素材管線也沒有 CDN，圖片得用 data URI commit 進去而且會撐爆 bundle；畫出來的材質可以在任何尺寸平鋪不用重取樣，而且不帶授權問題。它是半純的——定義會畫進 canvas，但**種子亂數、法線編碼、人字拼的鋪法、平鋪次數都是純的**，而那幾支正是會安靜出錯的部分（第一版用 Math.random，木紋每次重載都不一樣）。"
+    },
+    {
+      "id": "schema",
+      "lane": "model",
+      "name": "model/schema.ts",
+      "meta": "存檔形狀的唯一真相",
+      "what": "存檔形狀的**唯一真相**。npm run codegen 把它變成 JSON Schema 再變成後端的 plan_schema.py，兩個產物都 commit 進 repo。**這個檔只放型別**——常數與函式放 catalogue.ts，產生器只吃型別，值會被靜默丟掉。"
+    },
+    {
+      "id": "migrate",
+      "lane": "model",
+      "name": "model/migrate.ts",
+      "meta": "遷移只有這一份",
+      "what": "**遷移邏輯只有這一份。** STEPS[v] 把存檔從 v 升到 v+1（版本閘控、只跑一次）；repair() 每次載入都跑，處理的是「損壞」不是「舊版本」。**遷移步驟裡的歷史常數要凍結**，不要引用現在的值——遷移描述的是資料當時的意思。"
+    },
+    {
+      "id": "planschema",
+      "lane": "model",
+      "name": "plan_schema.py",
+      "meta": "codegen 產物 · 勿手改",
+      "what": "後端讀存檔用的型別，**codegen 產物，不要手改**。後端不准用 dict 存取讀存檔——走產出的 model，改了 schema 忘了改後端會在 npm test 當場爆。"
+    },
+    {
+      "id": "routers",
+      "lane": "api",
+      "name": "server/app/routers/",
+      "meta": "FastAPI :8791",
+      "live": {
+        "port": 8791
+      },
+      "what": "FastAPI 的路由層，:8791。只放 HTTP 的事；實際運算另開平級模組。**不要加 services/ 層**——那五支運算模組本來就是純函式，再包一層只是轉發。寫寬鬆讀嚴格：PUT 驗不過照存只記 log（前端擁有 schema、本來就可能跑在前面），讀取端解析不了直接 422（空報表看起來像個答案）。"
+    },
+    {
+      "id": "calc",
+      "lane": "api",
+      "name": "五支運算模組",
+      "meta": "rooms detect report dxf dimensions",
+      "what": "五支純函式運算模組：房間偵測、底圖牆體辨識（OpenCV）、面積報表（openpyxl）、DXF 匯入（ezdxf）、尺寸標註。DXF 那支有四個必須做對的地方——雙線牆合併成中心線並量出厚度、Y 軸翻轉、座標平移到原點、單位（ 常常是 0，猜錯差 1000 倍）。"
+    },
+    {
+      "id": "pg",
+      "lane": "data",
+      "name": "PostgreSQL",
+      "meta": "floorplans · JSONB",
+      "live": {
+        "dep": "postgres"
+      },
+      "what": "PostgreSQL 的 interior_design，方案整份存成 JSONB 的 floorplans 表。**用 API 直接塞方案進去時 data 裡一定要有 id 而且等於網址上的 id**——少了它 App 會在第一次 autosave 自己生一個新 id，使用者改完的東西跑到誰都不知道的地方去（實際發生過）。"
+    },
+    {
+      "id": "mirror",
+      "lane": "data",
+      "name": "localStorage 鏡像",
+      "meta": "較新者勝 · 不是快取",
+      "what": "localStorage 的離線鏡像。**它不是快取，是另一份可能比較新的資料**——規則在 net/store.ts。syncPending() 從鏡像重播而不是從記憶體，所以上個 session 沒送出去的東西也補得回來。已知限制：依賴兩端的 wall clock，單人單機才成立。"
+    },
+    {
+      "id": "sqlite",
+      "lane": "data",
+      "name": "桌面版 SQLite",
+      "meta": "PyInstaller 單一執行檔",
+      "what": "桌面版的儲存。PyInstaller 打成單一執行檔，一個本機程序同時跑 API 與前端、存 SQLite 檔、開瀏覽器指過去——使用者不需要 Node、Python 或 PostgreSQL。**PyInstaller 不能跨平台編譯**，每個目標平台各跑一次。這份 SQLite 檔回填腳本碰不到，靠前端載入時遷移、下次存檔寫回去。"
+    }
   ],
-
   "edges": [
-    ["editor", "geometry"],
-    ["editor", "materials"],
-    ["editor", "view3d"],
-    ["editor", "net"],
-    ["editor", "schema"],
-    ["schema", "migrate"],
-    ["schema", "planschema"],
-    ["net", "routers"],
-    ["net", "mirror"],
-    ["routers", "calc"],
-    ["planschema", "calc"],
-    ["routers", "pg"],
-    ["routers", "sqlite"]
+    [
+      "editor",
+      "geometry"
+    ],
+    [
+      "editor",
+      "materials"
+    ],
+    [
+      "editor",
+      "view3d"
+    ],
+    [
+      "editor",
+      "net"
+    ],
+    [
+      "editor",
+      "schema"
+    ],
+    [
+      "schema",
+      "migrate"
+    ],
+    [
+      "schema",
+      "planschema"
+    ],
+    [
+      "net",
+      "routers"
+    ],
+    [
+      "net",
+      "mirror"
+    ],
+    [
+      "routers",
+      "calc"
+    ],
+    [
+      "planschema",
+      "calc"
+    ],
+    [
+      "routers",
+      "pg"
+    ],
+    [
+      "routers",
+      "sqlite"
+    ]
   ],
-
   "routes": [
     {
       "id": "R1",
@@ -57,21 +190,30 @@
           "cmd": "proj doctor\nlsof -nP -iTCP -sTCP:LISTEN | grep -E ':518[0-9]|:8791'",
           "check": "doctor 乾淨，5180–5183 只有一個（或零個）在聽。",
           "trap": "2026-09-07 實際踩到：這個專案同時有**四棵**孤兒 npm run dev（全部 ppid 1，起它們的終端機都不在了）。每一棵的 vite 因為 5180 被前一棵佔住而一路跳到 5181/5182/5183，而 dev:server 那半邊撞 8791 死掉。結果是**打開的 5180 是三天前那一份的前端、API 是兩天前那一份**，中間隔著四個 commit，畫面上一切正常。控制台當時只看得到登記過的 5180 與 8791，另外三個完全隱形（那條檢查已補上）。",
-          "touches": ["editor", "routers"]
+          "touches": [
+            "editor",
+            "routers"
+          ]
         },
         {
           "title": "第一次先建 venv",
           "cmd": "npm run setup:py",
           "check": "server/.venv 存在。",
           "trap": "Homebrew Python 受 PEP 668 保護，不能全域裝，所以後端依賴一定在 .venv。",
-          "touches": ["routers"]
+          "touches": [
+            "routers"
+          ]
         },
         {
           "title": "用 proj 起，不要自己 npm run dev",
           "cmd": "proj start interior-designer",
           "check": "proj status 那一列有 pid，不是「外部佔用」。",
           "trap": "自己起的 proj 停不掉（沒有 pid 檔），而終端機一關它就變孤兒——上面那四棵就是這樣來的。",
-          "touches": ["editor", "routers", "pg"]
+          "touches": [
+            "editor",
+            "routers",
+            "pg"
+          ]
         }
       ]
     },
@@ -85,35 +227,51 @@
           "cmd": "",
           "check": "常數、catalogue、函式都在 catalogue.ts。",
           "trap": "產生器只吃型別，**值會被靜默丟掉**——寫在 schema.ts 裡的常數不會出現在產物裡，也不會有人告訴你。",
-          "touches": ["schema"]
+          "touches": [
+            "schema"
+          ]
         },
         {
           "title": "重新產出兩個產物",
           "cmd": "npm run codegen",
           "check": "schema/plan.schema.json 與 server/app/plan_schema.py 都更新了。",
           "trap": "兩個產物都要 commit 進 repo——讀的人不需要有工具鏈。plan_schema.py 不要手改。",
-          "touches": ["schema", "planschema"]
+          "touches": [
+            "schema",
+            "planschema"
+          ]
         },
         {
           "title": "後端一律走產出的 model 讀存檔",
           "cmd": "",
           "check": "report.py / dimensions.py 沒有 dict 存取。",
           "trap": "用 dict 存取讀存檔的話，改 schema 忘了改後端不會有任何徵兆；走 model 的話 npm test 會當場爆。plan.Obj 是手寫的 union（產生器把它 inline 進 Floor.objects 所以沒有名字），test_plan.py 有一條把它釘在產出的型別上，加 kind 忘了同步會紅。",
-          "touches": ["planschema", "calc"]
+          "touches": [
+            "planschema",
+            "calc"
+          ]
         },
         {
           "title": "會 break 舊檔就加一個遷移 STEP",
           "cmd": "# STEPS[v] → SCHEMA_VERSION +1 → npm run codegen\npg_dump …                 # 先備份\nnpm run backfill          # 預設 dry run\nnpm run backfill -- --apply",
           "check": "backfill 的 dry run 看過再 apply。",
           "trap": "遷移邏輯只有一份，在 client/src/model/migrate.ts——回填腳本不重寫它，是把存檔餵給同一份 TypeScript 跑。遷移步驟裡的歷史常數要**凍結**（例如 LEGACY_CEILING_H = 270），不要引用現在的值：遷移描述的是資料當時的意思。桌面版的 SQLite 檔回填碰不到，靠前端載入時遷移。",
-          "touches": ["migrate", "pg", "sqlite"]
+          "touches": [
+            "migrate",
+            "pg",
+            "sqlite"
+          ]
         },
         {
           "title": "四關全跑",
           "cmd": "npm test",
           "check": "型別檢查 + codegen 新鮮度 + client tsx --test + server pytest 都綠。",
           "trap": "這個 repo 沒有 CI，檢查只有掛在會被看到的地方才有用。tsc 之前只在 npm run build 裡跑，而且不涵蓋 test/。",
-          "touches": ["schema", "planschema", "geometry"]
+          "touches": [
+            "schema",
+            "planschema",
+            "geometry"
+          ]
         }
       ]
     },
@@ -127,21 +285,30 @@
           "cmd": "",
           "check": "說得出它為什麼在這一邊。",
           "trap": "plot.ts / exporter.ts（PDF/PNG 出圖）在前端**不是例外**——它們要 Canvas（jsPDF 畫中文得先光柵化）。report.py 是純資料彙總所以在後端。同一條規則兩個答案。",
-          "touches": ["editor", "routers"]
+          "touches": [
+            "editor",
+            "routers"
+          ]
         },
         {
           "title": "後端：路由進 routers/，運算另開平級模組",
           "cmd": "",
           "check": "main.py 只有 app 建立、middleware、lifespan、靜態掛載。",
           "trap": "**不要加 services/ 層**。那五支運算模組本來就是純函式，再包一層只是轉發。",
-          "touches": ["routers", "calc"]
+          "touches": [
+            "routers",
+            "calc"
+          ]
         },
         {
           "title": "前端：純的就放 core/，並且保持它純",
           "cmd": "",
           "check": "core/ 的純函式模組不碰 DOM、Canvas、document 或 doc。",
           "trap": "改到它們就把測試一起改，不要為了省事把狀態塞回去——那幾支能直接測正是因為它們是純的。materials.ts 是半純的：畫進 canvas 的部分不純，但種子亂數、法線編碼、人字拼的鋪法、平鋪次數是純的，而**那幾支正是會安靜出錯的部分**。",
-          "touches": ["geometry", "materials"]
+          "touches": [
+            "geometry",
+            "materials"
+          ]
         }
       ]
     },
@@ -155,35 +322,52 @@
           "cmd": "",
           "check": "每筆有 savedAt，較新者勝。",
           "trap": "成立的前提是**存檔成功時鏡像記的是伺服器的時間、不是瀏覽器的**，所以「本機比較新」精確等於「這次寫入沒送到」。沒有時間戳的舊鏡像一律判定為比伺服器舊。",
-          "touches": ["mirror", "net"]
+          "touches": [
+            "mirror",
+            "net"
+          ]
         },
         {
           "title": "刪除要寫 tombstone",
           "cmd": "",
           "check": "syncPending() 從鏡像重播，不是從記憶體。",
           "trap": "沒有 tombstone 的話，下次同步會把伺服器上那份當成別處新建的而**復活**。從鏡像重播是為了讓上個 session 沒送出去的東西也補得回來。",
-          "touches": ["mirror", "routers"]
+          "touches": [
+            "mirror",
+            "routers"
+          ]
         },
         {
           "title": "用 API 塞方案時 data 裡一定要有 id",
           "cmd": "",
           "check": "data.id 等於網址上的 id。",
           "trap": "saveProject 是拿 p.id 當寫入位址的。少了它，App 會在第一次 autosave 自己生一個 proj_… —— 使用者從 ?plan=xxx 開圖、改完、存檔，東西跑到一個誰都不知道的新 id 去，兩邊都以為對方弄丟了。實際發生過。",
-          "touches": ["net", "routers", "pg"]
+          "touches": [
+            "net",
+            "routers",
+            "pg"
+          ]
         },
         {
           "title": "時間欄位只能顯示，不能拿來比較",
           "cmd": "",
           "check": "比較一律用 updatedAtIso。",
           "trap": "API 的 updatedAt 是資料庫給的時區而且**沒有標記**（這台機器差 UTC 八小時）。拿它比較會得到一個看起來很合理的錯誤答案。",
-          "touches": ["net", "pg"]
+          "touches": [
+            "net",
+            "pg"
+          ]
         },
         {
           "title": "寫寬鬆、讀嚴格",
           "cmd": "",
           "check": "PUT 驗不過照存只記 log（interior.plan logger）；報表解析不了直接 422。",
           "trap": "兩邊方向刻意相反。擋下 PUT 會弄丟使用者看得到的成果（前端擁有 schema、本來就可能跑在前面）；而**空報表看起來像個答案**，所以讀取端不能放行。這個 bug 真的發生過。",
-          "touches": ["routers", "calc", "planschema"]
+          "touches": [
+            "routers",
+            "calc",
+            "planschema"
+          ]
         }
       ]
     }
