@@ -8,11 +8,14 @@
 // socket, a circle with a switched arm for a switch, a cross-in-circle for a
 // ceiling light, a filled dot for a downlight.
 
-import { ElectricalId } from '../model/schema';
+import { ElectricalId, Electrical } from '../model/schema';
+import { T5_SIZES, T5_DEFAULT_SIZE } from '../model/catalogue';
 
 const R = 11;   // cm — nominal symbol radius, so symbols read at 1:50
 
-type Draw = (ctx: CanvasRenderingContext2D) => void;
+// `o` is the placed object when there is one (a batten is drawn at its own
+// length); the palette and the placement preview draw without it.
+type Draw = (ctx: CanvasRenderingContext2D, o?: Electrical) => void;
 
 const circle = (ctx: CanvasRenderingContext2D, r = R) => {
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -89,6 +92,11 @@ export const ELECTRICAL_SYMBOLS: Record<ElectricalId, Draw> = {
   wallLight: ctx => {                                   // half circle against the wall
     ctx.beginPath(); ctx.arc(0, 0, R * 0.8, Math.PI, 0); ctx.closePath(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-R, 0); ctx.lineTo(R, 0); ctx.stroke();
+  },
+  batten: (ctx, o) => {                                 // the tube to scale, a tick on its lit side
+    const half = T5_SIZES[o?.size ?? T5_DEFAULT_SIZE].length / 2;
+    ctx.beginPath(); ctx.rect(-half, -3, half * 2, 6); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(0, -R); ctx.stroke();
   },
   exhaust: ctx => {                                     // circle with fan blades
     circle(ctx); ctx.stroke();

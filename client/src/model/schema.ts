@@ -83,12 +83,27 @@ export interface Electrical extends Base {
   /** Height above the floor (cm). Sockets sit low, switches at handle height. */
   elevation?: number;
   label?: string;
+  // Luminaires only. Every field is optional and falls back to the catalogue
+  // (LIGHT_DEFAULTS / T5_SIZES), so a plan saved before these existed reads the
+  // same as one that never touched them.
+  /** Luminous flux (lm), overriding the catalogue default. */
+  lumens?: number;
+  /** Full beam angle (degrees) of a downward light. */
+  beam?: number;
+  /** Colour temperature (K). Recorded, not used by the illuminance maths. */
+  cct?: number;
+  /** Switch group for the on/off comparison — not wiring (no cable is drawn or sized). */
+  circuit?: number;
+  /** T5 batten length in feet. The tube runs along the symbol's local x and lights its "up" side (-y, into the room). */
+  size?: T5Size;
 }
+
+export type T5Size = 1 | 2 | 3 | 4;
 
 export type ElectricalId =
   | 'socket' | 'socket2' | 'socketWater' | 'tv' | 'network'
   | 'switch1' | 'switch2' | 'switch3'
-  | 'ceilingLight' | 'downlight' | 'spotlight' | 'pendant' | 'wallLight' | 'exhaust';
+  | 'ceilingLight' | 'downlight' | 'spotlight' | 'pendant' | 'wallLight' | 'batten' | 'exhaust';
 
 export type Obj = Wall | Beam | Partition | Room | Opening | Furniture | Dimension | ImageObj | Electrical;
 
