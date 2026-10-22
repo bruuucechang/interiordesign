@@ -8,7 +8,7 @@ import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 import { LIGHT_DEFAULTS } from '../model/catalogue';
 import { DEFAULT_CIRCUIT } from './lighting';
 import { circuitColor } from './lightmap';
-import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment } from './geometry';
+import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment, wallCap, wallEndCounts } from './geometry';
 import { handles } from './handles';
 import { furnitureCenter, bounds } from './hit';
 
@@ -113,6 +113,7 @@ export class Renderer {
   ctx: CanvasRenderingContext2D;
   onImageLoad?: () => void;                 // re-render when an underlay image finishes loading
   private imgCache = new Map<string, HTMLImageElement>();
+  private wallEnds = new Map<string, number>();   // per frame — which wall ends are corners
   constructor(private canvas: HTMLCanvasElement, private vp: Viewport, private doc: Doc) {
     this.ctx = canvas.getContext('2d')!;
   }
@@ -161,6 +162,7 @@ export class Renderer {
     this.setWorld();
     if (opts.grid !== false) this.drawGrid();
 
+    this.wallEnds = wallEndCounts(this.doc.objects);
     // objects grouped by layer order (index 0 = bottom)
     if (opts.heat) {
       // The lighting overlay has to sit on the floor: over the underlay and the
@@ -328,7 +330,9 @@ export class Renderer {
         // junction read as a blob rather than a corner. `square` extends the
         // stroke by half its width at each end, which is exactly the overlap two
         // perpendicular walls of the same thickness need to close their corner.
-        ctx.lineCap = 'square';
+        //
+        // Except a free-standing column — see `wallCap`.
+        ctx.lineCap = wallCap(o, this.wallEnds);
         ctx.lineJoin = 'miter';
         ctx.strokeStyle = o.color ?? color; ctx.lineWidth = o.thickness; trace(); ctx.stroke();
         ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = line; trace(); ctx.stroke();

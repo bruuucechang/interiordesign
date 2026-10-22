@@ -21,7 +21,7 @@
 - 碰：`client/src/core/lighting.ts`、`client/src/core/health.ts`、`client/src/ui/health-panel.ts`、`lighting-panel.ts`、`locale-defaults.ts`
 - 不做：購買清單（使用者沒選）
 
-## B4 平面圖照 PDF 修正  [未開始]
+## B4 平面圖照 PDF 修正  [完成]
 - 目標：以 `img0199-restored` 為底另存一份新方案，牆、柱、門窗、房間照 `平面配置圖1151022.pdf`（1/60）對齊；原方案不動
 - 驗收：新方案的外框與各房間尺寸對得上 PDF 標的數字（1374、1227、480/286/347、433/596…，誤差 ≤ 5 cm），健檢沒有新增「牆端沒接上」「門窗不在牆上」；並排截圖 PDF 與 App
 - 碰：資料庫新方案（API 寫入，`data.id` 要等於網址 id）、`scripts/`（如需一次性腳本）

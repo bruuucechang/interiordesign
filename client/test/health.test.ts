@@ -50,6 +50,44 @@ test('一道離所有東西都很遠的牆不算沒接上', () => {
   assert.deepEqual(f.filter(x => x.rule === 'wall-join'), []);
 });
 
+test('柱子自己的兩端不算沒接上', () => {
+  // 65×96 的柱子嵌在 12cm 的牆邊：中心線離牆中心線 25cm，兩端都落在 30cm 門檻內
+  const f = checkPlan([...BOX, wall('col', 25, 100, 25, 196, 65)]);
+  assert.deepEqual(f.filter(x => x.rule === 'wall-join'), []);
+});
+
+test('柱子形狀的短牆，端面跟牆之間真的隔著一段，照樣要唸', () => {
+  // 30×100 的短牆，端面離 15cm 牆的面還有 12.5cm——3D 看得到那條縫
+  const f = checkPlan([wall('long', 0, 0, 400, 0, 15), wall('stub', 200, 120, 200, 20, 30)]);
+  assert.ok(f.some(x => x.rule === 'wall-join' && x.targets.includes('stub')), JSON.stringify(f));
+});
+
+test('角落柱貼著一道牆、端面離另一道牆還有一段，要唸那一道', () => {
+  // 柱子伸進西牆，上端 y=22，離北牆的牆面（y=6）還有 16cm
+  const f = checkPlan([...BOX, wall('col', 20, 22, 20, 118, 65)]);
+  const join = f.filter(x => x.rule === 'wall-join');
+  assert.equal(join.length, 1, JSON.stringify(join));
+  assert.deepEqual(join[0].targets, ['col']);
+  assert.match(join[0].detail, /22cm/);
+});
+
+test('柱子端面伸進牆裡（柱子跨在牆上）不唸', () => {
+  // 柱子 y∈[−30, 35]，橫牆中心線 y=0 從中間穿過去
+  const f = checkPlan([wall('long', 0, 0, 400, 0, 15), wall('col', 200, -30, 200, 35, 65)]);
+  assert.deepEqual(f.filter(x => x.rule === 'wall-join'), []);
+});
+
+test('但一道厚牆不因為厚就被當成柱子放過', () => {
+  // 40cm 厚、300cm 長的牆差 5cm 沒接上，照樣要抓
+  const f = checkPlan([wall('a', 0, 0, 300, 0, 40), wall('b', 305, 0, 305, 200)]);
+  assert.ok(f.some(x => x.rule === 'wall-join' && x.targets.includes('a')));
+});
+
+test('別的牆接到柱子上照樣算接上', () => {
+  const f = checkPlan([wall('col', 0, 0, 0, 96, 65), wall('w', 0, 50, 300, 50)]);
+  assert.deepEqual(f.filter(x => x.rule === 'wall-join'), []);
+});
+
 test('一鍵修正指向的是它本來要接的那個點', () => {
   const f = checkPlan([wall('a', 0, 0, 300, 0), wall('b', 306, 0, 306, 200)]);
   const fix = f.find(x => x.rule === 'wall-join')?.fix;

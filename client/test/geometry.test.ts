@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening, fmtLen, fmtArea } from '../src/core/geometry';
+import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening, fmtLen, fmtArea, isColumn, wallCap, wallEndCounts } from '../src/core/geometry';
 
 const V = (x: number, y: number) => ({ x, y });
 const SQ = [V(0, 0), V(100, 0), V(100, 100), V(0, 100)];
@@ -72,4 +72,27 @@ test('負值看的是絕對值', () => {
 test('面積標示一律 m²，不跟著長度那套走', () => {
   assert.equal(fmtArea(10000), '1.00 m²');
   assert.equal(fmtArea(500), '0.05 m²');
+});
+
+// ---- 柱子（design-rules 2.4） ----
+
+const W = (ax: number, ay: number, bx: number, by: number, thickness: number, bulge?: number) =>
+  ({ kind: 'wall', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness, ...(bulge ? { bulge } : {}) });
+
+test('isColumn 的邊界：厚 30／長 120 算，29 或 121 不算，曲線牆不算', () => {
+  assert.equal(isColumn(W(0, 0, 0, 120, 30)), true);
+  assert.equal(isColumn(W(0, 0, 0, 120, 29)), false);
+  assert.equal(isColumn(W(0, 0, 0, 121, 30)), false);
+  assert.equal(isColumn(W(0, 0, 0, 100, 65, 5)), false);
+});
+
+test('獨立的柱子 2D 用平頭，免得 65×65 畫成 65×130', () => {
+  const col = W(0, 0, 0, 65, 65);
+  assert.equal(wallCap(col, wallEndCounts([col, W(100, 0, 400, 0, 15)])), 'butt');
+});
+
+test('短厚牆有一端是轉角就照牆畫方頭，不然外角缺一塊', () => {
+  const stub = W(0, 0, 0, 100, 30), run = W(0, 0, 300, 0, 15);
+  assert.equal(wallCap(stub, wallEndCounts([stub, run])), 'square');
+  assert.equal(wallCap(run, wallEndCounts([stub, run])), 'square');
 });
