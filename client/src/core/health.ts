@@ -20,7 +20,7 @@
 // 純函式：物件進，findings 出。不碰 DOM、不碰 doc、不碰 localStorage。
 
 import { Obj, Vec } from '../model/schema';
-import { dist, distToSegment, closestOnSegment, pointInPolygon, polygonCentroid } from './geometry';
+import { dist, distToSegment, closestOnSegment, pointInPolygon, polygonCentroid, isColumn } from './geometry';
 import { Box, wallBox } from './clearance';
 import { CLEARANCE, DEFAULTS, MIN_SIZES } from '../model/locale-defaults';
 import { lightingFindings } from './lightcheck';
@@ -133,6 +133,13 @@ function insideBox(p: Vec, b: Box): boolean {
  */
 const JOIN_MAX = 30;
 
+/*
+ * 柱子（`isColumn`）兩端本來就不接任何東西。它的中心線在黑塊正中央，離它嵌著的
+ * 那道牆差半個柱寬——剛好落在 `JOIN_MAX` 以內，於是每根柱子都被唸「沒接上」，而
+ * 按下「接上」會把柱子拉長去碰牆的中心線，把一個對的長方體改成錯的。
+ *
+ * 只是不檢查**柱子自己的**端點；別的牆接到柱子上照樣算接上。
+ */
 function wallJoins(walls: Wall[]): Finding[] {
   const out: Finding[] = [];
   /**
@@ -146,6 +153,7 @@ function wallJoins(walls: Wall[]): Finding[] {
    */
   const seen = new Set<string>();
   for (const w of walls) {
+    if (isColumn(w)) continue;
     for (const end of ['a', 'b'] as const) {
       const p = w[end];
       let best: { d: number; at: Vec; otherId: string } | null = null;

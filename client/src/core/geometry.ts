@@ -8,6 +8,14 @@ export const len = (a: Vec): number => Math.hypot(a.x, a.y);
 export const dist = (a: Vec, b: Vec): number => Math.hypot(a.x - b.x, a.y - b.y);
 export const angleDeg = (a: Vec, b: Vec): number => Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
 
+/**
+ * 柱子＝一道厚度等於短邊、中心線沿長邊的短牆（design-rules 2.1–2.3）。
+ * 條件與 `collapseColumns` 認柱子的一樣：兩邊都 ≤120cm；厚度 ≥30 是因為住宅的牆
+ * 最厚約 30（AGENTS.md「一道牆的兩條線」那節）。
+ */
+export const isColumn = (w: { a: Vec; b: Vec; thickness: number; bulge?: number }): boolean =>
+  !w.bulge && w.thickness >= 30 && w.thickness <= 120 && dist(w.a, w.b) <= 120;
+
 export function snap(value: number, grid: number): number {
   return Math.round(value / grid) * grid;
 }
