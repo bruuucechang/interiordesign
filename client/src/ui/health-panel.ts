@@ -14,6 +14,7 @@ import { Finding, checkPlan, visible } from '../core/health';
 import { CLEARANCE, DEFAULTS, LIGHTING } from '../model/locale-defaults';
 import { bounds } from '../core/hit';
 import { t } from '../core/i18n';
+import { announcePanel, onOtherPanel } from './side-panels';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -183,6 +184,7 @@ export function openHealth(editor: Editor, doc: Doc) {
   paintBadge();
   render(editor, doc);
   $('#healthPanel').classList.remove('hidden');
+  announcePanel('health');
 }
 
 function close() { open = false; $('#healthPanel').classList.add('hidden'); }
@@ -193,6 +195,7 @@ export function toggleHealth(editor: Editor, doc: Doc) {
 
 export function wireHealth(editor: Editor, doc: Doc) {
   $('[data-act="close-health"]').addEventListener('click', close);
+  onOtherPanel('health', () => { if (open) close(); });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && open) { e.stopPropagation(); e.preventDefault(); close(); }
   }, true);

@@ -14,9 +14,11 @@ import { startTour, maybeStartTour } from './tour';
 import { openHelp, wireHelp } from './help';
 import { toggleHealth, wireHealth, scheduleHealth } from './health-panel';
 import { toggleLighting, wireLighting } from './lighting-panel';
+import { panelInsetRight } from './side-panels';
+import { wireTopbarFit } from './topbar-fit';
 import { t, setLang, currentLang, Lang } from '../core/i18n';
 import { DEFAULTS, defaultNote } from '../model/locale-defaults';
-import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
+import { flushSave, markDirty, scheduleAutosave, startAutosave, syncPlanUrl } from './autosave';
 import { setConflictHandler, setNotYoursHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
 import { refreshProps } from './properties';
@@ -459,6 +461,7 @@ function importProjectFile(editor: Editor, doc: Doc, file: File) {
     if (!ok) { flash(t('這不是室內設計專案檔')); return; }
     doc.load(proj);
     $<HTMLInputElement>('#projectName').value = doc.project.name;
+    syncPlanUrl(null);   // 還沒存進後端；第一次存檔成功時才補上
     editor.resetView();
     flash(t('已從檔案開啟，可繼續編輯'));   // the change emit re-enters auto-save, persisting it to the backend
   };
@@ -539,6 +542,7 @@ function wireTopbar(editor: Editor, doc: Doc) {
   wireHelp();
   wireHealth(editor, doc);
   wireLighting(editor, doc);
+  wireTopbarFit();
   // `:not(.furn-head)` — 家具面板的分類標題自己有處理器（要存摺疊狀態、要重跑
   // 篩選）。這一行是在 buildCatalog 之後跑的，少了排除條件就會把它整個蓋掉：
   // 外觀完全正常（class 照樣 toggle、CSS 照樣把下一個 div 收起來），只是狀態
@@ -549,6 +553,7 @@ function wireTopbar(editor: Editor, doc: Doc) {
   $('#zoomOut').onclick = () => editor.zoomBy(1 / 1.1);
   $('#zoomIn').onclick = () => editor.zoomBy(1.1);
   $('#zoomLabel').onclick = () => editor.resetView();
+  $('#zoomFit').onclick = () => editor.fitAll(panelInsetRight($('#canvas')));
   const snap = $<HTMLInputElement>('#snapToggle');
   snap.onchange = () => editor.setSnap(snap.checked);
   $('[data-act="close-modal"]').addEventListener('click', () => $('#modal').classList.add('hidden'));
@@ -569,6 +574,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       // as teaching. The route choice moved into 使用說明 (the `?` button).
       if (!confirm(t('新建會清空目前畫布，確定？'))) return;
       doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView();
+      syncPlanUrl(null);
       renderSteps(editor, doc);
       break;
     case 'save': {

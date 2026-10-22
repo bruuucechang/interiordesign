@@ -48,11 +48,12 @@
 - 不做：任何修改（等使用者勾）
 - 結果：清單 `docs/review-2026-10.md`；2026-10-23 使用者勾選結果寫在該檔最後一節，選中的拆成 B8～B13
 
-## B8 介面擋路修正（U1～U4）  [未開始]
+## B8 介面擋路修正（U1～U4）  [完成]
 - 目標：1920 寬頂列不溢出；照度面板與健檢面板同時只開一個；縮放至全部扣掉開著的面板；第一次存檔後網址補上 `?plan=<id>`
 - 驗收：`npm test` 綠；新 bench 掃 1280～2000 寬確認 `scrollWidth === innerWidth`、兩面板不重疊、縮放至全部後所有牆在可見畫布內、存檔後 F5 回到同一份方案（dev-browser --headless 截圖）
 - 碰：`client/src/style.css`、`client/src/ui/ui.ts`、`lighting-panel.ts`、`health-panel.ts`、`core/viewport.ts`、`ui/autosave.ts`、`bench/`
 - 不做：外觀小修（B9）
+- 結果：`node bench/verify-b8.mjs` 全過（U1 兩語言 × 12 寬＋頂列撐寬 400px、U2／U3 三寬、U4 存檔→F5→新建）；頂列改成自己量（`ui/topbar-fit.ts`），1920 中文放不下標籤（實量 2005px）會自動收；縮放控制多一顆「縮放至全部」
 
 ## B9 外觀小修（U5～U8）  [未開始]
 - 目標：3D 底部鍵帽與提示不重疊、開面板時提示置中於可見區；房名標籤不蓋住燈；方案名稱滑鼠移上去看全名；懸空牆端畫**封口細線**（使用者選的）
