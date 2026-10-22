@@ -113,7 +113,7 @@ export function luminaires(objs: readonly { kind: string }[], ceiling: number, o
  */
 export function roomLuminaires(r: LightRoom, lums: readonly Luminaire[]): Luminaire[] {
   return lums.filter(L => L.tube
-    ? inside(r.poly, L.x + L.tube.face[0] * r.reach, L.y + L.tube.face[1] * r.reach)
+    ? inside(r.poly, L.x + L.tube.face[0] * reachAt(r, L.x, L.y), L.y + L.tube.face[1] * reachAt(r, L.x, L.y))
     : inside(r.poly, L.x, L.y));
 }
 
@@ -178,16 +178,30 @@ export interface LightRoom {
   poly: Vec[];
   ceiling: number;
   blocked: Box[];
-  /**
-   * How far from the outline something on a wall's centre line can be — a
-   * tube on a wall, a door in it — and how far to step past the wall to tell
-   * which room it belongs to (cm). Past half the thickest wall.
-   */
-  reach: number;
+  /** The walls the outline was pulled in from; `reachAt` asks them how thick the wall under a point is. */
+  walls: readonly Wall[];
 }
 
-/** `LightRoom.reach` with no walls given, or walls no thicker than 24 cm. */
+/** `reachAt` off any wall, or on one no thicker than 24 cm. */
 export const MIN_REACH = 20;
+
+/**
+ * How far from the outline something standing on a wall can be — a tube on
+ * it, a door in it — and how far to step past that wall to tell which room it
+ * belongs to (cm): past half of *that* wall. Not the floor's thickest: a 65 cm
+ * column would otherwise let a room reach through its 12 cm wall into a duct
+ * next door and claim its door.
+ */
+export function reachAt(r: LightRoom, x: number, y: number): number {
+  let reach = MIN_REACH;
+  for (const w of r.walls) {
+    if (w.bulge) continue;
+    const wx = w.b.x - w.a.x, wy = w.b.y - w.a.y, l2 = wx * wx + wy * wy;
+    const t = l2 ? Math.max(0, Math.min(1, ((x - w.a.x) * wx + (y - w.a.y) * wy) / l2)) : 0;
+    if (Math.hypot(w.a.x + wx * t - x, w.a.y + wy * t - y) <= w.thickness / 2 + 1) reach = Math.max(reach, w.thickness / 2 + 8);
+  }
+  return reach;
+}
 
 /**
  * `walls` pulls the outline in to the walls' room-side faces: the detector
@@ -198,8 +212,7 @@ export const MIN_REACH = 20;
 export function lightRoom(room: Room, ceiling: number, blocked: Box[] = [], walls: readonly Wall[] = []): LightRoom {
   const poly = room.poly && room.poly.length >= 3 ? room.poly
     : [{ x: room.x, y: room.y }, { x: room.x + room.w, y: room.y }, { x: room.x + room.w, y: room.y + room.h }, { x: room.x, y: room.y + room.h }];
-  const reach = Math.max(MIN_REACH, ...walls.map(w => w.thickness / 2 + 8));
-  return { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked, reach };
+  return { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked, walls };
 }
 
 /** How far off a wall's centre line an outline edge may lie and still be on that wall (cm). */

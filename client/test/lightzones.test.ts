@@ -140,3 +140,15 @@ test('外框縮到牆面之後，50 cm 厚牆上的門照樣有門口、牆心�
   assert.deepEqual(roomZones(lr, objs, CEIL).map(z => z.type), ['door']);
   assert.equal(roomLuminaires(lr, luminaires(objs, CEIL)).length, 1);
 });
+
+test('同一層有 60 cm 的柱子，12 cm 牆的房間也不會把隔壁管道間的門算成自己的', () => {
+  const W = (id: string, ax: number, ay: number, bx: number, by: number, thickness: number): Obj =>
+    ({ id, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness });
+  const walls = [W('w1', 0, 0, 300, 0, 12), W('w2', 300, 0, 300, 300, 12), W('w3', 300, 300, 0, 300, 12), W('w4', 0, 300, 0, 0, 12),
+    W('duct', 330, 0, 330, 300, 12), W('col', 600, 0, 600, 60, 60)];
+  const room: Obj = { id: 'a', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 300, h: 300, name: 'A' };
+  // 管道間的門開在 x = 330 那道隔牆上，朝東開向 B
+  const objs = [room, ...walls, door('dB', 330, 150, 60, 90)];
+  const lr = lightRoom(room as any, CEIL, [], walls as any);
+  assert.deepEqual(roomZones(lr, objs, CEIL).map(z => z.target), []);
+});

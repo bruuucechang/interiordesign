@@ -14,7 +14,7 @@ import type { Furniture, Obj, Opening, Vec } from '../model/schema';
 import type { Box } from './clearance';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { LIGHTING } from '../model/locale-defaults';
-import { LightRoom, Luminaire, PLANES, Source, grid, indirect, inside, isBlocked, lux, sources, surfaceArea } from './lighting';
+import { LightRoom, Luminaire, PLANES, Source, grid, indirect, inside, isBlocked, lux, reachAt, sources, surfaceArea } from './lighting';
 import { fullHeightFurniture, furnitureBox } from './lightmap';
 
 export type ZoneType = 'bed' | 'desk' | 'cabinet' | 'door';
@@ -130,9 +130,10 @@ export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): 
   for (const o of objs) {
     if (o.kind !== 'door') continue;
     const door = o as Opening;
-    if (distToOutline(r.poly, door.x, door.y) > r.reach) continue;
+    const reach = reachAt(r, door.x, door.y);
+    if (distToOutline(r.poly, door.x, door.y) > reach) continue;
     const a = door.angle * Math.PI / 180, n = { x: -Math.sin(a), y: Math.cos(a) };
-    const side = [1, -1].filter(s => inside(r.poly, door.x + n.x * s * r.reach, door.y + n.y * s * r.reach));
+    const side = [1, -1].filter(s => inside(r.poly, door.x + n.x * s * reach, door.y + n.y * s * reach));
     if (side.length !== 1) continue;
     const s = side[0];
     doorZones.push({
