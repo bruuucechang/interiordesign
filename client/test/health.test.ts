@@ -62,6 +62,15 @@ test('柱子形狀的短牆，端面跟牆之間真的隔著一段，照樣要�
   assert.ok(f.some(x => x.rule === 'wall-join' && x.targets.includes('stub')), JSON.stringify(f));
 });
 
+test('角落柱貼著一道牆、端面離另一道牆還有一段，要唸那一道', () => {
+  // 柱子伸進西牆，上端 y=22，離北牆的牆面（y=6）還有 16cm
+  const f = checkPlan([...BOX, wall('col', 20, 22, 20, 118, 65)]);
+  const join = f.filter(x => x.rule === 'wall-join');
+  assert.equal(join.length, 1, JSON.stringify(join));
+  assert.deepEqual(join[0].targets, ['col']);
+  assert.match(join[0].detail, /22cm/);
+});
+
 test('柱子端面伸進牆裡（柱子跨在牆上）不唸', () => {
   // 柱子 y∈[−30, 35]，橫牆中心線 y=0 從中間穿過去
   const f = checkPlan([wall('long', 0, 0, 400, 0, 15), wall('col', 200, -30, 200, 35, 65)]);

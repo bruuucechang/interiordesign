@@ -138,15 +138,30 @@ const JOIN_MAX = 30;
  * 那道牆差半個柱寬——剛好落在 `JOIN_MAX` 以內，於是每根柱子都被唸「沒接上」，而
  * 按下「接上」會把柱子拉長去碰牆的中心線，把一個對的長方體改成錯的。
  *
- * 所以柱子的端點改量**沿柱軸往外的縫**：最近那道牆在它旁邊、或它的端面已經伸進
- * 那道牆裡（縫 ≤ 對方半厚），就是嵌著，不唸；端面跟牆之間真的隔著一段，照樣唸。
+ * 所以柱子的端點改量**端面前方的縫**：只看橫過柱軸、擋在端面正前方的牆（橫向落在柱寬之內），
+ * 沿柱軸量過去。它旁邊的牆不算（那是它嵌著的牆，不是它該碰到的牆）；端面已經碰到
+ * 或伸進前方那道牆（縫 ≤ 對方半厚）就是接上了；真的隔著一段才唸。
+ * 曲線牆不當前方的牆：距離是拿弦算的，對弧形會量錯（`check-0199.mjs` 同一個理由）。
  * 別的牆接到柱子上照舊用中心線判斷。
  */
-function columnEmbedded(w: Wall, end: 'a' | 'b', at: Vec, other: Wall): boolean {
+function columnGap(w: Wall, end: 'a' | 'b', walls: Wall[]): { d: number; at: Vec; otherId: string } | null {
   const p = w[end], q = w[end === 'a' ? 'b' : 'a'];
   const L = dist(p, q) || 1;
-  const gap = ((at.x - p.x) * (p.x - q.x) + (at.y - p.y) * (p.y - q.y)) / L;
-  return gap <= other.thickness / 2;
+  const u = { x: (p.x - q.x) / L, y: (p.y - q.y) / L };      // 從這端往外
+  let best: { d: number; at: Vec; otherId: string } | null = null;
+  for (const other of walls) {
+    if (other.id === w.id || other.bulge) continue;
+    // 前方的牆是橫過柱軸的；跟柱軸平行的是它旁邊嵌著的那道
+    const ol = dist(other.a, other.b) || 1;
+    if (Math.abs((other.b.x - other.a.x) * u.x + (other.b.y - other.a.y) * u.y) / ol > 0.5) continue;
+    const at = closestOnSegment(p, other.a, other.b).point;
+    const dx = at.x - p.x, dy = at.y - p.y;
+    const g = dx * u.x + dy * u.y, lat = Math.abs(dx * u.y - dy * u.x);
+    if (lat > w.thickness / 2 || g < 0) continue;               // 不在端面前方
+    if (g <= other.thickness / 2) return null;                  // 碰到或伸進去了
+    if (g <= JOIN_MAX && (!best || g < best.d)) best = { d: g, at, otherId: other.id };
+  }
+  return best;
 }
 
 function wallJoins(walls: Wall[]): Finding[] {
@@ -173,11 +188,8 @@ function wallJoins(walls: Wall[]): Finding[] {
         if (d < 0.5) { best = null; break; }
         if (d <= JOIN_MAX && (!best || d < best.d)) best = { d, at: closestOnSegment(p, other.a, other.b).point, otherId: other.id };
       }
+      if (best && isColumn(w)) best = columnGap(w, end, walls);
       if (!best) continue;
-      if (isColumn(w)) {
-        const other = walls.find(o => o.id === best!.otherId)!;
-        if (columnEmbedded(w, end, best.at, other)) continue;
-      }
       const pair = [w.id, best.otherId].sort().join('~') + ':' + Math.round(best.d * 10);
       if (seen.has(pair)) continue;
       seen.add(pair);

@@ -39,7 +39,7 @@
 // A column is one wall: centre line along the long side of the black block,
 // thickness = the short side (design-rules 2.1–2.3, same as collapseColumns).
 // They stand free — neither end is joined to anything — so `health.ts` must
-// not ask for them to be "接上" (see `columnEmbedded` there).
+// not ask for them to be "接上" (see `columnGap` there).
 
 import { writeFileSync } from 'node:fs';
 
