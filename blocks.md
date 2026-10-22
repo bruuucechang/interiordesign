@@ -41,8 +41,46 @@
 - 不做：購買清單、估價
 - 結果：六個空間全部達標、面板零提醒（照 PDF 放 18 件家具、53 盞燈）。客廳／廚房／衛浴／陽台的目標是自己定的 CNS 下限（假設，寫在 lighting-plan.md）；流理台靠牆面 T5 檯面燈才到 300。B5 兩間的提醒（Bruce 崁燈離枕頭 28°）沒動，等使用者決定
 
-## B7 軟體盤點  [未開始]
+## B7 軟體盤點  [完成]
 - 目標：實際操作 App（畫牆、放家具、3D、存檔、出圖、照度）＋讀待辦與已知限制，列出介面、效能、程式結構的問題清單，每條附重現方式與建議
 - 驗收：`docs/review-2026-10.md`（新）有清單；**交給使用者勾選要做哪些**，勾完把選中的寫成 B8 之後的區塊
 - 碰：只讀、`docs/review-2026-10.md`
 - 不做：任何修改（等使用者勾）
+- 結果：清單 `docs/review-2026-10.md`；2026-10-23 使用者勾選結果寫在該檔最後一節，選中的拆成 B8～B13
+
+## B8 介面擋路修正（U1～U4）  [未開始]
+- 目標：1920 寬頂列不溢出；照度面板與健檢面板同時只開一個；縮放至全部扣掉開著的面板；第一次存檔後網址補上 `?plan=<id>`
+- 驗收：`npm test` 綠；新 bench 掃 1280～2000 寬確認 `scrollWidth === innerWidth`、兩面板不重疊、縮放至全部後所有牆在可見畫布內、存檔後 F5 回到同一份方案（dev-browser --headless 截圖）
+- 碰：`client/src/style.css`、`client/src/ui/ui.ts`、`lighting-panel.ts`、`health-panel.ts`、`core/viewport.ts`、`ui/autosave.ts`、`bench/`
+- 不做：外觀小修（B9）
+
+## B9 外觀小修（U5～U8）  [未開始]
+- 目標：3D 底部鍵帽與提示不重疊、開面板時提示置中於可見區；房名標籤不蓋住燈；方案名稱滑鼠移上去看全名；懸空牆端畫**封口細線**（使用者選的）
+- 驗收：`npm test` 綠；dev-browser 截圖四處各一張
+- 碰：`client/src/core/renderer.ts`、`view3d.ts`（只動提示排版）、`ui/ui.ts`、`style.css`
+- 不做：其他牆端樣式
+
+## B10 3D 看得到燈＋實機量 3D 切換（S1、P1）  [未開始]
+- 目標：3D 畫出燈具外形（崁燈圓片、吸頂燈、T5 細長條、壁燈、吊燈），自發光材質，不加真的光源；在這台 Mac 的 Chrome 實量切 3D 的時間，> 200 ms 才另開優化區塊
+- 驗收：`npm test` 綠；plan1151022 切 3D 截圖看得到天花板的燈；P1 的實量數字與重跑指令寫進 notebook
+- 碰：`client/src/core/view3d.ts`、新增 `client/src/core/lights3d.ts`（純函式產幾何）＋測試
+- 不做：即時光源、陰影、光照渲染
+
+## B11 自動區域＋方案燈調整（S2、D4、D1＋D3）  [未開始]
+- 目標：流理台、洗手台等依家具自動生前方區域與達標值（目標值照 `docs/lighting-plan.md`「達標標準」放進 catalogue，使用者確認照 B6 定的）；plan1151022 挪開 Bruce 房離枕頭 28° 的崁燈、兩盞離櫃子 18 cm 的崁燈，挪完全屋仍達標
+- 驗收：`npm test` 綠（新區域有「該生出」「不該生出」測試）；`node bench/verify-b6.mjs` 全屋達標、照明提醒只剩「書桌加檯燈」；改方案前先 `pg_dump` 那一列備份
+- 碰：`client/src/core/lighting.ts`、`catalogue.ts`、`locale-defaults.ts`、資料庫 plan1151022、`docs/lighting-plan.md`
+- 不做：子區域（B12）、家具位置（使用者裁示照 PDF 不動）、Bruce 書桌檯燈（D2 沒選）
+
+## B12 房間內的子區域（S3）  [未開始]
+- 目標：可以在房間裡畫子區域（只算照度、不算面積），照度面板逐塊列；plan1151022 的「客廳＋廚房」切出玄關、走道、東側小廳、客廳、廚房
+- 驗收：`npm test` 綠（schema 新欄位有遷移或選填、codegen 新鮮）；面板截圖逐塊有數字
+- 碰：`client/src/model/schema.ts`、codegen 產物、`core/lighting.ts`、`ui/lighting-panel.ts`、繪圖工具、資料庫 plan1151022
+- 不做：面積報表改算子區域
+
+## B13 報表 T5 分尺寸＋屬性面板型別整理（S4、S5）  [未開始]
+- 目標：面積報表電氣統計 T5 依尺寸分行；`properties.ts` 的 `as any` 換成依 kind 收窄的型別
+- 驗收：`npm test` 綠；`grep -c "as any" client/src/ui/properties.ts` 降到個位數；匯出 plan1151022 的 Excel 看到 T5 分尺寸
+- 碰：`server/app/report.py`＋測試、`client/src/ui/properties.ts`
+- 不做：S6 拆 view3d、S7 英文翻譯、S8 牆厚上限（使用者沒選）
+
