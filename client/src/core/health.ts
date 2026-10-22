@@ -23,13 +23,14 @@ import { Obj, Vec } from '../model/schema';
 import { dist, distToSegment, closestOnSegment, pointInPolygon, polygonCentroid } from './geometry';
 import { Box, wallBox } from './clearance';
 import { CLEARANCE, DEFAULTS, MIN_SIZES } from '../model/locale-defaults';
+import { lightingFindings } from './lightcheck';
 
 type Wall = Extract<Obj, { kind: 'wall' }>;
 type Furniture = Extract<Obj, { kind: 'furniture' }>;
 type Room = Extract<Obj, { kind: 'room' }>;
 type Opening = Extract<Obj, { kind: 'door' | 'window' }>;
 
-export type Severity = 'geometry' | 'clearance';
+export type Severity = 'geometry' | 'clearance' | 'lighting';
 
 /** Something that can be put right with one press, because it has one answer. */
 export type Fix =
@@ -53,6 +54,8 @@ export interface Finding {
   why: string;
   /** Objects to select when the row is clicked. */
   targets: string[];
+  /** The room it is about, when that is not obvious from the targets (a door is in two rooms). */
+  room?: string;
   fix?: Fix;
 }
 
@@ -411,9 +414,12 @@ function strays(furniture: Furniture[], rooms: Room[]): Finding[] {
  * 全部跑一遍。
  *
  * 順序就是顯示順序：幾何在前，因為它們有唯一正解、能一鍵修，而且**修完之後淨距那
- * 一組才算得準**——牆沒接上的時候，房間的形狀本來就是錯的。
+ * 一組才算得準**——牆沒接上的時候，房間的形狀本來就是錯的。照明排最後：它建立在
+ * 房間與家具都對的前提上。
+ *
+ * `ceiling` 是這層樓的天花板高度，照明那幾條要用（做到頂的櫃子、崁燈的高度）。
  */
-export function checkPlan(objects: Obj[]): Finding[] {
+export function checkPlan(objects: Obj[], ceiling: number = DEFAULTS.floorHeight): Finding[] {
   const walls = objects.filter(o => o.kind === 'wall') as Wall[];
   const rooms = objects.filter(o => o.kind === 'room') as Room[];
   const furniture = objects.filter(o => o.kind === 'furniture') as Furniture[];
@@ -432,6 +438,7 @@ export function checkPlan(objects: Obj[]): Finding[] {
     ...tooSmall(furniture),
     ...doorSwings(openings, furniture),
     ...strays(furniture, rooms),
+    ...lightingFindings(objects, ceiling),
   ];
 }
 

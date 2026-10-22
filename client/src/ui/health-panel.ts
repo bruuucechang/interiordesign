@@ -11,7 +11,7 @@
 import { Editor } from '../core/editor';
 import { Doc } from '../model/doc';
 import { Finding, checkPlan, visible } from '../core/health';
-import { CLEARANCE, DEFAULTS } from '../model/locale-defaults';
+import { CLEARANCE, DEFAULTS, LIGHTING } from '../model/locale-defaults';
 import { bounds } from '../core/hit';
 import { t } from '../core/i18n';
 
@@ -27,12 +27,15 @@ const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySe
  */
 const IGNORE_KEY = 'interior_health_ignored';
 
-function ignoredFor(planId: string): Set<string> {
+export function ignoredFor(planId: string): Set<string> {
   try {
     const all = JSON.parse(localStorage.getItem(IGNORE_KEY) || '{}');
     return new Set<string>(Array.isArray(all[planId]) ? all[planId] : []);
   } catch { return new Set(); }
 }
+
+/** Fired on window whenever the ignore list changes, so other panels showing findings can drop them too. */
+export const HEALTH_IGNORED = 'interior:health-ignored';
 
 function setIgnored(planId: string, ids: Set<string>) {
   try {
@@ -40,6 +43,7 @@ function setIgnored(planId: string, ids: Set<string>) {
     all[planId] = [...ids];
     localStorage.setItem(IGNORE_KEY, JSON.stringify(all));
   } catch { /* storage off — 靜音狀態記不住不該擋住使用 */ }
+  window.dispatchEvent(new Event(HEALTH_IGNORED));
 }
 
 let findings: Finding[] = [];
@@ -50,7 +54,7 @@ let timer: number | undefined;
 export function scheduleHealth(editor: Editor, doc: Doc) {
   clearTimeout(timer);
   timer = window.setTimeout(() => {
-    findings = visible(checkPlan(doc.objects), ignoredFor(doc.project.id));
+    findings = visible(checkPlan(doc.objects, doc.activeFloor.height), ignoredFor(doc.project.id));
     paintBadge();
     if (open) render(editor, doc);
   }, 250);
@@ -156,6 +160,12 @@ function render(editor: Editor, doc: Doc) {
     + `餐桌 ${CLEARANCE.diningPullOut}、馬桶側 ${CLEARANCE.toiletSide}、洗手台前 ${CLEARANCE.basinFront} 公分。`
     + '這些是常見的人因尺寸，不是法規；覺得不合你的案子，忽略那一條就好。';
   body.appendChild(note);
+  if (findings.some(f => f.severity === 'lighting')) {
+    const ln = document.createElement('div'); ln.className = 'hf-note';
+    ln.textContent = `照明用的也是一般值：床面 ${LIGHTING.bedLux}、書桌 ${LIGHTING.deskLux}、櫃前與門口 ${LIGHTING.cabinetLux} lux，`
+      + `均勻度 ${LIGHTING.uniformity}；以桌面高度、全部迴路開著、中間色牆面計算，沒算日光與家具擋光。`;
+    body.appendChild(ln);
+  }
 
   const ignored = ignoredFor(doc.project.id);
   if (ignored.size) {
@@ -169,7 +179,7 @@ function render(editor: Editor, doc: Doc) {
 
 export function openHealth(editor: Editor, doc: Doc) {
   open = true;
-  findings = visible(checkPlan(doc.objects), ignoredFor(doc.project.id));
+  findings = visible(checkPlan(doc.objects, doc.activeFloor.height), ignoredFor(doc.project.id));
   paintBadge();
   render(editor, doc);
   $('#healthPanel').classList.remove('hidden');

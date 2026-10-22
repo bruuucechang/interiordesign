@@ -23,16 +23,20 @@ import { LightRoom, Luminaire, LuxGrid, grid, lightRoom, luminaires, roomLuminai
  */
 export const FULL_HEIGHT_GAP = 15;
 
+/** The furniture that fills the room to the ceiling. */
+export function fullHeightFurniture(objs: readonly Obj[], ceiling: number): Furniture[] {
+  return objs.filter((o): o is Furniture => {
+    if (o.kind !== 'furniture') return false;
+    const f = o as Furniture;
+    return (f.elevation ?? 0) + (f.height ?? FURNITURE_BY_ID[f.item]?.height ?? 0) >= ceiling - FULL_HEIGHT_GAP;
+  });
+}
+
+export const furnitureBox = (f: Furniture): Box => ({ cx: f.x + f.w / 2, cy: f.y + f.h / 2, w: f.w, h: f.h, angle: f.angle });
+
 /** The footprints of the furniture that fills the room to the ceiling. */
 export function fullHeightBoxes(objs: readonly Obj[], ceiling: number): Box[] {
-  const out: Box[] = [];
-  for (const o of objs) {
-    if (o.kind !== 'furniture') continue;
-    const f = o as Furniture;
-    const h = (f.elevation ?? 0) + (f.height ?? FURNITURE_BY_ID[f.item]?.height ?? 0);
-    if (h >= ceiling - FULL_HEIGHT_GAP) out.push({ cx: f.x + f.w / 2, cy: f.y + f.h / 2, w: f.w, h: f.h, angle: f.angle });
-  }
-  return out;
+  return fullHeightFurniture(objs, ceiling).map(furnitureBox);
 }
 
 /** Switch groups on this floor and how many lights each has, in order. */
