@@ -113,8 +113,10 @@ export class Editor implements ToolCtx {
    */
   renderNow() {
     if (this.drawRaf) { cancelAnimationFrame(this.drawRaf); this.drawRaf = 0; }
-    this.renderer.render({ world: this.previewW, screen: this.previewS });
+    this.renderer.render({ world: this.previewW, screen: this.previewS, heat: this.heat });
   }
+  /** The lighting overlay, while the 照度 panel is open (ui/lighting-panel.ts). */
+  heat?: (ctx: CanvasRenderingContext2D) => void;
   setPreview(world?: DrawFn, screen?: DrawFn) { this.previewW = world; this.previewS = screen; }
   setHint(s: string) {
     // Tell `flash` its baseline moved. Without this, a flash fired just before a

@@ -1,7 +1,8 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
-import { Obj, Vec } from '../model/schema';
-import { layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL_BY_ID } from '../model/catalogue';
+import { Obj, Vec, T5Size } from '../model/schema';
+import { layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL_BY_ID, LIGHT_DEFAULTS, T5_SIZES, T5_DEFAULT_SIZE, T5_BELOW_CEILING } from '../model/catalogue';
+import { DEFAULT_CIRCUIT } from '../core/lighting';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, pointInPolygon, pointInRect } from '../core/geometry';
 import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';
@@ -157,6 +158,65 @@ export function refreshProps(editor: Editor, doc: Doc) {
     const s = document.createElement('summary'); s.textContent = t(title); el.appendChild(s);
     const body = document.createElement('div'); body.className = 'prop-body'; el.appendChild(body);
     return { el, body };
+  };
+  /** A plain number that is not a length: lumens, kelvin. Empty = back to the catalogue value. */
+  const num = (parent: HTMLElement, label: string, value: number | undefined, fallback: number, set: (v: number | undefined) => void) => {
+    const row = document.createElement('div'); row.className = 'prop';
+    const l = document.createElement('label'); l.textContent = t(label);
+    const inp = document.createElement('input'); inp.type = 'number'; inp.step = '1'; inp.min = '0';
+    inp.value = value === undefined ? '' : String(value); inp.placeholder = String(fallback);
+    inp.title = `${t('留空＝預設')} ${fallback}`;
+    inp.addEventListener('focus', () => doc.commit());
+    inp.addEventListener('input', () => {
+      if (inp.value.trim() === '') { set(undefined); return; }
+      const v = parseFloat(inp.value); if (!isNaN(v) && v >= 0) set(v);
+    });
+    row.append(l, inp); parent.appendChild(row);
+  };
+  /** One-of-a-few as a strip of buttons, the door-style picker's shape. */
+  const pick = <V,>(parent: HTMLElement, label: string, opts: { v: V; label: string; title?: string }[], cur: V, set: (v: V) => void) => {
+    const row = document.createElement('div'); row.className = 'prop prop-mat';   // label above: the strip needs the width
+    const l = document.createElement('label'); l.textContent = t(label);
+    const wrap = document.createElement('div'); wrap.className = 'mat-btns'; wrap.style.flexWrap = 'wrap';
+    for (const op of opts) {
+      const b = document.createElement('button'); b.className = 'mat-btn' + (op.v === cur ? ' active' : '');
+      b.textContent = t(op.label); if (op.title) b.title = op.title;
+      b.onclick = () => {   // toggle active here too — the focused button suppresses the panel rebuild
+        doc.commit(); set(op.v);
+        wrap.querySelectorAll('.mat-btn').forEach(x => x.classList.remove('active')); b.classList.add('active');
+      };
+      wrap.appendChild(b);
+    }
+    row.append(l, wrap); parent.appendChild(row);
+  };
+  /**
+   * What a luminaire gives off. Every field is optional on the object and
+   * falls back to the catalogue, so each shows the catalogue value as its
+   * placeholder: a number the user typed and one they did not stay
+   * distinguishable, and clearing a field puts the default back.
+   */
+  const lightFields = (e: Extract<Obj, { kind: 'electrical' }>) => {
+    const isT5 = e.item === 'batten';
+    const spec = LIGHT_DEFAULTS[e.item];
+    if (!isT5 && !spec) return;
+    const sec = section('燈光');
+    if (isT5) {
+      pick(sec.body, 'T5 長度', ([1, 2, 3, 4] as T5Size[]).map(n => ({ v: n, label: `${n} 尺`, title: `${T5_SIZES[n].length} cm · ${T5_SIZES[n].lumens} lm` })),
+           e.size ?? T5_DEFAULT_SIZE, v => up({ size: v } as any));
+    }
+    const lm = isT5 ? T5_SIZES[e.size ?? T5_DEFAULT_SIZE].lumens : spec!.lumens;
+    num(sec.body, '流明 (lm)', e.lumens, lm, v => up({ lumens: v } as any));
+    if (spec?.dist.type === 'down') num(sec.body, '光束角 (°)', e.beam, spec.dist.beam, v => up({ beam: v } as any));
+    pick(sec.body, '色溫', [undefined, 2700, 3000, 4000, 5000, 6500].map(k => ({ v: k, label: k ? `${k}K` : '未指定' })),
+         e.cct, v => up({ cct: v } as any));
+    pick(sec.body, '迴路', [1, 2, 3, 4, 5, 6].map(c => ({ v: c, label: String(c), title: t('照度面板用來比較開法的開關群組，不是配線') })),
+         e.circuit ?? DEFAULT_CIRCUIT, v => up({ circuit: v } as any));
+    if (isT5 || e.item === 'wallLight') {
+      // "Up" on the symbol is the side it lights; angle 0 is the top of the screen.
+      pick(sec.body, '照向', [{ v: 0, label: '↑ 上' }, { v: 90, label: '→ 右' }, { v: 180, label: '↓ 下' }, { v: 270, label: '← 左' }],
+           ((Math.round(e.angle) % 360) + 360) % 360, v => up({ angle: v } as any));
+    }
+    host.appendChild(sec.el);
   };
   const colorRow = (parent: HTMLElement, label: string, value: string, set: (v: string) => void) => {
     const row = document.createElement('div'); row.className = 'prop';
@@ -456,8 +516,19 @@ export function refreshProps(editor: Editor, doc: Doc) {
       // how high off the floor it sits.
       const spec = ELECTRICAL_BY_ID[o.item];
       info(basics, '種類', o.label || spec?.name || o.item);
-      dim(basics, '安裝高度', o.elevation ?? spec?.elevation ?? 30,
-          v => up({ elevation: Math.max(0, v) } as any));
+      const ceiling = doc.activeFloor.height;
+      if (spec?.mount === 'ceiling' && o.item !== 'pendant' && LIGHT_DEFAULTS[o.item]) {
+        // The lighting maths puts a ceiling fitting at the ceiling whatever is
+        // stored, so an editable height here would be a field that does nothing.
+        info(basics, '安裝高度', `${t('天花板')}（${formatLength(ceiling, unit)}）`);
+      } else {
+        // A batten left unset hangs just under this floor's ceiling, and one
+        // stored higher than that is clamped there (lighting.ts::luminaire):
+        // show where the maths puts it, not the catalogue's 265.
+        const shown = o.item === 'batten' ? Math.min(o.elevation ?? Infinity, ceiling - T5_BELOW_CEILING) : (o.elevation ?? spec?.elevation ?? 30);
+        dim(basics, '安裝高度', shown, v => up({ elevation: Math.max(0, v) } as any));
+      }
+      lightFields(o);
       // deg(), not dim(): an angle is not a length, so it must not follow the
       // cm/m toggle — that turned 30° into "0.30 m".
       deg(pos.body, '角度', o.angle, v => up({ angle: ((v % 360) + 360) % 360 } as any));

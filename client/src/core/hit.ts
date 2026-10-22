@@ -1,8 +1,20 @@
 import { Obj, Vec } from '../model/schema';
 import { Doc } from '../model/doc';
+import { T5_SIZES, T5_DEFAULT_SIZE } from '../model/catalogue';
 import { dist, distToSegment, distToQuad, wallControl, pointInRect, pointInPolygon, rotate } from './geometry';
 
 export interface Bounds { x: number; y: number; w: number; h: number; }
+
+/**
+ * The two ends of a fitting drawn as a line — a T5 batten, which is up to
+ * 120 cm long and drawn to scale. Every other fitting is a point, and both
+ * ends are its centre.
+ */
+export function electricalEnds(o: Extract<Obj, { kind: 'electrical' }>): [Vec, Vec] {
+  const half = o.item === 'batten' ? T5_SIZES[o.size ?? T5_DEFAULT_SIZE].length / 2 : 0;
+  const r = o.angle * Math.PI / 180, dx = Math.cos(r) * half, dy = Math.sin(r) * half;
+  return [{ x: o.x - dx, y: o.y - dy }, { x: o.x + dx, y: o.y + dy }];
+}
 
 export function furnitureCenter(o: Extract<Obj, { kind: 'furniture' }>): Vec {
   return { x: o.x + o.w / 2, y: o.y + o.h / 2 };
@@ -41,7 +53,9 @@ export function bounds(o: Obj): Bounds {
       return { x: o.x, y: o.y, w: o.w, h: o.h };
     case 'electrical': {
       const r = 16;   // a little larger than the drawn symbol, so it is easy to grab
-      return { x: o.x - r, y: o.y - r, w: r * 2, h: r * 2 };
+      const [a, b] = electricalEnds(o);
+      const x = Math.min(a.x, b.x) - r, y = Math.min(a.y, b.y) - r;
+      return { x, y, w: Math.abs(a.x - b.x) + r * 2, h: Math.abs(a.y - b.y) + r * 2 };
     }
   }
 }
@@ -82,6 +96,12 @@ function hitObject(o: Obj, p: Vec, tol: number): boolean {
     }
     // Symbols are small and drawn around their point, so a generous radius
     // keeps them clickable without zooming in.
-    case 'electrical': return dist(p, { x: o.x, y: o.y }) <= 18 + tol;
+    // A batten is grabbed anywhere along its length — it used to answer only
+    // near its middle, so the ends of a 120 cm tube could not be clicked.
+    case 'electrical': {
+      if (dist(p, { x: o.x, y: o.y }) <= 18 + tol) return true;
+      const [a, b] = electricalEnds(o);
+      return o.item === 'batten' && distToSegment(p, a, b) <= 8 + tol;
+    }
   }
 }

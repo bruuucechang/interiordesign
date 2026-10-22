@@ -16,6 +16,7 @@ import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
+import { lightingProbe } from './ui/lighting-panel';
 import { flash } from './ui/feedback';
 import { webglAvailable, show3DUnavailable } from './core/webgl';
 import { applyStatic, currentLang, t } from './core/i18n';
@@ -404,4 +405,4 @@ warmFinishes();
 // material is only verified by looking at it.
 // getFurnitureModel/loadFurnitureModel 也露出來：bench/verify-textures.mjs 要能把
 // 每一件實際建出來檢查材質，而不是從畫面上目測。
-if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes, floorMaterials, wallMaterials, FURNITURE, loadFurnitureModel, getFurnitureModel, scansPending, fitFurnitureToWall };
+if (PERF_ON) (window as any).__app = { doc, editor, view3d, fit2D, warmFinishes, floorMaterials, wallMaterials, FURNITURE, loadFurnitureModel, getFurnitureModel, scansPending, fitFurnitureToWall, lighting: lightingProbe };

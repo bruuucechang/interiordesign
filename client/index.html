@@ -64,6 +64,10 @@
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/><path d="M3 12h4l2-3 2 6 2-4 1.5 1H21"/></svg>
           <span class="health-count none">0</span>
         </button>
+        <button data-act="lighting" title="照度：平面圖上的照度熱圖與每個房間的數字" aria-label="照度">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>
+          <span class="lbl" data-i18n="照度">照度</span>
+        </button>
         <button data-act="help" title="使用說明（完整功能說明，也可以從這裡重播新手教學）" aria-label="使用說明">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.8c0 1.7-2.4 2-2.4 3.5M12 17h.01"/></svg>
         </button>
@@ -195,6 +199,28 @@
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button></div>
       <div id="healthBody" class="health-body"></div>
+    </div>
+
+    <!-- 照度。跟健檢一樣不擋畫布，但靠在屬性面板左邊：選燈、改流明、看數字要同時在畫面上。 -->
+    <div id="lightPanel" class="light-panel hidden">
+      <div class="modal-head"><span data-i18n="照度">照度</span><button data-act="close-lighting" aria-label="關閉">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button></div>
+      <div class="light-body">
+        <div class="lp-scale"><div id="lightScale" class="lp-bar"></div><div id="lightTicks" class="lp-ticks"></div></div>
+        <div id="lightCursor" class="lp-cursor" aria-live="polite"></div>
+        <div class="lp-sec" data-i18n="開著的迴路">開著的迴路</div>
+        <div id="lightCircuits"></div>
+        <div class="lp-sec" data-i18n="量測高度">量測高度</div>
+        <div id="lightPlane" class="mat-btns"></div>
+        <div class="lp-sec" data-i18n="牆面與天花板顏色">牆面與天花板顏色</div>
+        <div id="lightRho" class="mat-btns"></div>
+        <div class="lp-sec" data-i18n="每個房間">每個房間</div>
+        <div id="lightRooms"></div>
+        <div class="lp-note">只算燈：日光、調光、家具擋光都不算。反射光是整間平均一個數，再乘維護係數 0.8。
+          牆面顏色決定反射率（淺 0.55／中 0.45／深 0.3）。虛線是 100／200／300 lux 的等照度線。
+          做到頂的櫃子裡面不算面積。</div>
+      </div>
     </div>
 
     <!-- the full guide. Never opens by itself: the only thing that does that is

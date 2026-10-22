@@ -5,6 +5,9 @@ import { Doc } from '../model/doc';
 import { Obj, ObjKind, Vec } from '../model/schema';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';
+import { LIGHT_DEFAULTS } from '../model/catalogue';
+import { DEFAULT_CIRCUIT } from './lighting';
+import { circuitColor } from './lightmap';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment } from './geometry';
 import { handles } from './handles';
 import { furnitureCenter, bounds } from './hit';
@@ -17,6 +20,7 @@ export interface RenderOpts {
   selection?: boolean;   // draw selection handles (default true)
   mono?: boolean;        // monochrome plot theme (see monoContext)
   skipKinds?: ObjKind[]; // object kinds to leave out entirely (e.g. the underlay image when plotting)
+  heat?: (ctx: CanvasRenderingContext2D) => void;   // lighting overlay in world space, over floors, under everything built
 }
 
 const INK = '#000000';
@@ -131,6 +135,7 @@ export class Renderer {
     // Swap in the ink-remapping context before anything draws, so drawObject,
     // labelObject and every furniture draw() get it without knowing.
     this.monoInk = !!opts.mono;
+    this.heatOn = !!opts.heat;
     if (opts.mono) this.ctx = monoContext(real);
     try {
       this.renderInto(opts);
@@ -157,9 +162,27 @@ export class Renderer {
     if (opts.grid !== false) this.drawGrid();
 
     // objects grouped by layer order (index 0 = bottom)
-    for (const layer of this.doc.project.layers) {
-      if (!layer.visible) continue;
-      for (const o of this.doc.objects) if (o.layer === layer.id && visible(o)) this.drawObject(o, layer.color);
+    if (opts.heat) {
+      // The lighting overlay has to sit on the floor: over the underlay and the
+      // room fills, which would otherwise wash it out or hide it, and under the
+      // walls, furniture and fittings, which are what it is being read against.
+      // Layer order cannot express that, so with an overlay the floor-like kinds
+      // go first, whatever layer they are on.
+      const floorish = (o: Obj) => o.kind === 'image' || o.kind === 'room';
+      for (const layer of this.doc.project.layers) {
+        if (!layer.visible) continue;
+        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o) && floorish(o)) this.drawObject(o, layer.color);
+      }
+      ctx.save(); opts.heat(ctx); ctx.restore();
+      for (const layer of this.doc.project.layers) {
+        if (!layer.visible) continue;
+        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o) && !floorish(o)) this.drawObject(o, layer.color);
+      }
+    } else {
+      for (const layer of this.doc.project.layers) {
+        if (!layer.visible) continue;
+        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o)) this.drawObject(o, layer.color);
+      }
     }
     if (opts.world) { ctx.save(); opts.world(ctx); ctx.restore(); }
 
@@ -201,6 +224,7 @@ export class Renderer {
    * Null for a plain colour fill, and for anything without a hatch.
    */
   private monoInk = false;
+  private heatOn = false;
   private hatchCache = new Map<string, CanvasPattern | null>();
   private hatchFor(floor: string | undefined): CanvasPattern | null {
     if (floor && floor.startsWith('#')) return null;
@@ -373,8 +397,18 @@ export class Renderer {
         ctx.save();
         ctx.translate(o.x, o.y);
         ctx.rotate(o.angle * Math.PI / 180);
+        ctx.lineCap = 'round';
+        // Over the lighting overlay a light takes its switch group's colour —
+        // the same chip the panel's circuit list shows — on a dark halo, since
+        // the layer colour is a yellow that vanishes into a lit room.
+        const lit = this.heatOn && (o.item === 'batten' || LIGHT_DEFAULTS[o.item]);
+        if (lit) {
+          ctx.strokeStyle = ctx.fillStyle = '#0e1218'; ctx.lineWidth = 6;
+          sym(ctx, o);
+          color = circuitColor(o.circuit ?? DEFAULT_CIRCUIT);
+        }
         ctx.strokeStyle = color; ctx.fillStyle = color;
-        ctx.lineWidth = 2; ctx.lineCap = 'round';
+        ctx.lineWidth = 2;
         sym(ctx, o);
         ctx.restore();
         break;

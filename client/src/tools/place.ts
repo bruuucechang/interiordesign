@@ -282,7 +282,8 @@ export class FurnitureTool implements Tool {
  * This used to be the other way round: every socket's half-disc sat behind its
  * wall, and nothing showed it until a batten's light came out of the far side.
  */
-export function fitElectricalToWall(p: Vec, walls: readonly { a: Vec; b: Vec }[]): { pos: Vec; angle: number } | null {
+export function fitElectricalToWall(p: Vec, walls: readonly { a: Vec; b: Vec; thickness?: number }[],
+                                    onFace = false): { pos: Vec; angle: number } | null {
   let best: { pos: Vec; angle: number; d: number } | null = null;
   for (const w of walls) {
     const { point } = closestOnSegment(p, w.a, w.b);
@@ -292,7 +293,13 @@ export function fitElectricalToWall(p: Vec, walls: readonly { a: Vec; b: Vec }[]
     const nx = -Math.sin(ang * Math.PI / 180), ny = Math.cos(ang * Math.PI / 180);
     const side = (p.x - point.x) * nx + (p.y - point.y) * ny >= 0 ? 1 : -1;
     const facing = ((ang + (side > 0 ? 180 : 0)) % 360 + 360) % 360;
-    if (!best || d < best.d) best = { pos: point, angle: facing, d };
+    // A light is mounted on the wall's surface, not inside it: the maths puts
+    // the tube where the object is, and on the centre line a 24 cm wall would
+    // hide 12 cm of floor behind the lit side. Sockets keep the centre line —
+    // their symbol is drawn straddling it.
+    const off = onFace ? side * (w.thickness ?? 0) / 2 : 0;
+    const pos = { x: point.x + nx * off, y: point.y + ny * off };
+    if (!best || d < best.d) best = { pos, angle: facing, d };
   }
   return best ? { pos: best.pos, angle: best.angle } : null;
 }
@@ -306,7 +313,8 @@ export class ElectricalTool implements Tool {
 
   private fitToWall(p: Vec): { pos: Vec; angle: number } | null {
     const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as Extract<Obj, { kind: 'wall' }>[];
-    return fitElectricalToWall(p, walls);
+    const light = this.ctx.currentElectrical === 'batten' || this.ctx.currentElectrical === 'wallLight';
+    return fitElectricalToWall(p, walls, light);
   }
 
   private place(p: Vec): { pos: Vec; angle: number } {

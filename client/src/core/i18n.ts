@@ -33,6 +33,7 @@ const EN: Record<string, string> = {
 
   // panels
   '樓層': 'Floors', '圖層': 'Layers', '屬性': 'Properties', '常用': 'Common',
+  '照度': 'Lighting', '燈光': 'Light', '迴路': 'Circuit', '色溫': 'Colour temp.', '照向': 'Faces',
   '未選取物件': 'Nothing selected', '＋ 新增樓層': '+ Add floor', '新增樓層': 'Add floor',
   '平移': 'Pan', '直線牆': 'Wall', '曲線牆': 'Curved wall', '樑': 'Beam',
   '隔間線': 'Partition', '門': 'Door', '窗': 'Window',

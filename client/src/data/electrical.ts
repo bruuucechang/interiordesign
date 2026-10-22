@@ -94,9 +94,11 @@ export const ELECTRICAL_SYMBOLS: Record<ElectricalId, Draw> = {
     ctx.beginPath(); ctx.moveTo(-R, 0); ctx.lineTo(R, 0); ctx.stroke();
   },
   batten: (ctx, o) => {                                 // the tube to scale, a tick on its lit side
+    // Its point is the wall face it is fixed to, so the tube is drawn wholly on
+    // the lit side of it rather than straddling the face and sinking into the wall.
     const half = T5_SIZES[o?.size ?? T5_DEFAULT_SIZE].length / 2;
-    ctx.beginPath(); ctx.rect(-half, -3, half * 2, 6); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(0, -R); ctx.stroke();
+    ctx.beginPath(); ctx.rect(-half, -6, half * 2, 6); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, -R - 3); ctx.stroke();
   },
   exhaust: ctx => {                                     // circle with fan blades
     circle(ctx); ctx.stroke();
