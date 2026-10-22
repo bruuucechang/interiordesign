@@ -85,6 +85,18 @@
         "angle": {
           "type": "number"
         },
+        "beam": {
+          "description": "Full beam angle (degrees) of a downward light.",
+          "type": "number"
+        },
+        "cct": {
+          "description": "Colour temperature (K). Recorded, not used by the illuminance maths.",
+          "type": "number"
+        },
+        "circuit": {
+          "description": "Switch group for the on/off comparison — not wiring (no cable is drawn or sized).",
+          "type": "number"
+        },
         "elevation": {
           "description": "Height above the floor (cm). Sockets sit low, switches at handle height.",
           "type": "number"
@@ -107,6 +119,14 @@
         },
         "layer": {
           "$ref": "#/definitions/LayerId"
+        },
+        "lumens": {
+          "description": "Luminous flux (lm), overriding the catalogue default.",
+          "type": "number"
+        },
+        "size": {
+          "$ref": "#/definitions/T5Size",
+          "description": "T5 batten length in feet. The tube runs along the symbol's local x and lights its \"up\" side (-y, into the room)."
         },
         "x": {
           "type": "number"
@@ -141,6 +161,7 @@
         "spotlight",
         "pendant",
         "wallLight",
+        "batten",
         "exhaust"
       ],
       "type": "string"
@@ -540,6 +561,15 @@
         "out"
       ],
       "type": "string"
+    },
+    "T5Size": {
+      "enum": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "type": "number"
     },
     "Vec": {
       "properties": {

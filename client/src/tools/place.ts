@@ -272,6 +272,31 @@ export class FurnitureTool implements Tool {
  * installed — a socket floating mid-room is always a mistake. Ceiling items go
  * wherever they are put.
  */
+/**
+ * Snap a wall-mounted fitting onto the nearest wall and face it into the room,
+ * or null if no wall is close enough.
+ *
+ * The symbol's "up" is local -y, and `ctx.rotate(θ)` takes that to
+ * (sin θ, -cos θ) — which for θ = the wall's own angle is the wall normal's
+ * *negative*. So the side the cursor is on needs the wall angle plus 180°.
+ * This used to be the other way round: every socket's half-disc sat behind its
+ * wall, and nothing showed it until a batten's light came out of the far side.
+ */
+export function fitElectricalToWall(p: Vec, walls: readonly { a: Vec; b: Vec }[]): { pos: Vec; angle: number } | null {
+  let best: { pos: Vec; angle: number; d: number } | null = null;
+  for (const w of walls) {
+    const { point } = closestOnSegment(p, w.a, w.b);
+    const d = dist(p, point);
+    if (d > WALL_SNAP) continue;
+    const ang = angleDeg(w.a, w.b);
+    const nx = -Math.sin(ang * Math.PI / 180), ny = Math.cos(ang * Math.PI / 180);
+    const side = (p.x - point.x) * nx + (p.y - point.y) * ny >= 0 ? 1 : -1;
+    const facing = ((ang + (side > 0 ? 180 : 0)) % 360 + 360) % 360;
+    if (!best || d < best.d) best = { pos: point, angle: facing, d };
+  }
+  return best ? { pos: best.pos, angle: best.angle } : null;
+}
+
 export class ElectricalTool implements Tool {
   name = 'electrical'; cursor = 'crosshair';
   hint = '點擊放置；插座／開關會自動貼牆並轉向，燈具可放在任意位置';
@@ -279,23 +304,9 @@ export class ElectricalTool implements Tool {
 
   private spec() { return ELECTRICAL_BY_ID[this.ctx.currentElectrical]; }
 
-  /** Snap onto a wall and face into the room, or null if none is close enough. */
   private fitToWall(p: Vec): { pos: Vec; angle: number } | null {
     const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as Extract<Obj, { kind: 'wall' }>[];
-    let best: { pos: Vec; angle: number; d: number } | null = null;
-    for (const w of walls) {
-      const { point } = closestOnSegment(p, w.a, w.b);
-      const d = dist(p, point);
-      if (d > WALL_SNAP) continue;
-      // The symbol's "up" is -y, so face it along the wall normal that points
-      // towards the cursor — i.e. into the room the user is working in.
-      const ang = angleDeg(w.a, w.b);
-      const nx = -Math.sin(ang * Math.PI / 180), ny = Math.cos(ang * Math.PI / 180);
-      const side = (p.x - point.x) * nx + (p.y - point.y) * ny >= 0 ? 1 : -1;
-      const facing = ang + (side > 0 ? 0 : 180);
-      if (!best || d < best.d) best = { pos: point, angle: facing, d };
-    }
-    return best ? { pos: best.pos, angle: best.angle } : null;
+    return fitElectricalToWall(p, walls);
   }
 
   private place(p: Vec): { pos: Vec; angle: number } {
@@ -332,7 +343,9 @@ export class ElectricalTool implements Tool {
     this.ctx.doc.add({
       id, kind: 'electrical', layer: layerForKind('electrical'),
       item: spec.id, x: pos.x, y: pos.y, angle,
-      elevation: spec.elevation, label: spec.name,
+      // A batten hangs off the ceiling, not the floor: left unset, the lighting
+      // maths puts it just under whatever ceiling its floor has.
+      ...(spec.id === 'batten' ? {} : { elevation: spec.elevation }), label: spec.name,
     } as Obj);
     this.ctx.doc.select(id);
     // Stay on the tool: a plan needs many fittings, and re-picking the tool

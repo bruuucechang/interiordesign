@@ -375,7 +375,7 @@ export class Renderer {
         ctx.rotate(o.angle * Math.PI / 180);
         ctx.strokeStyle = color; ctx.fillStyle = color;
         ctx.lineWidth = 2; ctx.lineCap = 'round';
-        sym(ctx);
+        sym(ctx, o);
         ctx.restore();
         break;
       }

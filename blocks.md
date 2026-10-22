@@ -3,7 +3,7 @@
 > 一個 session 做一塊。做完跑驗收 → 打勾 → 寫 HANDOFF → 關掉開新的。
 > 規格在 `docs/lighting-spec.md`；原型是「臥室燈光配置」artifact。
 
-## B1 燈具資料欄位與照度引擎  [未開始]
+## B1 燈具資料欄位與照度引擎  [完成]
 - 目標：燈有流明、配光、色溫、迴路可存；新增 T5 層板燈；一個純函式算任一點的照度與整間統計
 - 驗收：`npm test` 綠（含 codegen 新鮮度）；`client/test/lighting.test.ts` 用 artifact 的「你的房間」配置算出整間平均 317±16、只開崁燈 130±7（桌面高度、ρ=0.45）
 - 碰：`client/src/model/schema.ts`、`catalogue.ts`、`migrate.ts`（只在要破壞舊檔時才加 STEP）、`client/src/core/lighting.ts`（新）、`client/test/lighting.test.ts`（新）、codegen 產物

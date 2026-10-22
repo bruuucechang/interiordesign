@@ -6,7 +6,7 @@
 // runtime body has to be here or it would quietly vanish from the generated
 // definitions.
 
-import { ElectricalId, LayerId, Layer, ObjKind } from './schema';
+import { ElectricalId, LayerId, Layer, ObjKind, T5Size } from './schema';
 
 // Selectable door/window forms. `id` is stored on the opening (Opening.style);
 // the 2D renderer and the 3D view both branch on it. First entry is the default.
@@ -49,10 +49,44 @@ export const ELECTRICAL: ElectricalSpec[] = [
   { id: 'spotlight',   name: '投射燈',   mount: 'ceiling', elevation: 270, cat: '燈具' },
   { id: 'pendant',     name: '吊燈',     mount: 'ceiling', elevation: 200, cat: '燈具' },
   { id: 'wallLight',   name: '壁燈',     mount: 'wall',    elevation: 180, cat: '燈具' },
+  { id: 'batten',      name: 'T5 層板燈', mount: 'wall',   elevation: 265, cat: '燈具' },
   { id: 'exhaust',     name: '排風扇',   mount: 'ceiling', elevation: 270, cat: '燈具' },
 ];
 export const ELECTRICAL_BY_ID: Record<string, ElectricalSpec> =
   Object.fromEntries(ELECTRICAL.map(e => [e.id, e]));
+
+/**
+ * How each luminaire lights a room, before the user overrides it on the object.
+ * These are typical values, not facts (design-rules 9.5.4): the downlight is a
+ * 9 cm 8 W unit's datasheet, the rest are the usual order of magnitude.
+ *
+ * `down` lights are Lambertian-like cosⁿ sources pointing at the floor, with n
+ * derived from `beam` (120° → n = 1). `tube` lights are a line of half-cylinder
+ * segments that light the side the symbol faces; `length` is the tube's.
+ */
+export type LightDistribution =
+  | { type: 'down'; beam: number }
+  | { type: 'tube'; length: number };
+export interface LightSpec { lumens: number; watts: number; dist: LightDistribution; }
+
+export const LIGHT_DEFAULTS: Partial<Record<ElectricalId, LightSpec>> = {
+  downlight:    { lumens: 720,  watts: 8,  dist: { type: 'down', beam: 120 } },
+  ceilingLight: { lumens: 3000, watts: 40, dist: { type: 'down', beam: 120 } },
+  spotlight:    { lumens: 600,  watts: 7,  dist: { type: 'down', beam: 36 } },
+  pendant:      { lumens: 1000, watts: 12, dist: { type: 'down', beam: 120 } },
+  wallLight:    { lumens: 400,  watts: 5,  dist: { type: 'tube', length: 20 } },
+};
+
+/** T5 battens by length in feet: 舞光 3000K datasheet figures. */
+export const T5_SIZES: Record<T5Size, { length: number; lumens: number; watts: number }> = {
+  1: { length: 31.2,  lumens: 550,  watts: 5 },
+  2: { length: 61.2,  lumens: 1000, watts: 9 },
+  3: { length: 91.2,  lumens: 1540, watts: 14 },
+  4: { length: 119.4, lumens: 2000, watts: 18 },
+};
+export const T5_DEFAULT_SIZE: T5Size = 4;
+/** A batten sits this far below the ceiling when no elevation is given (cove lighting). */
+export const T5_BELOW_CEILING = 15;
 
 /**
  * The default layers.

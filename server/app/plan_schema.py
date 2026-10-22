@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
+from enum import Enum, StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field, RootModel
@@ -23,6 +23,7 @@ class ElectricalId(StrEnum):
     spotlight = 'spotlight'
     pendant = 'pendant'
     wallLight = 'wallLight'
+    batten = 'batten'
     exhaust = 'exhaust'
 
 
@@ -39,6 +40,13 @@ class Kind(StrEnum):
 class Swing(StrEnum):
     in_ = 'in'
     out = 'out'
+
+
+class T5Size(Enum):
+    number_1 = 1
+    number_2 = 2
+    number_3 = 3
+    number_4 = 4
 
 
 class Vec(BaseModel):
@@ -84,6 +92,17 @@ class Dimension(BaseModel):
 
 class Electrical(BaseModel):
     angle: float
+    beam: float | None = Field(
+        None, description='Full beam angle (degrees) of a downward light.'
+    )
+    cct: float | None = Field(
+        None,
+        description='Colour temperature (K). Recorded, not used by the illuminance maths.',
+    )
+    circuit: float | None = Field(
+        None,
+        description='Switch group for the on/off comparison — not wiring (no cable is drawn or sized).',
+    )
     elevation: float | None = Field(
         None,
         description='Height above the floor (cm). Sockets sit low, switches at handle height.',
@@ -94,6 +113,13 @@ class Electrical(BaseModel):
     kind: Literal['electrical']
     label: str | None = None
     layer: str
+    lumens: float | None = Field(
+        None, description='Luminous flux (lm), overriding the catalogue default.'
+    )
+    size: T5Size | None = Field(
+        None,
+        description='T5 batten length in feet. The tube runs along the symbol\'s local x and lights its "up" side (-y, into the room).',
+    )
     x: float
     y: float
 
