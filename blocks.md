@@ -15,7 +15,7 @@
 - 碰：`client/src/core/renderer.ts`、`client/src/ui/`（新增 lighting-panel.ts）、`properties.ts`、`tools/place.ts`（T5 貼牆朝向）、`index.html`、`style.css`
 - 不做：區域分析、健檢規則（B3）
 
-## B3 區域、檢查與開法比較  [未開始]
+## B3 區域、檢查與開法比較  [完成]
 - 目標：自動區域（床、書桌、櫃子前、門口）與達標判斷；五條檢查接進空間健檢；每種迴路組合的平均／最暗／床／書桌表
 - 驗收：`npm test` 綠，`health.test.ts` 每條新規則都有「該抓到」與「不該抓到」；dev-browser 截圖面板
 - 碰：`client/src/core/lighting.ts`、`client/src/core/health.ts`、`client/src/ui/health-panel.ts`、`lighting-panel.ts`、`locale-defaults.ts`

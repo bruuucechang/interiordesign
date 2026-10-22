@@ -233,6 +233,61 @@ await page.waitForTimeout(500);
 check('你的房間：拖崁燈時每次重算 < 50 ms', Math.max(...heavy) < 50, `最慢 ${Math.max(...heavy).toFixed(1)} ms`);
 await page.screenshot({ path: join(OUT, 'lighting-roomA.png') });
 
+// ---- B3：區域、開法比較、提醒。原型「你的房間」完整的配置（加上床、書桌、房門），
+// 面板上的區域平均要跟原型差 ±5%，開法比較 7 列，健檢的照明提醒跟原型同樣 5 條。
+await page.evaluate(() => {
+  const W = (id, a, b) => ({ id, kind: 'wall', layer: 'walls', a, b, thickness: 12, finish: 'paint' });
+  const E = (id, item, x, y, angle, circuit) => ({ id, kind: 'electrical', layer: 'electrical', item, x, y, angle, circuit, ...(item === 'batten' ? { size: 4 } : {}) });
+  const F = (id, item, label, x, y, w, h, angle = 0, height) => ({ id, kind: 'furniture', layer: 'furniture', item, x, y, w, h, angle, label, ...(height ? { height } : {}) });
+  window.__app.doc.load({
+    schemaVersion: 1, name: 'roomA-full', activeFloorId: 'f1',
+    floors: [{ id: 'f1', name: '1F', base: 0, height: 280, objects: [
+      W('wt', { x: 0, y: 0 }, { x: 365, y: 0 }), W('wr', { x: 365, y: 0 }, { x: 365, y: 415 }),
+      W('wb', { x: 365, y: 415 }, { x: 0, y: 415 }), W('wl', { x: 0, y: 415 }, { x: 0, y: 0 }),
+      { id: 'ra', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 365, h: 415, name: '你的房間', auto: false },
+      { id: 'dr', kind: 'door', layer: 'doors', x: 42.5, y: 0, width: 85, angle: 0 },
+      F('c1', 'wardrobe', '衣櫃', 85, 0, 280, 60, 0, 280), F('c2', 'wardrobe', '櫃子', 0, 95, 50, 320, 0, 280),
+      // 原型的床外框 190×175、床頭朝東：床本身 175×190 轉 90°
+      F('bed', 'bed_double', '床', 182.5, 127.5, 175, 190, 90), F('desk', 'desk', '書桌', 122, 362, 243, 53),
+      E('t1', 'batten', 230, 60, 180, 2), E('t2', 'batten', 365, 248, 270, 1), E('t3', 'batten', 230, 415, 0, 2), E('t4', 'batten', 50, 248, 90, 1),
+      E('d1', 'downlight', 65, 105, 0, 3), E('d2', 'downlight', 175, 105, 0, 3), E('d3', 'downlight', 285, 105, 0, 3),
+      E('d4', 'downlight', 65, 378, 0, 3), E('d5', 'downlight', 175, 378, 0, 3), E('d6', 'downlight', 285, 378, 0, 3),
+    ] }],
+    layers: [{ id: 'rooms', name: '房間', color: '#4c8dff', visible: true },
+             { id: 'walls', name: '牆', color: '#eee', visible: true },
+             { id: 'doors', name: '門窗', color: '#eee', visible: true },
+             { id: 'furniture', name: '家具', color: '#e0b45a', visible: true },
+             { id: 'electrical', name: '水電', color: '#ffd166', visible: true }],
+  });
+  const { editor } = window.__app;
+  editor.vp.centerOn(182, 207, 650, 650);
+  editor.renderNow();
+});
+await page.waitForTimeout(800);
+const zoneRows = await page.$$eval('#lightRooms .lp-tbl.zones tbody tr', trs => trs.map(tr => [...tr.cells].map(td => td.textContent)));
+const PROTO = { '床（床面）': 322.99, '書桌桌面': 331.47, '衣櫃前': 318.26, '櫃子前': 315.28, '門口': 202.28 };
+check('區域表：五個區域', zoneRows.length === 5, zoneRows.map(r => r[0]).join('、'));
+for (const [name, want] of Object.entries(PROTO)) {
+  const row = zoneRows.find(r => r[0] === name);
+  const got = row ? Number(row[1].replace(/,/g, '')) : NaN;
+  check(`區域「${name}」平均跟原型 ±5%`, Math.abs(got - want) <= want * 0.05, `${got} vs ${want}`);
+}
+const comboRows = await page.$$eval('#lightRooms .lp-tbl.combos tbody tr', trs => trs.map(tr => [...tr.cells].map(td => td.textContent)));
+check('開法比較：三個迴路 7 種組合', comboRows.length === 7);
+const allOn = comboRows.at(-1) ?? [];
+check('開法比較：全開的床／書桌跟原型 ±5%', Math.abs(Number(allOn[4]) - 323) <= 16 && Math.abs(Number(allOn[5]) - 331.5) <= 17, allOn.join(' | '));
+const warns = await page.$$eval('#lightRooms .lp-warns li b', bs => bs.map(b => b.textContent));
+check('面板提醒：跟原型同樣 5 條（床頭後 1、離枕頭近 2、離櫃子近 2）', warns.length === 5, warns.join('、'));
+await page.locator('#lightPanel').screenshot({ path: join(OUT, 'lighting-zones-panel.png') });
+await page.locator('#lightRooms .lp-room').first().screenshot({ path: join(OUT, 'lighting-zones-room.png') });
+await page.click('[data-act="health"]');
+await page.waitForTimeout(400);
+const healthLight = await page.$$eval('#healthBody .hf.lighting', els => els.length);
+check('空間健檢裡也有這 5 條照明提醒', healthLight === 5, String(healthLight));
+check('健檢底下講明照明數字是一般值', (await page.textContent('#healthBody')).includes('床面 100'));
+await page.screenshot({ path: join(OUT, 'lighting-zones-health.png') });
+await page.click('[data-act="close-health"]');
+
 // ---- 關掉：熱圖拿掉
 await page.click('[data-act="close-lighting"]');
 await page.waitForTimeout(150);

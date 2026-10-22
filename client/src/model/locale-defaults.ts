@@ -111,6 +111,52 @@ export const TAIWAN_MIN_SIZES: MinimumSizes = {
 export const MIN_SIZES = TAIWAN_MIN_SIZES;
 
 /**
+ * 照度分析用的數字：區域要多亮、區域多大、燈離枕頭與櫃子多近算太近。
+ *
+ * 跟上面兩張表同一條規則——**預設值不是事實**。100 lux 的床面、300 lux 的書桌是
+ * 一般住宅照明的建議值（各國的居家照度建議落在同一個量級），不是法規；30°／40° 的
+ * 枕頭範圍、25 cm 的櫃子距離是原型（docs/lighting-prototype.html）用的經驗值。
+ * `core/lightzones.ts` 與 `core/lightcheck.ts` 讀這裡。
+ */
+export interface LightingDefaults {
+  /** 各區域需要的平均照度（lux）。 */
+  bedLux: number;
+  deskLux: number;
+  cabinetLux: number;
+  doorLux: number;
+  /** 做到頂的櫃子前、門內側，各算多深的一塊（cm）。 */
+  cabinetDepth: number;
+  doorDepth: number;
+  /** 枕頭在床頭往內幾公分、躺下時眼睛離地多高（cm）。 */
+  pillowInset: number;
+  pillowHeight: number;
+  /** 從枕頭往上看，偏離正上方小於這個角度會直視／眼角看得到（度）。 */
+  glareDirect: number;
+  glareNear: number;
+  /** 崁燈離做到頂的櫃子小於這個距離，光多半打在櫃頂（cm）。 */
+  downlightToCabinet: number;
+  /** 整間最暗 ÷ 平均低於這個值就提醒。 */
+  uniformity: number;
+}
+
+export const TAIWAN_LIGHTING: LightingDefaults = {
+  bedLux: 100,
+  deskLux: 300,
+  cabinetLux: 100,
+  doorLux: 100,
+  cabinetDepth: 50,
+  doorDepth: 80,
+  pillowInset: 25,
+  pillowHeight: 60,
+  glareDirect: 30,
+  glareNear: 40,
+  downlightToCabinet: 25,
+  uniformity: 0.4,
+};
+
+export const LIGHTING = TAIWAN_LIGHTING;
+
+/**
  * A note for a field that is showing one of these.
  *
  * Deliberately says the region *and* that it is only a starting value. "12" on

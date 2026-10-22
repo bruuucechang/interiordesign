@@ -247,3 +247,97 @@ test('轉過角度不影響短邊的判斷', () => {
   const f = checkPlan([...BOX, furn('s', 'shower', 100, 100, 78, 90, 45)]).filter(x => x.rule === 'min-size');
   assert.equal(f.length, 1);
 });
+
+// ---- 戊：照明（docs/lighting-spec.md「區域與檢查」） ----
+//
+// 原型的兩間臥室在 lightzones.test.ts 對過數字；這裡每條規則各一對「該抓到／不該
+// 抓到」，房間是上面那間 6×4 公尺、12 公分牆。
+
+const lamp = (id: string, item: string, x: number, y: number, more: Record<string, unknown> = {}): Obj =>
+  ({ id, kind: 'electrical', layer: 'electrical', item, x, y, angle: 0, ...more }) as Obj;
+const tall = (id: string, x: number, y: number, w: number, h: number, height = 280): Obj =>
+  ({ ...furn(id, 'wardrobe', x, y, w, h), label: '衣櫃', height }) as Obj;
+const ofRule = (objs: Obj[], rule: string) => checkPlan(objs, 280).filter(x => x.rule === rule);
+/** 平均鋪滿 6 盞 1200 lm 的崁燈：整間約 160 lux、均勻度約 0.6——一般照明夠，寫字不夠。 */
+const EVEN = [100, 300, 500].flatMap((x, i) => [100, 300].map(y => lamp(`g${i}${y}`, 'downlight', x, y, { lumens: 1200 })));
+
+test('照明：一盞燈都沒有的房間完全不檢查照明，床和書桌放著也不唸', () => {
+  const f = checkPlan([...BOX, furn('b', 'bed_double', 100, 100, 150, 200), furn('d', 'desk', 400, 300, 120, 60)], 280);
+  assert.deepEqual(f.filter(x => x.severity === 'lighting'), []);
+});
+
+test('照明一：燈在枕頭正上方要抓；在床尾不唸', () => {
+  // 床頭朝上（0°），枕頭在 (175, 125)
+  const bed = furn('b', 'bed_double', 100, 100, 150, 200);
+  const hit = ofRule([...BOX, bed, lamp('L', 'downlight', 175, 150)], 'light-pillow');
+  assert.equal(hit.length, 1);
+  assert.match(hit[0].title, /枕頭上方/);
+  assert.match(hit[0].detail, /°/);
+  assert.deepEqual(ofRule([...BOX, bed, lamp('L', 'downlight', 175, 400)], 'light-pillow'), []);
+});
+
+test('照明一：床頭後方的燈降為提醒，不說會直視', () => {
+  const bed = furn('b', 'bed_double', 100, 100, 150, 200);
+  const f = ofRule([...BOX, bed, lamp('L', 'downlight', 175, 105)], 'light-pillow');
+  assert.equal(f.length, 1);
+  assert.match(f[0].title, /床頭後上方/);
+});
+
+test('照明二：崁燈在做到頂的櫃子上方、或離它不到 25cm 要抓', () => {
+  const cab = tall('c', 200, 0, 200, 60);
+  assert.match(ofRule([...BOX, cab, lamp('L', 'downlight', 300, 30)], 'light-cabinet')[0]?.title ?? '', /上方/);
+  const near = ofRule([...BOX, cab, lamp('L', 'downlight', 300, 75)], 'light-cabinet');
+  assert.equal(near.length, 1);
+  assert.match(near[0].detail, /15cm/);
+});
+
+test('照明二：離櫃子 40cm、或櫃子沒做到頂，不唸', () => {
+  assert.deepEqual(ofRule([...BOX, tall('c', 200, 0, 200, 60), lamp('L', 'downlight', 300, 100)], 'light-cabinet'), []);
+  assert.deepEqual(ofRule([...BOX, tall('c', 200, 0, 200, 60, 90), lamp('L', 'downlight', 300, 70)], 'light-cabinet'), []);
+  // 吊燈垂在櫃子前面，不是裝在櫃頂
+  assert.deepEqual(ofRule([...BOX, tall('c', 200, 0, 200, 60), lamp('L', 'pendant', 300, 70)], 'light-cabinet'), []);
+});
+
+test('照明三：懸在房間中間的層板燈要抓', () => {
+  const f = ofRule([...BOX, lamp('t', 'batten', 300, 200, { size: 4, angle: 180 })], 'light-mount');
+  assert.equal(f.length, 1);
+});
+
+test('照明三：貼在牆面、或背靠做到頂的櫃子，不唸', () => {
+  // 上牆的室內面在 y = 6，朝下（180°）照進房間
+  assert.deepEqual(ofRule([...BOX, lamp('t', 'batten', 300, 6, { size: 4, angle: 180 })], 'light-mount'), []);
+  // 櫃子正面在 y = 60
+  assert.deepEqual(ofRule([...BOX, tall('c', 200, 0, 200, 60), lamp('t', 'batten', 300, 60, { size: 4, angle: 180 })], 'light-mount'), []);
+  // 背對牆（朝牆照）就不算貼著
+  assert.equal(ofRule([...BOX, lamp('t', 'batten', 300, 6, { size: 4, angle: 0 })], 'light-mount').length, 1);
+  // 比櫃面還長，伸出去懸空的那一截沒地方鎖
+  assert.equal(ofRule([...BOX, tall('c', 250, 0, 100, 60), lamp('t', 'batten', 300, 60, { size: 4, angle: 180 })], 'light-mount').length, 1);
+});
+
+test('照明三：層板燈跨在門上方要抓；同一道牆上錯開不唸', () => {
+  const door = { id: 'dr', kind: 'door', layer: 'doors', x: 300, y: 0, width: 90, angle: 0 } as Obj;
+  assert.equal(ofRule([...BOX, door, lamp('t', 'batten', 300, 6, { size: 4, angle: 180 })], 'light-door').length, 1);
+  assert.deepEqual(ofRule([...BOX, door, lamp('t', 'batten', 480, 6, { size: 4, angle: 180 })], 'light-door'), []);
+});
+
+test('照明四：一盞投射燈縮在角落，整間均勻度太低要抓；平均鋪滿不唸', () => {
+  const f = ofRule([...BOX, lamp('L', 'spotlight', 40, 40)], 'light-uniformity');
+  assert.equal(f.length, 1);
+  assert.match(f[0].detail, /均勻度 0\.\d\d/);
+  assert.deepEqual(ofRule([...BOX, ...EVEN], 'light-uniformity'), []);
+});
+
+test('照明五：書桌不夠 300 要提示加檯燈；床面夠亮不唸', () => {
+  const objs = [...BOX, ...EVEN, furn('d', 'desk', 400, 300, 120, 60), furn('b', 'bed_double', 50, 150, 150, 200)];
+  const f = ofRule(objs, 'light-zone');
+  assert.equal(f.length, 1, f.map(x => x.title).join('、'));
+  assert.match(f[0].title, /桌面不夠亮/);
+  assert.match(f[0].why, /檯燈/);
+  assert.deepEqual(f[0].targets, ['d']);
+});
+
+test('照明五：門口太暗要抓', () => {
+  const door = { id: 'dr', kind: 'door', layer: 'doors', x: 560, y: 400, width: 80, angle: 0 } as Obj;
+  const f = ofRule([...BOX, door, lamp('L', 'downlight', 60, 60)], 'light-zone');
+  assert.ok(f.some(x => /門口/.test(x.title) && x.targets[0] === 'dr'), f.map(x => x.title).join('、'));
+});

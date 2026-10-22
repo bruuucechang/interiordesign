@@ -11,7 +11,10 @@
 import { Editor } from '../core/editor';
 import { Doc } from '../model/doc';
 import { t } from '../core/i18n';
-import { PLANES, REFLECTANCE } from '../core/lighting';
+import { PLANES, REFLECTANCE, luminaires, roomLuminaires } from '../core/lighting';
+import { roomZones, zoneStat, litBy, combos, verdict, MAX_COMBO_CIRCUITS, type Verdict } from '../core/lightzones';
+import { lightingFindings } from '../core/lightcheck';
+import { ignoredFor } from './health-panel';
 import type { LuxGrid } from '../core/lighting';
 import { LitRoom, LightView, lightFloor, floorSignature, circuitsOf, circuitColor, heatPixels, contour, CONTOURS, LUX_STOPS, LUX_MAX, sample } from '../core/lightmap';
 import { bounds } from '../core/hit';
@@ -143,7 +146,7 @@ function drawHeat(editor: Editor, doc: Doc, ctx: CanvasRenderingContext2D) {
   // a corridor (no room, but it still counts on its circuit) repaints them.
   const sig = lit.map(r => [r.room.id, r.room.name, r.area.toFixed(2), r.grid.avg.toFixed(2), r.lumens, r.lums.length].join(':')).join('|')
     + '#' + circuitsOf(doc.objects, doc.activeFloor.height).map(c => `${c.circuit}:${c.count}`).join(',');
-  if (sig !== litSig) { litSig = sig; paintRooms(editor, doc); paintCircuits(editor, doc); }
+  if (sig !== litSig) { litSig = sig; paintRooms(editor, doc); paintCircuits(editor, doc); scheduleAnalysis(editor, doc); }
   paintCursor();
 }
 
@@ -217,6 +220,10 @@ function paintRooms(editor: Editor, doc: Doc) {
       );
       box.appendChild(cards);
     }
+    // 區域、開法比較、提醒：比卡片重，拖曳時沿用上一次的、停下來才重算（跟原型的 120 ms 一樣）。
+    let more = analysis.get(r.room.id);
+    if (!more) { more = document.createElement('div'); more.className = 'lp-more'; analysis.set(r.room.id, more); }
+    box.appendChild(more);
     box.onclick = () => {
       const b = bounds(r.room);
       editor.vp.centerOn(b.x + b.w / 2, b.y + b.h / 2, b.w * 1.4, b.h * 1.4);
@@ -224,6 +231,125 @@ function paintRooms(editor: Editor, doc: Doc) {
     };
     host.appendChild(box);
   }
+}
+
+// ---------------------------------------------------------------- 區域與開法比較
+
+/** 每個房間一塊，跨 paintRooms 保留，所以拖曳中重畫卡片時不會閃掉。 */
+const analysis = new Map<string, HTMLElement>();
+let analysisTimer: number | undefined;
+const ANALYSIS_MS = 150;
+
+function scheduleAnalysis(editor: Editor, doc: Doc) {
+  clearTimeout(analysisTimer);
+  analysisTimer = window.setTimeout(() => paintAnalysis(editor, doc), ANALYSIS_MS);
+}
+
+const PILL: Record<Verdict, string> = { ok: '夠', dim: '略暗', dark: '偏暗' };
+
+function table(head: string[], rows: (string | Node)[][], cls = ''): HTMLTableElement {
+  const tb = document.createElement('table'); tb.className = 'lp-tbl ' + cls;
+  const hr = tb.createTHead().insertRow();
+  for (const h of head) { const th = document.createElement('th'); th.textContent = t(h); hr.appendChild(th); }
+  const body = tb.createTBody();
+  for (const row of rows) {
+    const tr = body.insertRow();
+    for (const c of row) { const td = tr.insertCell(); if (typeof c === 'string') td.textContent = c; else td.appendChild(c); }
+  }
+  return tb;
+}
+
+function sec(text: string) {
+  const d = document.createElement('div'); d.className = 'lp-sub'; d.textContent = t(text);
+  return d;
+}
+
+function paintAnalysis(editor: Editor, doc: Doc) {
+  if (!open) return;
+  const ceiling = doc.activeFloor.height;
+  const all = luminaires(doc.objects, ceiling);
+  const v = view(FINE);
+  const ignored = ignoredFor(doc.project.id);
+  const findings = lightingFindings(doc.objects, ceiling).filter(f => !ignored.has(f.id));
+  const live = new Set<string>();
+  for (const r of lit) {
+    live.add(r.room.id);
+    const host = analysis.get(r.room.id);
+    if (!host) continue;
+    host.innerHTML = '';
+    const roomLums = roomLuminaires(r.lr, all);
+    if (!roomLums.length) continue;
+    const zones = roomZones(r.lr, doc.objects, ceiling);
+
+    // 區域：照現在的看法（開著的迴路、牆色），每一區用它自己的高度量。
+    host.appendChild(sec('區域'));
+    if (!zones.length) {
+      const m = document.createElement('div'); m.className = 'lp-muted';
+      m.textContent = t('房間裡沒有床、書桌、做到頂的櫃子或門，沒有區域可以分析。');
+      host.appendChild(m);
+    } else {
+      const litNow = litBy(r.lr, r.lums, v.rho);
+      const rows: (string | Node)[][] = [];
+      const shown: typeof zones = [];
+      for (const z of zones) {
+        const st = zoneStat(r.lr, litNow, z);
+        if (!st) continue;
+        const pill = document.createElement('span'); const vd = verdict(st.avg, z.need);
+        pill.className = 'lp-pill ' + vd; pill.textContent = t(PILL[vd]);
+        rows.push([z.name, fmt(st.avg), fmt(st.min), `≥ ${z.need}`, pill]);
+        shown.push(z);
+      }
+      const tb = table(['區域', '平均', '最暗', '建議', ''], rows, 'zones');
+      tb.tBodies[0].querySelectorAll('tr').forEach((tr, i) => {
+        tr.title = shown[i].tip;
+        tr.onclick = (e) => { e.stopPropagation(); doc.selectMany([shown[i].target]); editor.render(); };
+      });
+      host.appendChild(tb);
+    }
+
+    // 開法比較：這間的每種迴路組合，桌面高度，不管面板上現在關了哪幾路。
+    host.appendChild(sec('開法比較'));
+    const rows = combos(r.lr, roomLums, zones, v.rho);
+    if (!rows.length) {
+      const m = document.createElement('div'); m.className = 'lp-muted';
+      m.textContent = `${t('這間超過')} ${MAX_COMBO_CIRCUITS} ${t('個迴路，組合太多，不列表。')}`;
+      host.appendChild(m);
+    } else {
+      const chips = (cs: number[]) => {
+        const span = document.createElement('span'); span.className = 'lp-chips';
+        for (const c of cs) {
+          const ch = document.createElement('span'); ch.className = 'lp-chip'; ch.style.background = circuitColor(c);
+          const n = document.createElement('span'); n.textContent = String(c);
+          span.append(ch, n);
+        }
+        return span;
+      };
+      const opt = (n: number | null) => (n == null ? '–' : fmt(n));
+      host.appendChild(table(['開哪幾路', '流明', '平均', '最暗', '床', '書桌'],
+        rows.map(c => [chips(c.circuits), fmt(c.lumens), fmt(c.avg), fmt(c.min), opt(c.bed), opt(c.desk)]), 'combos'));
+    }
+
+    // 提醒：跟空間健檢同一份，只列這間的。
+    const mine = new Set<string>([r.room.id, ...roomLums.map(L => L.id), ...zones.map(z => z.target)]);
+    const fs = findings.filter(f => f.targets.some(id => mine.has(id)));
+    host.appendChild(sec('提醒'));
+    const ul = document.createElement('ul'); ul.className = 'lp-warns';
+    if (!fs.length) {
+      const li = document.createElement('li'); li.className = 'ok';
+      li.textContent = t('沒有發現問題。');
+      ul.appendChild(li);
+    }
+    for (const f of fs) {
+      const li = document.createElement('li');
+      const b = document.createElement('b'); b.textContent = f.title;
+      const d = document.createElement('span'); d.textContent = f.detail;
+      li.append(b, d);
+      li.onclick = (e) => { e.stopPropagation(); doc.selectMany(f.targets); editor.render(); };
+      ul.appendChild(li);
+    }
+    host.appendChild(ul);
+  }
+  for (const id of [...analysis.keys()]) if (!live.has(id)) analysis.delete(id);
 }
 
 function paintCursor() {
@@ -282,6 +408,7 @@ function hide(editor: Editor) {
   open = false;
   editor.heat = undefined;
   cache.clear(); tiles.clear(); lit = [];
+  clearTimeout(analysisTimer); analysis.clear();
   $('#lightPanel').classList.add('hidden');
   $('[data-act="lighting"]').classList.remove('active');
   editor.render();
