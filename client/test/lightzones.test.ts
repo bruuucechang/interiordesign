@@ -128,3 +128,15 @@ test('達標判斷：夠／略暗（七成以上）／偏暗', () => {
   assert.equal(verdict(70, 100), 'dim');
   assert.equal(verdict(69, 100), 'dark');
 });
+
+test('外框縮到牆面之後，50 cm 厚牆上的門照樣有門口、牆心上的燈管照樣算進房間', () => {
+  const W = (id: string, ax: number, ay: number, bx: number, by: number): Obj =>
+    ({ id, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness: 50 });
+  const walls = [W('w1', 0, 0, 400, 0), W('w2', 400, 0, 400, 300), W('w3', 400, 300, 0, 300), W('w4', 0, 300, 0, 0)];
+  const room: Obj = { id: 'r', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: 'r' };
+  const objs = [room, ...walls, door('d', 200, 0, 90, 0), t5(200, 300, 'N', 1)];
+  const lr = lightRoom(room as any, CEIL, [], walls as any);
+  assert.equal(lr.poly[0].y, 25);
+  assert.deepEqual(roomZones(lr, objs, CEIL).map(z => z.type), ['door']);
+  assert.equal(roomLuminaires(lr, luminaires(objs, CEIL)).length, 1);
+});

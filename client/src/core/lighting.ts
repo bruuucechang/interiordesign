@@ -113,11 +113,9 @@ export function luminaires(objs: readonly { kind: string }[], ceiling: number, o
  */
 export function roomLuminaires(r: LightRoom, lums: readonly Luminaire[]): Luminaire[] {
   return lums.filter(L => L.tube
-    ? inside(r.poly, L.x + L.tube.face[0] * TUBE_PROBE, L.y + L.tube.face[1] * TUBE_PROBE)
+    ? inside(r.poly, L.x + L.tube.face[0] * r.reach, L.y + L.tube.face[1] * r.reach)
     : inside(r.poly, L.x, L.y));
 }
-/** How far in front of a tube to look for its room (cm) — past half of any wall. */
-const TUBE_PROBE = 20;
 
 export interface Source {
   x: number; y: number; z: number;
@@ -180,7 +178,16 @@ export interface LightRoom {
   poly: Vec[];
   ceiling: number;
   blocked: Box[];
+  /**
+   * How far from the outline something on a wall's centre line can be — a
+   * tube on a wall, a door in it — and how far to step past the wall to tell
+   * which room it belongs to (cm). Past half the thickest wall.
+   */
+  reach: number;
 }
+
+/** `LightRoom.reach` with no walls given, or walls no thicker than 24 cm. */
+export const MIN_REACH = 20;
 
 /**
  * `walls` pulls the outline in to the walls' room-side faces: the detector
@@ -191,7 +198,8 @@ export interface LightRoom {
 export function lightRoom(room: Room, ceiling: number, blocked: Box[] = [], walls: readonly Wall[] = []): LightRoom {
   const poly = room.poly && room.poly.length >= 3 ? room.poly
     : [{ x: room.x, y: room.y }, { x: room.x + room.w, y: room.y }, { x: room.x + room.w, y: room.y + room.h }, { x: room.x, y: room.y + room.h }];
-  return { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked };
+  const reach = Math.max(MIN_REACH, ...walls.map(w => w.thickness / 2 + 8));
+  return { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked, reach };
 }
 
 /** How far off a wall's centre line an outline edge may lie and still be on that wall (cm). */
@@ -229,13 +237,18 @@ export function innerOutline(poly: readonly Vec[], walls: readonly Wall[]): Vec[
     // Inward: whichever side of the edge's middle is inside the room.
     const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const n = inside(p, m.x - u.y * 0.5, m.y + u.x * 0.5) ? { x: -u.y, y: u.x } : { x: u.y, y: -u.x };
-    let d = 0;
+    // The wall that covers most of the edge. An edge the detector drew never
+    // spans two walls (it splits at every joint); a hand-drawn room can.
+    let d = 0, best = 0;
     for (const w of straight) {
       const wx = w.b.x - w.a.x, wy = w.b.y - w.a.y, wl = Math.hypot(wx, wy);
       if (wl < 1e-6) continue;
       const off = (q: Vec) => Math.abs((q.x - w.a.x) * wy - (q.y - w.a.y) * wx) / wl;
-      const t = ((m.x - w.a.x) * wx + (m.y - w.a.y) * wy) / (wl * wl);
-      if (off(a) < ON_WALL && off(b) < ON_WALL && t > 0 && t < 1) d = Math.max(d, w.thickness / 2);
+      if (off(a) >= ON_WALL || off(b) >= ON_WALL) continue;
+      const t = (q: Vec) => ((q.x - w.a.x) * wx + (q.y - w.a.y) * wy) / (wl * wl);
+      const ta = t(a), tb = t(b);
+      const ov = (Math.min(1, Math.max(ta, tb)) - Math.max(0, Math.min(ta, tb))) * wl;
+      if (ov > best + 1e-6 || (ov > 0 && Math.abs(ov - best) <= 1e-6 && w.thickness / 2 > d)) { best = ov; d = w.thickness / 2; }
     }
     return { a, u, n, d };
   });
@@ -251,9 +264,16 @@ export function innerOutline(poly: readonly Vec[], walls: readonly Wall[]): Vec[
       if (Math.hypot(p1.x - p0.x, p1.y - p0.y) > 1e-6) out.push(p1);
       continue;
     }
-    // Where the two moved edges meet.
+    // Where the two moved edges meet — unless the corner is all but straight
+    // and the edges move by different amounts: then they meet metres away (a
+    // chord leaving a wall at 3°, two walls 0.3 cm out of line), so it is a step.
     const s = ((p1.x - p0.x) * e1.u.y - (p1.y - p0.y) * e1.u.x) / cross;
-    out.push({ x: p0.x + e0.u.x * s, y: p0.y + e0.u.y * s });
+    const q = { x: p0.x + e0.u.x * s, y: p0.y + e0.u.y * s };
+    if (e0.u.x * e1.u.x + e0.u.y * e1.u.y > 0 && Math.hypot(q.x - v.x, q.y - v.y) > 2 * Math.max(e0.d, e1.d) + 1e-6) {
+      out.push(p0, p1);
+      continue;
+    }
+    out.push(q);
   }
   return out;
 }

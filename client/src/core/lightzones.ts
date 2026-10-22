@@ -81,8 +81,6 @@ function distToOutline(p: Vec[], x: number, y: number): number {
   return d;
 }
 
-/** How far a door's centre may sit from a room's outline and still be that room's door — past half of any wall. */
-const DOOR_REACH = 20;
 
 /** The zones in one room, in the prototype's order: beds, desks, cabinets, doors. */
 export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): Zone[] {
@@ -132,9 +130,9 @@ export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): 
   for (const o of objs) {
     if (o.kind !== 'door') continue;
     const door = o as Opening;
-    if (distToOutline(r.poly, door.x, door.y) > DOOR_REACH) continue;
+    if (distToOutline(r.poly, door.x, door.y) > r.reach) continue;
     const a = door.angle * Math.PI / 180, n = { x: -Math.sin(a), y: Math.cos(a) };
-    const side = [1, -1].filter(s => inside(r.poly, door.x + n.x * s * DOOR_REACH, door.y + n.y * s * DOOR_REACH));
+    const side = [1, -1].filter(s => inside(r.poly, door.x + n.x * s * r.reach, door.y + n.y * s * r.reach));
     if (side.length !== 1) continue;
     const s = side[0];
     doorZones.push({

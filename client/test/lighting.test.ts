@@ -194,3 +194,23 @@ test('lightRoom 給了牆就用牆面，沒給就照舊', () => {
   assert.equal(lightRoom(room, 280).poly[0].y, 0);
   assert.equal(lightRoom(room, 280, [], walls).poly[0].y, 10);
 });
+
+test('外框內縮：幾乎共線又縮不同量的轉角當台階，頂點不會甩到房間外', () => {
+  // 偵測器在 2 cm 內併節點：兩道差 0.3 cm 的牆、相切的弧第一段弦，都是這種轉角
+  const poly = [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 400, y: 0.3 }, { x: 400, y: 300 }, { x: 0, y: 300 }];
+  const walls = [wall(0, 0, 200, 0, 24), wall(200, 0.3, 400, 0.3, 12), wall(400, 0, 400, 300, 12), wall(400, 300, 0, 300, 12), wall(0, 300, 0, 0, 12)];
+  const out = innerOutline(poly, walls);
+  assert.ok(out.every(q => q.x >= 0 && q.x <= 400 && q.y >= 0 && q.y <= 300), JSON.stringify(pts(out)));
+  const noise = innerOutline([{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 400, y: 0.002 }, { x: 400, y: 300 }, { x: 0, y: 300 }],
+    [wall(200, 0, 400, 0.002, 20)]);
+  assert.ok(noise.every(q => q.x >= 0 && q.x <= 400 && q.y >= 0 && q.y <= 300), JSON.stringify(pts(noise)));
+  // 真的銳角照樣斜接，不切角
+  const sharp = innerOutline([{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 0, y: 70.5 }], [wall(0, 0, 400, 0, 10), wall(400, 0, 0, 70.5, 10)]);
+  assert.equal(sharp.length, 3);
+});
+
+test('外框內縮：手畫的房間一條邊跨兩道牆，照蓋住最多的那道縮', () => {
+  const poly = [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 300 }, { x: 0, y: 300 }];
+  assert.equal(innerOutline(poly, [wall(0, 0, 100, 0, 24), wall(100, 0, 400, 0, 10)])[0].y, 5);
+  assert.equal(innerOutline(poly, [wall(0, 0, 200, 0, 10), wall(200, 0, 400, 0, 20)])[0].y, 10, '各半時取厚的，不是兩道都不算');
+});
