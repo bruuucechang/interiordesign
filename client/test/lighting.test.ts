@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  luminaire, luminaires, roomLuminaires, sources, lux, grid, lightRoom, inside, isBlocked, beamExponent,
+  luminaire, luminaires, roomLuminaires, sources, lux, grid, lightRoom, innerOutline, inside, isBlocked, beamExponent,
   MAINTENANCE, PLANES, REFLECTANCE,
 } from '../src/core/lighting';
-import type { Electrical, ElectricalId, Room, T5Size } from '../src/model/schema';
+import type { Electrical, ElectricalId, Room, T5Size, Wall } from '../src/model/schema';
 import type { Box } from '../src/core/clearance';
 import { fitElectricalToWall } from '../src/tools/place';
 
@@ -158,4 +158,39 @@ test('轉過的櫃子照它自己的方向擋', () => {
     [{ cx: 200, cy: 200, w: 200, h: 20, angle: 90 }]);
   assert.ok(isBlocked(r, 200, 280), '轉 90° 之後沿 y 方向長');
   assert.ok(!isBlocked(r, 280, 200));
+});
+
+// 房間外框沿牆中心線，原型量的是室內淨尺寸：照度要算的是後者（B5）。
+const wall = (ax: number, ay: number, bx: number, by: number, thickness: number): Wall =>
+  ({ id: `w${n++}`, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness });
+const pts = (p: { x: number; y: number }[]) => p.map(q => [Math.round(q.x * 10) / 10, Math.round(q.y * 10) / 10]);
+
+test('外框內縮到牆面：四面牆各縮半個牆厚', () => {
+  const poly = [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 300 }, { x: 0, y: 300 }];
+  const walls = [wall(0, 0, 400, 0, 15), wall(400, 0, 400, 300, 15), wall(400, 300, 0, 300, 24), wall(0, 300, 0, 0, 10)];
+  assert.deepEqual(pts(innerOutline(poly, walls)), [[5, 7.5], [392.5, 7.5], [392.5, 288], [5, 288]]);
+  // 反方向繞也一樣往裡縮
+  assert.deepEqual(pts(innerOutline([...poly].reverse(), walls)), [[5, 288], [392.5, 288], [392.5, 7.5], [5, 7.5]]);
+});
+
+test('外框內縮：沒有牆的那一邊（兩間打通）不動，同一直線換厚度的地方是一個台階', () => {
+  const poly = [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 300 }, { x: 0, y: 300 }];
+  const walls = [wall(0, 0, 200, 0, 10), wall(200, 0, 400, 0, 20), wall(400, 0, 400, 300, 15)];
+  assert.deepEqual(pts(innerOutline(poly, walls)), [[0, 5], [200, 5], [200, 10], [392.5, 10], [392.5, 300], [0, 300]]);
+});
+
+test('外框內縮：柱子留下的尖刺先拿掉，曲線牆的弦不動', () => {
+  // 偵測器在柱子那裡會留一段「出去又折回來」的邊
+  const poly = [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 200 }, { x: 250, y: 200 }, { x: 250, y: 190 }, { x: 250, y: 200 }, { x: 0, y: 200 }];
+  const walls = [wall(0, 0, 300, 0, 10), wall(300, 0, 300, 200, 10), wall(300, 200, 0, 200, 10), wall(0, 200, 0, 0, 10)];
+  assert.deepEqual(pts(innerOutline(poly, walls)), [[5, 5], [295, 5], [295, 195], [250, 195], [5, 195]]);
+  const arc = { ...wall(0, 0, 300, 0, 10), bulge: -8 };
+  assert.deepEqual(pts(innerOutline(poly.slice(0, 3).concat([{ x: 0, y: 200 }]), [arc])), [[0, 0], [300, 0], [300, 200], [0, 200]]);
+});
+
+test('lightRoom 給了牆就用牆面，沒給就照舊', () => {
+  const room: Room = { id: 'r', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: 'r' };
+  const walls = [wall(0, 0, 400, 0, 20)];
+  assert.equal(lightRoom(room, 280).poly[0].y, 0);
+  assert.equal(lightRoom(room, 280, [], walls).poly[0].y, 10);
 });

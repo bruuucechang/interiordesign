@@ -151,7 +151,7 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
   const doors = objs.filter((o): o is Opening => o.kind === 'door');
   const out: Finding[] = [];
   const rooms = objs.filter((o): o is Room => o.kind === 'room').map(room => {
-    const lr = lightRoom(room, ceiling, blocked);
+    const lr = lightRoom(room, ceiling, blocked, walls);
     return { room, lr, lums: roomLuminaires(lr, all) };
   });
   /** 燈屬於哪一間：第一間照到它的。面板靠這個把提醒分到房間。 */

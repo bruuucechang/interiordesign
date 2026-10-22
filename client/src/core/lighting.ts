@@ -19,7 +19,7 @@
 //
 // Pure: no DOM, no canvas, no doc. Plans go in as objects, numbers come out.
 
-import type { Electrical, Room, Vec } from '../model/schema';
+import type { Electrical, Room, Vec, Wall } from '../model/schema';
 import { ELECTRICAL_BY_ID, LIGHT_DEFAULTS, T5_SIZES, T5_DEFAULT_SIZE, T5_BELOW_CEILING } from '../model/catalogue';
 import type { Box } from './clearance';
 
@@ -182,10 +182,80 @@ export interface LightRoom {
   blocked: Box[];
 }
 
-export function lightRoom(room: Room, ceiling: number, blocked: Box[] = []): LightRoom {
+/**
+ * `walls` pulls the outline in to the walls' room-side faces: the detector
+ * draws a room along wall centre lines, the prototype measures the clear
+ * floor. Without it a bedroom gains a strip half a wall thick all round — dark
+ * points against the wall that drag the average down by 7 % (B5, notebook).
+ */
+export function lightRoom(room: Room, ceiling: number, blocked: Box[] = [], walls: readonly Wall[] = []): LightRoom {
   const poly = room.poly && room.poly.length >= 3 ? room.poly
     : [{ x: room.x, y: room.y }, { x: room.x + room.w, y: room.y }, { x: room.x + room.w, y: room.y + room.h }, { x: room.x, y: room.y + room.h }];
-  return { poly, ceiling, blocked };
+  return { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked };
+}
+
+/** How far off a wall's centre line an outline edge may lie and still be on that wall (cm). */
+const ON_WALL = 0.5;
+
+/** Drop repeated points and spikes — an edge that goes out and straight back, which the detector leaves at a column. */
+function tidy(poly: readonly Vec[]): Vec[] {
+  let p = [...poly];
+  for (let changed = true; changed && p.length > 3;) {
+    changed = false;
+    for (let i = 0; i < p.length && p.length > 3; i++) {
+      const a = p[(i + p.length - 1) % p.length], b = p[i], c = p[(i + 1) % p.length];
+      const ux = b.x - a.x, uy = b.y - a.y, vx = c.x - b.x, vy = c.y - b.y;
+      const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+      if (lu < 1e-6 || (lv > 1e-6 && Math.abs(ux * vy - uy * vx) < 1e-3 * lu * lv && ux * vx + uy * vy < 0)) {
+        p.splice(i, 1); changed = true; i--;
+      }
+    }
+  }
+  return p;
+}
+
+/**
+ * The outline moved in, edge by edge, by half the thickness of the straight
+ * wall it runs along. An edge on no wall (an open side between two rooms, an
+ * arc's chord) stays where it is.
+ */
+export function innerOutline(poly: readonly Vec[], walls: readonly Wall[]): Vec[] {
+  const p = tidy(poly);
+  if (p.length < 3) return [...poly];
+  const straight = walls.filter(w => !w.bulge && w.thickness > 0);
+  const edges = p.map((a, i) => {
+    const b = p[(i + 1) % p.length], len = Math.hypot(b.x - a.x, b.y - a.y);
+    const u = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
+    // Inward: whichever side of the edge's middle is inside the room.
+    const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const n = inside(p, m.x - u.y * 0.5, m.y + u.x * 0.5) ? { x: -u.y, y: u.x } : { x: u.y, y: -u.x };
+    let d = 0;
+    for (const w of straight) {
+      const wx = w.b.x - w.a.x, wy = w.b.y - w.a.y, wl = Math.hypot(wx, wy);
+      if (wl < 1e-6) continue;
+      const off = (q: Vec) => Math.abs((q.x - w.a.x) * wy - (q.y - w.a.y) * wx) / wl;
+      const t = ((m.x - w.a.x) * wx + (m.y - w.a.y) * wy) / (wl * wl);
+      if (off(a) < ON_WALL && off(b) < ON_WALL && t > 0 && t < 1) d = Math.max(d, w.thickness / 2);
+    }
+    return { a, u, n, d };
+  });
+  const out: Vec[] = [];
+  for (let i = 0; i < edges.length; i++) {
+    const e0 = edges[(i + edges.length - 1) % edges.length], e1 = edges[i], v = e1.a;
+    const p0 = { x: v.x + e0.n.x * e0.d, y: v.y + e0.n.y * e0.d };
+    const p1 = { x: v.x + e1.n.x * e1.d, y: v.y + e1.n.y * e1.d };
+    const cross = e0.u.x * e1.u.y - e0.u.y * e1.u.x;
+    if (Math.abs(cross) < 1e-6) {
+      // Straight on, from one wall to a thicker or thinner one: a step.
+      out.push(p0);
+      if (Math.hypot(p1.x - p0.x, p1.y - p0.y) > 1e-6) out.push(p1);
+      continue;
+    }
+    // Where the two moved edges meet.
+    const s = ((p1.x - p0.x) * e1.u.y - (p1.y - p0.y) * e1.u.x) / cross;
+    out.push({ x: p0.x + e0.u.x * s, y: p0.y + e0.u.y * s });
+  }
+  return out;
 }
 
 const polyArea = (p: Vec[]) => {

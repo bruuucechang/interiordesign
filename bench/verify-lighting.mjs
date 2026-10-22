@@ -198,9 +198,10 @@ await page.evaluate(() => {
   window.__app.doc.load({
     schemaVersion: 1, name: 'roomA', activeFloorId: 'f1',
     floors: [{ id: 'f1', name: '1F', base: 0, height: 280, objects: [
-      W('wt', { x: 0, y: 0 }, { x: 365, y: 0 }), W('wr', { x: 365, y: 0 }, { x: 365, y: 415 }),
-      W('wb', { x: 365, y: 415 }, { x: 0, y: 415 }), W('wl', { x: 0, y: 415 }, { x: 0, y: 0 }),
-      { id: 'ra', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 365, h: 415, name: '你的房間', auto: false },
+      // 原型量的是室內淨尺寸，所以牆面（不是牆心）在 0／365／415，房間照偵測器沿牆心畫（B5 起照度算到牆面）。
+      W('wt', { x: -6, y: -6 }, { x: 371, y: -6 }), W('wr', { x: 371, y: -6 }, { x: 371, y: 421 }),
+      W('wb', { x: 371, y: 421 }, { x: -6, y: 421 }), W('wl', { x: -6, y: 421 }, { x: -6, y: -6 }),
+      { id: 'ra', kind: 'room', layer: 'rooms', x: -6, y: -6, w: 377, h: 427, name: '你的房間', auto: false },
       C('c1', 85, 0, 280, 60), C('c2', 0, 95, 50, 320),
       E('t1', 'batten', 230, 60, 180, 2), E('t2', 'batten', 365, 248, 270, 1), E('t3', 'batten', 230, 415, 0, 2), E('t4', 'batten', 50, 248, 90, 1),
       E('d1', 'downlight', 65, 105, 0, 3), E('d2', 'downlight', 175, 105, 0, 3), E('d3', 'downlight', 285, 105, 0, 3),
@@ -242,10 +243,11 @@ await page.evaluate(() => {
   window.__app.doc.load({
     schemaVersion: 1, name: 'roomA-full', activeFloorId: 'f1',
     floors: [{ id: 'f1', name: '1F', base: 0, height: 280, objects: [
-      W('wt', { x: 0, y: 0 }, { x: 365, y: 0 }), W('wr', { x: 365, y: 0 }, { x: 365, y: 415 }),
-      W('wb', { x: 365, y: 415 }, { x: 0, y: 415 }), W('wl', { x: 0, y: 415 }, { x: 0, y: 0 }),
-      { id: 'ra', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 365, h: 415, name: '你的房間', auto: false },
-      { id: 'dr', kind: 'door', layer: 'doors', x: 42.5, y: 0, width: 85, angle: 0 },
+      // 原型量的是室內淨尺寸，所以牆面（不是牆心）在 0／365／415，房間照偵測器沿牆心畫（B5 起照度算到牆面）。
+      W('wt', { x: -6, y: -6 }, { x: 371, y: -6 }), W('wr', { x: 371, y: -6 }, { x: 371, y: 421 }),
+      W('wb', { x: 371, y: 421 }, { x: -6, y: 421 }), W('wl', { x: -6, y: 421 }, { x: -6, y: -6 }),
+      { id: 'ra', kind: 'room', layer: 'rooms', x: -6, y: -6, w: 377, h: 427, name: '你的房間', auto: false },
+      { id: 'dr', kind: 'door', layer: 'doors', x: 42.5, y: -6, width: 85, angle: 0 },
       F('c1', 'wardrobe', '衣櫃', 85, 0, 280, 60, 0, 280), F('c2', 'wardrobe', '櫃子', 0, 95, 50, 320, 0, 280),
       // 原型的床外框 190×175、床頭朝東：床本身 175×190 轉 90°
       F('bed', 'bed_double', '床', 182.5, 127.5, 175, 190, 90), F('desk', 'desk', '書桌', 122, 362, 243, 53),
