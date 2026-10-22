@@ -19,7 +19,7 @@
 //
 // Pure: no DOM, no canvas, no doc. Plans go in as objects, numbers come out.
 
-import type { Electrical, Room, Vec } from '../model/schema';
+import type { Electrical, Room, Vec, Wall } from '../model/schema';
 import { ELECTRICAL_BY_ID, LIGHT_DEFAULTS, T5_SIZES, T5_DEFAULT_SIZE, T5_BELOW_CEILING } from '../model/catalogue';
 import type { Box } from './clearance';
 
@@ -113,11 +113,9 @@ export function luminaires(objs: readonly { kind: string }[], ceiling: number, o
  */
 export function roomLuminaires(r: LightRoom, lums: readonly Luminaire[]): Luminaire[] {
   return lums.filter(L => L.tube
-    ? inside(r.poly, L.x + L.tube.face[0] * TUBE_PROBE, L.y + L.tube.face[1] * TUBE_PROBE)
+    ? inside(r.poly, L.x + L.tube.face[0] * reachAt(r, L.x, L.y), L.y + L.tube.face[1] * reachAt(r, L.x, L.y))
     : inside(r.poly, L.x, L.y));
 }
-/** How far in front of a tube to look for its room (cm) — past half of any wall. */
-const TUBE_PROBE = 20;
 
 export interface Source {
   x: number; y: number; z: number;
@@ -180,12 +178,117 @@ export interface LightRoom {
   poly: Vec[];
   ceiling: number;
   blocked: Box[];
+  /** The walls the outline was pulled in from; `reachAt` asks them how thick the wall under a point is. */
+  walls: readonly Wall[];
 }
 
-export function lightRoom(room: Room, ceiling: number, blocked: Box[] = []): LightRoom {
+/** `reachAt` off any wall, or on one no thicker than 24 cm. */
+export const MIN_REACH = 20;
+
+/**
+ * How far from the outline something standing on a wall can be — a tube on
+ * it, a door in it — and how far to step past that wall to tell which room it
+ * belongs to (cm): past half of *that* wall. Not the floor's thickest: a 65 cm
+ * column would otherwise let a room reach through its 12 cm wall into a duct
+ * next door and claim its door.
+ */
+export function reachAt(r: LightRoom, x: number, y: number): number {
+  let reach = MIN_REACH;
+  for (const w of r.walls) {
+    if (w.bulge) continue;
+    const wx = w.b.x - w.a.x, wy = w.b.y - w.a.y, l2 = wx * wx + wy * wy;
+    const t = l2 ? Math.max(0, Math.min(1, ((x - w.a.x) * wx + (y - w.a.y) * wy) / l2)) : 0;
+    if (Math.hypot(w.a.x + wx * t - x, w.a.y + wy * t - y) <= w.thickness / 2 + 1) reach = Math.max(reach, w.thickness / 2 + 8);
+  }
+  return reach;
+}
+
+/**
+ * `walls` pulls the outline in to the walls' room-side faces: the detector
+ * draws a room along wall centre lines, the prototype measures the clear
+ * floor. Without it a bedroom gains a strip half a wall thick all round — dark
+ * points against the wall that drag the average down by 7 % (B5, notebook).
+ */
+export function lightRoom(room: Room, ceiling: number, blocked: Box[] = [], walls: readonly Wall[] = []): LightRoom {
   const poly = room.poly && room.poly.length >= 3 ? room.poly
     : [{ x: room.x, y: room.y }, { x: room.x + room.w, y: room.y }, { x: room.x + room.w, y: room.y + room.h }, { x: room.x, y: room.y + room.h }];
-  return { poly, ceiling, blocked };
+  return { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked, walls };
+}
+
+/** How far off a wall's centre line an outline edge may lie and still be on that wall (cm). */
+const ON_WALL = 0.5;
+
+/** Drop repeated points and spikes — an edge that goes out and straight back, which the detector leaves at a column. */
+function tidy(poly: readonly Vec[]): Vec[] {
+  let p = [...poly];
+  for (let changed = true; changed && p.length > 3;) {
+    changed = false;
+    for (let i = 0; i < p.length && p.length > 3; i++) {
+      const a = p[(i + p.length - 1) % p.length], b = p[i], c = p[(i + 1) % p.length];
+      const ux = b.x - a.x, uy = b.y - a.y, vx = c.x - b.x, vy = c.y - b.y;
+      const lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+      if (lu < 1e-6 || (lv > 1e-6 && Math.abs(ux * vy - uy * vx) < 1e-3 * lu * lv && ux * vx + uy * vy < 0)) {
+        p.splice(i, 1); changed = true; i--;
+      }
+    }
+  }
+  return p;
+}
+
+/**
+ * The outline moved in, edge by edge, by half the thickness of the straight
+ * wall it runs along. An edge on no wall (an open side between two rooms, an
+ * arc's chord) stays where it is.
+ */
+export function innerOutline(poly: readonly Vec[], walls: readonly Wall[]): Vec[] {
+  const p = tidy(poly);
+  if (p.length < 3) return [...poly];
+  const straight = walls.filter(w => !w.bulge && w.thickness > 0);
+  const edges = p.map((a, i) => {
+    const b = p[(i + 1) % p.length], len = Math.hypot(b.x - a.x, b.y - a.y);
+    const u = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
+    // Inward: whichever side of the edge's middle is inside the room.
+    const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const n = inside(p, m.x - u.y * 0.5, m.y + u.x * 0.5) ? { x: -u.y, y: u.x } : { x: u.y, y: -u.x };
+    // The wall that covers most of the edge. An edge the detector drew never
+    // spans two walls (it splits at every joint); a hand-drawn room can.
+    let d = 0, best = 0;
+    for (const w of straight) {
+      const wx = w.b.x - w.a.x, wy = w.b.y - w.a.y, wl = Math.hypot(wx, wy);
+      if (wl < 1e-6) continue;
+      const off = (q: Vec) => Math.abs((q.x - w.a.x) * wy - (q.y - w.a.y) * wx) / wl;
+      if (off(a) >= ON_WALL || off(b) >= ON_WALL) continue;
+      const t = (q: Vec) => ((q.x - w.a.x) * wx + (q.y - w.a.y) * wy) / (wl * wl);
+      const ta = t(a), tb = t(b);
+      const ov = (Math.min(1, Math.max(ta, tb)) - Math.max(0, Math.min(ta, tb))) * wl;
+      if (ov > best + 1e-6 || (ov > 0 && Math.abs(ov - best) <= 1e-6 && w.thickness / 2 > d)) { best = ov; d = w.thickness / 2; }
+    }
+    return { a, u, n, d };
+  });
+  const out: Vec[] = [];
+  for (let i = 0; i < edges.length; i++) {
+    const e0 = edges[(i + edges.length - 1) % edges.length], e1 = edges[i], v = e1.a;
+    const p0 = { x: v.x + e0.n.x * e0.d, y: v.y + e0.n.y * e0.d };
+    const p1 = { x: v.x + e1.n.x * e1.d, y: v.y + e1.n.y * e1.d };
+    const cross = e0.u.x * e1.u.y - e0.u.y * e1.u.x;
+    if (Math.abs(cross) < 1e-6) {
+      // Straight on, from one wall to a thicker or thinner one: a step.
+      out.push(p0);
+      if (Math.hypot(p1.x - p0.x, p1.y - p0.y) > 1e-6) out.push(p1);
+      continue;
+    }
+    // Where the two moved edges meet — unless the corner is all but straight
+    // and the edges move by different amounts: then they meet metres away (a
+    // chord leaving a wall at 3°, two walls 0.3 cm out of line), so it is a step.
+    const s = ((p1.x - p0.x) * e1.u.y - (p1.y - p0.y) * e1.u.x) / cross;
+    const q = { x: p0.x + e0.u.x * s, y: p0.y + e0.u.y * s };
+    if (e0.u.x * e1.u.x + e0.u.y * e1.u.y > 0 && Math.hypot(q.x - v.x, q.y - v.y) > 2 * Math.max(e0.d, e1.d) + 1e-6) {
+      out.push(p0, p1);
+      continue;
+    }
+    out.push(q);
+  }
+  return out;
 }
 
 const polyArea = (p: Vec[]) => {

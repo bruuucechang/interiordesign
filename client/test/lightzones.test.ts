@@ -128,3 +128,27 @@ test('達標判斷：夠／略暗（七成以上）／偏暗', () => {
   assert.equal(verdict(70, 100), 'dim');
   assert.equal(verdict(69, 100), 'dark');
 });
+
+test('外框縮到牆面之後，50 cm 厚牆上的門照樣有門口、牆心上的燈管照樣算進房間', () => {
+  const W = (id: string, ax: number, ay: number, bx: number, by: number): Obj =>
+    ({ id, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness: 50 });
+  const walls = [W('w1', 0, 0, 400, 0), W('w2', 400, 0, 400, 300), W('w3', 400, 300, 0, 300), W('w4', 0, 300, 0, 0)];
+  const room: Obj = { id: 'r', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: 'r' };
+  const objs = [room, ...walls, door('d', 200, 0, 90, 0), t5(200, 300, 'N', 1)];
+  const lr = lightRoom(room as any, CEIL, [], walls as any);
+  assert.equal(lr.poly[0].y, 25);
+  assert.deepEqual(roomZones(lr, objs, CEIL).map(z => z.type), ['door']);
+  assert.equal(roomLuminaires(lr, luminaires(objs, CEIL)).length, 1);
+});
+
+test('同一層有 60 cm 的柱子，12 cm 牆的房間也不會把隔壁管道間的門算成自己的', () => {
+  const W = (id: string, ax: number, ay: number, bx: number, by: number, thickness: number): Obj =>
+    ({ id, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness });
+  const walls = [W('w1', 0, 0, 300, 0, 12), W('w2', 300, 0, 300, 300, 12), W('w3', 300, 300, 0, 300, 12), W('w4', 0, 300, 0, 0, 12),
+    W('duct', 330, 0, 330, 300, 12), W('col', 600, 0, 600, 60, 60)];
+  const room: Obj = { id: 'a', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 300, h: 300, name: 'A' };
+  // 管道間的門開在 x = 330 那道隔牆上，朝東開向 B
+  const objs = [room, ...walls, door('dB', 330, 150, 60, 90)];
+  const lr = lightRoom(room as any, CEIL, [], walls as any);
+  assert.deepEqual(roomZones(lr, objs, CEIL).map(z => z.target), []);
+});

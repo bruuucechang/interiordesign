@@ -9,7 +9,7 @@
 //
 // Pure: objects in, numbers out. No DOM, no canvas, no doc.
 
-import type { Furniture, Obj, Room } from '../model/schema';
+import type { Furniture, Obj, Room, Wall } from '../model/schema';
 import { polygonArea } from './geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import type { Box } from './clearance';
@@ -77,10 +77,11 @@ interface Prepared { room: Room; lr: LightRoom; lums: Luminaire[]; key: string }
 function prepare(objs: readonly Obj[], ceiling: number, v: LightView): Prepared[] {
   const all = luminaires(objs, ceiling, v.on ?? undefined);
   const blocked = fullHeightBoxes(objs, ceiling);
+  const walls = objs.filter((o): o is Wall => o.kind === 'wall');
   const out: Prepared[] = [];
   for (const o of objs) {
     if (o.kind !== 'room') continue;
-    const lr = lightRoom(o, ceiling, blocked);
+    const lr = lightRoom(o, ceiling, blocked, walls);
     const lums = roomLuminaires(lr, all);
     out.push({ room: o, lr, lums, key: o.id + roomKey(lr, lums, v) });
   }
