@@ -341,3 +341,36 @@ test('照明五：門口太暗要抓', () => {
   const f = ofRule([...BOX, door, lamp('L', 'downlight', 60, 60)], 'light-zone');
   assert.ok(f.some(x => /門口/.test(x.title) && x.targets[0] === 'dr'), f.map(x => x.title).join('、'));
 });
+
+test('照明三：牆被切成兩段，跨接縫貼著的層板燈不唸', () => {
+  const split = [wall('w1a', 0, 0, 300, 0), wall('w1b', 300, 0, 600, 0), ...BOX.slice(1)];
+  assert.deepEqual(ofRule([...split, lamp('t', 'batten', 300, 6, { size: 4, angle: 180 })], 'light-mount'), []);
+  // 兩段之間有一個 30 cm 的缺口，燈管跨在缺口上還是要唸
+  const gap = [wall('w1a', 0, 0, 270, 0), wall('w1b', 330, 0, 600, 0), ...BOX.slice(1)];
+  assert.equal(ofRule([...gap, lamp('t', 'batten', 300, 6, { size: 4, angle: 180 })], 'light-mount').length, 1);
+});
+
+test('照明：兩間共用一扇門，門口的提醒記在燈所在那一間，標題寫房名', () => {
+  const two = [
+    wall('a1', 0, 0, 600, 0), wall('a2', 600, 0, 600, 800), wall('a3', 600, 800, 0, 800), wall('a4', 0, 800, 0, 0),
+    wall('mid', 0, 400, 600, 400),
+    { ...room('rA', 0, 0, 600, 400), name: '臥室' } as Obj, { ...room('rB', 0, 400, 600, 400), name: '書房' } as Obj,
+    { id: 'dr', kind: 'door', layer: 'doors', x: 560, y: 400, width: 80, angle: 0 } as Obj,
+    lamp('L', 'downlight', 60, 60),
+  ];
+  const f = ofRule(two, 'light-zone').filter(x => x.targets[0] === 'dr');
+  assert.equal(f.length, 1, '書房沒有燈，不檢查');
+  assert.equal(f[0].room, 'rA');
+  assert.match(f[0].title, /^臥室門口/);
+});
+
+test('照明二：隔著牆的隔壁房櫃子不算', () => {
+  const two = [
+    wall('a1', 0, 0, 600, 0), wall('a2', 600, 0, 600, 800), wall('a3', 600, 800, 0, 800), wall('a4', 0, 800, 0, 0),
+    wall('mid', 0, 400, 600, 400),
+    room('rA', 0, 0, 600, 400), room('rB', 0, 400, 600, 400),
+    tall('c', 200, 340, 200, 54),          // 臥室的衣櫃背靠中間那道牆（牆面在 394）
+    lamp('L', 'downlight', 300, 416),      // 書房的崁燈，離牆面 10 cm，離衣櫃 22 cm
+  ];
+  assert.deepEqual(ofRule(two, 'light-cabinet'), []);
+});

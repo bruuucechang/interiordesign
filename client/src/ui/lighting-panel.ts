@@ -14,7 +14,7 @@ import { t } from '../core/i18n';
 import { PLANES, REFLECTANCE, luminaires, roomLuminaires } from '../core/lighting';
 import { roomZones, zoneStat, litBy, combos, verdict, MAX_COMBO_CIRCUITS, type Verdict } from '../core/lightzones';
 import { lightingFindings } from '../core/lightcheck';
-import { ignoredFor } from './health-panel';
+import { ignoredFor, HEALTH_IGNORED } from './health-panel';
 import type { LuxGrid } from '../core/lighting';
 import { LitRoom, LightView, lightFloor, floorSignature, circuitsOf, circuitColor, heatPixels, contour, CONTOURS, LUX_STOPS, LUX_MAX, sample } from '../core/lightmap';
 import { bounds } from '../core/hit';
@@ -331,7 +331,7 @@ function paintAnalysis(editor: Editor, doc: Doc) {
 
     // 提醒：跟空間健檢同一份，只列這間的。
     const mine = new Set<string>([r.room.id, ...roomLums.map(L => L.id), ...zones.map(z => z.target)]);
-    const fs = findings.filter(f => f.targets.some(id => mine.has(id)));
+    const fs = findings.filter(f => (f.room ? f.room === r.room.id : f.targets.some(id => mine.has(id))));
     host.appendChild(sec('提醒'));
     const ul = document.createElement('ul'); ul.className = 'lp-warns';
     if (!fs.length) {
@@ -425,6 +425,9 @@ export function wireLighting(editor: Editor, doc: Doc) {
   // made the whole map visibly blur on every click.
   doc.onChange(() => {
     if (!open) return;
+    // 區域、提醒也看床、書桌、門這些不影響格點的東西；它們動了格點命中快取、卡片的
+    // 簽章不變，所以這裡每次都排一次（防抖擋住拖曳中的連續觸發）。
+    scheduleAnalysis(editor, doc);
     const next = signature(doc);
     if (next !== lightSig) { lightSig = next; lastChange = performance.now(); }
   });
@@ -435,6 +438,8 @@ export function wireLighting(editor: Editor, doc: Doc) {
     cursor = editor.vp.toWorld({ x: e.clientX - r.left, y: e.clientY - r.top });
     paintCursor();
   });
+  // 在空間健檢按「忽略」，這裡的提醒也要少一條。
+  window.addEventListener(HEALTH_IGNORED, () => { if (open) scheduleAnalysis(editor, doc); });
   canvas.addEventListener('pointerleave', () => { cursor = null; if (open) paintCursor(); });
 }
 

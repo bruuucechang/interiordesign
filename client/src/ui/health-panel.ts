@@ -34,12 +34,16 @@ export function ignoredFor(planId: string): Set<string> {
   } catch { return new Set(); }
 }
 
+/** Fired on window whenever the ignore list changes, so other panels showing findings can drop them too. */
+export const HEALTH_IGNORED = 'interior:health-ignored';
+
 function setIgnored(planId: string, ids: Set<string>) {
   try {
     const all = JSON.parse(localStorage.getItem(IGNORE_KEY) || '{}');
     all[planId] = [...ids];
     localStorage.setItem(IGNORE_KEY, JSON.stringify(all));
   } catch { /* storage off — 靜音狀態記不住不該擋住使用 */ }
+  window.dispatchEvent(new Event(HEALTH_IGNORED));
 }
 
 let findings: Finding[] = [];

@@ -62,6 +62,35 @@ function mountedOn(L: Luminaire, b: Box): boolean {
   return false;
 }
 
+/**
+ * 同一直線上、端點相接的牆段併成一個盒子。牆在這個 App 常被切段（在牆上點一下拆開、
+ * 底圖辨識、DXF 匯入），一支跨過接縫的燈管兩邊都有牆可以鎖，不該因為牆是兩筆資料就
+ * 被報「沒貼著」。厚度不同的段取厚的。
+ */
+export function mergeCollinear(boxes: Box[]): Box[] {
+  const out = boxes.map(b => ({ ...b }));
+  const same = (a: Box, b: Box) => {
+    const d = ((a.angle - b.angle) % 180 + 180) % 180;
+    if (Math.min(d, 180 - d) > 1) return false;
+    const l = toLocal(a, b.cx, b.cy);
+    return Math.abs(l.y) < 1 && Math.abs(l.x) <= (a.w + b.w) / 2 + 1;
+  };
+  for (let merged = true; merged;) {
+    merged = false;
+    for (let i = 0; i < out.length && !merged; i++) for (let j = i + 1; j < out.length && !merged; j++) {
+      const a = out[i], b = out[j];
+      if (!same(a, b)) continue;
+      const lb = toLocal(a, b.cx, b.cy).x;
+      const lo = Math.min(-a.w / 2, lb - b.w / 2), hi = Math.max(a.w / 2, lb + b.w / 2), mid = (lo + hi) / 2;
+      const r = a.angle * Math.PI / 180;
+      out[i] = { cx: a.cx + Math.cos(r) * mid, cy: a.cy + Math.sin(r) * mid, w: hi - lo, h: Math.max(a.h, b.h), angle: a.angle };
+      out.splice(j, 1);
+      merged = true;
+    }
+  }
+  return out;
+}
+
 /** 燈管跟門在同一道牆上、而且沿牆的範圍重疊。 */
 function overDoor(L: Luminaire, door: Opening, reach: number): boolean {
   const t = L.tube!;
@@ -73,7 +102,23 @@ function overDoor(L: Luminaire, door: Opening, reach: number): boolean {
   return Math.abs(along) < t.length / 2 + door.width / 2;
 }
 
+/**
+ * 結果只取決於這幾種物件；照度要跑格點，而 `checkPlan` 每次文件變動都會叫——
+ * 選取、改圖層名稱、畫尺寸線都不該重算。照度面板也呼叫這支，兩邊共用同一份。
+ */
+const RELEVANT = new Set(['room', 'wall', 'beam', 'door', 'furniture', 'electrical']);
+let memo: { key: string; out: Finding[] } | null = null;
+
 export function lightingFindings(objs: readonly Obj[], ceiling: number): Finding[] {
+  if (!objs.some(o => o.kind === 'electrical')) return [];
+  const key = ceiling + JSON.stringify(objs.filter(o => RELEVANT.has(o.kind)));
+  if (memo?.key === key) return memo.out;
+  const out = compute(objs, ceiling);
+  memo = { key, out };
+  return out;
+}
+
+function compute(objs: readonly Obj[], ceiling: number): Finding[] {
   const L = LIGHTING;
   const all = luminaires(objs, ceiling);
   if (!all.length) return [];
@@ -85,44 +130,61 @@ export function lightingFindings(objs: readonly Obj[], ceiling: number): Finding
   const beams = objs.filter((o): o is Beam => o.kind === 'beam');
   const doors = objs.filter((o): o is Opening => o.kind === 'door');
   const out: Finding[] = [];
+  const rooms = objs.filter((o): o is Room => o.kind === 'room').map(room => {
+    const lr = lightRoom(room, ceiling, blocked);
+    return { room, lr, lums: roomLuminaires(lr, all) };
+  });
+  /** 燈屬於哪一間：第一間照到它的。面板靠這個把提醒分到房間。 */
+  const roomOfLum = new Map<string, string>();
+  for (const r of rooms) for (const lm of r.lums) if (!roomOfLum.has(lm.id)) roomOfLum.set(lm.id, r.room.id);
 
-  // ---- 二：崁燈跟做到頂的櫃子
-  for (const lm of all) {
+  // ---- 二：崁燈跟做到頂的櫃子，同一間裡才算——隔著牆的櫃子跟這盞燈無關
+  for (const r of rooms) for (const lm of r.lums) {
     if (lm.tube || lm.z < ceiling) continue;   // 吊燈垂在櫃子前面不撞櫃頂
-    for (const f of cabinets) {
+    if (roomOfLum.get(lm.id) !== r.room.id) continue;
+    for (const f of cabinets.filter(f => inside(r.lr.poly, f.x + f.w / 2, f.y + f.h / 2))) {
       const d = distToBox(furnitureBox(f), lm.x, lm.y);
       if (d === 0) out.push({
         id: `light-cab-above:${lm.id}:${f.id}`, rule: 'light-cabinet', severity: 'lighting',
         title: `${nameOf(lm)}裝在做到頂的櫃子上方`,
         detail: `${nameOf(lm)}落在「${label(f)}」的範圍裡`,
         why: '櫃子做到天花板，這個位置裝不了燈；算出來的照度也不會是真的。',
-        targets: [lm.id, f.id],
+        targets: [lm.id, f.id], room: r.room.id,
       });
       else if (d < L.downlightToCabinet) out.push({
         id: `light-cab-near:${lm.id}:${f.id}:${Math.round(d)}`, rule: 'light-cabinet', severity: 'lighting',
         title: `${nameOf(lm)}離做到頂的櫃子太近`,
         detail: `離「${label(f)}」只有 ${Math.round(d)}cm，建議 30～50cm`,
         why: '光大多打在櫃子頂端與櫃面上緣，櫃子前面反而暗。',
-        targets: [lm.id, f.id],
+        targets: [lm.id, f.id], room: r.room.id,
       });
     }
   }
 
   // ---- 三：燈管要鎖在牆、樑或櫃子上，而且不能跨在門上
-  const supports: { box: Box; wall?: Wall }[] = [
-    ...walls.map(w => ({ box: wallBox(w.a, w.b, w.thickness), wall: w })),
-    ...beams.map(b => ({ box: wallBox(b.a, b.b, b.width) })),
-  ].filter((s): s is { box: Box; wall?: Wall } => !!s.box);
-  supports.push(...blocked.map(box => ({ box })));
+  const straight = walls.filter(w => !w.bulge);
+  const supports: Box[] = mergeCollinear([
+    ...straight.map(w => wallBox(w.a, w.b, w.thickness)),
+    ...beams.map(b => wallBox(b.a, b.b, b.width)),
+  ].filter((b): b is Box => !!b));
+  supports.push(...blocked);
+  // 弧形牆：盒子是弦，貼在弧面上的燈離弦差一個拱高。先不精算——燈管落在弦到拱頂
+  // 那一帶（加半個牆厚）就當作貼著，寧可少報。
+  const curved = walls.filter(w => w.bulge).map(w => {
+    const b = wallBox(w.a, w.b, w.thickness);
+    return b && { ...b, h: b.h + 2 * Math.abs(w.bulge!) };
+  }).filter((b): b is Box => !!b);
   const maxWall = Math.max(12, ...walls.map(w => w.thickness));
   for (const lm of all) {
     if (!lm.tube) continue;
-    if (!supports.some(s => mountedOn(lm, s.box))) out.push({
+    const room = roomOfLum.get(lm.id);
+    const onCurve = curved.some(b => distToBox(b, lm.x, lm.y) <= MOUNT_TOL);
+    if (!onCurve && !supports.some(b => mountedOn(lm, b))) out.push({
       id: `light-mount:${lm.id}:${Math.round(lm.x)}:${Math.round(lm.y)}`, rule: 'light-mount', severity: 'lighting',
       title: `${nameOf(lm)}沒有貼著牆或櫃子`,
       detail: `整支 ${Math.round(lm.tube.length)}cm 要背靠在同一面牆、樑或做到頂的櫃子上`,
       why: '燈管要鎖在牆面、樑或櫃子封板上。拖到牆邊會自動貼齊。',
-      targets: [lm.id],
+      targets: [lm.id], room,
     });
     const door = doors.find(d => overDoor(lm, d, maxWall / 2 + MOUNT_TOL + 1));
     if (door) out.push({
@@ -130,14 +192,12 @@ export function lightingFindings(objs: readonly Obj[], ceiling: number): Finding
       title: `${nameOf(lm)}跨在門上方`,
       detail: `跟門在同一道牆上，沿牆的範圍重疊 ${Math.round(Math.min(lm.tube.length, door.width))}cm 以內`,
       why: '門框上方要有足夠的牆面才鎖得住；不夠的話換短一號或往旁邊挪。',
-      targets: [lm.id, door.id],
+      targets: [lm.id, door.id], room,
     });
   }
 
   // ---- 一、四、五：一間一間看，只看有燈的房間
-  for (const room of objs.filter((o): o is Room => o.kind === 'room')) {
-    const lr = lightRoom(room, ceiling, blocked);
-    const lums = roomLuminaires(lr, all);
+  for (const { room, lr, lums } of rooms) {
     if (!lums.length) continue;
     const rname = room.name || '房間';
 
@@ -149,7 +209,7 @@ export function lightingFindings(objs: readonly Obj[], ceiling: number): Finding
       for (const lm of lums) {
         const ang = Math.atan2(Math.hypot(lm.x - hp.x, lm.y - hp.y), lm.z - L.pillowHeight) * 180 / Math.PI;
         const behind = (lm.x - hp.x) * hp.toHead.x + (lm.y - hp.y) * hp.toHead.y > 0;
-        const base = { rule: 'light-pillow', severity: 'lighting' as const, targets: [lm.id, bed.id] };
+        const base = { rule: 'light-pillow', severity: 'lighting' as const, targets: [lm.id, bed.id], room: room.id };
         if (behind && ang < L.glareNear) out.push({
           ...base, id: `light-pillow-behind:${lm.id}:${bed.id}:${deg(ang)}`,
           title: `${nameOf(lm)}在床頭後上方`,
@@ -178,7 +238,7 @@ export function lightingFindings(objs: readonly Obj[], ceiling: number): Finding
       title: `${rname}明暗差比較大`,
       detail: `均勻度 ${g.uniformity.toFixed(2)}（最暗 ${Math.round(g.min)} ÷ 平均 ${Math.round(g.avg)} lux），低於 ${L.uniformity}`,
       why: '最暗的角落跟平均差太多，眼睛在亮暗之間來回會累。在暗處補一盞、或把燈往暗處挪。以桌面高度、全部迴路開著、中間色牆面計算。',
-      targets: [room.id],
+      targets: [room.id], room: room.id,
     });
 
     // 五：各區域達標
@@ -189,14 +249,14 @@ export function lightingFindings(objs: readonly Obj[], ceiling: number): Finding
       const v = verdict(st.avg, z.need);
       if (v === 'ok') continue;
       const avg = Math.round(st.avg);
-      const base = { id: `light-zone:${room.id}:${z.type}:${z.target}:${avg}`, rule: 'light-zone', severity: 'lighting' as const, targets: [z.target] };
+      const base = { id: `light-zone:${room.id}:${z.type}:${z.target}:${avg}`, rule: 'light-zone', severity: 'lighting' as const, targets: [z.target], room: room.id };
       if (z.type === 'desk') out.push({
         ...base, title: `${z.name}不夠亮`,
         detail: `約 ${avg} lux，寫字建議 ≥${z.need}`,
         why: '桌面要的亮度是一般照明的三倍，靠天花板的燈補上去很浪費；加一盞檯燈最直接。',
       });
       else out.push({
-        ...base, title: `${z.name}${v === 'dark' ? '偏暗' : '略暗'}`,
+        ...base, title: `${z.type === 'door' ? rname : ''}${z.name}${v === 'dark' ? '偏暗' : '略暗'}`,
         detail: `約 ${avg} lux，建議 ≥${z.need}`,
         why: `${z.tip}。以全部迴路開著、中間色牆面計算。`,
       });

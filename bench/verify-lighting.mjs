@@ -279,6 +279,15 @@ check('開法比較：全開的床／書桌跟原型 ±5%', Math.abs(Number(allO
 const warns = await page.$$eval('#lightRooms .lp-warns li b', bs => bs.map(b => b.textContent));
 check('面板提醒：跟原型同樣 5 條（床頭後 1、離枕頭近 2、離櫃子近 2）', warns.length === 5, warns.join('、'));
 await page.locator('#lightPanel').screenshot({ path: join(OUT, 'lighting-zones-panel.png') });
+// 只動床：格點不變（床不擋光），區域表與提醒還是要跟著更新
+const bedRow = async () => (await page.$$eval('#lightRooms .lp-tbl.zones tbody tr', trs => trs.map(tr => [...tr.cells].map(td => td.textContent)))).find(r => r[0] === '床（床面）')?.[1];
+const bedBefore = await bedRow();
+await page.evaluate(() => window.__app.doc.update('bed', { x: 90, y: 160 }));
+await page.waitForTimeout(600);
+const bedAfter = await bedRow();
+check('只移床，區域表的床面數字跟著變', bedAfter && bedAfter !== bedBefore, `${bedBefore} → ${bedAfter}`);
+await page.evaluate(() => window.__app.doc.update('bed', { x: 182.5, y: 127.5 }));
+await page.waitForTimeout(600);
 await page.locator('#lightRooms .lp-room').first().screenshot({ path: join(OUT, 'lighting-zones-room.png') });
 await page.click('[data-act="health"]');
 await page.waitForTimeout(400);

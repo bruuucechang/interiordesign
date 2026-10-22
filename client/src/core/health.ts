@@ -54,6 +54,8 @@ export interface Finding {
   why: string;
   /** Objects to select when the row is clicked. */
   targets: string[];
+  /** The room it is about, when that is not obvious from the targets (a door is in two rooms). */
+  room?: string;
   fix?: Fix;
 }
 
