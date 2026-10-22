@@ -54,7 +54,9 @@ for (const r of lit) {
   const name = r.room.name ?? '';
   const b5 = B5.has(name);
   const bad = (cond: boolean) => { if (cond && !b5) fail++; return cond ? '✗' : '✓'; };
-  const need = ROOM_NEED[name] ?? 0;
+  const need = ROOM_NEED[name];
+  // 房間改了名，門檻與達標區域就會安靜地對不上——不認得的名字直接算不過。
+  if (need == null) { fail++; console.log(`\n✗ 不認得的房間「${name}」`); continue; }
   const lm = r.lums.length, lumens = Math.round(r.lumens);
   console.log(`\n## ${name}${b5 ? '（B5，只列出）' : ''}`);
   console.log(`  燈 ${lm} 盞、${lumens} lm、${r.area.toFixed(1)} m²｜整間平均 ${f0(r.grid.avg)}（≥${need} ${bad(r.grid.avg < need)}）`
@@ -82,9 +84,16 @@ for (const r of lit) {
   const fs = findings.filter(f => f.room === r.room.id);
   for (const f of fs) {
     const lamp = f.rule === 'light-zone' && /桌面/.test(f.title);
-    if (!lamp && !b5) fail++;
-    console.log(`  ${lamp || b5 ? '·' : '✗'} [${f.rule}] ${f.title}：${f.detail}`);
+    // 健檢把燈分給「第一間照到它的」房間，指到 b6_* 的提醒就算落在 B5 那兩間也要算。
+    const mine = !b5 || f.targets.some(t => t.startsWith('b6_'));
+    if (!lamp && mine) fail++;
+    console.log(`  ${lamp || !mine ? '·' : '✗'} [${f.rule}] ${f.title}：${f.detail}`);
   }
+}
+// 少了一間房，迴圈根本走不到它；照名字點名一次。
+const seen = new Set(lit.map(r => r.room.name));
+for (const n of new Set([...Object.keys(ROOM_NEED), ...AREAS.map(a => a[0])])) {
+  if (!seen.has(n)) { fail++; console.log(`✗ 方案裡沒有房間「${n}」`); }
 }
 const loose = findings.filter(f => !f.room);
 for (const f of loose) { fail++; console.log(`✗ （不屬於任何房間）[${f.rule}] ${f.title}：${f.detail}`); }
