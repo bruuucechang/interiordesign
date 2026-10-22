@@ -82,5 +82,11 @@
 - 目標：面積報表電氣統計 T5 依尺寸分行；`properties.ts` 的 `as any` 換成依 kind 收窄的型別
 - 驗收：`npm test` 綠；`grep -c "as any" client/src/ui/properties.ts` 降到個位數；匯出 plan1151022 的 Excel 看到 T5 分尺寸
 - 碰：`server/app/report.py`＋測試、`client/src/ui/properties.ts`
-- 不做：S6 拆 view3d、S7 英文翻譯、S8 牆厚上限（使用者沒選）
+- 不做：S7 英文翻譯、S8 牆厚上限（使用者沒選）；S6 拆 view3d 在 B14
+
+## B14 拆 3D 程式（S6）  [未開始]
+- 目標：`view3d.ts`（1,068 行）、`furniture3d.ts`（999 行）照既有判準拆——「錯了不會有錯誤訊息」的運算抽成純函式並補測試，場景／相機／渲染迴圈留在原處；使用者 2026-10-23 說「3d程式可拆」
+- 驗收：`npm test` 綠且新抽出的模組有測試；照 `.claude/rules/layering.md`「重構 3D 之後怎麼證明沒改壞」比對拆前拆後 plan1151022 的 3D 截圖一致；兩檔各降到 800 行以下
+- 碰：`client/src/core/view3d.ts`、`furniture3d.ts`、新抽出的 `client/src/core/*.ts`＋測試
+- 不做：改 3D 的外觀或行為（只搬不改）；要在 B10（3D 畫燈）合併之後才做，避免兩塊同時改 view3d
 
