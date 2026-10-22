@@ -13,6 +13,7 @@ import { askRoute, renderSteps } from './onboarding';
 import { startTour, maybeStartTour } from './tour';
 import { openHelp, wireHelp } from './help';
 import { toggleHealth, wireHealth, scheduleHealth } from './health-panel';
+import { toggleLighting, wireLighting } from './lighting-panel';
 import { t, setLang, currentLang, Lang } from '../core/i18n';
 import { DEFAULTS, defaultNote } from '../model/locale-defaults';
 import { flushSave, markDirty, scheduleAutosave, startAutosave } from './autosave';
@@ -537,6 +538,7 @@ function wireTopbar(editor: Editor, doc: Doc) {
   wireExportMenu(editor, doc);
   wireHelp();
   wireHealth(editor, doc);
+  wireLighting(editor, doc);
   // `:not(.furn-head)` — 家具面板的分類標題自己有處理器（要存摺疊狀態、要重跑
   // 篩選）。這一行是在 buildCatalog 之後跑的，少了排除條件就會把它整個蓋掉：
   // 外觀完全正常（class 照樣 toggle、CSS 照樣把下一個 div 收起來），只是狀態
@@ -640,6 +642,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       break;
     case 'import-image': $<HTMLInputElement>('#imageInput').click(); break;
     case 'health': toggleHealth(editor, doc); break;
+    case 'lighting': toggleLighting(editor, doc); break;
     case 'help': openHelp(editor, doc); break;
     case 'tour': startTour(); break;   // kept so an old bookmark/keystroke still works
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;

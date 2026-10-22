@@ -9,7 +9,7 @@
 - 碰：`client/src/model/schema.ts`、`catalogue.ts`、`migrate.ts`（只在要破壞舊檔時才加 STEP）、`client/src/core/lighting.ts`（新）、`client/test/lighting.test.ts`（新）、codegen 產物
 - 不做：畫面（B2）、區域與檢查（B3）
 
-## B2 2D 照度圖層與面板  [未開始]
+## B2 2D 照度圖層與面板  [完成]
 - 目標：平面圖上開關「照度」圖層看熱圖與 100／200／300 等亮線、游標讀數；側邊面板有迴路勾選、量測高度、牆面顏色、每個房間的整間數字；屬性面板可改燈的流明、色溫、迴路、T5 尺寸與方向；拖燈即時重算
 - 驗收：`npm test` 綠；`bench/verify-lighting.mjs`（新）用 dev-browser --headless 放兩盞燈、拖一盞，截圖看熱圖跟著動，重算一次 < 50 ms
 - 碰：`client/src/core/renderer.ts`、`client/src/ui/`（新增 lighting-panel.ts）、`properties.ts`、`tools/place.ts`（T5 貼牆朝向）、`index.html`、`style.css`
