@@ -91,6 +91,26 @@ export function mergeCollinear(boxes: Box[]): Box[] {
   return out;
 }
 
+/**
+ * 燈管有沒有穿過一道跟它不平行的牆——T 字接頭兩側的牆段併起來之後，跨過接頭的燈管
+ * 看起來背後一整面都是牆，但隔間牆正從中間接上來，裝不上去。沿著燈管、往它照的方向
+ * 退 2 cm，每 5 cm 一個點看有沒有落進那種牆裡。
+ */
+function crossesWall(L: Luminaire, walls: Box[]): boolean {
+  const t = L.tube!;
+  const n = Math.max(2, Math.ceil(t.length / 5));
+  for (const b of walls) {
+    const a = b.angle * Math.PI / 180;
+    if (Math.abs(Math.cos(a) * t.axis[0] + Math.sin(a) * t.axis[1]) > 0.99) continue;
+    for (let i = 0; i <= n; i++) {
+      const u = (i / n - 0.5) * t.length;
+      const x = L.x + t.axis[0] * u + t.face[0] * MOUNT_TOL, y = L.y + t.axis[1] * u + t.face[1] * MOUNT_TOL;
+      if (distToBox(b, x, y) === 0) return true;
+    }
+  }
+  return false;
+}
+
 /** 燈管跟門在同一道牆上、而且沿牆的範圍重疊。 */
 function overDoor(L: Luminaire, door: Opening, reach: number): boolean {
   const t = L.tube!;
@@ -163,6 +183,7 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
 
   // ---- 三：燈管要鎖在牆、樑或櫃子上，而且不能跨在門上
   const straight = walls.filter(w => !w.bulge);
+  const wallBoxes = straight.map(w => wallBox(w.a, w.b, w.thickness)).filter((b): b is Box => !!b);
   const supports: Box[] = mergeCollinear([
     ...straight.map(w => wallBox(w.a, w.b, w.thickness)),
     ...beams.map(b => wallBox(b.a, b.b, b.width)),
@@ -179,7 +200,7 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
     if (!lm.tube) continue;
     const room = roomOfLum.get(lm.id);
     const onCurve = curved.some(b => distToBox(b, lm.x, lm.y) <= MOUNT_TOL);
-    if (!onCurve && !supports.some(b => mountedOn(lm, b))) out.push({
+    if (!onCurve && (!supports.some(b => mountedOn(lm, b)) || crossesWall(lm, wallBoxes))) out.push({
       id: `light-mount:${lm.id}:${Math.round(lm.x)}:${Math.round(lm.y)}`, rule: 'light-mount', severity: 'lighting',
       title: `${nameOf(lm)}沒有貼著牆或櫃子`,
       detail: `整支 ${Math.round(lm.tube.length)}cm 要背靠在同一面牆、樑或做到頂的櫃子上`,

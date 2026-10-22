@@ -374,3 +374,10 @@ test('照明二：隔著牆的隔壁房櫃子不算', () => {
   ];
   assert.deepEqual(ofRule(two, 'light-cabinet'), []);
 });
+
+test('照明三：跨過 T 字接頭（隔間牆從中間接上來）的層板燈要唸', () => {
+  const t = [wall('w1a', 0, 0, 300, 0), wall('w1b', 300, 0, 600, 0), wall('p', 300, 0, 300, 400), ...BOX.slice(1)];
+  assert.equal(ofRule([...t, lamp('t', 'batten', 300, 6, { size: 4, angle: 180 })], 'light-mount').length, 1);
+  // 同一面牆、整支在接頭左邊，不唸
+  assert.deepEqual(ofRule([...t, lamp('t', 'batten', 150, 6, { size: 4, angle: 180 })], 'light-mount'), []);
+});
