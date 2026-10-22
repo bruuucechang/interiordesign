@@ -138,8 +138,17 @@ const JOIN_MAX = 30;
  * 那道牆差半個柱寬——剛好落在 `JOIN_MAX` 以內，於是每根柱子都被唸「沒接上」，而
  * 按下「接上」會把柱子拉長去碰牆的中心線，把一個對的長方體改成錯的。
  *
- * 只是不檢查**柱子自己的**端點；別的牆接到柱子上照樣算接上。
+ * 所以柱子的端點改量**沿柱軸往外的縫**：最近那道牆在它旁邊、或它的端面已經伸進
+ * 那道牆裡（縫 ≤ 對方半厚），就是嵌著，不唸；端面跟牆之間真的隔著一段，照樣唸。
+ * 別的牆接到柱子上照舊用中心線判斷。
  */
+function columnEmbedded(w: Wall, end: 'a' | 'b', at: Vec, other: Wall): boolean {
+  const p = w[end], q = w[end === 'a' ? 'b' : 'a'];
+  const L = dist(p, q) || 1;
+  const gap = ((at.x - p.x) * (p.x - q.x) + (at.y - p.y) * (p.y - q.y)) / L;
+  return gap <= other.thickness / 2;
+}
+
 function wallJoins(walls: Wall[]): Finding[] {
   const out: Finding[] = [];
   /**
@@ -153,7 +162,6 @@ function wallJoins(walls: Wall[]): Finding[] {
    */
   const seen = new Set<string>();
   for (const w of walls) {
-    if (isColumn(w)) continue;
     for (const end of ['a', 'b'] as const) {
       const p = w[end];
       let best: { d: number; at: Vec; otherId: string } | null = null;
@@ -166,6 +174,10 @@ function wallJoins(walls: Wall[]): Finding[] {
         if (d <= JOIN_MAX && (!best || d < best.d)) best = { d, at: closestOnSegment(p, other.a, other.b).point, otherId: other.id };
       }
       if (!best) continue;
+      if (isColumn(w)) {
+        const other = walls.find(o => o.id === best!.otherId)!;
+        if (columnEmbedded(w, end, best.at, other)) continue;
+      }
       const pair = [w.id, best.otherId].sort().join('~') + ':' + Math.round(best.d * 10);
       if (seen.has(pair)) continue;
       seen.add(pair);

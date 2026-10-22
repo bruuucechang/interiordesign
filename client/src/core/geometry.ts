@@ -10,11 +10,37 @@ export const angleDeg = (a: Vec, b: Vec): number => Math.atan2(b.y - a.y, b.x - 
 
 /**
  * 柱子＝一道厚度等於短邊、中心線沿長邊的短牆（design-rules 2.1–2.3）。
- * 條件與 `collapseColumns` 認柱子的一樣：兩邊都 ≤120cm；厚度 ≥30 是因為住宅的牆
- * 最厚約 30（AGENTS.md「一道牆的兩條線」那節）。
+ * 兩邊都 ≤120cm 同 `collapseColumns`；另外加了厚 ≥30 的下限（住宅的牆最厚約 30，
+ * AGENTS.md「一道牆的兩條線」那節），所以比這細的柱子照舊當牆看待。
+ *
+ * 這只看形狀。短厚的牆段也長這樣，所以用到它的地方都還要看端點：跟別的牆共點
+ * （轉角）的就不是獨立的柱子——見 `wallEndCounts` 與 `health.ts::wallJoins`。
  */
 export const isColumn = (w: { a: Vec; b: Vec; thickness: number; bulge?: number }): boolean =>
   !w.bulge && w.thickness >= 30 && w.thickness <= 120 && dist(w.a, w.b) <= 120;
+
+/** 端點的比對鍵——跟 `view3d.ts` 決定哪一端要延伸半個厚度用的是同一個（0.5cm 格）。 */
+export const wallEndKey = (p: Vec): string => `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`;
+
+/** 每個端點被幾道牆共用。>1 就是轉角，3D 在那裡延伸半個厚度、2D 用方頭。 */
+export function wallEndCounts(objects: readonly { kind: string; a?: Vec; b?: Vec }[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const o of objects) {
+    if (o.kind !== 'wall' || !o.a || !o.b) continue;
+    for (const p of [o.a, o.b]) m.set(wallEndKey(p), (m.get(wallEndKey(p)) ?? 0) + 1);
+  }
+  return m;
+}
+
+/**
+ * 2D 的線頭。牆一律方頭（兩道同厚的牆在轉角剛好補滿），只有**獨立的柱子**用平頭：
+ * 它的中心線已經跨滿整個黑塊，方頭會把 65×65 畫成 65×130。3D 沒接的端點也不延伸，
+ * 所以兩邊一致。短厚的牆段只要有一端是轉角，就照牆畫（3D 在那端也會延伸）。
+ */
+export function wallCap(w: { a: Vec; b: Vec; thickness: number; bulge?: number }, ends: ReadonlyMap<string, number>): 'butt' | 'square' {
+  const free = (p: Vec) => (ends.get(wallEndKey(p)) ?? 0) <= 1;
+  return isColumn(w) && free(w.a) && free(w.b) ? 'butt' : 'square';
+}
 
 export function snap(value: number, grid: number): number {
   return Math.round(value / grid) * grid;

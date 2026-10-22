@@ -5,6 +5,9 @@
 //   node scripts/trace-pdf1151022.mjs --out /tmp/p.json   # 只輸出檔案
 //   node scripts/trace-pdf1151022.mjs --save              # 寫到 plan1151022（新的 id）
 //
+// --save 會整份蓋掉 plan1151022，包括在 App 裡對它做過的修改。使用者開始在這份上
+// 面改東西之後，要重產就先另存，或改寫到別的 id。
+//
 // Needs the backend on :8791 — rooms come from `/api/rooms/detect`, the same
 // detector the editor uses, so the room outlines agree with the walls by
 // construction.
@@ -36,7 +39,7 @@
 // A column is one wall: centre line along the long side of the black block,
 // thickness = the short side (design-rules 2.1–2.3, same as collapseColumns).
 // They stand free — neither end is joined to anything — so `health.ts` must
-// not ask for them to be "接上" (see `isColumn` there).
+// not ask for them to be "接上" (see `columnEmbedded` there).
 
 import { writeFileSync } from 'node:fs';
 

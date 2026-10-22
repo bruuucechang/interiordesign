@@ -18,9 +18,13 @@ const TOL = 5;
 const src = process.argv[2];
 const plan = src
   ? JSON.parse(readFileSync(src, 'utf8'))
-  : await (await fetch('http://127.0.0.1:8791/api/projects/plan1151022', {
+  : await fetch('http://127.0.0.1:8791/api/projects/plan1151022', {
     headers: { 'X-Owner': 'own_orsxp52fbvey' },
-  })).json().then((r) => r.data ?? r);
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(`GET plan1151022 → ${r.status}（後端沒開，或方案還沒用 trace-pdf1151022.mjs --save 寫進去）`);
+    const j = await r.json();
+    return j.data ?? j;
+  });
 const walls = plan.floors[0].objects.filter((o) => o.kind === 'wall' && !o.bulge);
 
 // A wall running along `axis` ('V' = constant x) whose centre is within 1 cm of
