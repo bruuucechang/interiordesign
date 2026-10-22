@@ -2,7 +2,7 @@
 
 > 2026-10-22 跟使用者問定。來源是「臥室燈光配置」artifact
 > （https://claude.ai/artifact/8XWNMc2ZLLEMg8SqHyQQTm），它是這個功能的原型，
-> 數字、檢查規則、介面都以它為準。切塊與進度在根目錄 `blocks.md`。
+> 數字、檢查規則、介面都以它為準；原型的原始碼存在 `docs/lighting-prototype.html`（純 HTML，瀏覽器直接開），PDF 存在 `docs/plan-1151022.pdf`。切塊與進度在根目錄 `blocks.md`。
 
 ## 要做什麼
 

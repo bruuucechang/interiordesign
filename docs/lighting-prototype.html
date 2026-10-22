@@ -1,0 +1,878 @@
+<title>臥室燈光配置</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 分頁切換兩間房；每頁左邊是可編輯的平面圖＋照度熱圖，右邊是控制、選取物件的屬性、分析；下面是開法比較、購買清單、施工重點 */
+:root {
+  --bg: #eceff2;
+  --surface: #f8f9fb;
+  --fg: #1d2731;
+  --muted: #5f6b77;
+  --rule: #cfd6dd;
+  --accent: #b8761a;
+  --ok: #2f7d4f;
+  --warn: #b0611a;
+  --bad: #b23a3a;
+  --night: #161d26;
+  --night-furn: #263240;
+  --night-line: #8796a5;
+  --night-wall: #d9dfe5;
+  --night-text: #c4ccd5;
+  --c1: #ffb547;
+  --c2: #6cc4ff;
+  --c3: #ff8fb8;
+  --f-display: "Noto Serif TC", "Songti TC", serif;
+  --f-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141a; --surface: #161d25; --fg: #e3e8ed; --muted: #95a2ae; --rule: #2a3440; --accent: #f0a94a; --ok: #6cc28f; --warn: #f0a050; --bad: #ff7b7b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141a; --surface: #161d25; --fg: #e3e8ed; --muted: #95a2ae; --rule: #2a3440; --accent: #f0a94a; --ok: #6cc28f; --warn: #f0a050; --bad: #ff7b7b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 56px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; color: var(--muted); }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(26px, 4vw, 34px); line-height: 1.3; }
+h3 { font-size: 16px; font-family: var(--f-body); font-weight: 700; }
+p { margin: 0; }
+a { color: var(--accent); }
+.note { color: var(--muted); font-size: 14px; max-width: 78ch; }
+.note b { color: var(--fg); font-weight: 500; }
+button { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--fg); flex-wrap: wrap; }
+.tabs button { cursor: pointer; border: 0; background: transparent; color: var(--muted); padding: 10px 18px 8px; font-size: 16px; font-weight: 500; border-radius: 6px 6px 0 0; text-align: left; }
+.tabs button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+.tabs .sub { display: block; font-size: 12px; font-weight: 400; opacity: .8; }
+
+.app { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 900px) { .app { grid-template-columns: minmax(0,1fr); } }
+.stage { background: var(--night); border-radius: 6px; padding: 10px; display: grid; gap: 8px; position: sticky; top: max(8px, env(safe-area-inset-top, 0px)); }
+@media (max-width: 900px) { .stage { position: static; } }
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; }
+.toolbar button { cursor: pointer; border: 1px solid #3a4756; background: #1f2833; color: var(--night-text); padding: 4px 10px; border-radius: 5px; font-size: 13px; }
+.toolbar button:hover { border-color: var(--night-text); }
+.toolbar button:disabled { opacity: .4; cursor: default; }
+.toolbar .sep { width: 1px; background: #3a4756; margin: 2px 2px; }
+#plan { width: 100%; height: auto; display: block; touch-action: none; user-select: none; -webkit-user-select: none; max-height: 78vh; }
+.scale { display: grid; gap: 3px; padding: 0 4px; }
+.scale .bar { height: 9px; border-radius: 2px; }
+.scale .ticks { position: relative; height: 14px; font-family: var(--f-mono); font-size: 10.5px; color: var(--night-text); }
+.scale .ticks span { position: absolute; transform: translateX(-50%); }
+.readout { font-family: var(--f-mono); font-size: 12.5px; color: var(--night-text); padding: 0 4px; min-height: 1.4em; }
+.hint { font-size: 12px; color: #8a97a5; padding: 0 4px; }
+
+.side { display: grid; gap: 18px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.label { font-size: 12px; letter-spacing: .08em; color: var(--muted); font-weight: 500; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.seg { display: inline-grid; grid-auto-flow: column; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { cursor: pointer; border: 0; background: var(--surface); color: var(--fg); padding: 5px 11px; font-size: 13.5px; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.circ { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+.chip { width: 12px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: -1px; }
+.field { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.field input, .field select { font: inherit; font-size: 14px; color: var(--fg); background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 4px 8px; width: 100%; min-width: 0; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn { cursor: pointer; border: 1px solid var(--rule); background: var(--bg); color: var(--fg); border-radius: 5px; padding: 4px 12px; font-size: 13.5px; }
+.btn.danger { color: var(--bad); border-color: currentColor; }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+@media (max-width: 520px) { .stats { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.stat { background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; padding: 7px 9px; display: grid; }
+.stat .v { font-family: var(--f-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 11.5px; color: var(--muted); }
+
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 11.5px; color: var(--muted); font-weight: 500; letter-spacing: .05em; white-space: nowrap; }
+td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; font-size: 11.5px; font-weight: 500; padding: 0 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+ul.warns { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13.5px; }
+ul.warns li { display: grid; grid-template-columns: 10px minmax(0,1fr); gap: 8px; align-items: baseline; }
+ul.warns li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); transform: translateY(-1px); }
+ul.warns li.warn::before { background: var(--warn); }
+ul.warns li.bad::before { background: var(--bad); }
+
+.lower { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 22px; }
+@media (max-width: 900px) { .lower { grid-template-columns: minmax(0,1fr); } }
+ol.check { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; font-size: 14px; }
+ol.check b { font-weight: 500; }
+details summary { cursor: pointer; font-size: 13.5px; color: var(--muted); }
+textarea { width: 100%; min-height: 120px; font-family: var(--f-mono); font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 8px; }
+.src { font-size: 12.5px; color: var(--muted); }
+
+.wallline { stroke: var(--night-wall); stroke-width: 8; fill: none; }
+.gap { stroke: var(--night); stroke-width: 10; }
+.win { stroke: #9cc7e8; stroke-width: 2; }
+.doorarc { stroke: var(--night-line); stroke-width: 1; fill: none; stroke-dasharray: 3 3; }
+.cab { fill: var(--night-furn); stroke: var(--night-line); stroke-width: 1; }
+.loose { fill: rgba(20,26,34,.10); stroke: rgba(20,26,34,.8); stroke-width: 1.4; }
+.ftxt { font-family: var(--f-body); font-size: 12px; text-anchor: middle; paint-order: stroke; stroke: rgba(255,255,255,.75); stroke-width: 3px; fill: #141a22; pointer-events: none; }
+.ctxt { font-family: var(--f-body); font-size: 12px; text-anchor: middle; fill: var(--night-text); pointer-events: none; }
+.otxt { font-family: var(--f-body); font-size: 11px; fill: var(--night-text); pointer-events: none; }
+.dimtxt { font-family: var(--f-mono); font-size: 10px; fill: var(--night-text); pointer-events: none; }
+.contour { fill: none; stroke: #fff; stroke-width: 1.1; stroke-dasharray: 4 3; pointer-events: none; }
+.sel { fill: none; stroke: #fff; stroke-width: 1.4; stroke-dasharray: 4 3; pointer-events: none; }
+.handle { fill: #fff; stroke: #141a22; stroke-width: 1; cursor: nwse-resize; }
+.hit { fill: transparent; cursor: move; }
+.probe { font-family: var(--f-mono); font-size: 10.5px; font-weight: 600; fill: #fff; paint-order: stroke; stroke: rgba(16,21,28,.85); stroke-width: 3px; pointer-events: none; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">麗景天廈 55 號 2F · 依 1/60 平面配置圖 · 天花板完成面預設 280 cm</div>
+    <h1>臥室燈光配置</h1>
+    <p class="note">兩間房用同一套做法：四面各一支 T5 層板燈＋天花板 9 cm 崁燈。<b>圖上的床、櫃子、書桌、燈都可以拖曳移動</b>，家具拉右下角可以改大小；點一下物件可以在右邊改數字、換尺寸、刪除。照度熱圖和分析會即時重算。改過的配置存在你這台瀏覽器。</p>
+  </header>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button type="button" role="tab" id="tab-a" data-room="a" aria-selected="true">你的房間<span class="sub">右下角 · 約 365 × 415 cm</span></button>
+    <button type="button" role="tab" id="tab-b" data-room="b" aria-selected="false">上方房間（主臥）<span class="sub">右上角 · 約 348 × 596 cm</span></button>
+  </nav>
+
+  <section class="app">
+    <div class="stage">
+      <div class="toolbar" id="toolbar">
+        <button type="button" data-add="down">＋ 崁燈</button>
+        <button type="button" data-add="t5">＋ T5</button>
+        <span class="sep"></span>
+        <button type="button" data-add="bed">＋ 床</button>
+        <button type="button" data-add="desk">＋ 書桌</button>
+        <button type="button" data-add="cabinet">＋ 櫃子</button>
+        <span class="sep"></span>
+        <button type="button" id="undo">復原</button>
+        <button type="button" id="redo">重做</button>
+        <button type="button" id="reset">還原這間預設</button>
+      </div>
+      <svg id="plan" role="img" aria-label="可編輯的平面圖與照度熱圖"></svg>
+      <div class="scale"><div class="bar" id="scaleBar"></div><div class="ticks" id="scaleTicks"></div></div>
+      <div class="readout" id="readout">移到圖上看該點亮度</div>
+      <div class="hint">拖曳移動（每 5 cm 一格）· 拖家具右下角的白點改大小 · 選取後按 Delete 刪除、方向鍵微調 · T5 拖到牆或櫃子旁會自動貼齊並朝房間發光 · 虛線是 100／200／300 lux 等亮線，數字是各區域平均</div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <div class="label">開關迴路（勾選＝開）</div>
+        <div class="row" id="circuits"></div>
+        <div class="row">
+          <span class="label">量測高度</span>
+          <div class="seg" id="planeSeg">
+            <button type="button" data-h="75">桌面 75</button>
+            <button type="button" data-h="55">床面 55</button>
+            <button type="button" data-h="0">地面</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="label">牆面顏色</span>
+          <div class="seg" id="rhoSeg">
+            <button type="button" data-r=".55">淺色</button>
+            <button type="button" data-r=".45">一般</button>
+            <button type="button" data-r=".3">深色</button>
+          </div>
+          <label class="field" style="grid-auto-flow:column;align-items:center;gap:6px">天花板完成面 <input type="number" id="ceilInput" min="240" max="300" step="5" style="width:72px"> cm</label>
+        </div>
+      </div>
+
+      <div class="card" id="inspector"></div>
+
+      <div class="card">
+        <div class="label">整間（量測高度）</div>
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div class="card">
+        <div class="label">各區域</div>
+        <div class="tbl"><table id="zones"></table></div>
+      </div>
+
+      <div class="card">
+        <div class="label">檢查結果</div>
+        <ul class="warns" id="warns"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="lower">
+    <div class="card">
+      <h3>開法比較</h3>
+      <p class="note">每一種迴路組合的亮度（桌面高度）。燈的迴路在右邊選燈後可以改。</p>
+      <div class="tbl"><table id="combos"></table></div>
+    </div>
+    <div class="card">
+      <h3>購買清單</h3>
+      <div class="tbl"><table id="bom"></table></div>
+      <p class="note" id="bomTotal"></p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>施工重點（兩間共用）</h3>
+    <ol class="check">
+      <li><b>櫃子做到頂的話，頂端留 15～20 cm 固定封板</b>，門片做在封板下面，T5 鎖在封板上，電源線穿進櫃子頂層。要在櫃子下訂前跟廠商講。</li>
+      <li><b>窗戶那面牆的 T5 在窗簾軌道上面</b>，窗戶上緣要比 T5 低約 20 cm（天花板 280 cm 時，窗上緣 ≤ 245 cm）。</li>
+      <li><b>T5 直接接 110V</b>，不用變壓器。牆上的 T5 從天花板裡拉線、在燈的一端留出線口。</li>
+      <li><b>崁燈要天花板預留 10 cm 以上</b>；浩瀚崁燈燈體 39 mm 厚。離櫃門 30～50 cm 最好，太近只照到櫃子頂端。</li>
+      <li><b>T5 和崁燈都不能調光</b>，用迴路分開開關來調亮度；門口和床頭做雙切。睡前、看書靠床頭閱讀燈，書桌加檯燈。</li>
+      <li><b>上方房間北邊的 T5</b> 放在凸窗開口上緣，要確認那裡有樑或牆可以鎖。</li>
+    </ol>
+    <details>
+      <summary>計算方式與限制</summary>
+      <p class="note" style="margin-top:8px">崁燈當成往下的朗伯光源（120° 散光型，720 lm）。T5 每支切成 16 小段，當成貼牆的半圓柱燈管，朝房間那一半發光、往管子兩端漸暗。反射光用整間平均估算：總流明 × 反射率 ÷（室內總表面積 ×（1 − 反射率））。全部乘 0.8 預留老化與灰塵。<b>沒有算：</b>家具擋光、床頭燈、檯燈、窗外的光、燈具實際配光（官網沒提供），數字可能差一到兩成。參考值：臥室環境光約 100 lux、看書約 300 lux、辦公室書寫 500 lux（<a href="https://dialux4.support-en.dial.de/support/solutions/articles/9000080311-standard-values-for-hospitals-" target="_blank" rel="noopener">EN 12464-1 參考值</a>）。</p>
+    </details>
+    <details>
+      <summary>目前配置的資料（可以複製貼給 Claude）</summary>
+      <div class="btns" style="margin:8px 0"><button type="button" class="btn" id="copyCfg">複製</button><span class="note" id="copyMsg"></span></div>
+      <textarea id="cfgText" readonly></textarea>
+    </details>
+    <p class="src">型號來源：<a href="https://www.dancelight.com.tw/tw/product/batten-light-0001/detail" target="_blank" rel="noopener">舞光 T5 一體式支架燈</a>、<a href="https://yinghuilighting.com/product/dancelight-led-chandelier-vast-5w-8w-120d-fullvoltage/" target="_blank" rel="noopener">舞光浩瀚崁燈（穎輝燈飾）</a>、<a href="https://www.limelighting.com.tw/product/2531" target="_blank" rel="noopener">東亞 LDP30x（替代品）</a>。</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const MF = 0.8, SEG = 16, PAD = 34, SNAP = 5;
+  const T5 = {
+    1: { len: 31.2,  lm: 550,  w: 5,  model: 'D-T5BA1-WR10' },
+    2: { len: 61.2,  lm: 1000, w: 9,  model: 'D-T5BA2-WR10' },
+    3: { len: 91.2,  lm: 1540, w: 14, model: 'D-T5BA3-WR10' },
+    4: { len: 119.4, lm: 2000, w: 18, model: 'D-T5BA4-WR10' }
+  };
+  const DOWN = { lm: 720, w: 8, model: '舞光 LED 浩瀚崁燈 9 cm 8W 黃光' };
+  const CIRC = { 1: 'var(--c1)', 2: 'var(--c2)', 3: 'var(--c3)' };
+  const FACE = { N: [0,-1], S: [0,1], E: [1,0], W: [-1,0] };
+  const FACE_NAME = { N: '往北照', S: '往南照', E: '往東照', W: '往西照' };
+  const KIND = { bed: '床', desk: '書桌', cabinet: '櫃子' };
+  const ZH = { bed: 55, desk: 75 };
+
+  const DEFAULTS = {
+    a: {
+      name: '你的房間', W: 365, D: 415, ceil: 280,
+      openings: [
+        { side: 'N', a: 0, b: 85, kind: 'door', label: '房門' },
+        { side: 'S', a: 32, b: 335, kind: 'window', label: '窗' },
+        { side: 'E', a: 350, b: 410, kind: 'window', label: '窗' }
+      ],
+      furniture: [
+        { id: 'fa1', kind: 'cabinet', label: '衣櫃', x: 85, y: 0, w: 280, h: 60 },
+        { id: 'fa2', kind: 'cabinet', label: '櫃子', x: 0, y: 95, w: 50, h: 320 },
+        { id: 'fa3', kind: 'bed', label: '床', x: 175, y: 135, w: 190, h: 175 },
+        { id: 'fa4', kind: 'desk', label: '書桌', x: 122, y: 362, w: 243, h: 53 }
+      ],
+      lights: [
+        { id: 'la1', type: 't5', size: 4, orient: 'h', face: 'S', x: 230, y: 60, c: 2 },
+        { id: 'la2', type: 't5', size: 4, orient: 'v', face: 'W', x: 365, y: 248, c: 1 },
+        { id: 'la3', type: 't5', size: 4, orient: 'h', face: 'N', x: 230, y: 415, c: 2 },
+        { id: 'la4', type: 't5', size: 4, orient: 'v', face: 'E', x: 50, y: 248, c: 1 },
+        { id: 'la5', type: 'down', x: 65, y: 105, c: 3 }, { id: 'la6', type: 'down', x: 175, y: 105, c: 3 }, { id: 'la7', type: 'down', x: 285, y: 105, c: 3 },
+        { id: 'la8', type: 'down', x: 65, y: 378, c: 3 }, { id: 'la9', type: 'down', x: 175, y: 378, c: 3 }, { id: 'la10', type: 'down', x: 285, y: 378, c: 3 }
+      ]
+    },
+    b: {
+      name: '上方房間', W: 348, D: 596, ceil: 280,
+      openings: [
+        { side: 'N', a: 0, b: 348, kind: 'window', label: '凸窗' },
+        { side: 'W', a: 492, b: 580, kind: 'door', label: '房門' },
+        { side: 'E', a: 443, b: 520, kind: 'door', label: '浴室門' }
+      ],
+      beams: [{ orient: 'h', v: 73, a: 0, b: 348, face: 'S', label: '凸窗開口上緣' }],
+      furniture: [
+        { id: 'fb1', kind: 'cabinet', label: '櫃子', x: 0, y: 98, w: 46, h: 364 },
+        { id: 'fb2', kind: 'cabinet', label: '衣櫃', x: 105, y: 532, w: 243, h: 64 },
+        { id: 'fb3', kind: 'bed', label: '床', x: 160, y: 193, w: 188, h: 181 }
+      ],
+      lights: [
+        { id: 'lb1', type: 't5', size: 4, orient: 'h', face: 'S', x: 226, y: 73, c: 2 },
+        { id: 'lb2', type: 't5', size: 4, orient: 'v', face: 'W', x: 348, y: 284, c: 1 },
+        { id: 'lb3', type: 't5', size: 4, orient: 'h', face: 'N', x: 226, y: 532, c: 2 },
+        { id: 'lb4', type: 't5', size: 4, orient: 'v', face: 'E', x: 46, y: 284, c: 1 },
+        { id: 'lb5', type: 'down', x: 166, y: 130, c: 3 }, { id: 'lb6', type: 'down', x: 286, y: 130, c: 3 },
+        { id: 'lb7', type: 'down', x: 166, y: 284, c: 3 },
+        { id: 'lb8', type: 'down', x: 166, y: 455, c: 3 }, { id: 'lb9', type: 'down', x: 286, y: 455, c: 3 }
+      ]
+    }
+  };
+
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const KEY = 'bedroom-lighting-v2';
+  let store = null;
+  try { store = JSON.parse(localStorage.getItem(KEY)); } catch (e) { store = null; }
+  if (!store || !store.rooms || !store.rooms.a || !store.rooms.b) store = { rooms: clone(DEFAULTS), tab: 'a' };
+  const view = { a: { on: {1:1,2:1,3:1}, plane: 75, rho: .45 }, b: { on: {1:1,2:1,3:1}, plane: 75, rho: .45 } };
+  const hist = { a: { undo: [], redo: [] }, b: { undo: [], redo: [] } };
+  let tab = store.tab === 'b' ? 'b' : 'a';
+  let sel = null, drag = null, uid = Date.now() % 100000;
+  const room = () => store.rooms[tab];
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ rooms: store.rooms, tab })); } catch (e) {} };
+
+  // ---------- 光學 ----------
+  const t5z = r => r.ceil - 15;
+  const lmOf = L => L.type === 'down' ? DOWN.lm : T5[L.size].lm;
+  const wOf = L => L.type === 'down' ? DOWN.w : T5[L.size].w;
+  function sources(r, on) {
+    const s = [];
+    for (const L of r.lights) {
+      if (!on[L.c]) continue;
+      if (L.type === 'down') { s.push({ x: L.x, y: L.y, z: r.ceil, n: [0,0,-1], I: DOWN.lm / Math.PI }); continue; }
+      const spec = T5[L.size], f = FACE[L.face], ax = L.orient === 'h' ? [1,0] : [0,1];
+      for (let i = 0; i < SEG; i++) {
+        const t = (i + .5) / SEG - .5;
+        s.push({ x: L.x + ax[0] * spec.len * t, y: L.y + ax[1] * spec.len * t, z: L.z || t5z(r), n: [f[0], f[1], 0], ax, I: 2 * spec.lm / SEG / (Math.PI * Math.PI) });
+      }
+    }
+    return s;
+  }
+  function indirect(r, on, rho) {
+    const lm = r.lights.reduce((a, L) => a + (on[L.c] ? lmOf(L) : 0), 0);
+    const area = 2 * r.W * r.D / 1e4 + 2 * (r.ceil / 100) * (r.W + r.D) / 100;
+    return MF * lm * rho / (area * (1 - rho));
+  }
+  function lux(src, x, y, h, ind) {
+    let e = 0;
+    for (const s of src) {
+      const vx = (x - s.x) / 100, vy = (y - s.y) / 100, vz = (h - s.z) / 100;
+      const d2 = vx*vx + vy*vy + vz*vz, d = Math.sqrt(d2);
+      const ca = (vx*s.n[0] + vy*s.n[1] + vz*s.n[2]) / d;
+      if (ca <= 0) continue;
+      const cb = -vz / d;
+      if (cb <= 0) continue;
+      let k = ca;
+      if (s.ax) { const u = (vx*s.ax[0] + vy*s.ax[1]) / d; k = Math.sqrt(Math.max(0, 1 - u*u)); }
+      e += s.I * k * cb / d2;
+    }
+    return e * MF + ind;
+  }
+  const cabinets = r => r.furniture.filter(f => f.kind === 'cabinet');
+  const blocked = (r, x, y) => cabinets(r).some(f => x > f.x && x < f.x + f.w && y > f.y && y < f.y + f.h);
+  function grid(r, on, h, rho, step) {
+    const src = sources(r, on), ind = indirect(r, on, rho);
+    const nx = Math.floor(r.W / step) + 1, ny = Math.floor(r.D / step) + 1;
+    const v = new Float32Array(nx * ny);
+    let sum = 0, cnt = 0, mn = Infinity, mx = 0, c100 = 0, c300 = 0;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const x = Math.min(i * step, r.W), y = Math.min(j * step, r.D);
+      if (blocked(r, x, y)) { v[j*nx+i] = NaN; continue; }
+      const e = lux(src, x, y, h, ind);
+      v[j*nx+i] = e; sum += e; cnt++;
+      if (e < mn) mn = e; if (e > mx) mx = e; if (e >= 100) c100++; if (e >= 300) c300++;
+    }
+    return { nx, ny, step, v, src, ind, avg: cnt ? sum / cnt : 0, mn: cnt ? mn : 0, mx, p100: cnt ? c100 / cnt : 0, p300: cnt ? c300 / cnt : 0 };
+  }
+  function zoneStat(r, src, ind, z, h) {
+    let sum = 0, cnt = 0, mn = Infinity;
+    const st = 10;
+    for (let y = z.y + st/2; y < z.y + z.h; y += st) for (let x = z.x + st/2; x < z.x + z.w; x += st) {
+      if (x < 0 || y < 0 || x > r.W || y > r.D || blocked(r, x, y)) continue;
+      const e = lux(src, x, y, h, ind); sum += e; cnt++; if (e < mn) mn = e;
+    }
+    return cnt ? { avg: sum / cnt, mn } : null;
+  }
+
+  // ---------- 區域 ----------
+  function zones(r) {
+    const out = [];
+    r.furniture.filter(f => f.kind === 'bed').forEach(f => out.push({ type: 'bed', name: (f.label || '床') + '（床面）', x: f.x, y: f.y, w: f.w, h: f.h, hgt: ZH.bed, need: 100, tip: '躺著看書另開床頭燈' }));
+    r.furniture.filter(f => f.kind === 'desk').forEach(f => out.push({ type: 'desk', name: (f.label || '書桌') + '桌面', x: f.x, y: f.y, w: f.w, h: f.h, hgt: ZH.desk, need: 300, tip: '寫字建議 300～500，不夠就加檯燈' }));
+    cabinets(r).forEach(f => {
+      const faces = [];
+      if (f.x > 1) faces.push({ len: f.h, z: { x: f.x - 50, y: f.y, w: 50, h: f.h } });
+      if (f.x + f.w < r.W - 1) faces.push({ len: f.h, z: { x: f.x + f.w, y: f.y, w: 50, h: f.h } });
+      if (f.y > 1) faces.push({ len: f.w, z: { x: f.x, y: f.y - 50, w: f.w, h: 50 } });
+      if (f.y + f.h < r.D - 1) faces.push({ len: f.w, z: { x: f.x, y: f.y + f.h, w: f.w, h: 50 } });
+      faces.sort((a, b) => b.len - a.len);
+      if (faces[0]) out.push({ type: 'cab', name: (f.label || '櫃子') + '前', ...faces[0].z, hgt: 75, need: 100, tip: '找衣服、拿東西' });
+    });
+    r.openings.filter(o => o.kind === 'door').forEach(o => {
+      const len = o.b - o.a, d = 80;
+      const z = o.side === 'N' ? { x: o.a, y: 0, w: len, h: d } : o.side === 'S' ? { x: o.a, y: r.D - d, w: len, h: d }
+              : o.side === 'W' ? { x: 0, y: o.a, w: d, h: len } : { x: r.W - d, y: o.a, w: d, h: len };
+      out.push({ type: 'door', name: (o.label || '門') + '口', ...z, hgt: 75, need: 100, tip: '進門就看得清楚' });
+    });
+    return out;
+  }
+
+  // ---------- 繪圖 ----------
+  const svg = document.getElementById('plan');
+  const el = (tag, attrs, parent) => {
+    const n = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const STOPS = [[0,'#0e1218'],[40,'#2a2236'],[80,'#552d3a'],[130,'#94472b'],[200,'#d8822b'],[300,'#f5c45c'],[450,'#fff0c2'],[700,'#ffffff']];
+  const MAXL = 700;
+  const STOP_RGB = STOPS.map(([l, h]) => [l, [1,3,5].map(i => parseInt(h.slice(i, i+2), 16))]);
+  function color(l) {
+    if (l >= MAXL) return STOP_RGB[STOP_RGB.length-1][1];
+    for (let i = 1; i < STOP_RGB.length; i++) if (l <= STOP_RGB[i][0]) {
+      const [l0, c0] = STOP_RGB[i-1], [l1, c1] = STOP_RGB[i], t = (l - l0) / (l1 - l0);
+      return c0.map((c, k) => Math.round(c + (c1[k] - c) * t));
+    }
+    return STOP_RGB[STOP_RGB.length-1][1];
+  }
+  const off = document.createElement('canvas');
+  function heatImage(g) {
+    off.width = g.nx; off.height = g.ny;
+    const c = off.getContext('2d'), img = c.createImageData(g.nx, g.ny);
+    for (let k = 0; k < g.v.length; k++) {
+      const e = g.v[k];
+      if (Number.isNaN(e)) continue;
+      const [r, gg, b] = color(e);
+      img.data[k*4] = r; img.data[k*4+1] = gg; img.data[k*4+2] = b; img.data[k*4+3] = 255;
+    }
+    c.putImageData(img, 0, 0);
+    return off.toDataURL();
+  }
+  function contourPath(g, lv) {
+    const { nx, ny, v, step } = g; let d = '';
+    for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      const a = v[j*nx+i], b = v[j*nx+i+1], c = v[(j+1)*nx+i+1], e = v[(j+1)*nx+i];
+      if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c) || Number.isNaN(e)) continue;
+      const x = i*step, y = j*step, pts = [];
+      const edge = (p, q, x1, y1, x2, y2) => { if ((p < lv) !== (q < lv)) { const t = (lv - p) / (q - p); pts.push([x1 + (x2-x1)*t, y1 + (y2-y1)*t]); } };
+      edge(a, b, x, y, x+step, y); edge(b, c, x+step, y, x+step, y+step);
+      edge(e, c, x, y+step, x+step, y+step); edge(a, e, x, y, x, y+step);
+      for (let k = 0; k + 1 < pts.length; k += 2) d += `M${pts[k][0].toFixed(1)} ${pts[k][1].toFixed(1)}L${pts[k+1][0].toFixed(1)} ${pts[k+1][1].toFixed(1)}`;
+    }
+    return d;
+  }
+  function headPoint(r, f) {
+    const d = { W: f.x, E: r.W - (f.x + f.w), N: f.y, S: r.D - (f.y + f.h) };
+    const side = Object.keys(d).sort((a, b) => d[a] - d[b])[0];
+    const cx = f.x + f.w / 2, cy = f.y + f.h / 2;
+    return { side, x: side === 'W' ? f.x + 25 : side === 'E' ? f.x + f.w - 25 : cx, y: side === 'N' ? f.y + 25 : side === 'S' ? f.y + f.h - 25 : cy };
+  }
+  const bbox = it => it.kind ? { x: it.x, y: it.y, w: it.w, h: it.h }
+    : it.type === 'down' ? { x: it.x - 8, y: it.y - 8, w: 16, h: 16 }
+    : it.orient === 'h' ? { x: it.x - T5[it.size].len/2, y: it.y - 4, w: T5[it.size].len, h: 8 } : { x: it.x - 4, y: it.y - T5[it.size].len/2, w: 8, h: T5[it.size].len };
+  const findSel = () => sel ? (room().furniture.find(f => f.id === sel) || room().lights.find(l => l.id === sel)) : null;
+
+  let G = null, lastZones = null;
+  function drawPlan() {
+    const r = room(), V = view[tab];
+    svg.setAttribute('viewBox', `${-PAD} ${-PAD} ${r.W + PAD*2} ${r.D + PAD*2}`);
+    svg.textContent = '';
+    G = grid(r, V.on, V.plane, V.rho, drag ? 8 : 5);
+    el('rect', { x: -PAD, y: -PAD, width: r.W + PAD*2, height: r.D + PAD*2, fill: 'var(--night)' }, svg);
+    const half = G.step / 2;
+    el('image', { href: heatImage(G), x: -half, y: -half, width: G.nx * G.step, height: G.ny * G.step, preserveAspectRatio: 'none' }, svg);
+    [[100, .55], [200, .7], [300, .9]].forEach(([lv, o]) => el('path', { d: contourPath(G, lv), class: 'contour', opacity: o }, svg));
+
+    el('rect', { x: -4, y: -4, width: r.W + 8, height: r.D + 8, class: 'wallline' }, svg);
+    r.openings.forEach(o => {
+      const p = o.side === 'N' ? [o.a, -4, o.b, -4] : o.side === 'S' ? [o.a, r.D + 4, o.b, r.D + 4] : o.side === 'W' ? [-4, o.a, -4, o.b] : [r.W + 4, o.a, r.W + 4, o.b];
+      if (o.kind === 'door') {
+        el('line', { x1: p[0], y1: p[1], x2: p[2], y2: p[3], class: 'gap' }, svg);
+        const len = o.b - o.a;
+        let d;
+        if (o.side === 'N') d = `M${o.a} 0 L${o.a} ${len} M${o.b} 0 A${len} ${len} 0 0 1 ${o.a} ${len}`;
+        else if (o.side === 'S') d = `M${o.a} ${r.D} L${o.a} ${r.D - len} M${o.b} ${r.D} A${len} ${len} 0 0 0 ${o.a} ${r.D - len}`;
+        else if (o.side === 'W') d = `M0 ${o.b} L${len} ${o.b} M0 ${o.a} A${len} ${len} 0 0 1 ${len} ${o.b}`;
+        else d = `M${r.W} ${o.b} L${r.W - len} ${o.b} M${r.W} ${o.a} A${len} ${len} 0 0 0 ${r.W - len} ${o.b}`;
+        el('path', { d, class: 'doorarc' }, svg);
+      } else {
+        el('line', { x1: p[0], y1: p[1], x2: p[2], y2: p[3], class: 'gap', style: 'stroke-width:8' }, svg);
+        el('line', { x1: p[0], y1: p[1], x2: p[2], y2: p[3], class: 'win' }, svg);
+      }
+      const mid = (o.a + o.b) / 2;
+      const tx = o.side === 'W' ? -20 : o.side === 'E' ? r.W + 20 : mid, ty = o.side === 'N' ? -14 : o.side === 'S' ? r.D + 24 : mid;
+      const t = el('text', { class: 'otxt', 'text-anchor': 'middle', x: tx, y: ty }, svg);
+      if (o.side === 'W' || o.side === 'E') t.setAttribute('transform', `rotate(-90 ${tx} ${ty})`);
+      t.textContent = o.label;
+    });
+
+    (r.beams || []).forEach(b => {
+      el('line', b.orient === 'h' ? { x1: b.a, y1: b.v, x2: b.b, y2: b.v } : { x1: b.v, y1: b.a, x2: b.v, y2: b.b }, svg).setAttribute('style', 'stroke:var(--night-wall);stroke-width:2;stroke-dasharray:6 4;opacity:.7');
+      el('text', { class: 'otxt', x: b.orient === 'h' ? b.a + 6 : b.v + 6, y: b.orient === 'h' ? b.v - 5 : b.a + 14 }, svg).textContent = b.label;
+    });
+    r.furniture.forEach(f => {
+      const g = el('g', {}, svg);
+      if (f.kind === 'cabinet') {
+        el('rect', { x: f.x, y: f.y, width: f.w, height: f.h, class: 'cab' }, g);
+        const t = el('text', { class: 'ctxt', x: f.x + f.w/2, y: f.y + f.h/2 + 4 }, g);
+        if (f.h > f.w) t.setAttribute('transform', `rotate(90 ${f.x + f.w/2} ${f.y + f.h/2})`);
+        t.textContent = f.label || '櫃子';
+      } else {
+        el('rect', { x: f.x, y: f.y, width: f.w, height: f.h, class: 'loose', rx: f.kind === 'bed' ? 3 : 0 }, g);
+        if (f.kind === 'bed') {
+          const hp = headPoint(r, f), side = hp.side === 'E' || hp.side === 'W';
+          const pw = 32, ph = Math.max(20, Math.min(70, (side ? f.h : f.w) / 2 - 10));
+          const px = hp.side === 'E' ? f.x + f.w - pw - 6 : f.x + 6, py = hp.side === 'S' ? f.y + f.h - pw - 6 : f.y + 6;
+          const pillows = side ? [[px, f.y + f.h/2 - ph - 4, pw, ph], [px, f.y + f.h/2 + 4, pw, ph]] : [[f.x + f.w/2 - ph - 4, py, ph, pw], [f.x + f.w/2 + 4, py, ph, pw]];
+          pillows.forEach(p => el('rect', { x: p[0], y: p[1], width: p[2], height: p[3], rx: 6, class: 'loose' }, g));
+        }
+        el('text', { class: 'ftxt', x: f.x + f.w/2, y: f.y + f.h/2 + 4 }, g).textContent = f.label || KIND[f.kind];
+      }
+      el('rect', { x: f.x, y: f.y, width: f.w, height: f.h, class: 'hit', 'data-id': f.id }, g);
+    });
+
+    if (!drag && lastZones) lastZones.forEach(z => {
+      if (!z.stat || z.type === 'door') return;
+      el('text', { class: 'probe', x: z.x + z.w/2 + (z.type === 'bed' ? -40 : z.type === 'cab' ? (z.w > z.h ? 90 : 0) : 0), y: z.y + z.h/2 + (z.type === 'cab' ? (z.w > z.h ? 4 : 60) : 20), 'text-anchor': 'middle' }, svg).textContent = Math.round(z.stat.avg);
+    });
+
+    r.lights.forEach(L => {
+      const g = el('g', {}, svg), col = CIRC[L.c], dim = V.on[L.c] ? 1 : .35;
+      if (L.type === 'down') {
+        el('circle', { cx: L.x, cy: L.y, r: 6, fill: 'var(--night)', stroke: col, 'stroke-width': 3, opacity: dim }, g);
+        el('circle', { cx: L.x, cy: L.y, r: 14, class: 'hit', 'data-id': L.id }, g);
+      } else {
+        const len = T5[L.size].len, hz = L.orient === 'h';
+        const w = hz ? len : 6, h = hz ? 6 : len;
+        el('rect', { x: L.x - w/2, y: L.y - h/2, width: w, height: h, fill: col, opacity: dim, stroke: '#141a22', 'stroke-width': .8 }, g);
+        const f = FACE[L.face], ax = L.x + f[0] * 11, ay = L.y + f[1] * 11, px = -f[1] * 5, py = f[0] * 5;
+        el('path', { d: `M${L.x + f[0]*5 + px} ${L.y + f[1]*5 + py}L${ax} ${ay}L${L.x + f[0]*5 - px} ${L.y + f[1]*5 - py}Z`, fill: col, opacity: dim, stroke: '#141a22', 'stroke-width': .6 }, g);
+        el('rect', { x: L.x - (hz ? len/2 : 12), y: L.y - (hz ? 12 : len/2), width: hz ? len : 24, height: hz ? 24 : len, class: 'hit', 'data-id': L.id }, g);
+      }
+    });
+
+    const it = findSel();
+    if (it) {
+      const b = bbox(it);
+      el('rect', { x: b.x - 3, y: b.y - 3, width: b.w + 6, height: b.h + 6, class: 'sel' }, svg);
+      if (it.kind) el('rect', { x: it.x + it.w - 7, y: it.y + it.h - 7, width: 14, height: 14, class: 'handle', 'data-handle': it.id }, svg);
+    }
+  }
+
+  // ---------- 分析 ----------
+  let analysisTimer = null;
+  function analyze() {
+    const r = room(), V = view[tab];
+    const src = sources(r, V.on), ind = indirect(r, V.on, V.rho);
+    lastZones = zones(r).map(z => ({ ...z, stat: zoneStat(r, src, ind, z, z.hgt) }));
+    renderZones(); renderWarns(); renderCombos(); renderBom(); renderCfg();
+    drawPlan();
+  }
+  const scheduleAnalysis = () => { clearTimeout(analysisTimer); analysisTimer = setTimeout(analyze, 120); };
+  const verdict = (v, need) => v >= need ? ['ok', '夠'] : v >= need * .7 ? ['warn', '略暗'] : ['bad', '偏暗'];
+
+  function renderStats() {
+    const r = room(), V = view[tab], g = G;
+    const onL = r.lights.filter(L => V.on[L.c]);
+    const lm = onL.reduce((a, L) => a + lmOf(L), 0), w = onL.reduce((a, L) => a + wOf(L), 0);
+    const area = r.W * r.D / 1e4;
+    const card = (v, l) => `<div class="stat"><span class="v">${v}</span><span class="l">${l}</span></div>`;
+    document.getElementById('stats').innerHTML =
+      card(Math.round(g.avg), '平均 lux') + card(Math.round(g.mn), '最暗') + card(Math.round(g.mx), '最亮') +
+      card(g.avg ? (g.mn / g.avg).toFixed(2) : '–', '均勻度（暗÷平均）') +
+      card(Math.round(g.p100 * 100) + '%', '面積 ≥ 100 lux') + card(Math.round(g.p300 * 100) + '%', '面積 ≥ 300 lux') +
+      card(lm.toLocaleString(), '開著的流明') + card((w / area).toFixed(1), '每 m² 瓦數');
+  }
+  function renderZones() {
+    const rows = (lastZones || []).map(z => {
+      if (!z.stat) return '';
+      const [cls, txt] = verdict(z.stat.avg, z.need);
+      return `<tr><td>${z.name}<div class="note" style="font-size:12px">${z.tip}</div></td><td class="n">${Math.round(z.stat.avg)}</td><td class="n">${Math.round(z.stat.mn)}</td><td class="n">≥ ${z.need}</td><td><span class="pill ${cls}">${txt}</span></td></tr>`;
+    }).join('');
+    document.getElementById('zones').innerHTML = `<thead><tr><th>區域</th><th>平均</th><th>最暗</th><th>建議</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="note">沒有家具或門可以分析</td></tr>'}</tbody>`;
+  }
+  const onSide = (r, L, side) => side === 'N' ? L.orient === 'h' && L.y < 2 : side === 'S' ? L.orient === 'h' && L.y > r.D - 2 : side === 'W' ? L.orient === 'v' && L.x < 2 : L.orient === 'v' && L.x > r.W - 2;
+  const overlap = (L, o) => { const c = L.orient === 'h' ? L.x : L.y, h = T5[L.size].len / 2; return c + h > o.a && c - h < o.b; };
+  function mountOf(r, L) {
+    const hz = L.orient === 'h', c = hz ? L.y : L.x, lo = (hz ? L.x : L.y) - T5[L.size].len / 2, hi = lo + T5[L.size].len;
+    const lines = hz ? [{ v: 0, a: 0, b: r.W }, { v: r.D, a: 0, b: r.W }] : [{ v: 0, a: 0, b: r.D }, { v: r.W, a: 0, b: r.D }];
+    cabinets(r).forEach(f => {
+      if (hz) lines.push({ v: f.y, a: f.x, b: f.x + f.w }, { v: f.y + f.h, a: f.x, b: f.x + f.w });
+      else lines.push({ v: f.x, a: f.y, b: f.y + f.h }, { v: f.x + f.w, a: f.y, b: f.y + f.h });
+    });
+    (r.beams || []).filter(b => (b.orient === 'h') === hz).forEach(b => lines.push({ v: b.v, a: b.a, b: b.b }));
+    return lines.find(l => Math.abs(l.v - c) < 1.5 && lo >= l.a - 2 && hi <= l.b + 2);
+  }
+  const pos = L => `（${Math.round(L.x)}, ${Math.round(L.y)}）`;
+  function renderWarns() {
+    const r = room(), V = view[tab], out = [];
+    r.furniture.filter(f => f.kind === 'bed').forEach(f => {
+      const hp = headPoint(r, f);
+      r.lights.forEach(L => {
+        const z = L.type === 'down' ? r.ceil : (L.z || t5z(r));
+        const ang = Math.atan2(Math.hypot(L.x - hp.x, L.y - hp.y), z - 60) * 180 / Math.PI;
+        const nm = L.type === 'down' ? '崁燈' : 'T5';
+        const hd = FACE[hp.side], behind = (L.x - hp.x) * hd[0] + (L.y - hp.y) * hd[1] > 0;
+        if (behind && ang < 40) { out.push(['warn', `${nm}${pos(L)}在床頭後上方，躺下來在視線上緣，不會正對眼睛；選有霧面燈罩的款比較不刺眼。`]); return; }
+        if (ang < 30) out.push(['bad', `${nm}${pos(L)}在枕頭上方附近，躺下來偏離正上方只有 ${Math.round(ang)}°，會直視。建議移到床尾或床外。`]);
+        else if (ang < 40 && L.type === 'down') out.push(['warn', `崁燈${pos(L)}離枕頭有點近（偏離正上方 ${Math.round(ang)}°），躺下來眼角看得到。`]);
+      });
+    });
+    r.lights.filter(L => L.type === 'down').forEach(L => {
+      cabinets(r).forEach(f => {
+        const inX = L.x >= f.x && L.x <= f.x + f.w, inY = L.y >= f.y && L.y <= f.y + f.h;
+        if (inX && inY) { out.push(['bad', `崁燈${pos(L)}在${f.label || '櫃子'}上面，櫃子做到頂就裝不了。`]); return; }
+        const d = inX ? Math.min(Math.abs(L.y - f.y), Math.abs(L.y - f.y - f.h)) : inY ? Math.min(Math.abs(L.x - f.x), Math.abs(L.x - f.x - f.w)) : Infinity;
+        if (d < 25) out.push(['warn', `崁燈${pos(L)}離${f.label || '櫃子'}只有 ${Math.round(d)} cm，光大多打在櫃子頂端，建議 30～50 cm。`]);
+      });
+    });
+    r.lights.filter(L => L.type === 't5').forEach(L => {
+      if (!mountOf(r, L)) out.push(['warn', `T5${pos(L)}沒有貼著牆或櫃子，T5 要鎖在牆面或櫃子封板上。`]);
+      const o = r.openings.find(o => o.kind === 'door' && onSide(r, L, o.side) && overlap(L, o));
+      if (o) out.push(['warn', `T5${pos(L)}跨在${o.label}上方，門框上面要有足夠牆面可以鎖。`]);
+    });
+    const g = G;
+    if (g.avg && g.mn / g.avg < .4) out.push(['warn', `整間明暗差比較大（均勻度 ${(g.mn / g.avg).toFixed(2)}），最暗處只有 ${Math.round(g.mn)} lux。`]);
+    (lastZones || []).forEach(z => {
+      if (!z.stat) return;
+      if (z.need === 300 && z.stat.avg < 300) out.push(['warn', `${z.name}約 ${Math.round(z.stat.avg)} lux，寫字要加檯燈。`]);
+      else if (z.stat.avg < z.need * .7) out.push(['bad', `${z.name}只有約 ${Math.round(z.stat.avg)} lux，偏暗。`]);
+      else if (z.stat.avg < z.need) out.push(['warn', `${z.name}約 ${Math.round(z.stat.avg)} lux，略暗。`]);
+    });
+    if (!r.lights.some(L => V.on[L.c])) out.push(['warn', '目前所有迴路都關著。']);
+    if (!out.length) out.push(['ok', '沒有發現問題：沒有燈在枕頭正上方，崁燈離櫃子距離合適，各區域亮度都夠。']);
+    document.getElementById('warns').innerHTML = out.map(([c, t]) => `<li class="${c}">${t}</li>`).join('');
+  }
+  function descL(L) {
+    if (L.type === 'down') return '崁燈';
+    const r = room(), side = L.orient === 'h' ? (L.y < r.D / 2 ? '北' : '南') : (L.x < r.W / 2 ? '西' : '東');
+    return `T5 ${side}`;
+  }
+  function countDesc(ls) {
+    const m = {}; ls.forEach(L => { const k = descL(L); m[k] = (m[k] || 0) + 1; });
+    return Object.entries(m).map(([k, n]) => n > 1 ? `${k} × ${n}` : k).join('、');
+  }
+  function renderCombos() {
+    const r = room(), V = view[tab];
+    const cs = [...new Set(r.lights.map(L => L.c))].sort();
+    const combos = [];
+    for (let m = 1; m < (1 << cs.length); m++) combos.push(cs.filter((c, i) => m & (1 << i)));
+    const zs = zones(r), bed = zs.find(z => z.type === 'bed'), desk = zs.find(z => z.type === 'desk');
+    const rows = combos.map(cmb => {
+      const on = {}; cmb.forEach(c => on[c] = 1);
+      const g = grid(r, on, 75, V.rho, 12);
+      const b = bed && zoneStat(r, g.src, g.ind, bed, bed.hgt), d = desk && zoneStat(r, g.src, g.ind, desk, desk.hgt);
+      const lm = r.lights.reduce((a, L) => a + (on[L.c] ? lmOf(L) : 0), 0);
+      const name = cmb.map(c => `<span class="chip" style="background:${CIRC[c]}"></span> ${c}`).join(' ＋ ');
+      return `<tr><td>${name}</td><td class="n">${lm.toLocaleString()}</td><td class="n">${Math.round(g.avg)}</td><td class="n">${Math.round(g.mn)}</td><td class="n">${b ? Math.round(b.avg) : '–'}</td><td class="n">${d ? Math.round(d.avg) : '–'}</td></tr>`;
+    }).join('');
+    const legend = cs.map(c => `迴路 ${c}：${countDesc(r.lights.filter(L => L.c === c))}`).join('；');
+    document.getElementById('combos').innerHTML = `<thead><tr><th>開哪幾路</th><th>流明</th><th>平均</th><th>最暗</th><th>床</th><th>書桌</th></tr></thead><tbody>${rows || '<tr><td colspan="6" class="note">還沒有燈</td></tr>'}</tbody><caption style="caption-side:bottom;text-align:left;font-size:12px;color:var(--muted);padding-top:6px">${legend}</caption>`;
+  }
+  function bomOf(r) {
+    const t = {}; let downs = 0;
+    r.lights.forEach(L => { if (L.type === 'down') downs++; else t[L.size] = (t[L.size] || 0) + 1; });
+    return { t, downs };
+  }
+  function renderBom() {
+    const r = room(), b = bomOf(r);
+    let rows = '', W = 0, LM = 0;
+    Object.keys(b.t).sort().reverse().forEach(sz => {
+      const s = T5[sz], n = b.t[sz]; W += s.w * n; LM += s.lm * n;
+      rows += `<tr><td>T5 層板燈 ${sz} 尺</td><td class="n">舞光 ${s.model}</td><td class="n">${n}</td><td>${s.lm} lm、${s.w} W、長 ${s.len} cm、3000K</td></tr>`;
+    });
+    if (b.downs) { W += DOWN.w * b.downs; LM += DOWN.lm * b.downs; rows += `<tr><td>9 cm 崁燈</td><td>${DOWN.model}</td><td class="n">${b.downs}</td><td>720 lm、8 W、崁孔 90 mm、120°，店家標價約 130～150 元</td></tr>`; }
+    document.getElementById('bom').innerHTML = `<thead><tr><th>品項</th><th>型號</th><th>數量</th><th>規格</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="note">還沒有燈</td></tr>'}</tbody>`;
+    const ob = bomOf(store.rooms[tab === 'a' ? 'b' : 'a']);
+    const tAll = {}; [b, ob].forEach(x => Object.entries(x.t).forEach(([k, v]) => tAll[k] = (tAll[k] || 0) + v));
+    const tTxt = Object.keys(tAll).sort().reverse().map(k => `${k} 尺 T5 × ${tAll[k]}`).join('、');
+    const all = [tTxt, (b.downs + ob.downs) ? `崁燈 × ${b.downs + ob.downs}` : ''].filter(Boolean).join('、') || '無';
+    document.getElementById('bomTotal').innerHTML = `這間合計 ${W} W、${LM.toLocaleString()} lm。<b>兩間合計：</b>${all}。床頭閱讀燈、檯燈另計。`;
+  }
+  function renderCfg() {
+    const pick = r => ({ 房間: r.name, 尺寸: `${r.W}×${r.D}`, 天花板: r.ceil,
+      家具: r.furniture.map(f => `${f.label || KIND[f.kind]} x${f.x} y${f.y} ${f.w}×${f.h}`),
+      燈: r.lights.map(L => L.type === 'down' ? `崁燈 (${L.x},${L.y}) 迴路${L.c}` : `T5 ${L.size}尺 ${L.orient === 'h' ? '橫' : '直'} ${FACE_NAME[L.face]} (${L.x},${L.y}) 迴路${L.c}`) });
+    document.getElementById('cfgText').value = JSON.stringify([pick(store.rooms.a), pick(store.rooms.b)], null, 1);
+  }
+
+  // ---------- 屬性面板 ----------
+  function renderInspector() {
+    const box = document.getElementById('inspector'), it = findSel(), r = room();
+    if (!it) {
+      box.innerHTML = `<div class="label">選取的物件</div><p class="note">點圖上的家具或燈來編輯。這間目前有 ${r.lights.filter(l => l.type === 't5').length} 支 T5、${r.lights.filter(l => l.type === 'down').length} 盞崁燈、${r.furniture.length} 件家具。</p>`;
+      return;
+    }
+    const num = (k, lab, v) => `<label class="field">${lab}<input type="number" id="in-${k}" data-k="${k}" value="${Math.round(v * 10) / 10}" step="5"></label>`;
+    const circSel = `<label class="field">迴路<select id="in-c" data-k="c">${[1,2,3].map(c => `<option value="${c}" ${it.c === c ? 'selected' : ''}>迴路 ${c}</option>`).join('')}</select></label>`;
+    let html;
+    if (it.kind) {
+      html = `<div class="label">${KIND[it.kind]}</div><div class="fields">
+        <label class="field">名稱<input type="text" id="in-label" data-k="label" value="${(it.label || '').replace(/"/g, '&quot;')}"></label>
+        ${num('w', '寬（東西）cm', it.w)}${num('h', '深（南北）cm', it.h)}${num('x', '左上 x', it.x)}${num('y', '左上 y', it.y)}</div>
+        <p class="note" style="font-size:12.5px">${it.kind === 'cabinet' ? '櫃子當作做到頂：擋光、崁燈不能裝在上面，T5 可以貼在它的面上。' : it.kind === 'bed' ? '靠牆最近的那一邊當床頭，用來檢查躺下來會不會直視燈。' : '桌面高度 75 cm，用來算書桌亮度。'}</p>`;
+    } else if (it.type === 'down') {
+      html = `<div class="label">崁燈</div><div class="fields">${num('x', 'x', it.x)}${num('y', 'y', it.y)}${circSel}</div><p class="note" style="font-size:12.5px">${DOWN.model}，720 lm，裝在天花板（${r.ceil} cm）。</p>`;
+    } else {
+      html = `<div class="label">T5 層板燈</div><div class="fields">
+        <label class="field">尺寸<select id="in-size" data-k="size">${[4,3,2,1].map(s => `<option value="${s}" ${it.size === s ? 'selected' : ''}>${s} 尺（${T5[s].len} cm）</option>`).join('')}</select></label>
+        <label class="field">方向<select id="in-orient" data-k="orient"><option value="h" ${it.orient === 'h' ? 'selected' : ''}>橫（東西向）</option><option value="v" ${it.orient === 'v' ? 'selected' : ''}>直（南北向）</option></select></label>
+        <label class="field">發光方向<select id="in-face" data-k="face">${(it.orient === 'h' ? ['N','S'] : ['E','W']).map(f => `<option value="${f}" ${it.face === f ? 'selected' : ''}>${FACE_NAME[f]}</option>`).join('')}</select></label>
+        ${num('z', '離地高度 cm', it.z || t5z(r))}${num('x', '中心 x', it.x)}${num('y', '中心 y', it.y)}${circSel}</div>
+        <p class="note" style="font-size:12.5px">${T5[it.size].lm} lm、${T5[it.size].w} W。${mountOf(r, it) ? '已貼在牆或櫃子面上。' : '還沒貼著牆或櫃子：拖到牆邊會自動貼齊。'}</p>`;
+    }
+    html += `<div class="btns"><button type="button" class="btn" id="dupBtn">複製一個</button><button type="button" class="btn danger" id="delBtn">刪除</button></div>`;
+    box.innerHTML = html;
+    box.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('change', () => {
+      const k = inp.dataset.k;
+      commit(() => {
+        const t = findSel(); if (!t) return;
+        let v = inp.value;
+        if (['x','y','w','h','z'].includes(k)) v = Math.max(k === 'w' || k === 'h' ? 10 : 0, +v || 0);
+        if (k === 'size' || k === 'c') v = +v;
+        t[k] = v;
+        if (k === 'orient') { t.face = v === 'h' ? (t.y < room().D / 2 ? 'S' : 'N') : (t.x < room().W / 2 ? 'E' : 'W'); snapT5(t); }
+        if (k === 'z' && Math.abs(v - t5z(room())) < .5) delete t.z;
+        clampItem(t);
+      });
+    }));
+    document.getElementById('delBtn').onclick = removeSel;
+    document.getElementById('dupBtn').onclick = () => commit(() => {
+      const c = clone(findSel()); c.id = 'n' + (++uid);
+      if (c.kind) { c.x += 20; c.y += 20; } else if (c.type === 'down' || c.orient === 'h') c.x += 40; else c.y += 40;
+      clampItem(c);
+      (c.kind ? room().furniture : room().lights).push(c); sel = c.id;
+    });
+  }
+  function removeSel() {
+    if (!sel) return;
+    commit(() => { const r = room(); r.furniture = r.furniture.filter(f => f.id !== sel); r.lights = r.lights.filter(l => l.id !== sel); sel = null; });
+  }
+
+  // ---------- 狀態變更 ----------
+  function commit(fn) {
+    hist[tab].undo.push(JSON.stringify(room())); hist[tab].redo = [];
+    if (hist[tab].undo.length > 80) hist[tab].undo.shift();
+    fn(); save(); refresh();
+  }
+  function refresh() {
+    renderControls(); drawPlan(); renderStats(); renderInspector(); scheduleAnalysis();
+    if (!drag) readout.textContent = idleText();
+    document.getElementById('undo').disabled = !hist[tab].undo.length;
+    document.getElementById('redo').disabled = !hist[tab].redo.length;
+  }
+  function clampItem(t) {
+    const r = room();
+    if (t.kind) { t.w = Math.min(t.w, r.W); t.h = Math.min(t.h, r.D); t.x = Math.max(0, Math.min(r.W - t.w, t.x)); t.y = Math.max(0, Math.min(r.D - t.h, t.y)); }
+    else { t.x = Math.max(0, Math.min(r.W, t.x)); t.y = Math.max(0, Math.min(r.D, t.y)); }
+  }
+  // T5 拖到牆或櫃子附近時貼齊，並朝房間那一側發光
+  function snapT5(t) {
+    const r = room(), hz = t.orient === 'h', c = hz ? t.y : t.x;
+    const cands = hz ? [{ v: 0, face: 'S' }, { v: r.D, face: 'N' }] : [{ v: 0, face: 'E' }, { v: r.W, face: 'W' }];
+    cabinets(r).forEach(f => {
+      if (hz) { if (f.y > 1) cands.push({ v: f.y, face: 'N' }); if (f.y + f.h < r.D - 1) cands.push({ v: f.y + f.h, face: 'S' }); }
+      else { if (f.x > 1) cands.push({ v: f.x, face: 'W' }); if (f.x + f.w < r.W - 1) cands.push({ v: f.x + f.w, face: 'E' }); }
+    });
+    (r.beams || []).filter(b => (b.orient === 'h') === hz).forEach(b => cands.push({ v: b.v, face: b.face }));
+    const best = cands.map(k => ({ ...k, d: Math.abs(k.v - c) })).sort((a, b) => a.d - b.d)[0];
+    if (best && best.d <= 25) { if (hz) t.y = best.v; else t.x = best.v; t.face = best.face; }
+  }
+
+  // ---------- 拖曳 ----------
+  function toCm(e) {
+    const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+    const q = p.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: q.x, y: q.y };
+  }
+  const snap = v => Math.round(v / SNAP) * SNAP;
+  const readout = document.getElementById('readout');
+  svg.addEventListener('pointerdown', e => {
+    const handle = e.target.getAttribute('data-handle'), id = handle || e.target.getAttribute('data-id');
+    if (!id) { if (sel) { sel = null; refresh(); } return; }
+    sel = id;
+    const it = findSel(); if (!it) return;
+    drag = { mode: handle ? 'resize' : 'move', start: toCm(e), orig: clone(it), before: JSON.stringify(room()), moved: false };
+    try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+    renderInspector(); drawPlan();
+    e.preventDefault();
+  });
+  let raf = 0;
+  svg.addEventListener('pointermove', e => {
+    const p = toCm(e), r = room();
+    if (!drag) {
+      if (G && p.x >= 0 && p.y >= 0 && p.x <= r.W && p.y <= r.D)
+        readout.textContent = blocked(r, p.x, p.y) ? '這裡是櫃子' : `（${Math.round(p.x)}, ${Math.round(p.y)}）離地 ${view[tab].plane} cm：約 ${Math.round(lux(G.src, p.x, p.y, view[tab].plane, G.ind))} lux`;
+      else readout.textContent = idleText();
+      return;
+    }
+    const it = findSel(); if (!it) return;
+    const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+    if (Math.abs(dx) + Math.abs(dy) > 1) drag.moved = true;
+    if (drag.mode === 'resize') { it.w = Math.max(20, snap(drag.orig.w + dx)); it.h = Math.max(20, snap(drag.orig.h + dy)); }
+    else { it.x = snap(drag.orig.x + dx); it.y = snap(drag.orig.y + dy); if (it.type === 't5') snapT5(it); }
+    clampItem(it);
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; drawPlan(); renderStats(); });
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    if (drag.moved) { hist[tab].undo.push(drag.before); hist[tab].redo = []; save(); }
+    drag = null; refresh();
+  };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+  svg.addEventListener('pointerleave', () => { if (!drag) readout.textContent = idleText(); });
+  const idleText = () => `室內 ${room().W} × ${room().D} cm · 移到圖上看該點亮度`;
+
+  document.addEventListener('keydown', e => {
+    if (!sel || ['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { removeSel(); e.preventDefault(); return; }
+    const mv = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] }[e.key];
+    if (mv) { e.preventDefault(); const k = e.shiftKey ? 1 : 5; commit(() => { const t = findSel(); t.x += mv[0]*k; t.y += mv[1]*k; clampItem(t); }); }
+  });
+
+  // ---------- 工具列與控制 ----------
+  document.getElementById('toolbar').addEventListener('click', e => {
+    const b = e.target.closest('button[data-add]'); if (!b) return;
+    const add = b.dataset.add, r = room();
+    commit(() => {
+      const id = 'n' + (++uid), cx = snap(r.W / 2), cy = snap(r.D / 2);
+      let it;
+      if (add === 'down') it = { id, type: 'down', x: cx, y: cy, c: 3 };
+      else if (add === 't5') { it = { id, type: 't5', size: 4, orient: 'h', face: 'S', x: cx, y: 0, c: 2 }; snapT5(it); }
+      else if (add === 'bed') it = { id, kind: 'bed', label: '床', x: cx - 75, y: cy - 95, w: 150, h: 190 };
+      else if (add === 'desk') it = { id, kind: 'desk', label: '書桌', x: cx - 60, y: cy - 30, w: 120, h: 60 };
+      else it = { id, kind: 'cabinet', label: '櫃子', x: cx - 50, y: cy - 30, w: 100, h: 60 };
+      clampItem(it);
+      (it.kind ? r.furniture : r.lights).push(it); sel = id;
+    });
+  });
+  document.getElementById('undo').onclick = () => { const h = hist[tab]; if (!h.undo.length) return; h.redo.push(JSON.stringify(room())); store.rooms[tab] = JSON.parse(h.undo.pop()); if (!findSel()) sel = null; save(); refresh(); };
+  document.getElementById('redo').onclick = () => { const h = hist[tab]; if (!h.redo.length) return; h.undo.push(JSON.stringify(room())); store.rooms[tab] = JSON.parse(h.redo.pop()); if (!findSel()) sel = null; save(); refresh(); };
+  document.getElementById('reset').onclick = () => commit(() => { store.rooms[tab] = clone(DEFAULTS[tab]); sel = null; });
+
+  function renderControls() {
+    const r = room(), V = view[tab];
+    document.getElementById('circuits').innerHTML = [1,2,3].map(c => {
+      const n = r.lights.filter(L => L.c === c);
+      return `<label class="circ"><input type="checkbox" id="circ-${c}" data-c="${c}" ${V.on[c] ? 'checked' : ''}><span class="chip" style="background:${CIRC[c]}"></span>迴路 ${c}<span class="note" style="font-size:12px">（${n.length ? countDesc(n) : '無'}）</span></label>`;
+    }).join('');
+    document.querySelectorAll('#planeSeg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.h === V.plane ? 'true' : 'false'));
+    document.querySelectorAll('#rhoSeg button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.r === V.rho ? 'true' : 'false'));
+    document.getElementById('ceilInput').value = r.ceil;
+    document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.room === tab ? 'true' : 'false'));
+  }
+  document.getElementById('circuits').addEventListener('change', e => { view[tab].on[e.target.dataset.c] = e.target.checked ? 1 : 0; refresh(); });
+  document.getElementById('planeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; view[tab].plane = +b.dataset.h; refresh(); });
+  document.getElementById('rhoSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; view[tab].rho = +b.dataset.r; refresh(); });
+  document.getElementById('ceilInput').addEventListener('change', e => { const v = Math.max(240, Math.min(300, +e.target.value || 280)); commit(() => { room().ceil = v; }); });
+  document.getElementById('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; tab = b.dataset.room; sel = null; lastZones = null; save(); refresh(); });
+  document.getElementById('copyCfg').onclick = () => {
+    const ta = document.getElementById('cfgText'), msg = document.getElementById('copyMsg');
+    const fallback = () => { ta.focus(); ta.select(); msg.textContent = '已選取，按 Ctrl/⌘ + C 複製'; };
+    try { navigator.clipboard.writeText(ta.value).then(() => { msg.textContent = '已複製'; }, fallback); } catch (err) { fallback(); }
+  };
+
+  document.getElementById('scaleBar').style.background = 'linear-gradient(90deg,' + STOPS.map(([l, h]) => `${h} ${l / MAXL * 100}%`).join(',') + ')';
+  document.getElementById('scaleTicks').innerHTML = [0, 100, 200, 300, 450, 700].map(l => `<span style="left:${l / MAXL * 100}%">${l}</span>`).join('');
+  refresh();
+})();
+</script>
