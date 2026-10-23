@@ -101,7 +101,8 @@
 - 碰：`server/app/report.py`＋測試、`client/src/ui/properties.ts`
 - 不做：S7 英文翻譯、S8 牆厚上限（使用者沒選）；S6 拆 view3d 在 B14
 - 結果（2026-10-23）：報表的 T5 計數 key 帶尺寸（「T5 4 尺」，沒填 `size` 算 4 尺，`report.py::T5_DEFAULT_SIZE` 對齊 catalogue），
-  plan1151022 的 Excel 現在是 T5 2 尺 ×1、3 尺 ×4、4 尺 ×14；`server/tests/test_report.py` 新測試先紅後綠。
+  列名是「<label> N 尺」、label 空的用「T5」——一般放置的 label 是「T5 層板燈」，plan1151022 是腳本建的沒有 label，
+  所以它的 Excel 是 T5 2 尺 ×1、3 尺 ×4、4 尺 ×14；`server/tests/test_report.py` 新測試先紅後綠，另一條測試把預設值釘在 catalogue.ts 上。
   `properties.ts` 的 `as any` 60 → 0：`up(of, patch)` 帶收窄過的物件，patch 型別是 `Partial<該 kind>`——
   故意在牆上寫 `lux`、T5 寫 7 尺，tsc 兩個都抓到（以前的 `Partial<Obj>` 牆寫 `lux` 會放行）。
   `node bench/verify-b13.mjs` 選牆／門／家具／子區域／T5 各改一個欄位全過，截圖 `bench/results/b13-*.png`；verify-b6、b12 不回歸。

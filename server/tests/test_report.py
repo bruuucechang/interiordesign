@@ -165,3 +165,14 @@ def test_t5_battens_are_counted_per_length():
         {"item": "T5 層板燈 3 尺", "count": 1},
         {"item": "T5 層板燈 4 尺", "count": 2},
     ]
+
+
+def test_the_t5_default_matches_the_catalogue():
+    # The client owns the default; this side only copies it.
+    import re
+    from pathlib import Path
+
+    from app import report
+    src = (Path(__file__).parents[2] / "client/src/model/catalogue.ts").read_text(encoding="utf-8")
+    m = re.search(r"export const T5_DEFAULT_SIZE: T5Size = (\d)", src)
+    assert m and int(m.group(1)) == report.T5_DEFAULT_SIZE
