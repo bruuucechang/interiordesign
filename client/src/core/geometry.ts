@@ -58,7 +58,8 @@ export function wallEndCaps(w: CapWall, walls: readonly CapWall[], ends: Readonl
   const out: [Vec, Vec][] = [];
   for (const [p, toward] of [[w.a, w.bulge ? wallControl(w.a, w.b, w.bulge) : w.b], [w.b, w.bulge ? wallControl(w.a, w.b, w.bulge) : w.a]] as const) {
     if ((ends.get(wallEndKey(p)) ?? 0) > 1) continue;
-    if (walls.some(o => o !== w && distToSegment(p, o.a, o.b) <= o.thickness / 2 + 0.5)) continue;
+    const into = (o: CapWall) => (o.bulge ? distToQuad(p, o.a, wallControl(o.a, o.b, o.bulge), o.b) : distToSegment(p, o.a, o.b)) <= o.thickness / 2 + 0.5;
+    if (walls.some(o => o !== w && into(o))) continue;
     const d = sub(p, toward), L = len(d);
     if (L < 1e-6) continue;
     const u = { x: d.x / L, y: d.y / L }, n = { x: -u.y * w.thickness / 2, y: u.x * w.thickness / 2 };

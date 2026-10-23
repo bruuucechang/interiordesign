@@ -173,27 +173,32 @@ export class Renderer {
     // and the room fills, which would otherwise wash it out or hide it, and under
     // the walls, furniture and fittings, which are what it is being read against.
     //
-    // The room's name and area go in between too (U6). A ceiling light dropped in
-    // the middle of a room lands exactly where the label is, and with the label on
-    // top the light looked like it had not been placed at all.
+    // The room's name and area go under the lights but over the walls and
+    // furniture (U6). A ceiling light dropped in the middle of a room lands
+    // exactly where the label is, and with the label on top the light looked like
+    // it had not been placed at all; but under the furniture, a bed at the room's
+    // centroid would swallow the name — on screen and in the PDF.
     const floorish = (o: Obj) => o.kind === 'image' || o.kind === 'room';
-    const pass = (want: boolean, draw: (o: Obj, color: string) => void) => {
+    const fitting = (o: Obj) => o.kind === 'electrical';
+    const pass = (want: (o: Obj) => boolean, draw: (o: Obj, color: string) => void) => {
       for (const layer of this.doc.project.layers) {
         if (!layer.visible) continue;
-        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o) && floorish(o) === want) draw(o, layer.color);
+        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o) && want(o)) draw(o, layer.color);
       }
     };
-    pass(true, (o, c) => this.drawObject(o, c));
+    const drawIt = (o: Obj, c: string) => this.drawObject(o, c);
+    pass(floorish, drawIt);
     if (opts.heat) { ctx.save(); opts.heat(ctx); ctx.restore(); }
+    pass(o => !floorish(o) && !fitting(o), drawIt);
     this.setScreen();
-    pass(true, o => this.labelObject(o));
+    pass(o => o.kind === 'room', o => this.labelObject(o));
     this.setWorld();
-    pass(false, (o, c) => this.drawObject(o, c));
+    pass(fitting, drawIt);
     if (opts.world) { ctx.save(); opts.world(ctx); ctx.restore(); }
 
     // labels + selection + previews in screen space
     this.setScreen();
-    pass(false, o => this.labelObject(o));
+    pass(o => o.kind !== 'room', o => this.labelObject(o));
     if (opts.selection !== false) { const sel = this.doc.selectedObjects; for (const s of sel) this.drawSelection(s, sel.length === 1); }
     if (opts.screen) { ctx.save(); opts.screen(ctx); ctx.restore(); }
   }

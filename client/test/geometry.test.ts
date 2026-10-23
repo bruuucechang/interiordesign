@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening, fmtLen, fmtArea, isColumn, wallCap, wallEndCounts, wallEndCaps } from '../src/core/geometry';
+import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening, fmtLen, fmtArea, isColumn, wallCap, wallEndCounts, wallEndCaps, wallControl } from '../src/core/geometry';
 
 const V = (x: number, y: number) => ({ x, y });
 const SQ = [V(0, 0), V(100, 0), V(100, 100), V(0, 100)];
@@ -110,4 +110,13 @@ test('封口細線只畫在懸空的端點：轉角、T 字插進牆身、柱子
   assert.equal(wallEndCaps(tee, all, ends).length, 1);
   const col = W(600, 0, 600, 65, 65);
   assert.equal(wallEndCaps(col, [col], wallEndCounts([col])).length, 0);
+});
+
+test('T 字插進曲線牆的中段也不畫封口：量曲線不是量弦（B9 審查）', () => {
+  const arc = W(0, 0, 400, 0, 20, 100);
+  const c = wallControl(arc.a, arc.b, 100);
+  const top = { x: (arc.a.x + arc.b.x) / 4 + c.x / 2, y: (arc.a.y + arc.b.y) / 4 + c.y / 2 };   // 曲線的頂點
+  const tee = W(top.x, top.y, top.x, top.y + Math.sign(top.y) * 200, 12);   // 往曲線外拉
+  const all = [arc, tee];
+  assert.equal(wallEndCaps(tee, all, wallEndCounts(all)).length, 1);
 });

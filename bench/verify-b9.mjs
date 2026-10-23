@@ -106,6 +106,16 @@ const u6 = await page.evaluate(() => {
 console.log('U6 房中央的燈', u6 ? `${u6.name}（${u6.light} 搬到標籤上）` : '這份方案沒有');
 if (u6) { await zoomTo(u6.x, u6.y, 2.5); await page.screenshot({ path: OUT + 'b9-u6-room-light.png' }); }
 
+// 反例：房名落在床上的那間（審查找到的），房名要壓在家具上面、不能被床蓋掉。
+const bedRoom = await page.evaluate(() => {
+  const r = window.__app.doc.objects.find((o) => o.kind === 'room' && /老媽/.test(o.name) && o.poly?.length >= 3);
+  if (!r) return null;
+  let a = 0, cx = 0, cy = 0;
+  r.poly.forEach((p, i) => { const q = r.poly[(i + 1) % r.poly.length], c = p.x * q.y - q.x * p.y; a += c; cx += (p.x + q.x) * c; cy += (p.y + q.y) * c; });
+  return { x: cx / (3 * a), y: cy / (3 * a) };
+});
+if (bedRoom) { await zoomTo(bedRoom.x, bedRoom.y, 2.5); await page.screenshot({ path: OUT + 'b9-u6-room-on-bed.png' }); }
+
 const u8 = await page.evaluate(() => {
   const walls = window.__app.doc.objects.filter((o) => o.kind === 'wall');
   const key = (p) => `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`;
