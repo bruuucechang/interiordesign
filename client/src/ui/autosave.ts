@@ -79,9 +79,11 @@ export async function flushSave(doc: Doc): Promise<boolean> {
   // user has emptied still saves, which is the case this must not break.
   if (lastSaved === '' && isBlankPlan(p)) { setSaveStatus('idle'); return true; }
   const json = JSON.stringify(p);
-  if (json === lastSaved) { setSaveStatus('saved'); return true; }   // nothing meaningful changed
+  // 內容等於上次存的＝這份已經在後端；從匯出檔原樣開回來時，網址要在這裡補回去。
+  if (json === lastSaved) { setSaveStatus('saved'); syncPlanUrl(p.id); return true; }   // nothing meaningful changed
   const ok = await saveProject(p);
-  if (ok) { lastSaved = json; setSaveStatus('saved'); syncPlanUrl(p.id); }
+  // 回應回來時畫面上可能已經換成別份（新建、從清單開），那時不能把網址改回這一份。
+  if (ok) { lastSaved = json; setSaveStatus('saved'); if (doc.project.id === p.id) syncPlanUrl(p.id); }
   else { dirty = true; setSaveStatus('offline'); }                  // heartbeat will retry
   return ok;
 }
