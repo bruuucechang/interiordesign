@@ -48,6 +48,9 @@ test('a wall runs half a thickness past each end that meets another wall', () =>
   const one = straightWallBoxes(w, [], 280, 0, wallJoins([w, wall([0, 0], [0, 400])]));
   assert.equal(one[0].len, 506);
   assert.equal(one[0].position[0], 247);   // grows only towards the joined end
+  const end = straightWallBoxes(w, [], 280, 0, wallJoins([w, wall([500, 0], [500, 400])]));
+  assert.equal(end[0].len, 506);
+  assert.equal(end[0].position[0], 253);   // a free start does not grow
 });
 
 test('a wall drawn down the plan turns -90° and stands on its own floor', () => {

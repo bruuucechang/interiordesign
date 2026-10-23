@@ -24,7 +24,8 @@ test('a lamp shade named Light is fabric, LightMetal is metal, a bulb stays bare
 
 test('a colour that starts with Light is not a light fitting', () => {
   // the 「LightOrange 撞上 /light/」 trap: it must not land on the untextured bulb row
-  assert.notEqual(scanOf('LightOrange'), undefined);
+  assert.equal(scanOf('LightOrange'), 'beige');
+  assert.equal(scanOf('LightOrange') === 'linen', false);   // not a shade either
 });
 
 test('an unnamed glTF material falls to painted board; a truly empty name gets nothing', () => {

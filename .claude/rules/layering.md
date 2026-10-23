@@ -20,6 +20,7 @@ paths:
 core/   geometry units hit snap viewport handles arrange transform wallEdit
         renderer view3d wallGeometry openings3d plot panorama perf
         exporter furniture3d materials textures3d resolution editor
+        view3dMath keys3d surfaces3d ghosts3d furnitureBuilders furnitureFit
 model/  schema catalogue migrate ids doc
 tools/  draw place select
 ui/     ui.ts modals properties autosave feedback rooms-sync
@@ -28,7 +29,7 @@ data/   furniture electrical
 ```
 
 `core/` 裡的純函式模組（`geometry` `units` `arrange` `transform` `wallEdit`
-`wallGeometry` `openings3d` `snap`）**不碰 DOM、Canvas、document 或 doc**，所以能
+`wallGeometry` `openings3d` `snap` `view3dMath` `furnitureFit`）**不碰 DOM、Canvas、document 或 doc**，所以能
 直接測。改到它們就把測試一起改，不要為了省事把狀態塞回去。
 
 `materials.ts` 是半純的：材質定義會畫進 canvas context，但**種子亂數、法線編碼、
