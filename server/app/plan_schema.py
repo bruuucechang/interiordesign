@@ -68,6 +68,19 @@ class Wall(BaseModel):
     thickness: float
 
 
+class Area(BaseModel):
+    group: str | None = None
+    h: float
+    id: str
+    kind: Literal['area']
+    layer: str
+    lux: float | None = None
+    name: str
+    w: float
+    x: float
+    y: float
+
+
 class Beam(BaseModel):
     a: Vec
     b: Vec
@@ -213,6 +226,7 @@ class Floor(BaseModel):
         | Beam
         | Partition
         | Room
+        | Area
         | Opening
         | Furniture
         | Dimension

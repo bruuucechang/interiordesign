@@ -23,7 +23,7 @@ export function handles(o: Obj): Handle[] {
       corners.push({ id: 'rot', pos: rotate({ x: o.x + o.w / 2, y: o.y - 40 }, c, o.angle), kind: 'rotate' });
       return corners;
     }
-    case 'image':
+    case 'image': case 'area':
       return [
         { id: 'nw', pos: { x: o.x, y: o.y }, kind: 'corner' },
         { id: 'ne', pos: { x: o.x + o.w, y: o.y }, kind: 'corner' },

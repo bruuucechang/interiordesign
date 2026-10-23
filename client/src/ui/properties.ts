@@ -9,7 +9,7 @@ import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
 import { t } from '../core/i18n';
 import { MaterialDef, floorMaterials, wallMaterials } from '../core/materials';
-import { DEFAULTS, defaultNote } from '../model/locale-defaults';
+import { DEFAULTS, LIGHTING, defaultNote } from '../model/locale-defaults';
 import { Unit, ALL_UNITS, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
 
 // The properties panel: everything shown for the current selection, plus the
@@ -335,6 +335,20 @@ export function refreshProps(editor: Editor, doc: Doc) {
       }
       break;
     }
+    case 'area': {
+      // Same note as the partition's, for the same reason: it looks like a
+      // room outline and is not one.
+      const note = document.createElement('div'); note.className = 'muted'; note.style.fontSize = '12px';
+      note.textContent = t('只在照度面板逐塊算平均：不算面積、不出圖、3D 不出現');
+      basics.appendChild(note);
+      text(basics, '名稱', o.name, v => up({ name: v } as any));
+      num(basics, '照度目標 (lux)', o.lux, LIGHTING.areaLux, v => up({ lux: v } as any));
+      dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
+      dim(size.body, '深', o.h, v => up({ h: Math.max(10, v) } as any), 10);
+      dim(pos.body, 'X', o.x, v => up({ x: v } as any));
+      dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
+      break;
+    }
     case 'partition': {
       // Length and ends, and a note about what it is not. A dashed line that
       // divides the area take-off but builds nothing is a distinction worth
@@ -582,7 +596,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
 }
 
 function kindLabel(k: string) {
-  return ({ wall: '牆', beam: '樑', partition: '隔間線', room: '房間', door: '門', window: '窗', furniture: '家具',
+  return ({ wall: '牆', beam: '樑', partition: '隔間線', room: '房間', area: '子區域', door: '門', window: '窗', furniture: '家具',
             dimension: '尺寸標註', image: '底圖', electrical: '水電配件' } as Record<string, string>)[k] ?? k;
 }
 

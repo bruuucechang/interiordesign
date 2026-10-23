@@ -10,7 +10,7 @@
 //
 // Pure: objects in, numbers out.
 
-import type { Furniture, Obj, Opening, Vec } from '../model/schema';
+import type { Area, Furniture, Obj, Opening, Vec } from '../model/schema';
 import type { Box } from './clearance';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { LIGHTING } from '../model/locale-defaults';
@@ -18,7 +18,7 @@ import { COUNTER_ITEMS, COUNTER_TOP, VANITY_ITEMS } from '../model/catalogue';
 import { LightRoom, Luminaire, PLANES, Source, grid, indirect, inside, isBlocked, lux, reachAt, sources, surfaceArea } from './lighting';
 import { fullHeightFurniture, furnitureBox } from './lightmap';
 
-export type ZoneType = 'bed' | 'desk' | 'counter' | 'vanity' | 'cabinet' | 'door';
+export type ZoneType = 'area' | 'bed' | 'desk' | 'counter' | 'vanity' | 'cabinet' | 'door';
 
 export interface Zone {
   type: ZoneType;
@@ -31,7 +31,7 @@ export interface Zone {
   height: number;
   /** Average lux it needs. */
   need: number;
-  /** The furniture or door it belongs to. */
+  /** The furniture, door or drawn sub-area it belongs to. */
   target: string;
 }
 
@@ -92,12 +92,26 @@ function distToOutline(p: Vec[], x: number, y: number): number {
 }
 
 
-/** The zones in one room, in the prototype's order — beds, desks, then counters and washbasins, cabinets, doors. */
+/**
+ * The zones in one room: the sub-areas drawn in it first — they are the ones
+ * somebody chose to check — then the prototype's order: beds, desks, counters
+ * and washbasins, cabinets, doors.
+ */
 export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): Zone[] {
   const L = LIGHTING;
   const mine = (f: Furniture) => inside(r.poly, f.x + f.w / 2, f.y + f.h / 2);
   const furn = objs.filter((o): o is Furniture => o.kind === 'furniture').filter(mine);
   const out: Zone[] = [];
+  // A drawn sub-area belongs to the room its centre is in, and is measured on
+  // the desk plane like the room's own average.
+  for (const a of objs.filter((o): o is Area => o.kind === 'area')) {
+    if (!inside(r.poly, a.x + a.w / 2, a.y + a.h / 2)) continue;
+    out.push({
+      type: 'area', name: a.name || '子區域', tip: '這一塊的平均被整間蓋過去了；在這塊補一盞燈，或把附近的燈往這裡挪',
+      box: { cx: a.x + a.w / 2, cy: a.y + a.h / 2, w: a.w, h: a.h, angle: 0 },
+      height: PLANES.desk, need: a.lux ?? L.areaLux, target: a.id,
+    });
+  }
   for (const f of furn) if (isBed(f.item)) out.push({
     type: 'bed', name: `${furnitureName(f, '床')}（床面）`, tip: '躺著看書另開床頭燈',
     box: furnitureBox(f), height: PLANES.bed, need: L.bedLux, target: f.id,

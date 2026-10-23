@@ -380,6 +380,13 @@ test('照明五：門口太暗要抓', () => {
   assert.ok(f.some(x => /門口/.test(x.title) && x.targets[0] === 'dr'), f.map(x => x.title).join('、'));
 });
 
+test('照明五：畫了子區域，那塊暗就抓、標題是子區域的名字；亮的那塊不唸', () => {
+  const a = (id: string, name: string, x: number) => ({ id, kind: 'area', layer: 'rooms', x, y: 0, w: 200, h: 400, name }) as Obj;
+  const f = ofRule([...BOX, a('aw', '玄關', 0), a('ae', '廚房', 400), lamp('L1', 'downlight', 500, 130, { lumens: 3000 }), lamp('L2', 'downlight', 500, 270, { lumens: 3000 })], 'light-zone');
+  assert.deepEqual(f.filter(x => x.targets[0] === 'aw').map(x => x.title), ['房間玄關偏暗']);
+  assert.ok(!f.some(x => x.targets[0] === 'ae'), f.map(x => x.title).join('、'));
+});
+
 test('照明三：牆被切成兩段，跨接縫貼著的層板燈不唸', () => {
   const split = [wall('w1a', 0, 0, 300, 0), wall('w1b', 300, 0, 600, 0), ...BOX.slice(1)];
   assert.deepEqual(ofRule([...split, lamp('t', 'batten', 300, 6, { size: 4, angle: 180 })], 'light-mount'), []);

@@ -106,6 +106,22 @@ export const LIGHTS = {
   ],
 };
 
+// 子區域（B12）：「客廳＋廚房」是一個房間物件，切成五塊讓照度面板逐塊列。
+// [id, 名稱, x0, x1, y0, y1, 平均要 ≥]；目標照 docs/lighting-plan.md「達標標準」。
+// 玄關、走道、客廳的範圍是 B6 在 report-b6.mts 定的 AREAS 原封搬過來；東側小廳是
+// 房間多出去的那塊（老媽房、Bruce 房、衛浴 B 三扇門前），廚房是陽台西側、客廳以南。
+export const AREAS = [
+  ['foyer', '玄關', 62, 225, 597, 747, 100],
+  ['hall', '走道（臥室門前）', 290, 792, 600, 760, 100],
+  ['east', '東側小廳', 850, 953, 592, 732, 100],
+  ['living', '客廳', 290, 814, 762, 1036, 150],
+  ['kitchen', '廚房', 235, 559, 1047, 1234, 150],
+];
+
+function area([id, name, x0, x1, y0, y1, lux]) {
+  return { id: `b6_area_${id}`, kind: 'area', layer: 'rooms', name, x: x0, y: y0, w: x1 - x0, h: y1 - y0, lux };
+}
+
 function place([id, item, label, x0, x1, y0, y1, back, height]) {
   const bw = x1 - x0, bh = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
   const angle = BACK_ANGLE[back], turned = angle === 90 || angle === 270;
@@ -124,7 +140,7 @@ function light([type, id, x, y, circuit, face, size, elevation]) {
     : { ...base, item: 'batten', angle: FACE_ANGLE[face], size, ...(elevation ? { elevation } : {}) };
 }
 
-export const allObjects = () => [...FURNITURE.map(place), ...Object.values(LIGHTS).flat().map(light)];
+export const allObjects = () => [...FURNITURE.map(place), ...Object.values(LIGHTS).flat().map(light), ...AREAS.map(area)];
 
 export async function loadPlan() {
   const res = await fetch(`${API}/projects/${PID}`, { headers: { 'X-Owner': OWNER } });

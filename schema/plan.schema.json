@@ -2,6 +2,52 @@
   "$ref": "#/definitions/Project",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
+    "Area": {
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "h": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "area",
+          "type": "string"
+        },
+        "layer": {
+          "$ref": "#/definitions/LayerId"
+        },
+        "lux": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        },
+        "w": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "h",
+        "id",
+        "kind",
+        "layer",
+        "name",
+        "w",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
     "Beam": {
       "properties": {
         "a": {
@@ -353,6 +399,9 @@
         },
         {
           "$ref": "#/definitions/Room"
+        },
+        {
+          "$ref": "#/definitions/Area"
         },
         {
           "$ref": "#/definitions/Opening"

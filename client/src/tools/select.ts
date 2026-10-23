@@ -135,7 +135,7 @@ export class SelectTool implements Tool {
     const g = this.orig;
     const grid = this.ctx.snapEnabled ? this.ctx.gridSize : 0;
     if (o.kind === 'furniture') this.patch(o, resizeFurniture(g, p.world, grid) as any);
-    else if (o.kind === 'room' || o.kind === 'image') {
+    else if (o.kind === 'room' || o.kind === 'image' || o.kind === 'area') {
       this.patch(o, resizeBox(g, this.handleId as Corner, p.snapped) as any);
     }
   }

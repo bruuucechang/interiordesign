@@ -24,7 +24,7 @@ export interface Layer {
   color: string;
 }
 
-export type ObjKind = 'wall' | 'beam' | 'partition' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image' | 'electrical';
+export type ObjKind = 'wall' | 'beam' | 'partition' | 'room' | 'door' | 'window' | 'furniture' | 'dimension' | 'image' | 'electrical' | 'area';
 
 // `group`, when set, ties objects together: selecting any one of them selects
 // them all, so every operation that already works on a multi-selection —
@@ -54,6 +54,13 @@ export interface Beam extends Base { kind: 'beam'; a: Vec; b: Vec; width: number
 // back to the first floor material, so an old plan naming a removed one still
 // renders — as the wrong floor, but never as nothing.
 export interface Room extends Base { kind: 'room'; x: number; y: number; w: number; h: number; name: string; poly?: Vec[]; auto?: boolean; floor?: string; }
+// A sub-area of a room for the illuminance check — the entrance, the corridor,
+// the kitchen of an open-plan room — so a dark corner shows up as its own row
+// instead of disappearing into the room's average. That is all it does: it is
+// not a room, it does not split the area take-off, and nothing is built for it
+// in 3D. `lux` is the average it should reach on the desk plane; absent means
+// LIGHTING.areaLux.
+export interface Area extends Base { kind: 'area'; x: number; y: number; w: number; h: number; name: string; lux?: number; }
 // `height` (cm) = opening height; `elevation` (cm) = sill height above the floor.
 // `bulge` (cm) curves the opening to follow a curved wall (windows).
 // `style` selects the leaf/sash form (see DOOR_STYLES / WINDOW_STYLES in catalogue.ts).
@@ -105,7 +112,7 @@ export type ElectricalId =
   | 'switch1' | 'switch2' | 'switch3'
   | 'ceilingLight' | 'downlight' | 'spotlight' | 'pendant' | 'wallLight' | 'batten' | 'exhaust';
 
-export type Obj = Wall | Beam | Partition | Room | Opening | Furniture | Dimension | ImageObj | Electrical;
+export type Obj = Wall | Beam | Partition | Room | Area | Opening | Furniture | Dimension | ImageObj | Electrical;
 
 // A building level: its own objects, stacked in 3D at `elevation` (cm).
 export interface Floor {

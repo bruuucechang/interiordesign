@@ -128,6 +128,8 @@ export interface LightingDefaults {
    *  浴室 100～200 取下限；洗手台前比整間高一級，因為要看清楚臉（docs/lighting-plan.md「達標標準」）。 */
   counterLux: number;
   vanityLux: number;
+  /** 自己畫的子區域沒填目標時要多亮——跟門口一樣，玄關、走道這一級（docs/lighting-plan.md「達標標準」）。 */
+  areaLux: number;
   /** 洗手台前算多深的一塊（cm）。 */
   vanityDepth: number;
   /** 做到頂的櫃子前、門內側，各算多深的一塊（cm）。 */
@@ -152,6 +154,7 @@ export const TAIWAN_LIGHTING: LightingDefaults = {
   doorLux: 100,
   counterLux: 300,
   vanityLux: 200,
+  areaLux: 100,
   vanityDepth: 60,
   cabinetDepth: 50,
   doorDepth: 80,
