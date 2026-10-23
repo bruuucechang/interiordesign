@@ -99,6 +99,7 @@ export class View3D {
       e.preventDefault();
       this.contextLost = true;
       this.stop();
+      this.releaseRetired();   // nothing will be drawn to release them until the context is back
       this.onContextLost?.();
     });
     this.renderer.domElement.addEventListener('webglcontextrestored', () => {
@@ -325,6 +326,9 @@ export class View3D {
         // after every edit.
         if (s.map) texs.push(s.map);
         if (s.normalMap) texs.push(s.normalMap);
+        // A scanned finish's ARM clone sits on both of these; one dispose covers it.
+        if (s.roughnessMap) texs.push(s.roughnessMap);
+        if (s.aoMap && s.aoMap !== s.roughnessMap) texs.push(s.aoMap);
         mats.push(mm);
       });
     });
