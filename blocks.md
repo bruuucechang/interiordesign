@@ -95,11 +95,16 @@
   的 AREAS 拿掉、改讀方案。備份 `~/Backups/interior-designer/plan1151022-before-b12-20261023T091931.sql`。
   驗收 `node bench/verify-b12.mjs`。`verify-b10` 的「室內視角天花板」在負載 14 時紅過一次、重跑就過（固定等 4 秒）
 
-## B13 報表 T5 分尺寸＋屬性面板型別整理（S4、S5）  [未開始]
+## B13 報表 T5 分尺寸＋屬性面板型別整理（S4、S5）  [完成]
 - 目標：面積報表電氣統計 T5 依尺寸分行；`properties.ts` 的 `as any` 換成依 kind 收窄的型別
 - 驗收：`npm test` 綠；`grep -c "as any" client/src/ui/properties.ts` 降到個位數；匯出 plan1151022 的 Excel 看到 T5 分尺寸
 - 碰：`server/app/report.py`＋測試、`client/src/ui/properties.ts`
 - 不做：S7 英文翻譯、S8 牆厚上限（使用者沒選）；S6 拆 view3d 在 B14
+- 結果（2026-10-23）：報表的 T5 計數 key 帶尺寸（「T5 4 尺」，沒填 `size` 算 4 尺，`report.py::T5_DEFAULT_SIZE` 對齊 catalogue），
+  plan1151022 的 Excel 現在是 T5 2 尺 ×1、3 尺 ×4、4 尺 ×14；`server/tests/test_report.py` 新測試先紅後綠。
+  `properties.ts` 的 `as any` 60 → 0：`up(of, patch)` 帶收窄過的物件，patch 型別是 `Partial<該 kind>`——
+  故意在牆上寫 `lux`、T5 寫 7 尺，tsc 兩個都抓到（以前的 `Partial<Obj>` 牆寫 `lux` 會放行）。
+  `node bench/verify-b13.mjs` 選牆／門／家具／子區域／T5 各改一個欄位全過，截圖 `bench/results/b13-*.png`；verify-b6、b12 不回歸。
 
 ## B14 拆 3D 程式（S6）  [未開始]
 - 目標：`view3d.ts`（1,068 行）、`furniture3d.ts`（999 行）照既有判準拆——「錯了不會有錯誤訊息」的運算抽成純函式並補測試，場景／相機／渲染迴圈留在原處；使用者 2026-10-23 說「3d程式可拆」
