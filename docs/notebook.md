@@ -547,6 +547,26 @@ npm run build && (cd client && npx vite preview --port 5181 --strictPort &)   # 
 node bench/verify-b10.mjs http://localhost:5181 --runs 7
 ```
 
+#### B15 改前改後（2026-10-23，同一台 Mac、Chrome 155、Apple M4 GPU）
+
+| | 負載（1 分鐘） | 第一次切 3D | 再切一次 | 建場景 |
+|---|---|---|---|---|
+| 改前（f4fd5fa） | 4.6 → 8.1 | 287 ms（254～310） | **160 ms**（152～170） | 13 ms |
+| 改後 | 6.1 → 7.7 | 266 ms（239～303） | **28 ms**（24～32） | 14 ms |
+
+上一節的 234 ms 是負載 14 時量的，負載 5～8 時同一版是 160 ms——**這個數字對負載很敏感**，比較時要附負載。
+
+拆法：包住 `view3d.resize／build`、`composer.render`、每個 pass 的 `render`，再把 WebGL context 上的
+`compileShader／linkProgram／getProgramInfoLog／texSubImage2D／bufferData` 等包一層計數計時。
+改前「再切一次」那 150 ms 幾乎全在 RenderPass 的第一格：`getProgramInfoLog` 6 次 72～78 ms
+（three 讀編譯結果時要等驅動編完）、`texSubImage2D` 14 次 44～49 ms；陰影圖重畫只有 2 ms，GTAO 1.5 ms。
+所以盤點時懷疑的陰影 4096²、GTAO、MSAA 都不是。改後再切一次：0 次編譯、0 次上傳。
+
+第一次切 3D 剩下的：23 個程式第一次編譯（`getProgramInfoLog` 合計 190～270 ms）＋ 44 張貼圖第一次上傳（70～90 ms）。
+這是冷啟動成本，要壓只能在 2D 閒置時先 `renderer.compileAsync` 與預先上傳，沒做。
+
+量法腳本沒進 repo（一次性的），要重做就照上面這段在 `window.__app.view3d` 上包函式。
+
 
 ---
 

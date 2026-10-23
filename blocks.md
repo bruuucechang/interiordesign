@@ -123,9 +123,18 @@
   搬出去的鍵盤與放置預覽：`node bench/verify-b14.mjs interact` 全過（按住 W 要數畫格不能數毫秒：swiftshader 一幀約 10 秒，
   master 上照舊寫法量也是 0 cm，不是回歸）。`npm test` client 536／server 142 綠；verify-b10 `--runs 0`、b12、b13 不回歸。
 
-## B15 切 3D 壓到 200 ms 內（P1 後續）  [未開始]
+## B15 切 3D 壓到 200 ms 內（P1 後續）  [完成]
 - 緣由：B10 實量這台 Mac 的 Chrome（GPU）切 3D 中位數 362 ms、再切一次 234 ms，超過 P1 的 200 ms 門檻；其中 `view3d.build()` 本身只佔 19 ms，下一格的陰影重畫與重新上傳沒分開量（`docs/notebook.md`「切 3D 的實機時間」）
 - 目標：先錄 Chrome performance trace 找出建場景以外那 200～300 ms 是哪一段（後製 shader 編譯、貼圖上傳、版面重排），再對那一段下手；第二次以後的切換優先
 - 驗收：機器安靜時跑 `node bench/verify-b10.mjs http://localhost:5181 --runs 7`，「再切一次」中位數 ≤ 200 ms；改前改後各量一次寫進 notebook；`npm test` 綠；B10 的 3D 截圖不變
 - 碰：`client/src/core/view3d.ts`、`client/src/main.ts`（切檢視的流程）
 - 不做：降畫質（拿掉 GTAO、降解析度）來換速度——要先問；要在 B14 拆完 view3d 之後才做，避免兩塊同時改
+- 結果（2026-10-23）：再切一次 **160 → 28 ms**（負載 6～8，7 次中位數），沒降畫質。先在 WebGL 呼叫上掛計時找出那 140 ms：
+  每次重建都**重編 6 個 shader 程式**（約 75 ms，卡在讀編譯結果）、**重傳 14 張牆／地板貼圖**（45～80 ms），建場景本身 9 ms、陰影 2 ms。
+  兩個原因，兩個改法：(1) `clearStatic()` 在新場景畫出來之前就 dispose 舊材質，three.js 的程式與貼圖按參考次數管理，
+  先歸零就被刪掉，下一格同樣的材質只好重編——改成退休清單，畫完下一格才釋放（`view3d.ts::releaseRetired`）；
+  (2) `Texture.clone()` 會把**共用來源**的版本號加一，每個 clone 都讓同一張圖重傳——`textures3d.ts::tiled()` clone 後把版本號還原。
+  驗收：verify-b10 新增「再切一次 ≤ 200 ms」檢查；`client/test/textures3d.test.ts` 3 條（把版本號改回會加一，紅 1 條）；
+  B14 三視角截圖改前改後平均差 0.001／0.007／0.0023（雜訊內）；同一頁來回切四次每次截圖逐像素相同、貼圖／幾何／程式數持平（沒有洩漏）；
+  `npm test` client 539／server 142 綠；verify-b10 `--runs 0`、verify-b14 interact 不回歸。
+  **沒動的**：第一次切 3D 仍是 266 ms，其中約 270 ms 是第一次編 23 個 shader（冷啟動，不是重建）；要壓得在 2D 閒置時先編好，留給之後決定

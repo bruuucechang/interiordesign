@@ -156,6 +156,26 @@ function source(def: MaterialDef): Maps {
 }
 
 /**
+ * A copy of a cached texture with its own tiling, sharing the cached upload.
+ *
+ * Clones of one image share its `source`, and three.js keeps one GPU upload per
+ * source — but `Texture.copy()` ends with `needsUpdate = true`, which bumps the
+ * *source's* version, so every clone re-sent the same 512² image. A rebuild
+ * clones one per textured wall and floor: measured fourteen uploads and
+ * 45–80 ms every time the 3D view came back with nothing changed. Putting the
+ * version back leaves the upload alone unless the image itself is new; a source
+ * that has never been uploaded still is, because it has no version on the GPU
+ * to match.
+ */
+export function tiled(t: THREE.Texture, u: number, v: number): THREE.Texture {
+  const version = t.source.version;
+  const c = t.clone();
+  c.source.version = version;
+  c.repeat.set(u, v);
+  return c;
+}
+
+/**
  * A standard material for one surface of the given size.
  *
  * The caller disposes the returned material and its textures; the shared source
@@ -172,17 +192,17 @@ export function surfaceMaterial(
   // measured off anything. Where the source published a dimension, it wins.
   const [u, v] = repeatFor(src.tileCm ? { ...def, tileCm: src.tileCm } : def, wCm, hCm);
 
-  const map = src.map.clone(); map.needsUpdate = true; map.repeat.set(u, v);
+  const map = tiled(src.map, u, v);
   const mat = new THREE.MeshStandardMaterial({
     map, roughness: def.roughness, metalness: def.metalness, ...over,
   });
   if (src.normalMap) {
-    const nm = src.normalMap.clone(); nm.needsUpdate = true; nm.repeat.set(u, v);
+    const nm = tiled(src.normalMap, u, v);
     mat.normalMap = nm;
     mat.normalScale = new THREE.Vector2(1, 1);
   }
   if (src.armMap) {
-    const am = src.armMap.clone(); am.needsUpdate = true; am.repeat.set(u, v);
+    const am = tiled(src.armMap, u, v);
     mat.roughnessMap = am;
     mat.aoMap = am;
     // `aoMap` reads the *second* UV set by default, and these surfaces only have
@@ -273,7 +293,7 @@ function paintScan(m: THREE.MeshStandardMaterial, src: Maps, w: number, h: numbe
   const [u, v] = o.repeat != null
     ? [o.repeat, o.repeat]
     : [Math.max(0.25, w / tile), Math.max(0.25, h / tile)];
-  const put = (t: THREE.Texture) => { const c = t.clone(); c.needsUpdate = true; c.repeat.set(u, v); return c; };
+  const put = (t: THREE.Texture) => tiled(t, u, v);
   if (o.colour !== false) { m.map = put(src.map); m.color.setHex(0xffffff); }
   if (src.normalMap) m.normalMap = put(src.normalMap);
   if (src.armMap) { const a = put(src.armMap); m.roughnessMap = a; m.aoMap = a; a.channel = 0; m.roughness = 1; }

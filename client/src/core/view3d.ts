@@ -99,6 +99,7 @@ export class View3D {
       e.preventDefault();
       this.contextLost = true;
       this.stop();
+      this.releaseRetired();   // nothing will be drawn to release them until the context is back
       this.onContextLost?.();
     });
     this.renderer.domElement.addEventListener('webglcontextrestored', () => {
@@ -297,23 +298,55 @@ export class View3D {
     this.camera.position.add(move); this.controls.target.add(move);
   }
 
+  /**
+   * Take the last build's meshes off the scene, but release their GPU side
+   * only after the next frame has been drawn — see `releaseRetired`.
+   *
+   * three.js reference-counts shader programs and uploaded textures: disposing
+   * the last material that uses a program deletes it, and disposing the last
+   * texture on an image deletes the upload. Disposing here, before the new
+   * scene is drawn, took every count to zero just before the identical new
+   * materials asked for the same things — so each rebuild recompiled six
+   * programs and re-uploaded fourteen wall textures. Measured on this Mac's
+   * Chrome (GPU): 140 of the 150 ms that switching back to 3D cost, while
+   * building the scene itself took 9 (docs/notebook.md「切 3D 的實機時間」).
+   * Drawn first, the new materials take a reference to what is already
+   * there, and the old ones then only bring the counts back down.
+   */
+  private retired: (() => void)[] = [];
   private clearStatic() {
+    const geos: THREE.BufferGeometry[] = [], mats: THREE.Material[] = [], texs: THREE.Texture[] = [];
     this.staticGroup.traverse(o => {
       const m = o as THREE.Mesh;
-      if (m.geometry) m.geometry.dispose();
+      if (m.geometry) geos.push(m.geometry);
       if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => {
         const s = mm as THREE.MeshStandardMaterial;
         // Both maps: these are per-surface clones. Missing the normal map here
         // leaks one 512² upload per wall per rebuild, and a rebuild happens
         // after every edit.
-        s.map?.dispose(); s.normalMap?.dispose();
-        mm.dispose();
+        if (s.map) texs.push(s.map);
+        if (s.normalMap) texs.push(s.normalMap);
+        // A scanned finish's ARM clone sits on both of these; one dispose covers it.
+        if (s.roughnessMap) texs.push(s.roughnessMap);
+        if (s.aoMap && s.aoMap !== s.roughnessMap) texs.push(s.aoMap);
+        mats.push(mm);
       });
     });
     this.staticGroup.clear();
     // Ceilings share one material, so only their geometry is released.
-    this.ceilingGroup.traverse(o => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
+    this.ceilingGroup.traverse(o => { const m = o as THREE.Mesh; if (m.geometry) geos.push(m.geometry); });
     this.ceilingGroup.clear();
+    this.retired.push(() => {
+      for (const g of geos) g.dispose();
+      for (const t of texs) t.dispose();
+      for (const m of mats) m.dispose();
+    });
+  }
+  /** Called once a frame has been drawn with whatever replaced the retired meshes. */
+  private releaseRetired() {
+    if (!this.retired.length) return;
+    const r = this.retired; this.retired = [];
+    for (const f of r) f();
   }
 
   build(doc: Doc, reframe = false) {
@@ -749,6 +782,7 @@ export class View3D {
     this.controls.update();
     this.updateCeilingVisibility();
     this.composer.render();
+    this.releaseRetired();
     this.adaptResolution(now);
     done('render3d', t0);
   };
