@@ -136,8 +136,10 @@ if (RUNS > 0) {
   console.log(`  第一次切 3D：${fmt(first)}`);
   console.log(`  再切一次：  ${fmt(again)}`);
   console.log(`  其中建場景：${fmt(build)}`);
-  const med = [...first].sort((p, q) => p - q)[first.length >> 1];
-  console.log(`  ${med > 200 ? '> 200 ms：要在 blocks.md 另開優化區塊' : '≤ 200 ms：不用另開優化區塊'}`);
+  // B15 的驗收：再切一次（場景已經建過）≤ 200 ms。重建時 shader 重編、貼圖重傳的話會回到 150 ms 以上，
+  // 量到的是 2026-10-23 的 28 ms（docs/notebook.md「切 3D 的實機時間」）。第一次切要編 shader，不在這條裡
+  const med = (xs) => [...xs].sort((p, q) => p - q)[xs.length >> 1];
+  check('再切一次 ≤ 200 ms', med(again) <= 200, `中位數 ${Math.round(med(again))} ms`);
   await b.close();
 }
 
