@@ -67,7 +67,7 @@
   另外碰了 `geometry.ts`、`main.ts`、`ui/side-panels.ts`、`index.html`。
   headless 直接以 3D 開方案會停在空白方案（swiftshader 把主執行緒塞滿），驗收改成 2D 載入後切 3D。
 
-## B10 3D 看得到燈＋實機量 3D 切換（S1、P1）  [未開始]
+## B10 3D 看得到燈＋實機量 3D 切換（S1、P1）  [完成]
 - 目標：3D 畫出燈具外形（崁燈圓片、吸頂燈、T5 細長條、壁燈、吊燈），自發光材質，不加真的光源；在這台 Mac 的 Chrome 實量切 3D 的時間，> 200 ms 才另開優化區塊
 - 驗收：`npm test` 綠；plan1151022 切 3D 截圖看得到天花板的燈；P1 的實量數字與重跑指令寫進 notebook
 - 碰：`client/src/core/view3d.ts`、新增 `client/src/core/lights3d.ts`（純函式產幾何）＋測試
@@ -97,3 +97,9 @@
 - 碰：`client/src/core/view3d.ts`、`furniture3d.ts`、新抽出的 `client/src/core/*.ts`＋測試
 - 不做：改 3D 的外觀或行為（只搬不改）；要在 B10（3D 畫燈）合併之後才做，避免兩塊同時改 view3d
 
+## B15 切 3D 壓到 200 ms 內（P1 後續）  [未開始]
+- 緣由：B10 實量這台 Mac 的 Chrome（GPU）切 3D 中位數 362 ms、再切一次 234 ms，超過 P1 的 200 ms 門檻；其中建場景只佔 19 ms（`docs/notebook.md`「切 3D 的實機時間」）
+- 目標：先錄 Chrome performance trace 找出建場景以外那 200～300 ms 是哪一段（後製 shader 編譯、貼圖上傳、版面重排），再對那一段下手；第二次以後的切換優先
+- 驗收：機器安靜時跑 `node bench/verify-b10.mjs http://localhost:5181 --runs 7`，「再切一次」中位數 ≤ 200 ms；改前改後各量一次寫進 notebook；`npm test` 綠；B10 的 3D 截圖不變
+- 碰：`client/src/core/view3d.ts`、`client/src/main.ts`（切檢視的流程）
+- 不做：降畫質（拿掉 GTAO、降解析度）來換速度——要先問；要在 B14 拆完 view3d 之後才做，避免兩塊同時改

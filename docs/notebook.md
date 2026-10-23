@@ -515,6 +515,36 @@ Kenney 因此從 37 件一路降到 **7 件**：玄關衣帽架、門墊、烘�
 它會等 `.gltf` 真的進 `performance.getEntriesByType('resource')` 才截圖，而且
 品項清單向 App 要——理由跟 `shot.mjs` 一樣。
 
+### 切 3D 的實機時間（P1，2026-10-23 量的）
+
+盤點時的 497～595 ms 是 swiftshader（CPU 畫）量的，不能當實機數字。這次用**這台 Mac
+裝的 Chrome** headless 開 GPU（playwright `channel: 'chrome'`），腳本先印 WebGL
+renderer 確認是 `ANGLE Metal Renderer: Apple M4`、不是 SwiftShader，數字才算數。
+headless 沒有視窗可以被遮，避開「rAF 在背景分頁被暫停」那個坑。
+
+量法：按下 3D 按鈕到兩個 rAF 畫格的牆鐘時間，冷頁面各一次、同一頁切回 2D 再切一次，
+另讀 `__perf` 的 `build3d`（`view3d.build()` 本身）。plan1151022，含 B10 的 72 盞燈。
+
+| 版本 | 第一次切 3D | 再切一次 | 其中建場景 |
+|---|---|---|---|
+| 正式建置（`vite preview`），7 次 | 中位數 **362 ms**（289～409） | **234 ms**（223～285） | **19 ms**（13～29） |
+| dev server，5 次 | 250 ms（221～349，另一次冷編譯 4489） | 194 ms（156～220） | — |
+
+兩次量的時候機器都不安靜（load average 14、10 核，有別的 session 在跑 headless），
+所以絕對值偏高、兩份之間的差異不可信。**能下結論的只有兩件事**：
+
+- **超過 200 ms**，連最好的一次（223 ms）都超過，照 P1 的門檻另開優化區塊（blocks.md B15）
+- **建場景只佔 19 ms**。盤點建議的「2D 沒改就不重建場景」最多省這 19 ms，不是解法；
+  貴的是建場景以外的部分（GTAO／後製的 shader 編譯、第一次上傳貼圖、切檢視時的版面重排）。
+  B15 要先錄一份 Chrome performance trace 找出是哪一段，不要猜
+
+重跑：
+
+```bash
+npm run build && (cd client && npx vite preview --port 5181 --strictPort &)   # 要 npm run dev 的後端在 :8791
+node bench/verify-b10.mjs http://localhost:5181 --runs 7
+```
+
 
 ---
 

@@ -11,6 +11,7 @@ import { dist, angleDeg, quadPoints, wallControl } from './geometry';
 import { wallPieces, curvedWallBands } from './wallGeometry';
 import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
+import { lightParts, LightPart } from './lights3d';
 import { surfaceMaterial } from './textures3d';
 import { material as materialDef } from './materials';
 import { capturePanorama } from './panorama';
@@ -77,6 +78,7 @@ export class View3D {
   private _ceilMat?: THREE.Material;
   private staticGroup = new THREE.Group();   // walls/floors/openings — rebuilt+disposed each time
   private furnGroup = new THREE.Group();      // cloned cached furniture — cleared without disposing
+  private lightGroup = new THREE.Group();     // light fittings — shared unit geometry/materials, cleared without disposing
   private ground?: THREE.Mesh;                // the infinite ground plane (excluded from 3D export)
   private dir: THREE.DirectionalLight;
   private hemi!: THREE.HemisphereLight;
@@ -175,7 +177,7 @@ export class View3D {
     this.dir.shadow.intensity = 0.92;    // strong, clearly-read cast shadows
     const fill = new THREE.DirectionalLight(0xdfe8ff, 0.45);
     fill.position.set(-1, 0.6, -0.8);
-    this.scene.add(this.dir, this.dir.target, fill, this.staticGroup, this.furnGroup, this.ceilingGroup);
+    this.scene.add(this.dir, this.dir.target, fill, this.staticGroup, this.furnGroup, this.lightGroup, this.ceilingGroup);
 
     // Post-processing: ground-truth ambient occlusion for object-to-floor and
     // object-to-object contact darkening — the main recognizability boost.
@@ -566,6 +568,7 @@ export class View3D {
     const _t0 = mark();
     this.clearStatic();
     this.furnGroup.clear();               // clones share cached geometry/materials — do NOT dispose
+    this.lightGroup.clear();              // same: every fitting is a scaled shared unit mesh
 
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
     const grow = (x: number, z: number) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
@@ -914,7 +917,43 @@ export class View3D {
         this.furnGroup.add(inst);
         break;
       }
+      case 'electrical': {
+        // Against the ceiling 3D actually draws, not the floor's stored height,
+        // so a flush fitting sits on the surface you see.
+        for (const p of lightParts(o, WALL_H)) this.lightGroup.add(this.lightMesh(p, yBase));
+        break;
+      }
     }
+  }
+
+  private lightUnits?: { box: THREE.BoxGeometry; cyl: THREE.CylinderGeometry; glow: THREE.Material; body: THREE.Material };
+
+  /**
+   * One fitting primitive as a mesh: a unit box or cylinder scaled to size, so
+   * eighty fittings share two geometries and two materials. The glowing part is
+   * unlit (MeshBasicMaterial) — it reads as lit in every time-of-day preset
+   * without being a light source, which is the point (S1: no real lights).
+   */
+  private lightMesh(p: LightPart, yBase: number): THREE.Mesh {
+    if (!this.lightUnits) {
+      this.lightUnits = {
+        box: new THREE.BoxGeometry(1, 1, 1),
+        cyl: new THREE.CylinderGeometry(1, 1, 1, 24),
+        glow: new THREE.MeshBasicMaterial({ color: 0xfff3d6 }),
+        body: this.mat(0xe9eaec, { roughness: 0.5, metalness: 0.2 }),
+      };
+    }
+    const u = this.lightUnits;
+    const mat = p.glow ? u.glow : u.body;
+    const m = p.shape === 'box' ? new THREE.Mesh(u.box, mat) : new THREE.Mesh(u.cyl, mat);
+    if (p.shape === 'box') {
+      m.scale.set(p.w, p.h, p.d);
+      m.rotation.y = -p.angle * Math.PI / 180;
+    } else {
+      m.scale.set(p.r, p.h, p.r);
+    }
+    m.position.set(p.x, yBase + p.z, p.y);
+    return m;
   }
 
   // Export the current 3D model — walls, floors, openings and furniture — as a
@@ -926,7 +965,7 @@ export class View3D {
     if (this.ground) this.ground.visible = false;   // omit the 80 m ground plane
     try {
       const exporter = new GLTFExporter();
-      const gltf = await exporter.parseAsync([this.staticGroup, this.furnGroup], { binary: true, onlyVisible: true }) as ArrayBuffer;
+      const gltf = await exporter.parseAsync([this.staticGroup, this.furnGroup, this.lightGroup], { binary: true, onlyVisible: true }) as ArrayBuffer;
       const url = URL.createObjectURL(new Blob([gltf], { type: 'model/gltf-binary' }));
       const a = document.createElement('a');
       a.href = url; a.download = filename.replace(/\.(glb|gltf)$/i, '') + '.glb';
