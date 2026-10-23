@@ -29,3 +29,15 @@ export function panelInsetRight(canvas: HTMLElement): number {
   }
   return Math.max(0, c.right - Math.max(left, c.left));
 }
+
+/**
+ * 把 `panelInsetRight` 寫進 `el` 的 `--panel-inset`，面板開關或視窗變寬窄時跟著更新。
+ * 3D 底部的提示靠它置中於看得到的那段，不然 1920 寬開著照度面板時右半被切掉（U5）。
+ */
+export function watchPanelInset(el: HTMLElement) {
+  const sync = () => el.style.setProperty('--panel-inset', `${panelInsetRight(el)}px`);
+  const mo = new MutationObserver(sync);
+  for (const p of document.querySelectorAll<HTMLElement>('.light-panel, .health-panel')) mo.observe(p, { attributes: true, attributeFilter: ['class', 'style'] });
+  new ResizeObserver(sync).observe(el);
+  sync();
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening, fmtLen, fmtArea, isColumn, wallCap, wallEndCounts } from '../src/core/geometry';
+import { polygonArea, polygonSignedArea, pointInPolygon, distToSegment, alignWallEnd, arcOpening, fmtLen, fmtArea, isColumn, wallCap, wallEndCounts, wallEndCaps } from '../src/core/geometry';
 
 const V = (x: number, y: number) => ({ x, y });
 const SQ = [V(0, 0), V(100, 0), V(100, 100), V(0, 100)];
@@ -95,4 +95,19 @@ test('短厚牆有一端是轉角就照牆畫方頭，不然外角缺一塊', ()
   const stub = W(0, 0, 0, 100, 30), run = W(0, 0, 300, 0, 15);
   assert.equal(wallCap(stub, wallEndCounts([stub, run])), 'square');
   assert.equal(wallCap(run, wallEndCounts([stub, run])), 'square');
+});
+
+test('封口細線只畫在懸空的端點：轉角、T 字插進牆身、柱子都不畫（U8）', () => {
+  const run = W(0, 0, 400, 0, 20), up = W(0, 0, 0, 300, 20), tee = W(200, 10, 200, 200, 12);
+  const all = [run, up, tee], ends = wallEndCounts(all);
+  // run：a 是轉角，b 懸空 → 一條，在方頭延伸後的端面 x = 400 + 10，橫跨整個厚度
+  const caps = wallEndCaps(run, all, ends);
+  assert.equal(caps.length, 1);
+  const [p, q] = caps[0];
+  assert.ok(Math.abs(p.x - 410) < 1e-6 && Math.abs(q.x - 410) < 1e-6);
+  assert.ok(Math.abs(Math.abs(p.y - q.y) - 20) < 1e-6);
+  // tee：a 落在 run 的牆身裡（距中心線 10 ≤ 厚度一半）→ 只有 b 懸空
+  assert.equal(wallEndCaps(tee, all, ends).length, 1);
+  const col = W(600, 0, 600, 65, 65);
+  assert.equal(wallEndCaps(col, [col], wallEndCounts([col])).length, 0);
 });

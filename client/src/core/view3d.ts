@@ -213,15 +213,17 @@ export class View3D {
     // On-screen key indicator — lights up as movement keys arrive, so it's obvious
     // the fly controls are receiving input (and a quick diagnostic if they aren't).
     if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+    // It shares a bottom dock with the hint line when the page has one (`.dock3d`), so
+    // the two stack instead of overlapping (U5); `.key-hud` in style.css lays it out.
     const hud = document.createElement('div');
-    hud.style.cssText = 'position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:4px;padding:5px 7px;border-radius:8px;background:rgba(17,22,30,0.5);font:600 11px system-ui,sans-serif;pointer-events:none;z-index:6;user-select:none;';
+    hud.className = 'key-hud';
     for (const [label, key] of [['W', 'w'], ['A', 'a'], ['S', 's'], ['D', 'd'], ['⇧', 'shift'], ['␣', 'space'], ['Q', 'q'], ['E', 'e']]) {
       const c = document.createElement('div');
       c.textContent = label;
       c.style.cssText = 'min-width:15px;text-align:center;padding:2px 4px;border-radius:4px;background:rgba(255,255,255,0.06);color:#8b93a3;transition:background .07s,color .07s;';
       hud.appendChild(c); this.keyChips[key] = c;
     }
-    container.appendChild(hud);
+    (container.querySelector('.dock3d') ?? container).appendChild(hud);
 
     // Match on e.code (physical key position), NOT e.key: a Chinese/Japanese IME or
     // a non-US layout rewrites e.key (W becomes "Process" or a composition char) while

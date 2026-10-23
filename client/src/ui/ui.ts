@@ -108,6 +108,9 @@ export function initUI(editor: Editor, doc: Doc) {
   const nameInput = $<HTMLInputElement>('#projectName');
   nameInput.value = doc.project.name;
   nameInput.addEventListener('input', () => { doc.project.name = nameInput.value || '未命名平面圖'; scheduleAutosave(doc); });
+  // 1280 寬時名稱欄只剩幾個字，「A1 單元・照 11」看不出是哪份（U7）。滑鼠移上去的那一刻
+  // 才補 title：名稱有六個地方直接寫 .value，那不會發任何事件，追著同步一定會漏一個。
+  nameInput.addEventListener('mouseenter', () => { nameInput.title = nameInput.value; });
 
   // 語言切換。整頁重載而不是即時重繪：面板、教學、家具目錄的字串散在十幾個模組裡，
   // 而重載一定正確——這是「做對」比「做順」重要的地方，切換語言不是每分鐘會做的事。
