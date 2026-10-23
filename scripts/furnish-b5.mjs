@@ -45,24 +45,25 @@ export const LAYOUT = {
       { side: 'S', a: 38.3, b: 277.8, kind: 'window', label: '窗' },
       { side: 'E', a: 353.1, b: 432.8, kind: 'window', label: '窗' },
     ],
+    // 2026-10-23 換成使用者在 artifact 上改過的版本（「目前配置的資料」貼過來的，365 × 415）。
+    // 換算同上：貼牆的貼回 PDF 的牆、家具保持使用者給的尺寸、不貼牆的照比例拉開。
+    // 床在原型裡離東牆 2 cm（363），當成靠東牆。西側 T5 照原樣放在 x 0（在櫃子後面那段也照放）。
     furniture: [
       { id: 'fa1', kind: 'cabinet', label: '衣櫃', x: 87.8, y: 0, w: 292.1, h: 60 },
-      { id: 'fa2', kind: 'cabinet', label: '櫃子', x: 0, y: 95, w: 50, h: 337.8 },
-      { id: 'fa3', kind: 'bed', label: '床', x: 189.9, y: 135, w: 190, h: 175 },
-      { id: 'fa4', kind: 'desk', label: '書桌', x: 136.9, y: 379.8, w: 243, h: 53 },
+      { id: 'fa2', kind: 'cabinet', label: '櫃子', x: 0, y: 192.8, w: 50, h: 240 },
+      { id: 'fa3', kind: 'bed', label: '床', x: 191.9, y: 138.8, w: 188, h: 152 },
+      { id: 'fa4', kind: 'desk', label: '書桌', x: 125, y: 342.8, w: 160, h: 90 },
     ],
     lights: [
-      { id: 'la1', type: 't5', size: 4, orient: 'h', face: 'S', x: 244.9, y: 60, c: 2 },
-      { id: 'la2', type: 't5', size: 4, orient: 'v', face: 'W', x: 379.9, y: 248, c: 1 },
-      { id: 'la3', type: 't5', size: 4, orient: 'h', face: 'N', x: 244.9, y: 432.8, c: 2 },
-      { id: 'la4', type: 't5', size: 4, orient: 'v', face: 'E', x: 50, y: 248, c: 1 },
-      // B11（D1＋D3）：la5、la8 原本在 x 67.7，離西側做到頂的櫃子只有 18 cm（光打在櫃頂），
-      // 往東挪到離櫃 40 cm；la7 原本在 (296.6, 109.5)，從枕頭看偏離正上方 28°（< 30° 躺著會
-      // 直視），挪到偏 36°、離衣櫃 35 cm。要到 40° 以上得連 la6 一起動，不在這次範圍。
-      { id: 'la5', type: 'down', x: 90, y: 109.5, c: 3 }, { id: 'la6', type: 'down', x: 182.1, y: 109.5, c: 3 },
-      { id: 'la7', type: 'down', x: 240, y: 95, c: 3 },
-      { id: 'la8', type: 'down', x: 90, y: 394.2, c: 3 }, { id: 'la9', type: 'down', x: 182.1, y: 394.2, c: 3 },
-      { id: 'la10', type: 'down', x: 296.6, y: 394.2, c: 3 },
+      { id: 'la2', type: 't5', size: 4, orient: 'v', face: 'W', x: 379.9, y: 211.7, c: 1 },
+      { id: 'la3', type: 't5', size: 4, orient: 'h', face: 'N', x: 156.1, y: 432.8, c: 2 },
+      { id: 'la4', type: 't5', size: 4, orient: 'v', face: 'E', x: 0, y: 216.9, c: 1 },
+      { id: 'la5', type: 'down', x: 88.5, y: 109.5, c: 3 }, { id: 'la6', type: 'down', x: 208.2, y: 109.5, c: 3 },
+      { id: 'la7', type: 'down', x: 317.5, y: 109.5, c: 3 },
+      { id: 'la8', type: 'down', x: 88.5, y: 321.2, c: 3 }, { id: 'la9', type: 'down', x: 208.2, y: 321.2, c: 3 },
+      { id: 'la10', type: 'down', x: 317.5, y: 321.2, c: 3 },
+      { id: 'la11', type: 't5', size: 4, orient: 'h', face: 'N', x: 281, y: 432.8, c: 2 },
+      { id: 'la12', type: 'down', x: 88.5, y: 211.7, c: 3 },
     ],
   },
   mum: {
@@ -73,19 +74,27 @@ export const LAYOUT = {
       { side: 'E', a: 439.4, b: 518.9, kind: 'door', label: '浴室門' },
     ],
     beams: [{ orient: 'h', v: 73, a: 0, b: 347.3, face: 'S', label: '凸窗開口上緣' }],
+    // 2026-10-23 換成使用者在 artifact 上改過的版本；尺寸差不到 1 cm，座標照搬，貼東牆、南牆的貼回 PDF 的牆。
     furniture: [
-      { id: 'fb1', kind: 'cabinet', label: '櫃子', x: 0, y: 98, w: 46, h: 364 },
+      { id: 'fb1', kind: 'cabinet', label: '櫃子', x: 0, y: 78, w: 60, h: 60 },
       { id: 'fb2', kind: 'cabinet', label: '衣櫃', x: 104.3, y: 531.4, w: 243, h: 64 },
-      { id: 'fb3', kind: 'bed', label: '床', x: 159.3, y: 193, w: 188, h: 181 },
+      { id: 'fb3', kind: 'bed', label: '床', x: 159.3, y: 78, w: 188, h: 106 },
+      { id: 'fb4', kind: 'desk', label: '書桌', x: 137.3, y: 350, w: 210, h: 60 },
+      { id: 'fb5', kind: 'cabinet', label: '櫃子', x: 0, y: 140, w: 50, h: 120 },
+      { id: 'fb6', kind: 'cabinet', label: '櫃子', x: 297.3, y: 185, w: 50, h: 120 },
+      { id: 'fb7', kind: 'cabinet', label: '櫃子', x: 297.3, y: 15, w: 50, h: 60 },
     ],
     lights: [
-      { id: 'lb1', type: 't5', size: 4, orient: 'h', face: 'S', x: 225.3, y: 73, c: 2 },
-      { id: 'lb2', type: 't5', size: 4, orient: 'v', face: 'W', x: 347.3, y: 284, c: 1 },
-      { id: 'lb3', type: 't5', size: 4, orient: 'h', face: 'N', x: 225.3, y: 531.4, c: 2 },
-      { id: 'lb4', type: 't5', size: 4, orient: 'v', face: 'E', x: 46, y: 284, c: 1 },
-      { id: 'lb5', type: 'down', x: 166, y: 130, c: 3 }, { id: 'lb6', type: 'down', x: 286, y: 130, c: 3 },
-      { id: 'lb7', type: 'down', x: 166, y: 284, c: 3 },
-      { id: 'lb8', type: 'down', x: 166, y: 455, c: 3 }, { id: 'lb9', type: 'down', x: 286, y: 455, c: 3 },
+      { id: 'lb1', type: 't5', size: 4, orient: 'h', face: 'S', x: 196, y: 78, c: 2 },
+      { id: 'lb2', type: 't5', size: 4, orient: 'v', face: 'W', x: 347.3, y: 234, c: 1 },
+      { id: 'lb3', type: 't5', size: 4, orient: 'h', face: 'N', x: 196, y: 531.4, c: 2 },
+      { id: 'lb4', type: 't5', size: 4, orient: 'v', face: 'E', x: 6, y: 239, c: 1 },
+      { id: 'lb5', type: 'down', x: 286, y: 285, c: 3 }, { id: 'lb6', type: 'down', x: 286, y: 455, c: 3 },
+      { id: 'lb7', type: 't5', size: 4, orient: 'v', face: 'E', x: 6, y: 359, c: 1 },
+      { id: 'lb8', type: 't5', size: 4, orient: 'v', face: 'W', x: 347.3, y: 354, c: 1 },
+      { id: 'lb9', type: 'down', x: 196, y: 130, c: 3 }, { id: 'lb10', type: 'down', x: 196, y: 285, c: 3 },
+      { id: 'lb11', type: 'down', x: 196, y: 455, c: 3 }, { id: 'lb12', type: 'down', x: 106, y: 455, c: 3 },
+      { id: 'lb13', type: 'down', x: 101, y: 285, c: 3 }, { id: 'lb14', type: 'down', x: 96, y: 130, c: 3 },
     ],
   },
 };
