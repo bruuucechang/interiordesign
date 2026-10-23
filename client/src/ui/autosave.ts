@@ -79,11 +79,28 @@ export async function flushSave(doc: Doc): Promise<boolean> {
   // user has emptied still saves, which is the case this must not break.
   if (lastSaved === '' && isBlankPlan(p)) { setSaveStatus('idle'); return true; }
   const json = JSON.stringify(p);
-  if (json === lastSaved) { setSaveStatus('saved'); return true; }   // nothing meaningful changed
+  // 內容等於上次存的＝這份已經在後端；從匯出檔原樣開回來時，網址要在這裡補回去。
+  if (json === lastSaved) { setSaveStatus('saved'); syncPlanUrl(p.id); return true; }   // nothing meaningful changed
   const ok = await saveProject(p);
-  if (ok) { lastSaved = json; setSaveStatus('saved'); }
+  // 回應回來時畫面上可能已經換成別份（新建、從清單開），那時不能把網址改回這一份。
+  if (ok) { lastSaved = json; setSaveStatus('saved'); if (doc.project.id === p.id) syncPlanUrl(p.id); }
   else { dirty = true; setSaveStatus('offline'); }                  // heartbeat will retry
   return ok;
+}
+
+/**
+ * 網址的 `?plan=` 永遠指著畫面上這一份——但只在它確定存進後端之後。
+ *
+ * 以前新方案存完網址還是 `/`，F5 開出一張空白「未命名平面圖」，使用者以為沒存到
+ * （docs/review-2026-10.md 的 U4）。用 `replaceState` 不留歷史：上一頁回到的是
+ * 使用者真的去過的地方，不是同一份圖的兩個網址。傳 `null` 拿掉參數（新建、從檔案
+ * 開啟但還沒存），不然 F5 會跳回上一份。其他參數（`perf` 之類）照留。
+ */
+export function syncPlanUrl(id: string | null) {
+  const url = new URL(location.href);
+  if ((url.searchParams.get('plan') ?? null) === id) return;
+  if (id) url.searchParams.set('plan', id); else url.searchParams.delete('plan');
+  history.replaceState(history.state, '', url);
 }
 
 export function scheduleAutosave(doc: Doc) {

@@ -17,6 +17,7 @@ import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
 import { lightingProbe } from './ui/lighting-panel';
+import { panelInsetRight } from './ui/side-panels';
 import { flash } from './ui/feedback';
 import { webglAvailable, show3DUnavailable } from './core/webgl';
 import { applyStatic, currentLang, t } from './core/i18n';
@@ -155,17 +156,7 @@ const _prevToolChange = editor.hooks.toolChange;
 editor.hooks.toolChange = (name) => { _prevToolChange?.(name); updatePlacementPreview(); };
 
 // fit the whole plan into the (small) 2D pane — used when 2D is the PiP preview
-function fit2D() {
-  const vp = editor.vp;
-  const objs = doc.objects;
-  if (!objs.length) { vp.centerOn(0, 0, 800, 600); editor.render(); return; }
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const o of objs) { const b = bounds(o); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
-  const pad = 80, bw = maxX - minX + pad * 2, bh = maxY - minY + pad * 2;
-  vp.scale = Math.max(0.02, Math.min(2, Math.min(vp.width / bw, vp.height / bh)));
-  vp.origin = { x: (minX + maxX) / 2 - vp.width / 2 / vp.scale, y: (minY + maxY) / 2 - vp.height / 2 / vp.scale };
-  editor.render();
-}
+function fit2D() { editor.fitAll(panelInsetRight(canvas)); }
 
 function applyMode() {
   const show2d = mode !== '3d', show3d = mode !== '2d', both = mode === 'split';

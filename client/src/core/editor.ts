@@ -334,6 +334,24 @@ export class Editor implements ToolCtx {
     this.hooks.wallRef?.(this.wallRef);
   }
   setWallRef(r: Reference) { this.wallRef = r; this.hooks.wallRef?.(r); }
+  /**
+   * 整張圖放進畫面。`insetRight` 是畫布右邊被浮動面板蓋住的寬度——照度面板開著時
+   * 要扣掉它，不然右邊的房間正好落在面板底下（docs/review-2026-10.md 的 U3）。
+   */
+  fitAll(insetRight = 0) {
+    const vp = this.vp;
+    const objs = this.doc.objects;
+    if (!objs.length) { vp.centerOn(0, 0, 800, 600); this.render(); return; }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const o of objs) { const b = bounds(o); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+    const w = Math.max(80, vp.width - insetRight);
+    const pad = 80, bw = maxX - minX + pad * 2, bh = maxY - minY + pad * 2;
+    vp.scale = Math.max(0.02, Math.min(2, Math.min(w / bw, vp.height / bh)));
+    vp.origin = { x: (minX + maxX) / 2 - w / 2 / vp.scale, y: (minY + maxY) / 2 - vp.height / 2 / vp.scale };
+    this.hooks.zoom?.(Math.round(vp.scale / 0.4 * 100));
+    this.render();
+  }
+
   resetView() { this.vp.scale = 0.4; this.vp.centerOn(0, 0, 800, 600); this.hooks.zoom?.(100); this.render(); }
 
   // Zoom in/out about the canvas centre — used by the topbar − / + buttons.

@@ -15,6 +15,7 @@ import { PLANES, REFLECTANCE, luminaires, roomLuminaires } from '../core/lightin
 import { roomZones, zoneStat, litBy, combos, verdict, MAX_COMBO_CIRCUITS, type Verdict } from '../core/lightzones';
 import { lightingFindings } from '../core/lightcheck';
 import { ignoredFor, HEALTH_IGNORED } from './health-panel';
+import { announcePanel, onOtherPanel } from './side-panels';
 import type { LuxGrid } from '../core/lighting';
 import { LitRoom, LightView, lightFloor, floorSignature, circuitsOf, circuitColor, heatPixels, contour, CONTOURS, LUX_STOPS, LUX_MAX, sample } from '../core/lightmap';
 import { bounds } from '../core/hit';
@@ -401,6 +402,7 @@ function show(editor: Editor, doc: Doc) {
   paintControls(editor, doc);
   $('#lightPanel').classList.remove('hidden');
   $('[data-act="lighting"]').classList.add('active');
+  announcePanel('lighting');
   editor.render();
 }
 
@@ -420,6 +422,7 @@ export function toggleLighting(editor: Editor, doc: Doc) {
 
 export function wireLighting(editor: Editor, doc: Doc) {
   $('[data-act="close-lighting"]').addEventListener('click', () => hide(editor));
+  onOtherPanel('lighting', () => { if (open) hide(editor); });
   // Only a change that moves the light counts as "dragging": selecting a lamp
   // to edit it also fires onChange, and dropping to the coarse grid for that
   // made the whole map visibly blur on every click.

@@ -6,6 +6,7 @@ import { layerForKind } from '../model/catalogue';
 import { plotPDF, chooseSheet, planAreaMM, projectExtent, SCALES, PaperId, Orientation } from '../core/plot';
 import { listProjects, loadProject, deleteProject, listDeleted, restoreProject, inspectDxf, importDxf } from '../net/api';
 import { flash } from './feedback';
+import { syncPlanUrl } from './autosave';
 
 // Every dialog the app puts up. They share only the .modal markup convention,
 // but grouping them keeps ui.ts to wiring rather than markup.
@@ -274,7 +275,7 @@ export async function openModal(editor: Editor, doc: Doc) {
       row.append(nm, dt, del);
       row.onclick = async () => {
         const proj = await loadProject(p.id);
-        if (proj) { doc.load(proj); $<HTMLInputElement>('#projectName').value = proj.name; editor.resetView(); }
+        if (proj) { doc.load(proj); $<HTMLInputElement>('#projectName').value = proj.name; syncPlanUrl(proj.id); editor.resetView(); }
         modal.classList.add('hidden');
       };
       list.appendChild(row);
