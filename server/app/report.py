@@ -13,10 +13,12 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from .plan_schema import Electrical, Furniture, Project, Room
+from .plan_schema import Electrical, ElectricalId, Furniture, Project, Room
 from .rooms import polygon_signed_area
 
 PING_PER_M2 = 1 / 3.30579   # 1 坪 = 3.30579 m²
+#: A batten with no `size` is this long — must match `T5_DEFAULT_SIZE` in client/src/model/catalogue.ts.
+T5_DEFAULT_SIZE = 4
 
 #: What the object statistics table lists, and the label each row gets.
 COUNTED_KINDS = {
@@ -67,10 +69,16 @@ def build_report(project: Project, name: str = "") -> dict[str, Any]:
 
         # Electrical fittings are counted by type, because that is the schedule
         # a contractor prices — "8 雙插座, 3 單切開關" not "11 fittings".
+        # T5 battens are also split by length: a 4-foot and a 3-foot tube are
+        # different orders.
         elec: dict[str, int] = {}
         for o in objects:
             if isinstance(o, Electrical):
-                label = o.label or o.item.value or "配件"
+                if o.item == ElectricalId.batten:
+                    size = o.size.value if o.size else T5_DEFAULT_SIZE
+                    label = f"{o.label or 'T5'} {size} 尺"
+                else:
+                    label = o.label or o.item.value or "配件"
                 elec[label] = elec.get(label, 0) + 1
         electrical = [{"item": k, "count": v} for k, v in sorted(elec.items())]
 

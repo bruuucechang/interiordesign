@@ -116,7 +116,8 @@ export function refreshProps(editor: Editor, doc: Doc) {
     return;
   }
   const o = doc.selected!;
-  const up = (patch: Partial<Obj>) => doc.update(o.id, patch);
+  /** Patch `of` (the narrowed `o`), so the fields are checked against its kind rather than any kind's. */
+  const up = <T extends Obj>(of: T, patch: Partial<T>) => doc.update(of.id, patch);
 
   // field builders (append to a given parent)
   const dim = (parent: HTMLElement, label: string, cm: number, setCm: (v: number) => void, min = 0) => {
@@ -202,19 +203,19 @@ export function refreshProps(editor: Editor, doc: Doc) {
     const sec = section('燈光');
     if (isT5) {
       pick(sec.body, 'T5 長度', ([1, 2, 3, 4] as T5Size[]).map(n => ({ v: n, label: `${n} 尺`, title: `${T5_SIZES[n].length} cm · ${T5_SIZES[n].lumens} lm` })),
-           e.size ?? T5_DEFAULT_SIZE, v => up({ size: v } as any));
+           e.size ?? T5_DEFAULT_SIZE, v => up(e, { size: v }));
     }
     const lm = isT5 ? T5_SIZES[e.size ?? T5_DEFAULT_SIZE].lumens : spec!.lumens;
-    num(sec.body, '流明 (lm)', e.lumens, lm, v => up({ lumens: v } as any));
-    if (spec?.dist.type === 'down') num(sec.body, '光束角 (°)', e.beam, spec.dist.beam, v => up({ beam: v } as any));
+    num(sec.body, '流明 (lm)', e.lumens, lm, v => up(e, { lumens: v }));
+    if (spec?.dist.type === 'down') num(sec.body, '光束角 (°)', e.beam, spec.dist.beam, v => up(e, { beam: v }));
     pick(sec.body, '色溫', [undefined, 2700, 3000, 4000, 5000, 6500].map(k => ({ v: k, label: k ? `${k}K` : '未指定' })),
-         e.cct, v => up({ cct: v } as any));
+         e.cct, v => up(e, { cct: v }));
     pick(sec.body, '迴路', [1, 2, 3, 4, 5, 6].map(c => ({ v: c, label: String(c), title: t('照度面板用來比較開法的開關群組，不是配線') })),
-         e.circuit ?? DEFAULT_CIRCUIT, v => up({ circuit: v } as any));
+         e.circuit ?? DEFAULT_CIRCUIT, v => up(e, { circuit: v }));
     if (isT5 || e.item === 'wallLight') {
       // "Up" on the symbol is the side it lights; angle 0 is the top of the screen.
       pick(sec.body, '照向', [{ v: 0, label: '↑ 上' }, { v: 90, label: '→ 右' }, { v: 180, label: '↓ 下' }, { v: 270, label: '← 左' }],
-           ((Math.round(e.angle) % 360) + 360) % 360, v => up({ angle: v } as any));
+           ((Math.round(e.angle) % 360) + 360) % 360, v => up(e, { angle: v }));
     }
     host.appendChild(sec.el);
   };
@@ -315,23 +316,23 @@ export function refreshProps(editor: Editor, doc: Doc) {
   switch (o.kind) {
     case 'furniture':
       info(basics, '名稱', o.label);
-      dim(size.body, '寬', o.w, v => up({ w: Math.max(5, v) } as any), 5);
-      dim(size.body, '深', o.h, v => up({ h: Math.max(5, v) } as any), 5);
-      dim(size.body, '高', o.height ?? getModelHeight(o.item, o.w, o.h), v => up({ height: Math.max(5, v) } as any), 5);
-      dim(pos.body, 'X', o.x, v => up({ x: v } as any));
-      dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
-      deg(pos.body, '旋轉', o.angle, v => up({ angle: v } as any));
-      dim(pos.body, '離地板距離', o.elevation ?? 0, v => up({ elevation: Math.max(0, v) } as any));
+      dim(size.body, '寬', o.w, v => up(o, { w: Math.max(5, v) }), 5);
+      dim(size.body, '深', o.h, v => up(o, { h: Math.max(5, v) }), 5);
+      dim(size.body, '高', o.height ?? getModelHeight(o.item, o.w, o.h), v => up(o, { height: Math.max(5, v) }), 5);
+      dim(pos.body, 'X', o.x, v => up(o, { x: v }));
+      dim(pos.body, 'Y', o.y, v => up(o, { y: v }));
+      deg(pos.body, '旋轉', o.angle, v => up(o, { angle: v }));
+      dim(pos.body, '離地板距離', o.elevation ?? 0, v => up(o, { elevation: Math.max(0, v) }));
       break;
     case 'room': {
-      text(basics, '名稱', o.name, v => up({ name: v, auto: false } as any));   // renaming adopts an auto room
+      text(basics, '名稱', o.name, v => up(o, { name: v, auto: false }));   // renaming adopts an auto room
       const poly = o.poly && o.poly.length >= 3 ? o.poly : null;
       info(basics, '面積', formatArea(poly ? polygonArea(poly) : o.w * o.h, unit));
       if (!poly) {
-        dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
-        dim(size.body, '深', o.h, v => up({ h: Math.max(10, v) } as any), 10);
-        dim(pos.body, 'X', o.x, v => up({ x: v } as any));
-        dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
+        dim(size.body, '寬', o.w, v => up(o, { w: Math.max(10, v) }), 10);
+        dim(size.body, '深', o.h, v => up(o, { h: Math.max(10, v) }), 10);
+        dim(pos.body, 'X', o.x, v => up(o, { x: v }));
+        dim(pos.body, 'Y', o.y, v => up(o, { y: v }));
       }
       break;
     }
@@ -341,12 +342,12 @@ export function refreshProps(editor: Editor, doc: Doc) {
       const note = document.createElement('div'); note.className = 'muted'; note.style.fontSize = '12px';
       note.textContent = t('只在照度面板逐塊算平均：不算面積、不出圖、3D 不出現');
       basics.appendChild(note);
-      text(basics, '名稱', o.name, v => up({ name: v } as any));
-      num(basics, '照度目標 (lux)', o.lux, LIGHTING.areaLux, v => up({ lux: v } as any));
-      dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
-      dim(size.body, '深', o.h, v => up({ h: Math.max(10, v) } as any), 10);
-      dim(pos.body, 'X', o.x, v => up({ x: v } as any));
-      dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
+      text(basics, '名稱', o.name, v => up(o, { name: v }));
+      num(basics, '照度目標 (lux)', o.lux, LIGHTING.areaLux, v => up(o, { lux: v }));
+      dim(size.body, '寬', o.w, v => up(o, { w: Math.max(10, v) }), 10);
+      dim(size.body, '深', o.h, v => up(o, { h: Math.max(10, v) }), 10);
+      dim(pos.body, 'X', o.x, v => up(o, { x: v }));
+      dim(pos.body, 'Y', o.y, v => up(o, { y: v }));
       break;
     }
     case 'partition': {
@@ -360,12 +361,12 @@ export function refreshProps(editor: Editor, doc: Doc) {
         const L = Math.max(1, v), cur = dist(o.a, o.b);
         const ux = cur > 1e-6 ? (o.b.x - o.a.x) / cur : 1;
         const uy = cur > 1e-6 ? (o.b.y - o.a.y) / cur : 0;
-        up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
+        up(o, { b: { x: o.a.x + ux * L, y: o.a.y + uy * L } });
       }, 1);
-      dim(pos.body, 'A · X', o.a.x, v => up({ a: { x: v, y: o.a.y } } as any));
-      dim(pos.body, 'A · Y', o.a.y, v => up({ a: { x: o.a.x, y: v } } as any));
-      dim(pos.body, 'B · X', o.b.x, v => up({ b: { x: v, y: o.b.y } } as any));
-      dim(pos.body, 'B · Y', o.b.y, v => up({ b: { x: o.b.x, y: v } } as any));
+      dim(pos.body, 'A · X', o.a.x, v => up(o, { a: { x: v, y: o.a.y } }));
+      dim(pos.body, 'A · Y', o.a.y, v => up(o, { a: { x: o.a.x, y: v } }));
+      dim(pos.body, 'B · X', o.b.x, v => up(o, { b: { x: v, y: o.b.y } }));
+      dim(pos.body, 'B · Y', o.b.y, v => up(o, { b: { x: o.b.x, y: v } }));
       break;
     }
     case 'wall':
@@ -373,10 +374,10 @@ export function refreshProps(editor: Editor, doc: Doc) {
         const L = Math.max(1, v), cur = dist(o.a, o.b);
         const ux = cur > 1e-6 ? (o.b.x - o.a.x) / cur : 1;
         const uy = cur > 1e-6 ? (o.b.y - o.a.y) / cur : 0;
-        up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
+        up(o, { b: { x: o.a.x + ux * L, y: o.a.y + uy * L } });
       }, 1);
-      const th = dim(size.body, '厚度', o.thickness, v => up({ thickness: Math.max(2, v) } as any), 2);
-      const ht = dim(size.body, '高度', o.height ?? DEFAULTS.wallHeight, v => up({ height: Math.max(10, v) } as any), 10);
+      const th = dim(size.body, '厚度', o.thickness, v => up(o, { thickness: Math.max(2, v) }), 2);
+      const ht = dim(size.body, '高度', o.height ?? DEFAULTS.wallHeight, v => up(o, { height: Math.max(10, v) }), 10);
       // Say where the number came from. 12 cm and 270 cm are Taiwanese
       // residential figures, and on their own they read as properties of walls
       // rather than as somebody's choice — which is exactly how a beginner ends
@@ -399,7 +400,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
           if (cm === null) { flash(t('請先輸入距離')); return; }
           flash(editor.splitSelectedWall(cm)
             ? '已分割'
-            : (o as any).bulge
+            : o.bulge
               ? '曲線牆還不能分割 — 照弦線切會把弧弄丟'
               : '距離超出牆的範圍');
         };
@@ -419,11 +420,11 @@ export function refreshProps(editor: Editor, doc: Doc) {
         const L = Math.max(1, v), cur = dist(o.a, o.b);
         const ux = cur > 1e-6 ? (o.b.x - o.a.x) / cur : 1;
         const uy = cur > 1e-6 ? (o.b.y - o.a.y) / cur : 0;
-        up({ b: { x: o.a.x + ux * L, y: o.a.y + uy * L } } as any);
+        up(o, { b: { x: o.a.x + ux * L, y: o.a.y + uy * L } });
       }, 1);
-      dim(size.body, '寬度', o.width, v => up({ width: Math.max(2, v) } as any), 2);
-      dim(size.body, '高度', o.height, v => up({ height: Math.max(2, v) } as any), 2);
-      dim(pos.body, '離地面高度', o.elevation, v => up({ elevation: Math.max(0, v) } as any), 0);   // underside above the floor
+      dim(size.body, '寬度', o.width, v => up(o, { width: Math.max(2, v) }), 2);
+      dim(size.body, '高度', o.height, v => up(o, { height: Math.max(2, v) }), 2);
+      dim(pos.body, '離地面高度', o.elevation, v => up(o, { elevation: Math.max(0, v) }), 0);   // underside above the floor
       break;
     case 'door': case 'window': {
       // style picker (門/窗 form) — wraps to fit the panel
@@ -435,7 +436,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
       for (const s of styles) {
         const b = document.createElement('button'); b.className = 'mat-btn' + (cur === s.id ? ' active' : ''); b.textContent = s.label;
         b.onclick = () => {   // toggle active here too — the focused button suppresses the panel rebuild
-          doc.commit(); up({ style: s.id } as any);
+          doc.commit(); up(o, { style: s.id });
           swrap.querySelectorAll('.mat-btn').forEach(x => x.classList.remove('active')); b.classList.add('active');
         };
         swrap.appendChild(b);
@@ -461,7 +462,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
           b.textContent = label;
           b.style.fontSize = '12px';
           b.onclick = () => {
-            doc.commit(); up({ hinge, swing } as any);
+            doc.commit(); up(o, { hinge, swing });
             hwrap.querySelectorAll('.align-btn').forEach(x => x.classList.remove('active'));
             b.classList.add('active');
           };
@@ -473,8 +474,8 @@ export function refreshProps(editor: Editor, doc: Doc) {
       // 兩邊，所以這個 setter 也要通知它們。宣告在前面是因為欄位是照順序建的，
       // 而這個 callback 要到使用者真的動手時才會跑，那時兩個欄位都已經存在。
       let syncOffsets: ((widthCm: number) => void) | null = null;
-      dim(size.body, '寬度', o.width, v => { const w = Math.max(10, v); up({ width: w } as any); syncOffsets?.(w); }, 10);
-      dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up({ height: Math.max(10, v) } as any), 10);
+      dim(size.body, '寬度', o.width, v => { const w = Math.max(10, v); up(o, { width: w }); syncOffsets?.(w); }, 10);
+      dim(size.body, '高度', o.height ?? (o.kind === 'door' ? 210 : 100), v => up(o, { height: Math.max(10, v) }), 10);
       // find the host straight wall to expose editable left/right offsets
       let host: { w: Extract<Obj, { kind: 'wall' }>; L: number; dc: number; dir: Vec } | null = null; let bestD = 40;
       for (const w of doc.objects) {
@@ -489,7 +490,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
         /** 把中心放到 ndc（沿牆的距離），夾在牆內，回傳真正落在哪。 */
         const place = (ndc: number) => {
           c = Math.min(L - hw, Math.max(hw, ndc));
-          up({ x: w.a.x + dir.x * c, y: w.a.y + dir.y * c, angle: angleDeg(w.a, w.b) } as any);
+          up(o, { x: w.a.x + dir.x * c, y: w.a.y + dir.y * c, angle: angleDeg(w.a, w.b) });
           return c;
         };
         let leftInp: HTMLInputElement | null = null, rightInp: HTMLInputElement | null = null;
@@ -517,13 +518,13 @@ export function refreshProps(editor: Editor, doc: Doc) {
         // 之後的值，而不是一個從來沒成立過的數字留在畫面上。
         for (const inp of [leftInp, rightInp]) inp.addEventListener('change', () => sync(null));
       }
-      deg(pos.body, '角度', o.angle, v => up({ angle: v } as any));
-      dim(pos.body, '離地板距離', o.elevation ?? (o.kind === 'door' ? 0 : 90), v => up({ elevation: Math.max(0, v) } as any));
+      deg(pos.body, '角度', o.angle, v => up(o, { angle: v }));
+      dim(pos.body, '離地板距離', o.elevation ?? (o.kind === 'door' ? 0 : 90), v => up(o, { elevation: Math.max(0, v) }));
       break;
     }
     case 'dimension':
       info(basics, '長度', formatLength(dist(o.a, o.b), unit));
-      dim(pos.body, '偏移', o.offset, v => up({ offset: v } as any));
+      dim(pos.body, '偏移', o.offset, v => up(o, { offset: v }));
       break;
     case 'electrical': {
       // A fitting has no size — what matters on site is which way it faces and
@@ -540,26 +541,26 @@ export function refreshProps(editor: Editor, doc: Doc) {
         // stored higher than that is clamped there (lighting.ts::luminaire):
         // show where the maths puts it, not the catalogue's 265.
         const shown = o.item === 'batten' ? Math.min(o.elevation ?? Infinity, ceiling - T5_BELOW_CEILING) : (o.elevation ?? spec?.elevation ?? 30);
-        dim(basics, '安裝高度', shown, v => up({ elevation: Math.max(0, v) } as any));
+        dim(basics, '安裝高度', shown, v => up(o, { elevation: Math.max(0, v) }));
       }
       lightFields(o);
       // deg(), not dim(): an angle is not a length, so it must not follow the
       // cm/m toggle — that turned 30° into "0.30 m".
-      deg(pos.body, '角度', o.angle, v => up({ angle: ((v % 360) + 360) % 360 } as any));
-      dim(pos.body, 'X', o.x, v => up({ x: v } as any));
-      dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
+      deg(pos.body, '角度', o.angle, v => up(o, { angle: ((v % 360) + 360) % 360 }));
+      dim(pos.body, 'X', o.x, v => up(o, { x: v }));
+      dim(pos.body, 'Y', o.y, v => up(o, { y: v }));
       break;
     }
     case 'image': {
-      rangeRow(basics, '透明度', Math.round((o.opacity ?? 1) * 100), v => up({ opacity: Math.max(0, Math.min(1, v / 100)) } as any));
+      rangeRow(basics, '透明度', Math.round((o.opacity ?? 1) * 100), v => up(o, { opacity: Math.max(0, Math.min(1, v / 100)) }));
       const gen = document.createElement('button'); gen.className = 'prop-action'; gen.textContent = t('🪄 自動偵測牆體');
       gen.title = t('從底圖自動生成牆體（適合清晰的平面線稿）');
       gen.onclick = () => autoWallsFromImage(editor, doc, o);
       basics.appendChild(gen);
-      dim(size.body, '寬', o.w, v => up({ w: Math.max(10, v) } as any), 10);
-      dim(size.body, '高', o.h, v => up({ h: Math.max(10, v) } as any), 10);
-      dim(pos.body, 'X', o.x, v => up({ x: v } as any));
-      dim(pos.body, 'Y', o.y, v => up({ y: v } as any));
+      dim(size.body, '寬', o.w, v => up(o, { w: Math.max(10, v) }), 10);
+      dim(size.body, '高', o.h, v => up(o, { h: Math.max(10, v) }), 10);
+      dim(pos.body, 'X', o.x, v => up(o, { x: v }));
+      dim(pos.body, 'Y', o.y, v => up(o, { y: v }));
       break;
     }
   }
@@ -573,17 +574,17 @@ export function refreshProps(editor: Editor, doc: Doc) {
     // Picking a finish clears `color`, because colour wins in the renderer —
     // leaving it set would mean choosing 文化石 and seeing nothing change.
     matRow(material.body, '牆面', wallMaterials(), o.color ? '' : (o.finish ?? 'paint'),
-           v => up({ finish: v, color: undefined } as any));
-    colorRow(material.body, '自訂色', o.color ?? '#eceff4', v => up({ color: v } as any));
+           v => up(o, { finish: v, color: undefined }));
+    colorRow(material.body, '自訂色', o.color ?? '#eceff4', v => up(o, { color: v }));
   }
   if (o.kind === 'room') {
     matRow(material.body, '地板', floorMaterials(), o.floor && !o.floor.startsWith('#') ? o.floor : 'wood',
-           v => up({ floor: v, auto: false } as any));
-    colorRow(material.body, '自訂色', o.floor && o.floor.startsWith('#') ? o.floor : '#b0895e', v => up({ floor: v, auto: false } as any));
+           v => up(o, { floor: v, auto: false }));
+    colorRow(material.body, '自訂色', o.floor && o.floor.startsWith('#') ? o.floor : '#b0895e', v => up(o, { floor: v, auto: false }));
   }
   if (o.kind === 'furniture') {
-    swatchRow(material.body, o.color, v => up({ color: v } as any));
-    colorRow(material.body, '自訂色', o.color ?? '#8a6a4a', v => up({ color: v } as any));
+    swatchRow(material.body, o.color, v => up(o, { color: v }));
+    colorRow(material.body, '自訂色', o.color ?? '#8a6a4a', v => up(o, { color: v }));
   }
   if (material.body.children.length) host.appendChild(material.el);
 

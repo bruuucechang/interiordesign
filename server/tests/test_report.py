@@ -147,3 +147,32 @@ def test_the_workbook_lists_the_electrical_schedule():
 def test_a_plan_with_no_fittings_omits_the_electrical_block():
     r = build_report(plan(floor("1F", [room("客廳", 400, 300)])))
     assert r["floors"][0]["electrical"] == []
+
+
+def batten(size: int | None, label: str = "T5 層板燈") -> Electrical:
+    return Electrical(id="e", kind="electrical", layer="electrical", item="batten",
+                      label=label, size=size, x=0, y=0, angle=0)
+
+
+def test_t5_battens_are_counted_per_length():
+    # A 4-foot and a 3-foot batten are different things to order; an unset size
+    # is the catalogue default (T5_DEFAULT_SIZE in catalogue.ts), 4 feet.
+    r = build_report(plan(floor("1F", [
+        batten(4), batten(None), batten(3), batten(1, label=""),
+    ])))
+    assert r["floors"][0]["electrical"] == [
+        {"item": "T5 1 尺", "count": 1},
+        {"item": "T5 層板燈 3 尺", "count": 1},
+        {"item": "T5 層板燈 4 尺", "count": 2},
+    ]
+
+
+def test_the_t5_default_matches_the_catalogue():
+    # The client owns the default; this side only copies it.
+    import re
+    from pathlib import Path
+
+    from app import report
+    src = (Path(__file__).parents[2] / "client/src/model/catalogue.ts").read_text(encoding="utf-8")
+    m = re.search(r"export const T5_DEFAULT_SIZE: T5Size = (\d)", src)
+    assert m and int(m.group(1)) == report.T5_DEFAULT_SIZE
