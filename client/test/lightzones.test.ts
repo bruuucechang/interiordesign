@@ -221,3 +221,34 @@ test('重疊只留一塊：兩件一樣大的流理台疊在一起、洗臉盆�
   const zones = roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL);
   assert.deepEqual(zones.map(z => [z.type, z.target]), [['counter', 'a'], ['vanity', 'vt']]);
 });
+
+// 子區域（B12）：一個房間包了玄關、走道、廚房時，每塊各自一列，不被整間平均蓋掉。
+const area = (id: string, name: string, x: number, y: number, w: number, h: number, lux?: number): Obj =>
+  ({ id, kind: 'area', layer: 'rooms', x, y, w, h, name, ...(lux != null ? { lux } : {}) });
+
+test('子區域：排在最前面、量在桌面、沒填目標用預設 100；中心在房間外的不算', () => {
+  const objs: Obj[] = [
+    { id: 'rz', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 600, h: 300, name: '客廳＋廚房' },
+    door('dz', 300, 0, 90, 0),
+    area('ab', '玄關', 0, 0, 150, 300),
+    area('ac', '客廳', 300, 0, 300, 300, 150),
+    area('ax', '隔壁', 700, 0, 100, 100),
+  ];
+  const zones = roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL);
+  assert.deepEqual(zones.map(z => [z.type, z.name, z.target, z.height, z.need]),
+    [['area', '玄關', 'ab', 75, 100], ['area', '客廳', 'ac', 75, 150], ['door', '門口', 'dz', 75, 100]]);
+});
+
+test('子區域：一盞燈只照得到一半時，暗的那塊自己是一列，整間平均蓋不掉它', () => {
+  const objs: Obj[] = [
+    { id: 'rz', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 600, h: 300, name: '客廳＋廚房' },
+    area('aw', '西', 0, 0, 200, 300), area('ae', '東', 400, 0, 200, 300),
+    down(500, 100), down(500, 200),
+  ];
+  const lr = lightRoom(objs[0] as any, CEIL, []);
+  const zones = roomZones(lr, objs, CEIL);
+  const lit = litBy(lr, roomLuminaires(lr, luminaires(objs, CEIL)), REFLECTANCE.medium);
+  const [w, e] = zones.map(z => zoneStat(lr, lit, z)!.avg);
+  assert.ok(e > w * 2, `東 ${e.toFixed(0)} 應遠亮於西 ${w.toFixed(0)}`);
+  assert.equal(verdict(w, zones[0].need), 'dark');
+});

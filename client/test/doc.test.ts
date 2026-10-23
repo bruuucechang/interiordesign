@@ -218,3 +218,13 @@ test('圖層沒有真的變的時候不會產生一步', () => {
   d.setLayerLocked('furniture', false);   // 本來就是 false
   assert.equal(d.canUndo, false);
 });
+
+test('子區域只有外框點得到：裡面的家具照樣點得到，不會被子區域蓋住', async () => {
+  const { hitTest } = await import('../src/core/hit');
+  const d = new Doc();
+  d.add({ ...sofa('s'), x: 100, y: 100 });
+  d.add({ id: 'a', kind: 'area', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: '客廳' } as any);
+  assert.equal(hitTest(d, { x: 150, y: 125 }, 5)?.id, 's');
+  assert.equal(hitTest(d, { x: 250, y: 250 }, 5), undefined);
+  assert.equal(hitTest(d, { x: 2, y: 150 }, 5)?.id, 'a');
+});

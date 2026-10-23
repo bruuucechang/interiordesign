@@ -286,7 +286,7 @@ function paintAnalysis(editor: Editor, doc: Doc) {
     host.appendChild(sec('區域'));
     if (!zones.length) {
       const m = document.createElement('div'); m.className = 'lp-muted';
-      m.textContent = t('房間裡沒有床、書桌、做到頂的櫃子或門，沒有區域可以分析。');
+      m.textContent = t('房間裡沒有子區域、床、書桌、做到頂的櫃子或門，沒有區域可以分析。');
       host.appendChild(m);
     } else {
       const litNow = litBy(r.lr, r.lums, v.rho);
@@ -422,6 +422,7 @@ export function toggleLighting(editor: Editor, doc: Doc) {
 
 export function wireLighting(editor: Editor, doc: Doc) {
   $('[data-act="close-lighting"]').addEventListener('click', () => hide(editor));
+  $('[data-act="draw-area"]').addEventListener('click', () => editor.selectTool('area'));
   onOtherPanel('lighting', () => { if (open) hide(editor); });
   // Only a change that moves the light counts as "dragging": selecting a lamp
   // to edit it also fires onChange, and dropping to the coarse grid for that

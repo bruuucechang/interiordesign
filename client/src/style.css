@@ -465,6 +465,7 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .light-panel.hidden { display: none; }
 .light-body { overflow-y: auto; padding: 10px 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 .lp-sec { font-size: 11px; color: var(--muted); letter-spacing: 1px; margin-top: 8px; }
+.lp-draw { display: block; width: 100%; margin-top: 8px; }
 .lp-bar { height: 10px; border-radius: 5px; }
 .lp-ticks { position: relative; height: 14px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .lp-ticks span { position: absolute; transform: translateX(-50%); }

@@ -7,7 +7,7 @@ import { cloneWithOffset, alignMoves, distributeMoves, Move, Edge, Axis } from '
 import { Reference, alignWalls, splitWallAt, findFaceSteps, FaceStep, Wall } from './wallEdit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
-import { WallTool, CurvedWallTool, BeamTool, PartitionTool, RoomTool, DimensionTool } from '../tools/draw';
+import { WallTool, CurvedWallTool, BeamTool, PartitionTool, RoomTool, AreaTool, DimensionTool } from '../tools/draw';
 import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall } from '../tools/place';
 import { CalibrateTool } from '../tools/calibrate';
 import { FURNITURE_BY_ID } from '../data/furniture';
@@ -64,6 +64,7 @@ export class Editor implements ToolCtx {
       beam: new BeamTool(this),
       partition: new PartitionTool(this),
       room: new RoomTool(this),
+      area: new AreaTool(this),
       door: new OpeningTool(this, 'door'),
       window: new OpeningTool(this, 'window'),
       dimension: new DimensionTool(this),

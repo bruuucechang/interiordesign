@@ -49,7 +49,7 @@ export function bounds(o: Obj): Bounds {
       return { x: Math.min(o.a.x, o.b.x), y: Math.min(o.a.y, o.b.y), w: Math.abs(o.a.x - o.b.x), h: Math.abs(o.a.y - o.b.y) };
     case 'door': case 'window':
       return { x: o.x - o.width / 2, y: o.y - o.width / 2, w: o.width, h: o.width };
-    case 'image':
+    case 'image': case 'area':
       return { x: o.x, y: o.y, w: o.w, h: o.h };
     case 'electrical': {
       const r = 16;   // a little larger than the drawn symbol, so it is easy to grab
@@ -89,6 +89,14 @@ function hitObject(o: Obj, p: Vec, tol: number): boolean {
     }
     case 'door': case 'window': return dist(p, { x: o.x, y: o.y }) <= o.width / 2 + tol;
     case 'image': return pointInRect(p, o.x, o.y, o.w, o.h);
+    // A sub-area lies over the room's furniture and lights, and is later in the
+    // list than most of them; answering anywhere inside would make every sofa
+    // and downlight in it unclickable. So only its outline picks it — and the
+    // lighting panel's row for it selects it too.
+    case 'area': {
+      const c = [{ x: o.x, y: o.y }, { x: o.x + o.w, y: o.y }, { x: o.x + o.w, y: o.y + o.h }, { x: o.x, y: o.y + o.h }];
+      return c.some((a, i) => distToSegment(p, a, c[(i + 1) % 4]) <= tol * 1.5);
+    }
     case 'furniture': {
       const c = furnitureCenter(o);
       const local = rotate(p, c, -o.angle);

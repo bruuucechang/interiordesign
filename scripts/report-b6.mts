@@ -1,4 +1,4 @@
-// B6 驗收：plan1151022 每個房間的整間平均、自動區域、B6 自訂的達標區域與照明健檢。
+// B6 驗收：plan1151022 每個房間的整間平均、各區域（含子區域）與照明健檢。
 //
 //   cd client && npx tsx ../scripts/report-b6.mts          # 方案 + furnish-b6.mjs 現在的配置（不寫入）
 //   cd client && npx tsx ../scripts/report-b6.mts --db     # 只看資料庫裡存的那份
@@ -7,18 +7,18 @@
 // 看法固定：桌面 75、全部迴路開著、中間色牆面、5 cm 格點。
 //
 // 客廳、廚房、衛浴、陽台沒有床或書桌。流理台面與洗手台前 App 會自己生（B11，目標在
-// locale-defaults.ts::LIGHTING）；玄關、走道、客廳那一塊還要等子區域（B12），所以這裡
-// 另外定了「達標區域」（AREAS）。數字是 CNS 12112 住宅照度的一般值取下限——**是假設**，
-// 理由寫在 docs/lighting-plan.md。
+// locale-defaults.ts::LIGHTING）；玄關、走道、東側小廳、客廳、廚房是方案裡畫的子區域
+// （B12，座標與目標在 furnish-b6.mjs 的 AREAS）。數字是 CNS 12112 住宅照度的一般值取
+// 下限——**是假設**，理由寫在 docs/lighting-plan.md。
 //
-// 不過關（exit 1）的條件：B6 的房間任一個自動區域或達標區域沒達標、或有任何健檢提醒
+// 不過關（exit 1）的條件：B6 的房間任一個區域沒達標、或有任何健檢提醒
 // （書桌加檯燈那一條除外）。B5 的兩間只印出來，不計。
 
-import { CEIL, allObjects, loadPlan } from './furnish-b6.mjs';
+import { AREAS, CEIL, allObjects, loadPlan } from './furnish-b6.mjs';
 import { lightFloor } from '../client/src/core/lightmap';
 import { roomZones, litBy, zoneStat, verdict } from '../client/src/core/lightzones';
 import { lightingFindings } from '../client/src/core/lightcheck';
-import { REFLECTANCE, inside, isBlocked, lux } from '../client/src/core/lighting';
+import { REFLECTANCE } from '../client/src/core/lighting';
 import type { Obj } from '../client/src/model/schema';
 
 const RHO = REFLECTANCE.medium, PLANE = 75, STEP = 5;
@@ -30,13 +30,6 @@ const ROOM_NEED: Record<string, number> = {
   'Bruce 房間': 150, '老媽房間': 150,
 };
 const B5 = new Set(['Bruce 房間', '老媽房間']);
-
-/** B6 自訂的達標區域：[房間, 名稱, x0, x1, y0, y1, 量測高度, 平均要 ≥] */
-const AREAS: [string, string, number, number, number, number, number, number][] = [
-  ['客廳＋廚房', '玄關', 62, 225, 597, 747, PLANE, 100],
-  ['客廳＋廚房', '走道（臥室門前）', 290, 792, 600, 760, PLANE, 100],
-  ['客廳＋廚房', '客廳', 290, 814, 762, 1036, PLANE, 150],
-];
 
 const db = process.argv.includes('--db');
 const { floor } = await loadPlan();
@@ -60,23 +53,17 @@ for (const r of lit) {
     + `｜最暗 ${f0(r.grid.min)}｜均勻度 ${r.grid.uniformity.toFixed(2)}`);
   if (!lm) { if (!b5) fail++; console.log('  ✗ 沒有燈'); continue; }
   const l = litBy(r.lr, r.lums, RHO);
-  for (const z of roomZones(r.lr, objs, CEIL)) {
+  const zones = roomZones(r.lr, objs, CEIL);
+  // 子區域改了名、搬出房間或忘了存，面板就安靜地少一列——照 furnish-b6.mjs 點名。
+  if (name === '客廳＋廚房') for (const [, label] of AREAS) {
+    if (!zones.some(z => z.type === 'area' && z.name === label)) { fail++; console.log(`  ✗ 沒有子區域「${label}」`); }
+  }
+  for (const z of zones) {
     const st = zoneStat(r.lr, l, z);
     const v = st ? verdict(st.avg, z.need) : null;
     // 書桌不夠是提示加檯燈，不算不過。
     const who = (objs.find(o => o.id === z.target) as any)?.label;
     console.log(`  區域 ${z.name}${who ? `（${who}）` : ''}：平均 ${f0(st?.avg)}、最暗 ${f0(st?.min)}（≥${z.need} ${z.type === 'desk' && v !== 'ok' ? '· 加檯燈' : bad(v !== 'ok')}）`);
-  }
-  for (const [room, label, x0, x1, y0, y1, h, n] of AREAS) {
-    if (room !== name) continue;
-    let sum = 0, cnt = 0, mn = Infinity;
-    for (let y = y0 + STEP / 2; y < y1; y += STEP) for (let x = x0 + STEP / 2; x < x1; x += STEP) {
-      if (!inside(r.lr.poly, x, y) || isBlocked(r.lr, x, y)) continue;
-      const e = lux(l.src, x, y, h, l.ind);
-      sum += e; cnt++; mn = Math.min(mn, e);
-    }
-    const avg = cnt ? sum / cnt : 0;
-    console.log(`  達標 ${label}（高 ${h}）：平均 ${f0(avg)}、最暗 ${f0(cnt ? mn : null)}（≥${n} ${bad(avg < n)}）`);
   }
   const fs = findings.filter(f => f.room === r.room.id);
   for (const f of fs) {
@@ -89,7 +76,7 @@ for (const r of lit) {
 }
 // 少了一間房，迴圈根本走不到它；照名字點名一次。
 const seen = new Set(lit.map(r => r.room.name));
-for (const n of new Set([...Object.keys(ROOM_NEED), ...AREAS.map(a => a[0])])) {
+for (const n of Object.keys(ROOM_NEED)) {
   if (!seen.has(n)) { fail++; console.log(`✗ 方案裡沒有房間「${n}」`); }
 }
 const loose = findings.filter(f => !f.room);

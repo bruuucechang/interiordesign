@@ -25,6 +25,7 @@ from typing import Any, get_args
 from pydantic import TypeAdapter, ValidationError
 
 from .plan_schema import (
+    Area,
     Beam,
     Partition,
     Dimension,
@@ -43,7 +44,7 @@ log = logging.getLogger("interior.plan")
 # The generated code inlines this union into Floor.objects and so leaves it
 # unnamed. Naming it here is safe because test_plan.py asserts the two are the
 # same type — adding a kind to schema.ts without updating this fails the suite.
-Obj = Wall | Beam | Partition | Room | Opening | Furniture | Dimension | ImageObj | Electrical
+Obj = Wall | Beam | Partition | Room | Area | Opening | Furniture | Dimension | ImageObj | Electrical
 
 OBJ_ADAPTER: TypeAdapter[Obj] = TypeAdapter(Obj)
 

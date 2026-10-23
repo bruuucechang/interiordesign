@@ -164,6 +164,39 @@ export class RoomTool implements Tool {
   deactivate() { this.a = null; this.ctx.setPreview(); }
 }
 
+/**
+ * A sub-area for the lighting table: drag a rectangle inside a room. Same
+ * gesture as RoomTool, but it makes something that only the illuminance check
+ * reads — so it goes back to the select tool afterwards, ready to rename.
+ */
+export class AreaTool implements Tool {
+  name = 'area'; cursor = 'crosshair'; hint = '在房間裡拖曳一個矩形畫子區域（只算照度，不算面積）；Esc 結束';
+  private a: Vec | null = null;
+  constructor(private ctx: ToolCtx) {}
+  onDown(p: PointerInfo) { this.a = p.snapped; }
+  onMove(p: PointerInfo) {
+    if (!this.a) return;
+    const a = this.a, b = p.snapped, s = this.ctx.vp.scale;
+    this.ctx.setPreview(ctx => {
+      ctx.strokeStyle = '#ffd166'; ctx.setLineDash([4 / s, 5 / s]); ctx.lineWidth = 1.5 / s;
+      ctx.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)); ctx.setLineDash([]);
+    });
+    this.ctx.render();
+  }
+  onUp(p: PointerInfo) {
+    if (!this.a) return;
+    const a = this.a, b = p.snapped; this.a = null; this.ctx.setPreview();
+    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    if (w < 20 || h < 20) { this.ctx.render(); return; }
+    this.ctx.doc.commit();
+    const id = genId('area');
+    this.ctx.doc.add({ id, kind: 'area', layer: layerForKind('area'), x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w, h, name: '子區域' });
+    this.ctx.doc.select(id);
+    this.ctx.selectTool('select');
+  }
+  deactivate() { this.a = null; this.ctx.setPreview(); }
+}
+
 // Curved wall: click start, click end, move to set the arc, click to confirm.
 // Chains from the previous endpoint like the straight tool.
 export class CurvedWallTool implements Tool {

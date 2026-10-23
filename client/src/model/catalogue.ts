@@ -131,6 +131,7 @@ export function layerForKind(kind: ObjKind): LayerId {
   if (kind === 'beam') return 'beams';
   if (kind === 'partition') return 'rooms';   // it exists to make rooms, so it hides with them
   if (kind === 'room') return 'rooms';
+  if (kind === 'area') return 'rooms';        // drawn inside rooms, hides with them
   if (kind === 'door' || kind === 'window') return 'openings';
   if (kind === 'furniture') return 'furniture';
   if (kind === 'electrical') return 'electrical';

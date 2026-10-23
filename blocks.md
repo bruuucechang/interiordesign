@@ -83,11 +83,17 @@
   la5、la8 往東挪到離櫃 40 cm，la7 挪到偏離枕頭 36°（要 ≥40° 得連 la6 一起動，沒做）；備份在
   `~/Backups/interior-designer/plan1151022-before-b11-20261023T090055.sql`。B5 兩間仍有「30～40° 有點近」與「T5 在床頭後上方」的提醒（本來就有、不在 D1／D3）
 
-## B12 房間內的子區域（S3）  [未開始]
+## B12 房間內的子區域（S3）  [完成]
 - 目標：可以在房間裡畫子區域（只算照度、不算面積），照度面板逐塊列；plan1151022 的「客廳＋廚房」切出玄關、走道、東側小廳、客廳、廚房
 - 驗收：`npm test` 綠（schema 新欄位有遷移或選填、codegen 新鮮）；面板截圖逐塊有數字
 - 碰：`client/src/model/schema.ts`、codegen 產物、`core/lighting.ts`、`ui/lighting-panel.ts`、繪圖工具、資料庫 plan1151022
 - 不做：面積報表改算子區域
+- 結果（2026-10-23）：新物件種類 `area`（矩形＋名稱＋選填 `lux`，沒填用 `LIGHTING.areaLux` 100），選填所以不用 STEP；
+  照度面板「＋ 畫子區域」拖一個矩形，`roomZones()` 把中心在房間裡的子區域排在最前面、量在桌面高。只有外框點得到
+  （裡面的家具、燈照樣點得到），不出圖、3D 不出現、面積報表不算。plan1151022 的「客廳＋廚房」切了五塊（座標在
+  `furnish-b6.mjs` 的 `AREAS`）：玄關 170、走道 210、東側小廳 172、客廳 232、廚房 413，全部達標；`report-b6.mts`
+  的 AREAS 拿掉、改讀方案。備份 `~/Backups/interior-designer/plan1151022-before-b12-20261023T091931.sql`。
+  驗收 `node bench/verify-b12.mjs`。`verify-b10` 的「室內視角天花板」在負載 14 時紅過一次、重跑就過（固定等 4 秒）
 
 ## B13 報表 T5 分尺寸＋屬性面板型別整理（S4、S5）  [未開始]
 - 目標：面積報表電氣統計 T5 依尺寸分行；`properties.ts` 的 `as any` 換成依 kind 收窄的型別

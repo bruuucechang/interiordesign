@@ -191,7 +191,7 @@ export class Renderer {
     if (opts.heat) { ctx.save(); opts.heat(ctx); ctx.restore(); }
     pass(o => !floorish(o) && !fitting(o), drawIt);
     this.setScreen();
-    pass(o => o.kind === 'room', o => this.labelObject(o));
+    pass(o => o.kind === 'room' || o.kind === 'area', o => this.labelObject(o));
     this.setWorld();
     pass(fitting, drawIt);
     if (opts.world) { ctx.save(); opts.world(ctx); ctx.restore(); }
@@ -301,6 +301,15 @@ export class Renderer {
         if (pat) { ctx.save(); ctx.fillStyle = pat; trace(); ctx.fill(); ctx.restore(); }
         ctx.strokeStyle = color; ctx.lineWidth = 2 * line;
         trace(); ctx.stroke();
+        break;
+      }
+      case 'area': {
+        // Dotted and unfilled, so it reads as a note on the room rather than a
+        // second room: it divides nothing but the lighting table.
+        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 1.5 * line;
+        ctx.setLineDash([4 * line, 5 * line]);
+        ctx.strokeRect(o.x, o.y, o.w, o.h);
+        ctx.setLineDash([]);
         break;
       }
       case 'partition': {
@@ -503,6 +512,11 @@ export class Renderer {
         const area = poly ? polygonArea(poly) : o.w * o.h;
         this.text({ x: c.x, y: c.y - 12 / this.vp.scale }, o.name || '房間', '#dbe0ea', 13);
         this.text({ x: c.x, y: c.y + 12 / this.vp.scale }, fmtArea(area), '#8b93a3');
+        break;
+      }
+      case 'area': {
+        // Along its top edge, out of the way of the room's own name at the room's centre.
+        this.text({ x: o.x + o.w / 2, y: o.y + 14 / this.vp.scale }, o.name || '子區域', '#ffd166', 11);
         break;
       }
       case 'dimension': {

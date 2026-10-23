@@ -100,7 +100,7 @@ export function projectExtent(project: Project): { x: number; y: number; w: numb
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const f of project.floors) {
     for (const o of f.objects) {
-      if (o.kind === 'image') continue;              // underlay is a tracing aid, never plotted
+      if (o.kind === 'image' || o.kind === 'area') continue;   // tracing aid / lighting aid, never plotted
       const b = bounds(o);
       minX = Math.min(minX, b.x); minY = Math.min(minY, b.y);
       maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h);
@@ -197,7 +197,7 @@ export function plotFloorCanvas(project: Project, floorId: string, sheet: SheetC
   vp.origin = { x: extent.x + extent.w / 2 - visW / 2, y: extent.y + extent.h / 2 - visH / 2 };
 
   new Renderer(canvas, vp, doc).render({
-    background: '#ffffff', grid: false, selection: false, mono: true, skipKinds: ['image'],
+    background: '#ffffff', grid: false, selection: false, mono: true, skipKinds: ['image', 'area'],
   });
   return canvas;
 }
