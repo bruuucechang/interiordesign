@@ -198,7 +198,7 @@ export class Renderer {
 
     // labels + selection + previews in screen space
     this.setScreen();
-    pass(o => o.kind !== 'room', o => this.labelObject(o));
+    pass(o => o.kind !== 'room' && o.kind !== 'area', o => this.labelObject(o));
     if (opts.selection !== false) { const sel = this.doc.selectedObjects; for (const s of sel) this.drawSelection(s, sel.length === 1); }
     if (opts.screen) { ctx.save(); opts.screen(ctx); ctx.restore(); }
   }

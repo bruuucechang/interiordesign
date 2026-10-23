@@ -107,7 +107,7 @@ export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): 
   for (const a of objs.filter((o): o is Area => o.kind === 'area')) {
     if (!inside(r.poly, a.x + a.w / 2, a.y + a.h / 2)) continue;
     out.push({
-      type: 'area', name: a.name || '子區域', tip: '自己畫的子區域',
+      type: 'area', name: a.name || '子區域', tip: '這一塊的平均被整間蓋過去了；在這塊補一盞燈，或把附近的燈往這裡挪',
       box: { cx: a.x + a.w / 2, cy: a.y + a.h / 2, w: a.w, h: a.h, angle: 0 },
       height: PLANES.desk, need: a.lux ?? L.areaLux, target: a.id,
     });

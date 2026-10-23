@@ -277,7 +277,7 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
         why: '桌面要的亮度是一般照明的三倍，靠天花板的燈補上去很浪費；加一盞檯燈最直接。',
       });
       else out.push({
-        ...base, title: `${z.type === 'door' ? rname : ''}${z.name}${v === 'dark' ? '偏暗' : '略暗'}`,
+        ...base, title: `${z.type === 'door' || z.type === 'area' ? rname : ''}${z.name}${v === 'dark' ? '偏暗' : '略暗'}`,
         detail: `約 ${avg} lux，建議 ≥${z.need}`,
         why: `${z.tip}。以全部迴路開著、中間色牆面計算。`,
       });

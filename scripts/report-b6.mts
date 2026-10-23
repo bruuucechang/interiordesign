@@ -55,8 +55,10 @@ for (const r of lit) {
   const l = litBy(r.lr, r.lums, RHO);
   const zones = roomZones(r.lr, objs, CEIL);
   // 子區域改了名、搬出房間或忘了存，面板就安靜地少一列——照 furnish-b6.mjs 點名。
-  if (name === '客廳＋廚房') for (const [, label] of AREAS) {
-    if (!zones.some(z => z.type === 'area' && z.name === label)) { fail++; console.log(`  ✗ 沒有子區域「${label}」`); }
+  // 目標也要對：資料庫裡的 lux 被清掉會退回預設 100，拿較寬的標準判過。
+  if (name === '客廳＋廚房') for (const [, label, , , , , lux] of AREAS) {
+    const z = zones.find(z => z.type === 'area' && z.name === label);
+    if (!z || z.need < lux) { fail++; console.log(`  ✗ 子區域「${label}」不見了或目標低於 ${lux}`); }
   }
   for (const z of zones) {
     const st = zoneStat(r.lr, l, z);
