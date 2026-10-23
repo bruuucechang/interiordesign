@@ -43,7 +43,7 @@ export interface FurnitureItem {
    */
   style?: '現代' | '古典' | '鄉村' | '工業' | '中式' | '日式' | '北歐';
   /**
-   * Built by `furniture3d.ts` on purpose, with no downloaded model behind it.
+   * Built by `furnitureBuilders.ts` on purpose, with no downloaded model behind it.
    *
    * Everything else falls back to procedural geometry only when its model is
    * missing, which is a fault the harness checks for. These are not a fault —

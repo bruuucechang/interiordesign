@@ -287,7 +287,7 @@ function buildCatalog(editor: Editor) {
       // gap while the picture arrives and nothing to undo if it never does.
       //
       // **Not asked for at all when there is nothing to ask for.** The 27 items
-      // marked `proc` are built by `furniture3d.ts` and have no downloaded
+      // marked `proc` are built by `furnitureBuilders.ts` and have no downloaded
       // model, so they have no `thumb.png` either — and requesting one anyway
       // put 27 red 404s in the console on every single load. Nothing looked
       // wrong, because the drawn pictogram is the fallback and it stayed; the

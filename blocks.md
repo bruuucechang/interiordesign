@@ -107,12 +107,21 @@
   故意在牆上寫 `lux`、T5 寫 7 尺，tsc 兩個都抓到（以前的 `Partial<Obj>` 牆寫 `lux` 會放行）。
   `node bench/verify-b13.mjs` 選牆／門／家具／子區域／T5 各改一個欄位全過，截圖 `bench/results/b13-*.png`；verify-b6、b12 不回歸。
 
-## B14 拆 3D 程式（S6）  [未開始]
+## B14 拆 3D 程式（S6）  [完成]
 - 目標：`view3d.ts`（1,068 行）、`furniture3d.ts`（999 行）照既有判準拆——「錯了不會有錯誤訊息」的運算抽成純函式並補測試，場景／相機／渲染迴圈留在原處；使用者 2026-10-23 說「3d程式可拆」
 - 驗收：`npm test` 綠且新抽出的模組有測試；照 `.claude/rules/layering.md`「重構 3D 之後怎麼證明沒改壞」比對拆前拆後 plan1151022 的 3D 截圖一致；兩檔各降到 800 行以下
 - 碰：`client/src/core/view3d.ts`、`furniture3d.ts`、新抽出的 `client/src/core/*.ts`＋測試
 - 順便補：B10 審查留下的缺口——`view3d.ts::lightMesh()` 把 LightPart 轉成網格（`rotation.y = -angle`、scale 軸向）沒有測試，拆的時候抽成不需要 GL 的函式並補測試
 - 不做：改 3D 的外觀或行為（只搬不改）；要在 B10（3D 畫燈）合併之後才做，避免兩塊同時改 view3d
+- 結果（2026-10-23）：`view3d.ts` 1,109 → 757 行、`furniture3d.ts` 999 → 205 行，只搬不改。
+  純函式（不 import three）：`view3dMath.ts`（太陽、直牆切盒與轉角延伸、曲牆掃掠、娃娃屋剖切與中線死區、取景、飛行軸、
+  燈具零件的縮放與轉向）、`furnitureFit.ts`（材質名對應掃描、依佔地縮放、快取鍵）——`client/test/view3dMath.test.ts`、
+  `furnitureFit.test.ts` 共 30 條，燈的負號與縮放的 min 故意改壞會紅 3 條。依職責搬出：`keys3d.ts`、`surfaces3d.ts`、
+  `ghosts3d.ts`、`furnitureBuilders.ts`。轉角延伸改用 `geometry.ts` 既有的 `wallEndCounts`（原本就是同一套）。
+  畫面：`node bench/verify-b14.mjs shoot before|after` ＋ `compare`，plan1151022 三視角平均差 0.0009／0.0066／0.0024，
+  同一版重截兩次的雜訊底是 0.001／0.007／0.002。截圖要先等模型與掃描貼圖到齊（腳本裡做了），不然同一版自己就差到 10。
+  搬出去的鍵盤與放置預覽：`node bench/verify-b14.mjs interact` 全過（按住 W 要數畫格不能數毫秒：swiftshader 一幀約 10 秒，
+  master 上照舊寫法量也是 0 cm，不是回歸）。`npm test` client 536／server 142 綠；verify-b10 `--runs 0`、b12、b13 不回歸。
 
 ## B15 切 3D 壓到 200 ms 內（P1 後續）  [未開始]
 - 緣由：B10 實量這台 Mac 的 Chrome（GPU）切 3D 中位數 362 ms、再切一次 234 ms，超過 P1 的 200 ms 門檻；其中 `view3d.build()` 本身只佔 19 ms，下一格的陰影重畫與重新上傳沒分開量（`docs/notebook.md`「切 3D 的實機時間」）

@@ -19,7 +19,7 @@ export const angleDeg = (a: Vec, b: Vec): number => Math.atan2(b.y - a.y, b.x - 
 export const isColumn = (w: { a: Vec; b: Vec; thickness: number; bulge?: number }): boolean =>
   !w.bulge && w.thickness >= 30 && w.thickness <= 120 && dist(w.a, w.b) <= 120;
 
-/** 端點的比對鍵——跟 `view3d.ts` 決定哪一端要延伸半個厚度用的是同一個（0.5cm 格）。 */
+/** 端點的比對鍵——跟 `view3dMath.ts::straightWallBoxes` 決定哪一端要延伸半個厚度用的是同一個（0.5cm 格）。 */
 export const wallEndKey = (p: Vec): string => `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`;
 
 /** 每個端點被幾道牆共用。>1 就是轉角，3D 在那裡延伸半個厚度、2D 用方頭。 */

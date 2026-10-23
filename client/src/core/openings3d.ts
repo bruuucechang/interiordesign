@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { applyScan } from './textures3d';
 
-/** Matches view3d's own material helper, so the two look identical in a scene. */
+/** Matches surfaces3d's `mat` (the 3D view's own material helper), so the two look identical in a scene. */
 function mat(color: number, opts: THREE.MeshStandardMaterialParameters = {}) {
   return new THREE.MeshStandardMaterial({ color, ...opts });
 }

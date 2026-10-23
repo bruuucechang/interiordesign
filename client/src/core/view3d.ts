@@ -8,12 +8,15 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { Doc } from '../model/doc';
 import { Obj, Vec } from '../model/schema';
 import { dist, angleDeg, quadPoints, wallControl } from './geometry';
-import { wallPieces, curvedWallBands } from './wallGeometry';
+import { curvedWallBands } from './wallGeometry';
 import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { lightParts, LightPart } from './lights3d';
-import { surfaceMaterial } from './textures3d';
 import { material as materialDef } from './materials';
+import { TimeKey, LIGHTING, sunPose, wallJoins, straightWallBoxes, sweptBand, occluder, cullFrame, cutsAway, objectExtent, sceneFrame, flyAxes, panAxes, lightMeshSpec } from './view3dMath';
+import { attachFlyKeys } from './keys3d';
+import { mat, floorMaterial, wallMaterial, recolour } from './surfaces3d';
+import { PlacementGhosts, OpeningGhostSpec } from './ghosts3d';
 import { capturePanorama } from './panorama';
 import { nextResolution, onWorkloadChange, initialState, ResolutionState } from './resolution';
 import { mark, done } from './perf';
@@ -21,15 +24,6 @@ import { DEFAULTS } from '../model/locale-defaults';
 
 /** 台灣住宅的預設牆高——見 model/locale-defaults.ts。 */
 const WALL_H = DEFAULTS.wallHeight;
-
-// Time-of-day lighting presets: sun colour/intensity/angle, sky fills, exposure.
-type TimeKey = 'morning' | 'noon' | 'dusk' | 'night';
-const LIGHTING: Record<TimeKey, { sun: number; intensity: number; hemi: number; amb: number; env: number; bg: number; exposure: number; elev: number; azim: number }> = {
-  morning: { sun: 0xffe6c2, intensity: 2.0, hemi: 0.55, amb: 0.16, env: 0.50, bg: 0xdfe8f0, exposure: 1.00, elev: 20, azim: 100 },
-  noon:    { sun: 0xfff4e2, intensity: 2.0, hemi: 0.48, amb: 0.12, env: 0.40, bg: 0xdbe2ea, exposure: 0.85, elev: 68, azim: 40 },
-  dusk:    { sun: 0xff9e5e, intensity: 1.9, hemi: 0.40, amb: 0.14, env: 0.38, bg: 0xe9c9a8, exposure: 1.05, elev: 12, azim: -60 },
-  night:   { sun: 0x9fb6ff, intensity: 0.5, hemi: 0.12, amb: 0.10, env: 0.10, bg: 0x161c28, exposure: 1.15, elev: 42, azim: 20 },
-};
 
 // plan coords (x, y) map to 3D (X = x, Z = y, Y = up)
 /**
@@ -46,21 +40,6 @@ const LIGHTING: Record<TimeKey, { sun: number; intensity: number; hemi: number; 
  */
 export type Budget = 'full' | 'shared';
 
-/**
- * How far onto the camera's side a run of wall has to be before it is cut away,
- * as a fraction of the plan's half size on that axis.
- *
- * 0 cuts everything past the middle, including partitions that were not in the
- * way. Near 1 only the outermost wall goes and the second row of rooms stays
- * shut. 0.3 opens the front rooms and keeps the back of the building standing.
- */
-const NEAR_WALL_CUT = 0.3;
-
-/**
- * How close to the plan's edge a run of wall has to be to count as an outside
- * wall. Anything nearer the middle than this is a partition and is never cut.
- */
-const EDGE_BAND = 0.7;
 const SHARED_FPS = 20;
 const SHARED_FRAME_MS = 1000 / SHARED_FPS;
 
@@ -94,7 +73,6 @@ export class View3D {
   contextLost = false;
   onContextLost?: () => void;
   onContextRestored?: () => void;
-  private keyChips: Record<string, HTMLElement> = {};
   private fly = false;   // WASD/QE camera movement
   private moveSpeed = 500; // cm/s, scaled to the scene in build()
   onFloorClick: ((floor: { x: number; y: number }, sceneHit: { x: number; y: number } | null) => void) | null = null;   // click → floor-plane point + nearest-mesh hit (walls)
@@ -102,11 +80,8 @@ export class View3D {
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);      // y = 0
   private downXY: { x: number; y: number } | null = null;
-  private previewItem: { id: string; w: number; h: number } | null = null;  // furniture to ghost while placing
-  private ghost: THREE.Object3D | null = null;
+  private ghosts: PlacementGhosts;
   onHover: ((floor: { x: number; y: number } | null, sceneHit: { x: number; y: number } | null) => void) | null = null;  // per-move probe (openings)
-  private openingGhost: THREE.Object3D | null = null;
-  private openingGhostKey = '';
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -141,6 +116,7 @@ export class View3D {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
+    this.ghosts = new PlacementGhosts(this.scene);
     this.scene.background = new THREE.Color(0xdbe2ea);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -212,79 +188,8 @@ export class View3D {
     this.composer.addPass(this.gtao);
     this.composer.addPass(new OutputPass());   // applies tone mapping + sRGB after the AO blend
 
-    // On-screen key indicator — lights up as movement keys arrive, so it's obvious
-    // the fly controls are receiving input (and a quick diagnostic if they aren't).
-    if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
-    // It shares a bottom dock with the hint line when the page has one (`.dock3d`), so
-    // the two stack instead of overlapping (U5); `.key-hud` in style.css lays it out.
-    const hud = document.createElement('div');
-    hud.className = 'key-hud';
-    for (const [label, key] of [['W', 'w'], ['A', 'a'], ['S', 's'], ['D', 'd'], ['⇧', 'shift'], ['␣', 'space'], ['Q', 'q'], ['E', 'e']]) {
-      const c = document.createElement('div');
-      c.textContent = label;
-      c.style.cssText = 'min-width:15px;text-align:center;padding:2px 4px;border-radius:4px;background:rgba(255,255,255,0.06);color:#8b93a3;transition:background .07s,color .07s;';
-      hud.appendChild(c); this.keyChips[key] = c;
-    }
-    (container.querySelector('.dock3d') ?? container).appendChild(hud);
-
-    // Match on e.code (physical key position), NOT e.key: a Chinese/Japanese IME or
-    // a non-US layout rewrites e.key (W becomes "Process" or a composition char) while
-    // e.code stays "KeyW". Matching e.key was silently dropping WASD under an active IME.
-    const MOVE: Record<string, string> = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd' };
-    // The arrow keys slide the view without turning it: up is always up the
-    // screen, whichever way the camera is pointing.
-    //
-    // WASD is a fly — W goes where you are looking — so after orbiting 180° it
-    // walks the other way across the plan, which is correct for walking through
-    // a room and wrong for pushing a drawing around. Measured before changing
-    // anything: W tracked the camera's heading exactly at 8 headings × 7 pitches
-    // and D was on the right at every one, so the fly was never broken. What was
-    // missing was the other gesture, not a fix to this one.
-    const PAN: Record<string, string> = {
-      ArrowUp: 'panUp', ArrowDown: 'panDown', ArrowLeft: 'panLeft', ArrowRight: 'panRight',
-    };
-    const isShift = (code: string) => code === 'ShiftLeft' || code === 'ShiftRight';
-    // Real text entry (project name, labels) must keep the keys; but the property
-    // panel's number inputs treat letters as junk, so WASD there should fly instead
-    // of getting swallowed — a common "WASD stopped working" trap after editing a value.
-    const isTextField = (el: HTMLElement | null) => {
-      if (!el) return false;
-      if (el.isContentEditable || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
-      if (el.tagName !== 'INPUT') return false;
-      return !['number', 'range', 'checkbox', 'radio', 'button'].includes((el as HTMLInputElement).type);
-    };
-    // Capture phase so we can release a focused number field and prevent it from
-    // also consuming the key before the browser's default runs.
-    window.addEventListener('keydown', e => {
-      if (!this.fly) return;
-      const el = document.activeElement as HTMLElement | null;
-      if (isTextField(el)) return;                 // genuinely typing — leave the keys alone
-      // Q/E rotate the selected object 90° (one-shot per press; ignore auto-repeat)
-      if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {
-        e.preventDefault();
-        this.onRotate90?.(e.code === 'KeyE' ? 90 : -90);
-        this.flashChip(e.code === 'KeyE' ? 'e' : 'q', true);
-        return;
-      }
-      const mv = MOVE[e.code], pan = PAN[e.code], up = isShift(e.code), down = e.code === 'Space';
-      if (!mv && !pan && !up && !down) return;
-      if (el && el !== document.body) el.blur();    // drop focus off a number field so it stops eating keys
-      e.preventDefault();
-      if (up) { this.pressed.add('up'); this.flashChip('shift', true); }         // Shift → rise
-      else if (down) { this.pressed.add('down'); this.flashChip('space', true); } // Space → descend
-      else if (pan) this.pressed.add(pan);
-      else { this.pressed.add(mv); this.flashChip(mv, true); }
-    }, { capture: true });
-    window.addEventListener('keyup', e => {
-      const mv = MOVE[e.code], pan = PAN[e.code];
-      if (pan) this.pressed.delete(pan);
-      if (mv) { this.pressed.delete(mv); this.flashChip(mv, false); }
-      else if (isShift(e.code)) { this.pressed.delete('up'); this.flashChip('shift', false); }
-      else if (e.code === 'Space') { this.pressed.delete('down'); this.flashChip('space', false); }
-      else if (e.code === 'KeyQ') this.flashChip('q', false);
-      else if (e.code === 'KeyE') this.flashChip('e', false);
-    });
-    window.addEventListener('blur', () => { this.pressed.clear(); for (const k in this.keyChips) this.flashChip(k, false); });   // don't let a held key stick across an alt-tab
+    // WASD/QE fly, arrow-key pan and the key HUD — see ./keys3d
+    attachFlyKeys(container, this.pressed, () => this.fly, (deg) => this.onRotate90?.(deg));
 
     // A click (not an orbit drag) on the floor reports the plan coords, so the
     // app can place an object there; while a placement is armed, a translucent
@@ -298,16 +203,14 @@ export class View3D {
       if (p) this.onFloorClick(p, this.sceneHit(e));
     });
     dom.addEventListener('pointermove', e => {
-      if (this.previewItem) {                        // furniture ghost follows the floor
+      if (this.ghosts.placing) {                     // furniture ghost follows the floor
         const p = this.floorPoint(e);
-        const g = p ? (this.ghost ?? this.buildGhost()) : null;
-        if (g && p) { g.visible = true; g.position.set(p.x, 0, p.y); }
+        if (p) this.ghosts.moveFurniture(p);
       }
       if (this.onHover) this.onHover(this.floorPoint(e), this.sceneHit(e));   // openings: app computes wall snap
     });
     dom.addEventListener('pointerleave', () => {
-      if (this.ghost) this.ghost.visible = false;
-      if (this.openingGhost) this.openingGhost.visible = false;
+      this.ghosts.hide();
     });
 
     this.setTimeOfDay('noon');   // initialize lights + background consistently
@@ -334,116 +237,10 @@ export class View3D {
     return hits.length ? { x: hits[0].point.x, y: hits[0].point.z } : null;
   }
 
-  // Arm/disarm the placement ghost. Pass the furniture item (id + size) to show
-  // a translucent preview that follows the cursor, or null to remove it.
-  setPlacementPreview(item: { id: string; w: number; h: number } | null) {
-    const same = item && this.previewItem && item.id === this.previewItem.id && item.w === this.previewItem.w && item.h === this.previewItem.h;
-    this.previewItem = item;
-    if (!item || !same) this.clearGhost();   // rebuilt for the new item on the next hover
-  }
-
-  // turn a model into a translucent, non-shadowing ghost (clones its materials)
-  /**
-   * Recolour a furniture instance without disturbing the shared cache.
-   *
-   * getFurnitureModel caches one model per (item, size) and clone() shares its
-   * materials, so tinting in place would repaint every copy in the scene. Each
-   * distinct (material, colour) pair therefore gets one cloned material, reused
-   * across instances so a room full of matching chairs still shares them.
-   *
-   * Only the base colour changes: roughness, metalness and clearcoat stay, so a
-   * fabric sofa still reads as fabric and a glazed basin still reads as glazed.
-   */
-  private recolour(root: THREE.Object3D, hex: string) {
-    const tint = new THREE.Color(hex);
-    const swap = (m: THREE.Material): THREE.Material => {
-      const key = `${m.uuid}|${hex}`;
-      let c = this.tintCache.get(key);
-      if (!c) {
-        c = m.clone();
-        const col = (c as THREE.MeshStandardMaterial).color;
-        if (col) col.copy(tint);
-        this.tintCache.set(key, c);
-      }
-      return c;
-    };
-    root.traverse(o => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh || !m.material) return;
-      m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
-    });
-  }
-
-  private ghostify(g: THREE.Object3D) {
-    const gm = (m: THREE.Material) => { const c = m.clone(); (c as any).transparent = true; (c as any).opacity = 0.42; (c as any).depthWrite = false; return c; };
-    g.traverse(o => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      m.castShadow = false; m.receiveShadow = false;
-      m.material = Array.isArray(m.material) ? m.material.map(gm) : gm(m.material);
-    });
-    g.renderOrder = 999;
-  }
-
-  private buildGhost(): THREE.Object3D | null {
-    if (!this.previewItem) return null;
-    const g = getFurnitureModel(this.previewItem.id, this.previewItem.w, this.previewItem.h).clone(true);
-    this.ghostify(g);   // shared cloned geometry — only the materials are cloned
-    this.scene.add(g);
-    this.ghost = g;
-    return g;
-  }
-
-  /**
-   * Rebuild the placement ghost in place.
-   *
-   * The ghost is built once per item and kept until the item changes, so a model
-   * that lands afterwards leaves the preview showing the built stand-in — and
-   * then the piece changes shape the instant it is dropped, which is the one
-   * thing a preview exists to prevent. Called when a model finishes loading.
-   */
-  refreshGhost() {
-    if (!this.ghost || !this.previewItem) return;
-    const pos = this.ghost.position.clone();
-    const rot = this.ghost.rotation.clone();
-    const vis = this.ghost.visible;
-    this.clearGhost();
-    const g = this.buildGhost();
-    if (!g) return;
-    g.position.copy(pos); g.rotation.copy(rot); g.visible = vis;
-  }
-
-  private clearGhost() {
-    if (!this.ghost) return;
-    this.ghost.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => mm.dispose()); });
-    this.scene.remove(this.ghost);
-    this.ghost = null;
-  }
-
-  // Show/move a translucent door/window ghost snapped onto a wall. `spec` comes
-  // from the app (it does the wall snapping); null hides it. Geometry is rebuilt
-  // only when the kind/width changes — otherwise just repositioned.
-  setOpeningGhost(spec: { kind: 'door' | 'window'; x: number; y: number; angle: number; width: number } | null) {
-    if (!spec) { if (this.openingGhost) this.openingGhost.visible = false; return; }
-    const key = `${spec.kind}_${Math.round(spec.width)}`;
-    if (this.openingGhostKey !== key) {
-      this.clearOpeningGhost();
-      const g = spec.kind === 'door' ? buildDoor3D(spec.width, 210, 0) : buildWindow3D(spec.width, 100, 90);
-      this.ghostify(g);
-      this.scene.add(g);
-      this.openingGhost = g; this.openingGhostKey = key;
-    }
-    this.openingGhost!.position.set(spec.x, 0, spec.y);
-    this.openingGhost!.rotation.y = -spec.angle * Math.PI / 180;
-    this.openingGhost!.visible = true;
-  }
-
-  private clearOpeningGhost() {
-    if (!this.openingGhost) return;
-    this.openingGhost.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry?.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach(mm => mm.dispose()); } });
-    this.scene.remove(this.openingGhost);
-    this.openingGhost = null; this.openingGhostKey = '';
-  }
+  // Placement ghosts — see ./ghosts3d.
+  setPlacementPreview(item: { id: string; w: number; h: number } | null) { this.ghosts.setPlacementPreview(item); }
+  refreshGhost() { this.ghosts.refreshGhost(); }
+  setOpeningGhost(spec: OpeningGhostSpec | null) { this.ghosts.setOpeningGhost(spec); }
 
   // ---- lighting ----
   setTimeOfDay(t: TimeKey) {
@@ -459,17 +256,9 @@ export class View3D {
     this.renderer.shadowMap.needsUpdate = true;
   }
   private applySun() {
-    const P = LIGHTING[this.time];
-    const el = P.elev * Math.PI / 180, az = P.azim * Math.PI / 180, d = this.sunSpan * 1.6;
-    this.dir.position.set(this.sunCenter.x + Math.cos(el) * Math.cos(az) * d, Math.max(80, Math.sin(el) * d), this.sunCenter.z + Math.cos(el) * Math.sin(az) * d);
-    this.dir.target.position.set(this.sunCenter.x, 0, this.sunCenter.z);
-  }
-
-  private flashChip(k: string, on: boolean) {
-    const c = this.keyChips[k];
-    if (!c) return;
-    c.style.background = on ? '#7bc6ff' : 'rgba(255,255,255,0.06)';
-    c.style.color = on ? '#0b0f14' : '#8b93a3';
+    const sun = sunPose(this.time, this.sunCenter, this.sunSpan);
+    this.dir.position.set(...sun.position);
+    this.dir.target.position.set(...sun.target);
   }
 
   /**
@@ -482,12 +271,7 @@ export class View3D {
    * the view and the next drag orbits around what is now in front of you.
    */
   private applyPan(dt: number) {
-    const P = this.pressed;
-    let x = 0, y = 0;
-    if (P.has('panRight')) x += 1;
-    if (P.has('panLeft')) x -= 1;
-    if (P.has('panUp')) y += 1;
-    if (P.has('panDown')) y -= 1;
+    const { x, y } = panAxes(this.pressed);
     if (!x && !y) return;
     const m = this.camera.matrixWorld.elements;
     const right = new THREE.Vector3(m[0], m[1], m[2]).normalize();
@@ -501,14 +285,7 @@ export class View3D {
   }
 
   private applyFly(dt: number) {
-    const P = this.pressed;
-    let fwd = 0, strafe = 0, vert = 0;
-    if (P.has('w')) fwd += 1;
-    if (P.has('s')) fwd -= 1;
-    if (P.has('d')) strafe += 1;
-    if (P.has('a')) strafe -= 1;
-    if (P.has('up')) vert += 1;     // Shift → rise
-    if (P.has('down')) vert -= 1;   // Space → descend
+    const { fwd, strafe, vert } = flyAxes(this.pressed);
     if (!fwd && !strafe && !vert) return;
     const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir); dir.y = 0;
     if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
@@ -518,31 +295,6 @@ export class View3D {
     const move = new THREE.Vector3().addScaledVector(dir, fwd * speed).addScaledVector(right, strafe * speed);
     move.y += vert * speed;
     this.camera.position.add(move); this.controls.target.add(move);
-  }
-
-  private mat(color: number, opts: THREE.MeshStandardMaterialParameters = {}) {
-    return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.04, envMapIntensity: 1.1, ...opts });
-  }
-
-  /**
-   * The floor finish for a room: a material id, or a hex colour for a plain
-   * fill. Sized in centimetres so the material tiles at its real scale rather
-   * than a fixed number of repeats — a 2 m bathroom and an 8 m living room get
-   * the same size of tile, which is the whole point of a scale.
-   */
-  private floorMaterial(floor: string | undefined, wCm: number, hCm: number): THREE.MeshStandardMaterial {
-    if (floor && floor.startsWith('#')) {
-      return new THREE.MeshStandardMaterial({ color: new THREE.Color(floor).getHex(), roughness: 0.8, metalness: 0.02, envMapIntensity: 1.1 });
-    }
-    return surfaceMaterial(floor, 'floor', wCm, hCm, { envMapIntensity: 1.2 });
-  }
-
-  /** The wall finish: a material id, or a hex colour for plain paint. */
-  private wallMaterial(o: { color?: string; finish?: string }, wCm: number, hCm: number): THREE.MeshStandardMaterial {
-    if (o.color) {
-      return new THREE.MeshStandardMaterial({ color: new THREE.Color(o.color).getHex(), roughness: 0.92, envMapIntensity: 1 });
-    }
-    return surfaceMaterial(o.finish, 'wall', wCm, hCm, { envMapIntensity: 1 });
   }
 
   private clearStatic() {
@@ -578,7 +330,7 @@ export class View3D {
     // y = 0 — two surfaces at the same depth, which flickers as the camera moves
     // and which the ambient occlusion pass then samples, so it reads as the
     // texture itself breaking up rather than as two bits of geometry arguing.
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), this.mat(0xccd3dc, { roughness: 1 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), mat(0xccd3dc, { roughness: 1 }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -6;
     ground.receiveShadow = true; this.staticGroup.add(ground);
     this.ground = ground;
@@ -586,21 +338,8 @@ export class View3D {
     // stack every floor at its elevation
     for (const floor of doc.project.floors) {
       const openings = floor.objects.filter(o => o.kind === 'door' || o.kind === 'window') as Extract<Obj, { kind: 'door' | 'window' }>[];
-      // Which wall ends meet another wall. A wall is a box running from one
-      // centre-line endpoint to the other, so at a corner neither box covers the
-      // square where the two centre lines cross: two 15 cm walls meeting leave a
-      // 7.5 x 7.5 cm notch bitten out of the outside corner. Measured, not
-      // guessed — the boxes come out x ∈ [0,400] and z ∈ [0,400] and nothing
-      // covers x,z ∈ [-7.5,0].
-      //
-      // The 2D plan has never had this: it strokes walls with `lineCap:
-      // 'square'`, which is exactly the same half-thickness overhang.
-      const joins = new Map<string, number>();
-      const jkey = (p: { x: number; y: number }) => `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`;
-      for (const o of floor.objects) {
-        if (o.kind !== 'wall') continue;
-        for (const p of [o.a, o.b]) joins.set(jkey(p), (joins.get(jkey(p)) ?? 0) + 1);
-      }
+      // Which wall ends meet another wall — see wallJoins.
+      const joins = wallJoins(floor.objects);
       for (const o of floor.objects) {
         if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
         // Everything a wall-like object adds gets stamped with where it stands,
@@ -609,32 +348,22 @@ export class View3D {
         const from = this.staticGroup.children.length;
         if (o.kind === 'wall') this.buildWall(o, openings, floor.elevation, joins);
         else this.buildObject(o, floor.elevation);
-        if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'door' || o.kind === 'window') {
-          // Which way the run of wall faces decides which direction it blocks:
-          // one running east–west stands between the camera and the rooms when
-          // the camera is north or south of it, and never when it is east.
-          const c = 'a' in o
-            ? { x: (o.a.x + o.b.x) / 2, z: (o.a.y + o.b.y) / 2 }
-            : { x: o.x, z: o.y };
-          const alongX = 'a' in o
-            ? Math.abs(o.b.x - o.a.x) >= Math.abs(o.b.y - o.a.y)
-            : Math.abs(Math.cos(o.angle * Math.PI / 180)) >= Math.abs(Math.sin(o.angle * Math.PI / 180));
-          const blocks: 'x' | 'z' = alongX ? 'z' : 'x';
+        const occ = occluder(o);
+        if (occ) {
           for (let i = from; i < this.staticGroup.children.length; i++) {
-            this.staticGroup.children[i].userData.occludeAt = c;
-            this.staticGroup.children[i].userData.occludeBlocks = blocks;
+            this.staticGroup.children[i].userData.occludeAt = occ.at;
+            this.staticGroup.children[i].userData.occludeBlocks = occ.blocks;
           }
         }
-        this.growObject(o, grow);
+        for (const p of objectExtent(o)) grow(p.x, p.y);
       }
     }
     // shadows for static meshes (furniture clones inherit from the cache)
     this.staticGroup.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m !== ground) { m.castShadow = true; m.receiveShadow = true; } });
 
-    if (!isFinite(minX)) { minX = -200; maxX = 200; minZ = -200; maxZ = 200; }
-    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
-    const span = Math.max(maxX - minX, maxZ - minZ, 300) + 200;
-    this.moveSpeed = Math.max(300, span * 0.7);   // perceptible regardless of scene scale
+    const frame = sceneFrame({ minX, maxX, minZ, maxZ });
+    const { cx, cz, span } = frame;
+    this.moveSpeed = frame.moveSpeed;
 
     this.sunCenter = { x: cx, z: cz }; this.sunSpan = span;
     const sc = this.dir.shadow.camera;
@@ -643,51 +372,21 @@ export class View3D {
     this.renderer.shadowMap.needsUpdate = true;   // refresh shadows once for this rebuild
 
     if (reframe) {
-      this.controls.target.set(cx, 40, cz);
-      this.camera.position.set(cx + span * 0.7, span * 0.8, cz + span * 0.9);
+      this.controls.target.set(...frame.target);
+      this.camera.position.set(...frame.eye);
       this.controls.update();
     }
     done('build3d', _t0);
   }
 
-  private growObject(o: Obj, grow: (x: number, z: number) => void) {
-    if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'partition' || o.kind === 'dimension') { grow(o.a.x, o.a.y); grow(o.b.x, o.b.y); }
-    else if (o.kind === 'room' && o.poly?.length) { for (const p of o.poly) grow(p.x, p.y); }
-    else if (o.kind === 'room' || o.kind === 'furniture') { grow(o.x, o.y); grow(o.x + o.w, o.y + o.h); }
-    else grow(o.x, o.y);
-  }
-
-  // One continuous band swept along a plan polyline, from yLo..yHi with thickness
-  // T. The two side faces share vertices along the sweep, so computeVertexNormals
-  // shades the curve smoothly (no per-segment facets/seams); the top and end caps
-  // get their own vertices so those edges stay crisp. Double-sided (walls are seen
-  // from both rooms). Returns nothing — adds the mesh to the static group.
+  // A smooth band swept along a plan polyline (geometry in sweptBand), double-
+  // sided because walls are seen from both rooms. Adds it to the static group.
   private sweptWall(pts: Vec[], yLo: number, yHi: number, T: number, yBase: number, mat: THREE.Material) {
-    const n = pts.length;
-    if (n < 2 || yHi - yLo < 0.5) return;
-    const ht = T / 2, yb = yBase + yLo, yt = yBase + yHi;
-    const nrm = pts.map((_, i) => {
-      const p = pts[Math.max(0, i - 1)], q = pts[Math.min(n - 1, i + 1)];
-      const tx = q.x - p.x, tz = q.y - p.y, L = Math.hypot(tx, tz) || 1;
-      return { x: -tz / L, y: tx / L };   // unit perpendicular to the tangent (in plan)
-    });
-    const outer = pts.map((p, i) => ({ x: p.x + nrm[i].x * ht, z: p.y + nrm[i].y * ht }));
-    const inner = pts.map((p, i) => ({ x: p.x - nrm[i].x * ht, z: p.y - nrm[i].y * ht }));
-    const pos: number[] = [], idx: number[] = [];
-    const V = (x: number, y: number, z: number) => (pos.push(x, y, z), pos.length / 3 - 1);
-    const quad = (a: number, b: number, c: number, d: number) => idx.push(a, b, c, a, c, d);
-    const oB: number[] = [], oT: number[] = [], iB: number[] = [], iT: number[] = [];
-    for (let i = 0; i < n; i++) { oB.push(V(outer[i].x, yb, outer[i].z)); oT.push(V(outer[i].x, yt, outer[i].z)); }
-    for (let i = 0; i < n; i++) { iB.push(V(inner[i].x, yb, inner[i].z)); iT.push(V(inner[i].x, yt, inner[i].z)); }
-    for (let i = 0; i < n - 1; i++) { quad(oB[i], oB[i + 1], oT[i + 1], oT[i]); quad(iB[i + 1], iB[i], iT[i], iT[i + 1]); }  // outer + inner side faces
-    const tO: number[] = [], tI: number[] = [];
-    for (let i = 0; i < n; i++) { tO.push(V(outer[i].x, yt, outer[i].z)); tI.push(V(inner[i].x, yt, inner[i].z)); }
-    for (let i = 0; i < n - 1; i++) quad(tO[i], tI[i], tI[i + 1], tO[i + 1]);                                              // crisp top face
-    const cap = (i: number) => { const a = V(outer[i].x, yb, outer[i].z), b = V(outer[i].x, yt, outer[i].z), c = V(inner[i].x, yt, inner[i].z), d = V(inner[i].x, yb, inner[i].z); quad(a, b, c, d); };
-    cap(0); cap(n - 1);
+    const band = sweptBand(pts, yLo, yHi, T, yBase);
+    if (!band) return;
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setIndex(idx); geo.computeVertexNormals();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(band.pos, 3));
+    geo.setIndex(band.idx); geo.computeVertexNormals();
     const m = (mat as THREE.Material).clone(); m.side = THREE.DoubleSide;
     this.staticGroup.add(new THREE.Mesh(geo, m));
   }
@@ -697,7 +396,7 @@ export class View3D {
     o: Extract<Obj, { kind: 'wall' }>, openings: Extract<Obj, { kind: 'door' | 'window' }>[],
     yBase: number, joins?: Map<string, number>,
   ) {
-    const wallMat = this.wallMaterial(o, dist(o.a, o.b), o.height ?? WALL_H);
+    const wallMat = wallMaterial(o, dist(o.a, o.b), o.height ?? WALL_H);
     const wh = o.height ?? WALL_H;
 
     if (o.bulge) {   // curved wall: swept bands, cut where openings sit
@@ -708,30 +407,10 @@ export class View3D {
       return;
     }
 
-    const a = o.a, b = o.b, L = dist(a, b);
-    if (L < 1) return;
-    const dir = { x: (b.x - a.x) / L, y: (b.y - a.y) / L }, ang = -angleDeg(a, b) * Math.PI / 180;
-    // Run half a thickness past each end that meets another wall, so the corner
-    // square gets filled. Only at joined ends: doing it everywhere would leave a
-    // free-standing wall poking 7.5 cm out of its own drawn length. The two
-    // walls overlap inside the corner — they are the same material, and an
-    // overlap is invisible where a hole is not.
-    const jkey = (p: { x: number; y: number }) => `${Math.round(p.x * 2)},${Math.round(p.y * 2)}`;
-    const half = o.thickness / 2;
-    const extA = (joins?.get(jkey(a)) ?? 0) > 1 ? half : 0;
-    const extB = (joins?.get(jkey(b)) ?? 0) > 1 ? half : 0;
-    for (const piece of wallPieces(o, openings, wh)) {
-      const p = {
-        ...piece,
-        s0: piece.s0 <= 0.01 ? piece.s0 - extA : piece.s0,
-        s1: piece.s1 >= L - 0.01 ? piece.s1 + extB : piece.s1,
-      };
-      const mid = (p.s0 + p.s1) / 2;
-      const box = new THREE.Mesh(
-        new THREE.BoxGeometry(p.s1 - p.s0, p.yHi - p.yLo, o.thickness), wallMat,
-      );
-      box.position.set(a.x + dir.x * mid, yBase + (p.yLo + p.yHi) / 2, a.y + dir.y * mid);
-      box.rotation.y = ang;
+    for (const w of straightWallBoxes(o, openings, wh, yBase, joins)) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(w.len, w.height, w.depth), wallMat);
+      box.position.set(...w.position);
+      box.rotation.y = w.rotationY;
       this.staticGroup.add(box);
     }
   }
@@ -755,10 +434,6 @@ export class View3D {
   }
 
   /**
-   * Show the ceilings only when the camera is under them and inside the plan —
-   * i.e. when the view is one a person standing in the room would have.
-   */
-/**
    * Hide the walls between the camera and the plan — the doll's-house view.
    *
    * Looking at a plan from outside, the near walls are opaque and the room
@@ -777,43 +452,20 @@ export class View3D {
    * the camera anyway, and hiding walls then would open the room to the sky.
    */
   private updateWallVisibility(box: THREE.Box3, inside: boolean) {
-    const cam = this.camera.position;
-    const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
-    // Per axis, not projected onto one camera direction: a single cutting plane
-    // works when the camera faces a side square-on and fails on the diagonal —
-    // it opens the corner nearest the camera and leaves the other two rooms
-    // shut. Each run of wall is tested against the axis it actually blocks.
-    const halfX = (box.max.x - box.min.x) / 2 || 1;
-    const halfZ = (box.max.z - box.min.z) / 2 || 1;
-    // Which side the camera is on, with a dead zone around the centre line.
-    //
-    // Taking the sign directly means that as the camera swings through the
-    // middle of the plan, a hair of movement flips it and a whole side of the
-    // building appears or vanishes between one frame and the next. Near the
-    // centre line the camera is edge-on to those walls anyway — they are not
-    // blocking anything — so the last decision is kept until it is clearly past.
-    if (Math.abs(cam.x - cx) > halfX * 0.15) this.cullSignX = Math.sign(cam.x - cx) || 1;
-    if (Math.abs(cam.z - cz) > halfZ * 0.15) this.cullSignZ = Math.sign(cam.z - cz) || 1;
-    const sx = this.cullSignX, sz = this.cullSignZ;
-
+    // The per-axis test and the dead zone around the centre line: cullFrame.
+    const f = cullFrame(box, this.camera.position, { sx: this.cullSignX, sz: this.cullSignZ });
+    this.cullSignX = f.sx; this.cullSignZ = f.sz;
     for (const m of this.staticGroup.children) {
       const at = m.userData.occludeAt as { x: number; z: number } | undefined;
       if (!at) continue;                       // floors and ground always stay
-      // Only the outside wall facing the camera comes off. Cutting interior
-      // partitions too is what a doll's house does *not* do, and it is what was
-      // reported as 「牆壁有時會消失」: a wall in the middle of the plan has no
-      // reason to vanish, so when it does it reads as the model breaking rather
-      // than as a view being helpful.
-      const onEdge = m.userData.occludeBlocks === 'z'
-        ? Math.abs(at.z - cz) > halfZ * EDGE_BAND
-        : Math.abs(at.x - cx) > halfX * EDGE_BAND;
-      const near = onEdge && (m.userData.occludeBlocks === 'z'
-        ? (at.z - cz) * sz > halfZ * NEAR_WALL_CUT
-        : (at.x - cx) * sx > halfX * NEAR_WALL_CUT);
-      m.visible = inside || !near;
+      m.visible = inside || !cutsAway({ at, blocks: m.userData.occludeBlocks }, f);
     }
   }
 
+  /**
+   * Show the ceilings only when the camera is under them and inside the plan —
+   * i.e. when the view is one a person standing in the room would have.
+   */
   private updateCeilingVisibility() {
     const cam = this.camera.position;
     // One bounding box for both decisions — it was being rebuilt from the whole
@@ -849,7 +501,7 @@ export class View3D {
           // ExtrudeGeometry lays UVs out in world centimetres, so the repeat is
           // the inverse of the material's tile size rather than a count.
           const def = materialDef(o.floor, 'floor');
-          const fm = this.floorMaterial(o.floor, def.tileCm, def.tileCm);
+          const fm = floorMaterial(o.floor, def.tileCm, def.tileCm);
           for (const m of [fm.map, fm.normalMap]) if (m) m.repeat.set(1 / def.tileCm, 1 / def.tileCm);
           const floor = new THREE.Mesh(geo, fm);
           floor.rotation.x = Math.PI / 2;   // shape lies in plan XY -> lay flat on world XZ
@@ -857,7 +509,7 @@ export class View3D {
           this.staticGroup.add(floor);
           this.addCeiling(shape, yBase);
         } else {
-          const fm = this.floorMaterial(o.floor, o.w, o.h);
+          const fm = floorMaterial(o.floor, o.w, o.h);
           const floor = new THREE.Mesh(new THREE.BoxGeometry(o.w, 4, o.h), fm);
           floor.position.set(o.x + o.w / 2, 2 + yBase, o.y + o.h / 2);
           this.staticGroup.add(floor);
@@ -866,7 +518,7 @@ export class View3D {
       }
       case 'beam': {
         const L = dist(o.a, o.b);
-        const box = new THREE.Mesh(new THREE.BoxGeometry(L, o.height, o.width), this.mat(0xcfc9bf, { roughness: 0.9 }));
+        const box = new THREE.Mesh(new THREE.BoxGeometry(L, o.height, o.width), mat(0xcfc9bf, { roughness: 0.9 }));
         box.position.set((o.a.x + o.b.x) / 2, yBase + o.elevation + o.height / 2, (o.a.y + o.b.y) / 2);   // underside at elevation
         box.rotation.y = -angleDeg(o.a, o.b) * Math.PI / 180;
         box.castShadow = true; box.receiveShadow = true;
@@ -883,7 +535,7 @@ export class View3D {
           const toPlan = (lx: number, ly: number) => ({ x: o.x + lx * ca - ly * sa, y: o.y + lx * sa + ly * ca });
           const plan = quadPoints({ x: -hw, y: 0 }, { x: 0, y: 2 * o.bulge }, { x: hw, y: 0 }, 24).map(pt => toPlan(pt.x, pt.y));
           const d = 10, fw = 6;
-          const frameM = this.mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
+          const frameM = mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
           const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, envMapIntensity: 1.1 });
           const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
           if (isDoor) {
@@ -892,7 +544,7 @@ export class View3D {
             this.sweptWall(plan, elev + fw, elev + h - fw, 3, yBase, glass);      // glass
             this.sweptWall(plan, elev, elev + fw, d, yBase, frameM);              // bottom rail
             this.sweptWall(plan, elev + h - fw, elev + h, d, yBase, frameM);      // top rail
-            this.sweptWall(plan, elev - 4, elev, d + 6, yBase, this.mat(0xe7eaee, { roughness: 0.6 }));  // sill
+            this.sweptWall(plan, elev - 4, elev, d + 6, yBase, mat(0xe7eaee, { roughness: 0.6 }));  // sill
           }
         } else {
           const grp = isDoor ? buildDoor3D(o.width, h, elev, o.style) : buildWindow3D(o.width, h, elev, o.style);
@@ -904,7 +556,7 @@ export class View3D {
       }
       case 'furniture': {
         const inst = getFurnitureModel(o.item, o.w, o.h).clone();
-        if (o.color) this.recolour(inst, o.color);
+        if (o.color) recolour(inst, o.color, this.tintCache);
         inst.position.set(o.x + o.w / 2, (o.elevation ?? 0) + yBase, o.y + o.h / 2);
         // *= not =: buildFurniture has already scaled the model to the object's
         // footprint, and getModelHeight measures it *after* that. Assigning
@@ -940,19 +592,15 @@ export class View3D {
         box: new THREE.BoxGeometry(1, 1, 1),
         cyl: new THREE.CylinderGeometry(1, 1, 1, 24),
         glow: new THREE.MeshBasicMaterial({ color: 0xfff3d6 }),
-        body: this.mat(0xe9eaec, { roughness: 0.5, metalness: 0.2 }),
+        body: mat(0xe9eaec, { roughness: 0.5, metalness: 0.2 }),
       };
     }
     const u = this.lightUnits;
-    const mat = p.glow ? u.glow : u.body;
-    const m = p.shape === 'box' ? new THREE.Mesh(u.box, mat) : new THREE.Mesh(u.cyl, mat);
-    if (p.shape === 'box') {
-      m.scale.set(p.w, p.h, p.d);
-      m.rotation.y = -p.angle * Math.PI / 180;
-    } else {
-      m.scale.set(p.r, p.h, p.r);
-    }
-    m.position.set(p.x, yBase + p.z, p.y);
+    const t = lightMeshSpec(p, yBase);
+    const m = new THREE.Mesh(t.unit === 'box' ? u.box : u.cyl, t.glow ? u.glow : u.body);
+    m.scale.set(...t.scale);
+    m.rotation.y = t.rotationY;
+    m.position.set(...t.position);
     return m;
   }
 
@@ -992,7 +640,7 @@ export class View3D {
    */
   capturePanorama(): HTMLCanvasElement {
     const hidden: THREE.Object3D[] = [];
-    for (const o of [this.ghost, this.openingGhost]) {
+    for (const o of this.ghosts.objects()) {
       if (o && o.visible) { o.visible = false; hidden.push(o); }
     }
     try {
