@@ -98,6 +98,8 @@ export const COUNTER_ITEMS: ReadonlySet<string> = new Set([
   'cabinet_kitchen', 'kitchen_island', 'sink', 'sh_cab_sink', 'sh_cab_lower', 'sh_cab_corner', 'sh_cab_drawers',
 ]);
 export const VANITY_ITEMS: ReadonlySet<string> = new Set(['vanity', 'sh_vanity', 'sh_washbasin']);
+/** Worktop height where a piece's catalogue height is not its top: the shop sink unit's 121 includes the tap. */
+export const COUNTER_TOP: Readonly<Record<string, number>> = { sh_cab_sink: 88 };
 
 /**
  * The default layers.

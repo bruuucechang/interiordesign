@@ -198,3 +198,26 @@ test('不該生出：馬桶、淋浴、爐具、冰箱沒有區域；房間外�
   ];
   assert.deepEqual(roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL), []);
 });
+
+test('流理台高度：商店水槽櫃量在檯面 88 不是含龍頭的 121；有離地高度的加上去', () => {
+  const objs: Obj[] = [
+    { id: 'rk', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: '廚房' },
+    furn('cs', 'sh_cab_sink', '水槽櫃', 0, 0, 60, 61),
+    furn('cs2', 'sh_cab_sink', '水槽櫃', 100, 0, 60, 61, 0, 121),
+    { ...furn('up', 'cabinet_kitchen', '檯面', 200, 0, 100, 60), elevation: 10 },
+  ];
+  const zones = roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL);
+  assert.deepEqual(zones.map(z => [z.target, z.height]), [['cs', 88], ['cs2', 88], ['up', 95]]);
+});
+
+test('重疊只留一塊：兩件一樣大的流理台疊在一起、洗臉盆放在浴櫃上', () => {
+  const objs: Obj[] = [
+    { id: 'rk', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: '衛浴' },
+    furn('a', 'cabinet_kitchen', '流理台', 0, 240, 180, 60),
+    furn('b', 'cabinet_kitchen', '流理台', 0, 240, 180, 60),
+    furn('vt', 'sh_vanity', '浴櫃', 200, 0, 90, 71),
+    furn('wb', 'sh_washbasin', '洗臉盆', 217, 10, 56, 46),
+  ];
+  const zones = roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL);
+  assert.deepEqual(zones.map(z => [z.type, z.target]), [['counter', 'a'], ['vanity', 'vt']]);
+});
