@@ -75,7 +75,7 @@ console.log('S1 3D 的燈');
   check('每盞燈都有網格', m.fittings > 0 && m.missing.length === 0, `燈 ${m.fittings} 盞、網格 ${m.meshes} 個、缺 ${m.missing.length}${m.missing.length ? '：' + m.missing.slice(0, 5).join(' ') : ''}`);
   await page.screenshot({ timeout: 120000, path: OUT + 'b10-s1-overview.png' });
 
-  // 站到崁燈最多的那間房的中央，抬頭看最近的一盞——天花板只有相機在室內、比它低時才畫
+  // 站到崁燈最多的那間房的中央，抬頭看最遠的一盞（斜看才看得到整片天花板）——天花板只有相機在室內、比它低時才畫
   const aim = await page.evaluate(() => {
     const a = window.__app;
     const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const p = poly[i], q = poly[j]; if ((p.y > y) !== (q.y > y) && x < (q.x - p.x) * (y - p.y) / (q.y - p.y) + p.x) c = !c; } return c; };

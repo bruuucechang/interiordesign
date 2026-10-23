@@ -95,10 +95,11 @@
 - 目標：`view3d.ts`（1,068 行）、`furniture3d.ts`（999 行）照既有判準拆——「錯了不會有錯誤訊息」的運算抽成純函式並補測試，場景／相機／渲染迴圈留在原處；使用者 2026-10-23 說「3d程式可拆」
 - 驗收：`npm test` 綠且新抽出的模組有測試；照 `.claude/rules/layering.md`「重構 3D 之後怎麼證明沒改壞」比對拆前拆後 plan1151022 的 3D 截圖一致；兩檔各降到 800 行以下
 - 碰：`client/src/core/view3d.ts`、`furniture3d.ts`、新抽出的 `client/src/core/*.ts`＋測試
+- 順便補：B10 審查留下的缺口——`view3d.ts::lightMesh()` 把 LightPart 轉成網格（`rotation.y = -angle`、scale 軸向）沒有測試，拆的時候抽成不需要 GL 的函式並補測試
 - 不做：改 3D 的外觀或行為（只搬不改）；要在 B10（3D 畫燈）合併之後才做，避免兩塊同時改 view3d
 
 ## B15 切 3D 壓到 200 ms 內（P1 後續）  [未開始]
-- 緣由：B10 實量這台 Mac 的 Chrome（GPU）切 3D 中位數 362 ms、再切一次 234 ms，超過 P1 的 200 ms 門檻；其中建場景只佔 19 ms（`docs/notebook.md`「切 3D 的實機時間」）
+- 緣由：B10 實量這台 Mac 的 Chrome（GPU）切 3D 中位數 362 ms、再切一次 234 ms，超過 P1 的 200 ms 門檻；其中 `view3d.build()` 本身只佔 19 ms，下一格的陰影重畫與重新上傳沒分開量（`docs/notebook.md`「切 3D 的實機時間」）
 - 目標：先錄 Chrome performance trace 找出建場景以外那 200～300 ms 是哪一段（後製 shader 編譯、貼圖上傳、版面重排），再對那一段下手；第二次以後的切換優先
 - 驗收：機器安靜時跑 `node bench/verify-b10.mjs http://localhost:5181 --runs 7`，「再切一次」中位數 ≤ 200 ms；改前改後各量一次寫進 notebook；`npm test` 綠；B10 的 3D 截圖不變
 - 碰：`client/src/core/view3d.ts`、`client/src/main.ts`（切檢視的流程）

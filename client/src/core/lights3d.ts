@@ -75,8 +75,8 @@ export function lightParts(e: Electrical, ceiling: number): LightPart[] {
     }
     case 'pendant': {
       const s = LIGHT_SIZE.pendant;
-      // Never above the ceiling, whatever elevation it was saved with.
-      const shadeTop = Math.min(L.z + s.h / 2, top);
+      // Never above the ceiling nor into the floor, whatever elevation it was saved with.
+      const shadeTop = Math.min(Math.max(L.z + s.h / 2, s.h + 0.2), top);
       const cord = top - shadeTop;
       const parts: LightPart[] = [
         { shape: 'cylinder', x: L.x, y: L.y, z: shadeTop - s.h / 2, r: s.r, h: s.h, glow: false },
@@ -94,7 +94,7 @@ export function lightParts(e: Electrical, ceiling: number): LightPart[] {
   const w = isBatten ? L.tube.length : LIGHT_SIZE.wallLight.w;
   const d = isBatten ? LIGHT_SIZE.batten.d : LIGHT_SIZE.wallLight.d;
   const h = isBatten ? LIGHT_SIZE.batten.h : LIGHT_SIZE.wallLight.h;
-  const z = Math.min(L.z, top - h / 2);
+  const z = Math.max(h / 2, Math.min(L.z, top - h / 2));
   return [{
     shape: 'box', x: L.x + L.tube.face[0] * d / 2, y: L.y + L.tube.face[1] * d / 2, z,
     w, d, h, angle: e.angle, glow: true,

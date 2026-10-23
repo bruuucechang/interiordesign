@@ -85,3 +85,12 @@ test('an exhaust fan is a flat panel on the ceiling that does not glow', () => {
   assert.equal(p.glow, false);
   assert.ok(near(topOf(p), C - CEILING_GAP));
 });
+
+test('an elevation of 0 does not bury a fitting in the floor', () => {
+  // The properties panel allows 0 for a pendant, a wall light and a T5.
+  for (const item of ['pendant', 'wallLight', 'batten'] as ElectricalId[]) {
+    for (const p of lightParts(el(item, { elevation: 0 }), C)) {
+      assert.ok(p.z - p.h / 2 >= -1e-9, `${item} part bottom at ${p.z - p.h / 2}`);
+    }
+  }
+});
