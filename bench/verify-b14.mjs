@@ -5,6 +5,7 @@
 //
 //   node bench/verify-b14.mjs shoot <前綴>          # 例：before／after
 //   node bench/verify-b14.mjs compare <前綴A> <前綴B>
+//   node bench/verify-b14.mjs interact              # 搬出去的鍵盤（keys3d）與放置預覽（ghosts3d）還會動
 //
 // 需要 npm run dev（:5180 + :8791）。只讀：所有寫入請求一律攔掉。
 import { chromium } from 'playwright';
@@ -72,6 +73,55 @@ const scans = await page.evaluate(async () => {
 });
 console.log(`還在等的掃描貼圖：${scans}`);
 await page.waitForTimeout(8000);
+
+if (cmd === 'interact') {
+  let bad = 0;
+  const check = (n, ok, extra = '') => { console.log(`${ok ? '✔' : '✖'} ${n}${extra ? '  ' + extra : ''}`); if (!ok) bad++; };
+  const canvas = page.locator('#view3d canvas');
+  const r = await canvas.boundingBox();
+  // WASD：按住 W 相機往前飛、提示格亮起；放開就暗
+  await page.evaluate(() => { document.activeElement?.blur?.(); window.__app.view3d.setFly(true); });
+  const cam0 = await page.evaluate(() => window.__app.view3d.camera.position.toArray());
+  // swiftshader 一幀要好幾秒（陰影 4096² ＋ GTAO），按固定毫秒數可能一幀都輪不到——數畫格：
+  // 包住 clock.getDelta（每幀叫一次），按住直到跑過兩幀
+  await page.evaluate(() => { const c = window.__app.view3d.clock; const orig = c.getDelta.bind(c); window.__frames = 0; c.getDelta = () => { window.__frames++; return orig(); }; });
+  await page.keyboard.down('w');
+  await page.evaluate(() => { window.__frames = 0; });
+  await page.waitForFunction(() => window.__frames >= 2, null, { timeout: 300000 });
+  const lit = await page.evaluate(() => [...document.querySelectorAll('.key-hud div')].find((d) => d.textContent === 'W')?.style.background);
+  await page.keyboard.up('w');
+  await page.waitForTimeout(300);
+  const unlit = await page.evaluate(() => [...document.querySelectorAll('.key-hud div')].find((d) => d.textContent === 'W')?.style.background);
+  const cam1 = await page.evaluate(() => window.__app.view3d.camera.position.toArray());
+  const moved = Math.hypot(cam1[0] - cam0[0], cam1[2] - cam0[2]);
+  check('按住 W 相機往前飛', moved > 10, `移動 ${Math.round(moved)} cm`);
+  check('W 的提示格亮起又暗下', lit !== unlit && /123, 198, 255|7bc6ff/.test(lit ?? ''), `${lit} → ${unlit}`);
+  // 家具預覽跟著游標落在地上
+  await page.evaluate(() => window.__app.view3d.setPlacementPreview({ id: 'sofa', w: 200, h: 90 }));
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height * 0.7);
+  await page.mouse.move(r.x + r.width / 2 + 5, r.y + r.height * 0.7 + 5);
+  await page.waitForTimeout(500);
+  const g = await page.evaluate(() => { const [f] = window.__app.view3d.ghosts.objects(); return f ? { vis: f.visible, y: f.position.y, order: f.renderOrder } : null; });
+  check('家具預覽出現在地上', !!g && g.vis && g.y === 0 && g.order === 999, JSON.stringify(g));
+  await page.evaluate(() => window.__app.view3d.renderer.domElement.dispatchEvent(new PointerEvent('pointerleave')));
+  const gone = await page.evaluate(() => window.__app.view3d.ghosts.objects()[0]?.visible);
+  check('游標離開就藏起來', gone === false);
+  await page.evaluate(() => window.__app.view3d.setPlacementPreview(null));
+  // 門窗預覽：照給的位置與角度擺上牆
+  const o = await page.evaluate(() => {
+    const v = window.__app.view3d;
+    v.setOpeningGhost({ kind: 'door', x: 120, y: 340, angle: 90, width: 90 });
+    const [, og] = v.ghosts.objects();
+    const a = og ? { vis: og.visible, x: og.position.x, z: og.position.z, ry: og.rotation.y } : null;
+    v.setOpeningGhost(null);
+    return { a, hidden: v.ghosts.objects()[1]?.visible };
+  });
+  check('門的預覽擺到指定位置並轉 90°', !!o.a && o.a.vis && o.a.x === 120 && o.a.z === 340 && Math.abs(o.a.ry + Math.PI / 2) < 1e-9, JSON.stringify(o.a));
+  check('門的預覽收得掉', o.hidden === false);
+  console.log(errs.length ? '頁面錯誤：' + errs.join(' | ') : '沒有頁面錯誤');
+  await br.close();
+  process.exit(bad || errs.length ? 1 : 0);
+}
 
 const pose = (p) => page.evaluate((p) => {
   const v = window.__app.view3d;
