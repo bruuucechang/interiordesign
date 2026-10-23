@@ -55,11 +55,17 @@
 - 不做：外觀小修（B9）
 - 結果：`node bench/verify-b8.mjs` 全過（U1 兩語言 × 12 寬＋頂列撐寬 400px、U2／U3 三寬、U4 存檔→F5→新建）；頂列改成自己量（`ui/topbar-fit.ts`），1920 中文放不下標籤（實量 2005px）會自動收；縮放控制多一顆「縮放至全部」
 
-## B9 外觀小修（U5～U8）  [未開始]
+## B9 外觀小修（U5～U8）  [完成]
 - 目標：3D 底部鍵帽與提示不重疊、開面板時提示置中於可見區；房名標籤不蓋住燈；方案名稱滑鼠移上去看全名；懸空牆端畫**封口細線**（使用者選的）
 - 驗收：`npm test` 綠；dev-browser 截圖四處各一張
 - 碰：`client/src/core/renderer.ts`、`view3d.ts`（只動提示排版）、`ui/ui.ts`、`style.css`
 - 不做：其他牆端樣式
+- 結果（2026-10-23）：`node bench/verify-b9.mjs` 全過，截圖在 `bench/results/b9-*.png`。
+  U5 提示與鍵帽放進同一個 `.dock3d` 上下排，`--panel-inset` 讓它置中於照度面板左邊；
+  U6 房間與底圖一律先畫、房名接著畫、其餘物件最後畫（以前只有開熱圖時這樣排）；
+  U7 滑鼠移上去才補 `title`；U8 `wallEndCaps()`（`geometry.ts`）——轉角、T 字、柱子不畫。
+  另外碰了 `geometry.ts`、`main.ts`、`ui/side-panels.ts`、`index.html`。
+  headless 直接以 3D 開方案會停在空白方案（swiftshader 把主執行緒塞滿），驗收改成 2D 載入後切 3D。
 
 ## B10 3D 看得到燈＋實機量 3D 切換（S1、P1）  [未開始]
 - 目標：3D 畫出燈具外形（崁燈圓片、吸頂燈、T5 細長條、壁燈、吊燈），自發光材質，不加真的光源；在這台 Mac 的 Chrome 實量切 3D 的時間，> 200 ms 才另開優化區塊

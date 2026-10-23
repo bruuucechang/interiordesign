@@ -42,6 +42,33 @@ export function wallCap(w: { a: Vec; b: Vec; thickness: number; bulge?: number }
   return isColumn(w) && free(w.a) && free(w.b) ? 'butt' : 'square';
 }
 
+type CapWall = { a: Vec; b: Vec; thickness: number; bulge?: number };
+
+/**
+ * 懸空的牆端要畫一條封口細線（U8，使用者選的）：方頭的牆在那裡結束，但實心的
+ * 牆色塊看不出邊在哪，施工圖的習慣是把端面也描出來。
+ *
+ * 「懸空」＝沒跟別道牆共點、也沒插進別道牆身裡（T 字接頭的那一端落在另一道牆
+ * 的厚度內，畫線會畫在牆中間）。柱子不畫：它的兩端本來就不接東西，端面已經是
+ * 黑塊的邊。回傳端面那條線的兩端點，位置照 `wallCap` 的線頭（方頭延伸半個厚度）。
+ */
+export function wallEndCaps(w: CapWall, walls: readonly CapWall[], ends: ReadonlyMap<string, number>): [Vec, Vec][] {
+  if (isColumn(w)) return [];
+  const ext = wallCap(w, ends) === 'square' ? w.thickness / 2 : 0;
+  const out: [Vec, Vec][] = [];
+  for (const [p, toward] of [[w.a, w.bulge ? wallControl(w.a, w.b, w.bulge) : w.b], [w.b, w.bulge ? wallControl(w.a, w.b, w.bulge) : w.a]] as const) {
+    if ((ends.get(wallEndKey(p)) ?? 0) > 1) continue;
+    const into = (o: CapWall) => (o.bulge ? distToQuad(p, o.a, wallControl(o.a, o.b, o.bulge), o.b) : distToSegment(p, o.a, o.b)) <= o.thickness / 2 + 0.5;
+    if (walls.some(o => o !== w && into(o))) continue;
+    const d = sub(p, toward), L = len(d);
+    if (L < 1e-6) continue;
+    const u = { x: d.x / L, y: d.y / L }, n = { x: -u.y * w.thickness / 2, y: u.x * w.thickness / 2 };
+    const c = { x: p.x + u.x * ext, y: p.y + u.y * ext };
+    out.push([{ x: c.x + n.x, y: c.y + n.y }, { x: c.x - n.x, y: c.y - n.y }]);
+  }
+  return out;
+}
+
 export function snap(value: number, grid: number): number {
   return Math.round(value / grid) * grid;
 }

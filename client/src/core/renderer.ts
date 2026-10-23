@@ -8,7 +8,7 @@ import { ELECTRICAL_SYMBOLS } from '../data/electrical';
 import { LIGHT_DEFAULTS } from '../model/catalogue';
 import { DEFAULT_CIRCUIT } from './lighting';
 import { circuitColor } from './lightmap';
-import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment, wallCap, wallEndCounts } from './geometry';
+import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment, wallCap, wallEndCounts, wallEndCaps } from './geometry';
 import { handles } from './handles';
 import { furnitureCenter, bounds } from './hit';
 
@@ -114,6 +114,7 @@ export class Renderer {
   onImageLoad?: () => void;                 // re-render when an underlay image finishes loading
   private imgCache = new Map<string, HTMLImageElement>();
   private wallEnds = new Map<string, number>();   // per frame — which wall ends are corners
+  private walls: Extract<Obj, { kind: 'wall' }>[] = [];   // per frame — for the dangling-end caps
   constructor(private canvas: HTMLCanvasElement, private vp: Viewport, private doc: Doc) {
     this.ctx = canvas.getContext('2d')!;
   }
@@ -163,37 +164,41 @@ export class Renderer {
     if (opts.grid !== false) this.drawGrid();
 
     this.wallEnds = wallEndCounts(this.doc.objects);
-    // objects grouped by layer order (index 0 = bottom)
-    if (opts.heat) {
-      // The lighting overlay has to sit on the floor: over the underlay and the
-      // room fills, which would otherwise wash it out or hide it, and under the
-      // walls, furniture and fittings, which are what it is being read against.
-      // Layer order cannot express that, so with an overlay the floor-like kinds
-      // go first, whatever layer they are on.
-      const floorish = (o: Obj) => o.kind === 'image' || o.kind === 'room';
+    this.walls = this.doc.objects.filter((o): o is Extract<Obj, { kind: 'wall' }> => o.kind === 'wall');
+    // objects grouped by layer order (index 0 = bottom), but the floor-like kinds
+    // always go first, whatever layer they are on: they are what everything else
+    // sits on.
+    //
+    // With the lighting overlay that is so it sits on the floor: over the underlay
+    // and the room fills, which would otherwise wash it out or hide it, and under
+    // the walls, furniture and fittings, which are what it is being read against.
+    //
+    // The room's name and area go under the lights but over the walls and
+    // furniture (U6). A ceiling light dropped in the middle of a room lands
+    // exactly where the label is, and with the label on top the light looked like
+    // it had not been placed at all; but under the furniture, a bed at the room's
+    // centroid would swallow the name — on screen and in the PDF.
+    const floorish = (o: Obj) => o.kind === 'image' || o.kind === 'room';
+    const fitting = (o: Obj) => o.kind === 'electrical';
+    const pass = (want: (o: Obj) => boolean, draw: (o: Obj, color: string) => void) => {
       for (const layer of this.doc.project.layers) {
         if (!layer.visible) continue;
-        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o) && floorish(o)) this.drawObject(o, layer.color);
+        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o) && want(o)) draw(o, layer.color);
       }
-      ctx.save(); opts.heat(ctx); ctx.restore();
-      for (const layer of this.doc.project.layers) {
-        if (!layer.visible) continue;
-        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o) && !floorish(o)) this.drawObject(o, layer.color);
-      }
-    } else {
-      for (const layer of this.doc.project.layers) {
-        if (!layer.visible) continue;
-        for (const o of this.doc.objects) if (o.layer === layer.id && visible(o)) this.drawObject(o, layer.color);
-      }
-    }
+    };
+    const drawIt = (o: Obj, c: string) => this.drawObject(o, c);
+    pass(floorish, drawIt);
+    if (opts.heat) { ctx.save(); opts.heat(ctx); ctx.restore(); }
+    pass(o => !floorish(o) && !fitting(o), drawIt);
+    this.setScreen();
+    pass(o => o.kind === 'room', o => this.labelObject(o));
+    this.setWorld();
+    pass(fitting, drawIt);
     if (opts.world) { ctx.save(); opts.world(ctx); ctx.restore(); }
 
     // labels + selection + previews in screen space
     this.setScreen();
-    for (const layer of this.doc.project.layers) {
-      if (!layer.visible) continue;
-      for (const o of this.doc.objects) if (o.layer === layer.id && visible(o)) this.labelObject(o);
-    }
+    pass(o => o.kind !== 'room', o => this.labelObject(o));
     if (opts.selection !== false) { const sel = this.doc.selectedObjects; for (const s of sel) this.drawSelection(s, sel.length === 1); }
     if (opts.screen) { ctx.save(); opts.screen(ctx); ctx.restore(); }
   }
@@ -337,6 +342,20 @@ export class Renderer {
         ctx.strokeStyle = o.color ?? color; ctx.lineWidth = o.thickness; trace(); ctx.stroke();
         ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = line; trace(); ctx.stroke();
         ctx.lineCap = 'butt';
+        // 懸空的端點補一條封口細線，看得出牆在這裡結束（U8）。往牆裡縮 3px，外側留一條
+        // 牆色：貼在端面上的話深色線會跟深色畫布融在一起，看起來只是牆短了一點。
+        const caps = wallEndCaps(o, this.walls, this.wallEnds);
+        if (caps.length) {
+          ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 1.5 * line;
+          ctx.beginPath();
+          for (const [p, q] of caps) {
+            const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+            const cx = o.a.x + o.b.x - 2 * mx, cy = o.a.y + o.b.y - 2 * my;   // roughly back toward the wall
+            const k = 3 * line / (Math.hypot(cx, cy) || 1);
+            ctx.moveTo(p.x + cx * k, p.y + cy * k); ctx.lineTo(q.x + cx * k, q.y + cy * k);
+          }
+          ctx.stroke();
+        }
         break;
       }
       case 'door': case 'window': {
