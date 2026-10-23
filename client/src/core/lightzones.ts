@@ -14,10 +14,11 @@ import type { Furniture, Obj, Opening, Vec } from '../model/schema';
 import type { Box } from './clearance';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { LIGHTING } from '../model/locale-defaults';
+import { COUNTER_ITEMS, COUNTER_TOP, VANITY_ITEMS } from '../model/catalogue';
 import { LightRoom, Luminaire, PLANES, Source, grid, indirect, inside, isBlocked, lux, reachAt, sources, surfaceArea } from './lighting';
 import { fullHeightFurniture, furnitureBox } from './lightmap';
 
-export type ZoneType = 'bed' | 'desk' | 'cabinet' | 'door';
+export type ZoneType = 'bed' | 'desk' | 'counter' | 'vanity' | 'cabinet' | 'door';
 
 export interface Zone {
   type: ZoneType;
@@ -71,6 +72,15 @@ export function pillowPoint(f: Furniture): { x: number; y: number; toHead: Vec }
   return { x: b.cx - front.x * k, y: b.cy - front.y * k, toHead: { x: -front.x, y: -front.y } };
 }
 
+/**
+ * A piece drawn into a bigger one of the same kind — a sink in a counter run, a
+ * basin on a vanity — or pasted twice on the same spot (the lower id stays): its
+ * zone is the other one's.
+ */
+const swallowed = (f: Furniture, peers: readonly Furniture[]) => peers.some(g => g !== f
+  && (g.w * g.h > f.w * f.h || (g.w * g.h === f.w * f.h && g.id < f.id))
+  && distToBox(furnitureBox(g), f.x + f.w / 2, f.y + f.h / 2) === 0);
+
 function distToOutline(p: Vec[], x: number, y: number): number {
   let d = Infinity;
   for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
@@ -82,7 +92,7 @@ function distToOutline(p: Vec[], x: number, y: number): number {
 }
 
 
-/** The zones in one room, in the prototype's order: beds, desks, cabinets, doors. */
+/** The zones in one room, in the prototype's order — beds, desks, then counters and washbasins, cabinets, doors. */
 export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): Zone[] {
   const L = LIGHTING;
   const mine = (f: Furniture) => inside(r.poly, f.x + f.w / 2, f.y + f.h / 2);
@@ -96,6 +106,33 @@ export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): 
     type: 'desk', name: `${furnitureName(f, '書桌')}桌面`, tip: '寫字建議 300～500，不夠就加檯燈',
     box: furnitureBox(f), height: PLANES.desk, need: L.deskLux, target: f.id,
   });
+
+  // A kitchen counter: its top, at its own height (`COUNTER_TOP` where the
+  // catalogue height is not the worktop). A sink drawn into a counter run is
+  // part of that run, not a second zone on top of it.
+  const counters = furn.filter(f => COUNTER_ITEMS.has(f.item));
+  for (const f of counters) {
+    if (swallowed(f, counters)) continue;
+    const top = Math.min(f.height ?? FURNITURE_BY_ID[f.item]?.height ?? PLANES.desk, COUNTER_TOP[f.item] ?? Infinity);
+    out.push({
+      type: 'counter', name: `${furnitureName(f, '流理台')}面`, tip: '切菜、看清楚火候',
+      box: furnitureBox(f), height: (f.elevation ?? 0) + top,
+      need: L.counterLux, target: f.id,
+    });
+  }
+  // In front of a washbasin: `vanityDepth` deep off its front (local +y, the
+  // side placing turns away from the wall), as wide as it is.
+  const vd = L.vanityDepth;
+  const vanities = furn.filter(f => VANITY_ITEMS.has(f.item));
+  for (const f of vanities) {
+    if (swallowed(f, vanities)) continue;
+    const b = furnitureBox(f), { front } = axes(b), k = b.h / 2 + vd / 2;
+    out.push({
+      type: 'vanity', name: `${furnitureName(f, '洗手台')}前`, tip: '洗臉、刮鬍子要看清楚臉',
+      box: { cx: b.cx + front.x * k, cy: b.cy + front.y * k, w: b.w, h: vd, angle: b.angle },
+      height: PLANES.desk, need: L.vanityLux, target: f.id,
+    });
+  }
 
   // In front of a full-height cabinet: its longest face that opens onto the
   // room — not the one against a wall, not the one against another cabinet.

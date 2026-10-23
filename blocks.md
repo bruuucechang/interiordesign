@@ -73,11 +73,15 @@
 - 碰：`client/src/core/view3d.ts`、新增 `client/src/core/lights3d.ts`（純函式產幾何）＋測試
 - 不做：即時光源、陰影、光照渲染
 
-## B11 自動區域＋方案燈調整（S2、D4、D1＋D3）  [未開始]
+## B11 自動區域＋方案燈調整（S2、D4、D1＋D3）  [完成]
 - 目標：流理台、洗手台等依家具自動生前方區域與達標值（目標值照 `docs/lighting-plan.md`「達標標準」放進 catalogue，使用者確認照 B6 定的）；plan1151022 挪開 Bruce 房離枕頭 28° 的崁燈、兩盞離櫃子 18 cm 的崁燈，挪完全屋仍達標
 - 驗收：`npm test` 綠（新區域有「該生出」「不該生出」測試）；`node bench/verify-b6.mjs` 全屋達標、照明提醒只剩「書桌加檯燈」；改方案前先 `pg_dump` 那一列備份
 - 碰：`client/src/core/lighting.ts`、`catalogue.ts`、`locale-defaults.ts`、資料庫 plan1151022、`docs/lighting-plan.md`
 - 不做：子區域（B12）、家具位置（使用者裁示照 PDF 不動）、Bruce 書桌檯燈（D2 沒選）
+- 結果（2026-10-23）：`roomZones()` 多了 `counter`（流理台面，量在檯面高度，≥300）與 `vanity`（洗手台前 60 cm，≥200），
+  在 plan1151022 量到流理台 642／518、洗手台 221／216，跟 B6 腳本手定的一致，所以從 `report-b6.mts` 的 AREAS 拿掉。
+  la5、la8 往東挪到離櫃 40 cm，la7 挪到偏離枕頭 36°（要 ≥40° 得連 la6 一起動，沒做）；備份在
+  `~/Backups/interior-designer/plan1151022-before-b11-20261023T090055.sql`。B5 兩間仍有「30～40° 有點近」與「T5 在床頭後上方」的提醒（本來就有、不在 D1／D3）
 
 ## B12 房間內的子區域（S3）  [未開始]
 - 目標：可以在房間裡畫子區域（只算照度、不算面積），照度面板逐塊列；plan1151022 的「客廳＋廚房」切出玄關、走道、東側小廳、客廳、廚房
