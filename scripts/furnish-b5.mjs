@@ -56,9 +56,12 @@ export const LAYOUT = {
       { id: 'la2', type: 't5', size: 4, orient: 'v', face: 'W', x: 379.9, y: 248, c: 1 },
       { id: 'la3', type: 't5', size: 4, orient: 'h', face: 'N', x: 244.9, y: 432.8, c: 2 },
       { id: 'la4', type: 't5', size: 4, orient: 'v', face: 'E', x: 50, y: 248, c: 1 },
-      { id: 'la5', type: 'down', x: 67.7, y: 109.5, c: 3 }, { id: 'la6', type: 'down', x: 182.1, y: 109.5, c: 3 },
-      { id: 'la7', type: 'down', x: 296.6, y: 109.5, c: 3 },
-      { id: 'la8', type: 'down', x: 67.7, y: 394.2, c: 3 }, { id: 'la9', type: 'down', x: 182.1, y: 394.2, c: 3 },
+      // B11（D1＋D3）：la5、la8 原本在 x 67.7，離西側做到頂的櫃子只有 18 cm（光打在櫃頂），
+      // 往東挪到離櫃 40 cm；la7 原本在 (296.6, 109.5)，從枕頭看偏離正上方 28°（< 30° 躺著會
+      // 直視），挪到偏 36°、離衣櫃 35 cm。要到 40° 以上得連 la6 一起動，不在這次範圍。
+      { id: 'la5', type: 'down', x: 90, y: 109.5, c: 3 }, { id: 'la6', type: 'down', x: 182.1, y: 109.5, c: 3 },
+      { id: 'la7', type: 'down', x: 240, y: 95, c: 3 },
+      { id: 'la8', type: 'down', x: 90, y: 394.2, c: 3 }, { id: 'la9', type: 'down', x: 182.1, y: 394.2, c: 3 },
       { id: 'la10', type: 'down', x: 296.6, y: 394.2, c: 3 },
     ],
   },

@@ -152,3 +152,49 @@ test('同一層有 60 cm 的柱子，12 cm 牆的房間也不會把隔壁管道�
   const lr = lightRoom(room as any, CEIL, [], walls as any);
   assert.deepEqual(roomZones(lr, objs, CEIL).map(z => z.target), []);
 });
+
+test('流理台：檯面本身就是區域、量在檯面高度；嵌在流理台裡的水槽不另生一塊', () => {
+  const objs: Obj[] = [
+    { id: 'rk', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: '廚房' },
+    furn('ck', 'cabinet_kitchen', '流理台', 0, 240, 400, 60, 180),
+    furn('sk', 'sink', '水槽', 50, 240, 80, 60, 180),
+    furn('st', 'stove', '爐具', 250, 240, 80, 60, 180),
+  ];
+  const zones = roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL);
+  assert.deepEqual(zones.map(z => [z.type, z.name, z.target, z.height, z.need]), [['counter', '流理台面', 'ck', 85, 300]]);
+  assert.deepEqual([zones[0].box.cx, zones[0].box.cy, zones[0].box.w, zones[0].box.h], [200, 270, 400, 60]);
+});
+
+test('單獨擺的水槽、中島各自是流理台區域；高度照家具自己的', () => {
+  const objs: Obj[] = [
+    { id: 'rk', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: '廚房' },
+    furn('sk', 'sink', '水槽', 0, 0, 80, 50),
+    furn('is', 'kitchen_island', '中島', 100, 100, 180, 90, 0, 95),
+  ];
+  const zones = roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL);
+  assert.deepEqual(zones.map(z => [z.type, z.target, z.height]), [['counter', 'sk', 85], ['counter', 'is', 95]]);
+});
+
+test('洗手台：正面前方 60 cm、跟洗手台一樣寬，靠哪面牆都朝房間那一側', () => {
+  // 背靠東牆（angle 90）：正面朝西。轉 90° 時 w×h 是家具本身的，外框中心不變。
+  const objs: Obj[] = [
+    { id: 'rb', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 200, h: 250, name: '衛浴' },
+    furn('va', 'vanity', '洗手台', 200 - 30 - 76.5, 100 - 30 + 30, 153, 60, 90),
+  ];
+  const [z] = roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL);
+  assert.equal(z.type, 'vanity'); assert.equal(z.name, '洗手台前'); assert.equal(z.need, 200); assert.equal(z.height, 75);
+  near(z.box.cx, 200 - 60 - 30); near(z.box.cy, 130); assert.equal(z.box.w, 153); assert.equal(z.box.h, 60);
+});
+
+test('不該生出：馬桶、淋浴、爐具、冰箱沒有區域；房間外的洗手台、流理台不算', () => {
+  const objs: Obj[] = [
+    { id: 'rb', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 300, h: 300, name: '衛浴' },
+    furn('to', 'toilet', '馬桶', 0, 0, 40, 70),
+    furn('sh', 'shower', '淋浴間', 100, 0, 90, 90),
+    furn('st', 'stove', '爐具', 0, 200, 80, 60),
+    furn('fr', 'fridge', '冰箱', 200, 200, 80, 70),
+    furn('vo', 'vanity', '洗手台', 400, 0, 80, 50),
+    furn('co', 'cabinet_kitchen', '流理台', 400, 200, 180, 60),
+  ];
+  assert.deepEqual(roomZones(lightRoom(objs[0] as any, CEIL, []), objs, CEIL), []);
+});

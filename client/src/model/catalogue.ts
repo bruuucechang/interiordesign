@@ -89,6 +89,17 @@ export const T5_DEFAULT_SIZE: T5Size = 4;
 export const T5_BELOW_CEILING = 15;
 
 /**
+ * Furniture that gets a lit work zone of its own (`core/lightzones.ts`): the
+ * top of a kitchen counter, measured at its own height, and the floor in front
+ * of a washbasin. A cooktop or oven is not a counter — it sits in one, and the
+ * counter's zone already covers it. Targets are `LIGHTING.counterLux`/`vanityLux`.
+ */
+export const COUNTER_ITEMS: ReadonlySet<string> = new Set([
+  'cabinet_kitchen', 'kitchen_island', 'sink', 'sh_cab_sink', 'sh_cab_lower', 'sh_cab_corner', 'sh_cab_drawers',
+]);
+export const VANITY_ITEMS: ReadonlySet<string> = new Set(['vanity', 'sh_vanity', 'sh_washbasin']);
+
+/**
  * The default layers.
  *
  * The names are stored **in the plan**, so they are data, not interface — a

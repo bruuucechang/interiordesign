@@ -124,6 +124,12 @@ export interface LightingDefaults {
   deskLux: number;
   cabinetLux: number;
   doorLux: number;
+  /** 流理台面（量在檯面高度）、洗手台前（桌面高）要多亮。CNS 12112 廚房工作面 300～500、
+   *  浴室 100～200 取下限；洗手台前比整間高一級，因為要看清楚臉（docs/lighting-plan.md「達標標準」）。 */
+  counterLux: number;
+  vanityLux: number;
+  /** 洗手台前算多深的一塊（cm）。 */
+  vanityDepth: number;
   /** 做到頂的櫃子前、門內側，各算多深的一塊（cm）。 */
   cabinetDepth: number;
   doorDepth: number;
@@ -144,6 +150,9 @@ export const TAIWAN_LIGHTING: LightingDefaults = {
   deskLux: 300,
   cabinetLux: 100,
   doorLux: 100,
+  counterLux: 300,
+  vanityLux: 200,
+  vanityDepth: 60,
   cabinetDepth: 50,
   doorDepth: 80,
   pillowInset: 25,
