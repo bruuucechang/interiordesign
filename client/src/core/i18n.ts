@@ -46,6 +46,9 @@ const EN: Record<string, string> = {
   // dialogs
   '開啟專案': 'Open project', '搜尋專案名稱…': 'Search project names…',
   '從檔案匯入專案檔…': 'Import a project file…', '刪除': 'Delete', '還原': 'Restore',
+  '行走': 'Walk', '行走：在 3D 裡用人的高度走，牆會擋、門可以過（F）': 'Walk: at eye height in 3D, walls stop you, doors let you through (F)',
+  '行走要在 3D 裡：先切到 3D 或分割': 'Walking happens in 3D: switch to 3D or split first',
+  '點一下畫面開始用滑鼠轉頭，WASD 走、Shift 跑、F 或兩次 Esc 離開': 'Click the view to look with the mouse; WASD to walk, Shift to run, F or Esc twice to leave',
   '開燈': 'Lamps', '3D 開燈：燈具真的發光（黃昏、夜晚自動開）': 'Lamps in 3D: fittings really shine (on by itself at dusk and night)',
   '操作設定': 'Controls', '操作設定：轉視角、移動、滾輪的靈敏度': 'Controls: turn, move and wheel sensitivity',
   '轉視角': 'Turn', '移動速度': 'Move speed', '滾輪縮放': 'Wheel zoom', '行走轉頭': 'Walk look',

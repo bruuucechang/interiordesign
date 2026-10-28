@@ -69,6 +69,10 @@ if (webglAvailable()) {
   }
 }
 if (!view3d) show3DUnavailable(c3d, viewModes);
+// A different plan (opened, imported, new, a saved copy): step out of walk mode.
+// Every way of switching plans goes through doc.load, and a copy keeps its storey ids,
+// so the walker would otherwise carry on in the new plan.
+{ const load = doc.load.bind(doc); doc.load = (p) => { view3d?.setWalking(false); load(p); }; }
 // Sensitivity from the controls settings panel: now, and every time a slider moves.
 onFeel(f => { view3d?.setFeel(f); editor.wheelFeel = f.wheel; });
 // Alt is held to place freely; on Windows a lone Alt press would otherwise hand focus to the browser menu.
@@ -209,6 +213,7 @@ function applyMode() {
       view3d?.build(doc, true);   // reframe for the new pane size
       view3d?.start();
     } else {
+      view3d?.setWalking(false);   // walking only happens in 3D: leaving it would strand the walker (and the 2D marker)
       view3d?.stop();             // nothing to draw into a pane that is not laid out
     }
   });
@@ -317,6 +322,35 @@ if (view3d) {
   v.setLampCircuitsOff(new Set(circuitsOff()));
   window.addEventListener(CIRCUITS_EVENT, e => v.setLampCircuitsOff(new Set((e as CustomEvent<number[]>).detail)));
 } else lampsBtn.hidden = true;
+
+// B19: walk through the plan. The 2D plan shows where you are while you walk.
+const walkBtn = document.getElementById('walkToggle') as HTMLButtonElement;
+if (view3d) {
+  const v = view3d;
+  walkBtn.onclick = () => {
+    if (mode === '2d') { flash(t('行走要在 3D 裡：先切到 3D 或分割')); return; }
+    v.setWalking(!v.walk.active);
+  };
+  v.walk.onToggle = on => {
+    walkBtn.classList.toggle('on', on); walkBtn.setAttribute('aria-pressed', String(on));
+    if (on) flash(t('點一下畫面開始用滑鼠轉頭，WASD 走、Shift 跑、F 或兩次 Esc 離開'));
+    else { editor.marker = undefined; editor.render(); }
+  };
+  v.walk.onMove = (x, y, heading, floor) => {
+    const here = doc.project.floors[floor]?.id === doc.project.activeFloorId;
+    editor.marker = here ? ctx => drawWalker(ctx, x, y, heading, editor.vp.scale) : undefined;
+    editor.render();
+  };
+} else walkBtn.hidden = true;
+
+/** A dot with a view cone, the same size on screen at any zoom. */
+function drawWalker(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number, scale: number) {
+  const r = 7 / scale, cone = 46 / scale;
+  ctx.fillStyle = 'rgba(255, 210, 122, 0.25)';
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, cone, heading - 0.5, heading + 0.5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffd27a'; ctx.strokeStyle = '#0b0f14'; ctx.lineWidth = 2 / scale;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+}
 
 // live sync: any plan change rebuilds the (always-present) 3D view; if 2D is the
 // PiP, keep it fitted too

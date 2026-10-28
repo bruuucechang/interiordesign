@@ -21,6 +21,7 @@ export interface RenderOpts {
   mono?: boolean;        // monochrome plot theme (see monoContext)
   skipKinds?: ObjKind[]; // object kinds to leave out entirely (e.g. the underlay image when plotting)
   heat?: (ctx: CanvasRenderingContext2D) => void;   // lighting overlay in world space, over floors, under everything built
+  marker?: (ctx: CanvasRenderingContext2D) => void; // walk mode's "you are here", world space, over everything built
 }
 
 const INK = '#000000';
@@ -195,6 +196,7 @@ export class Renderer {
     this.setWorld();
     pass(fitting, drawIt);
     if (opts.world) { ctx.save(); opts.world(ctx); ctx.restore(); }
+    if (opts.marker) { ctx.save(); opts.marker(ctx); ctx.restore(); }
 
     // labels + selection + previews in screen space
     this.setScreen();

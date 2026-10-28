@@ -1,0 +1,181 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { blockers, move, overlap, resolve, settle, stairProgress, walkStep, WALK } from '../src/core/walk';
+import type { Floor, Obj } from '../src/model/schema';
+import { wallApex } from '../src/core/geometry';
+
+const near = (a: number, b: number, tol: number) => assert.ok(Math.abs(a - b) <= tol, `${a} ≉ ${b} ±${tol}`);
+const wall = (id: string, ax: number, ay: number, bx: number, by: number, more = {}): Obj =>
+  ({ id, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness: 12, ...more } as Obj);
+const door = (x: number, y: number, width: number, angle = 90): Obj =>
+  ({ id: 'd' + x + y, kind: 'door', layer: 'openings', x, y, width, angle } as Obj);
+const win = (x: number, y: number, width: number, angle = 90): Obj =>
+  ({ id: 'w' + x + y, kind: 'window', layer: 'openings', x, y, width, angle } as Obj);
+const clear = WALK.radius + 6;   // centre to wall line when touching a 12 cm wall
+
+test('walking straight at a wall stops a radius and half a wall short of it', () => {
+  const ws = blockers([wall('w', 300, -500, 300, 500)]);
+  const p = move({ x: 0, y: 0 }, 1000, 0, ws);
+  near(p.x, 300 - clear, 1e-6);
+  near(p.y, 0, 1e-6);
+});
+
+test('walking at a wall at an angle slides along it instead of stopping', () => {
+  const ws = blockers([wall('w', 300, -500, 300, 500)]);
+  const p = move({ x: 200, y: 0 }, 400, 300, ws);
+  near(p.x, 300 - clear, 1e-6);
+  near(p.y, 300, 1e-6);
+});
+
+test('a long step never jumps a thin wall', () => {
+  const ws = blockers([wall('w', 300, -500, 300, 500, { thickness: 2 })]);
+  assert.ok(move({ x: 0, y: 0 }, 5000, 0, ws).x < 300);
+});
+
+test('a door is a gap you can walk through; the wall either side of it is not', () => {
+  const objs = [wall('w', 300, -500, 300, 500), door(300, 0, 90)];
+  const ws = blockers(objs);
+  assert.ok(move({ x: 0, y: 0 }, 600, 0, ws).x > 500, 'through the door');
+  assert.ok(move({ x: 0, y: 200 }, 600, 0, ws).x < 300, 'beside it: stopped');
+});
+
+test('a door narrower than you are cannot be walked through', () => {
+  const ws = blockers([wall('w', 300, -500, 300, 500), door(300, 0, 45)]);
+  assert.ok(move({ x: 0, y: 0 }, 600, 0, ws).x < 300);
+  const ok = blockers([wall('w', 300, -500, 300, 500), door(300, 0, 55)]);
+  assert.ok(move({ x: 0, y: 0 }, 600, 0, ok).x > 500);
+});
+
+test('a window is wall: you do not climb out of it', () => {
+  const ws = blockers([wall('w', 300, -500, 300, 500), win(300, 0, 120)]);
+  assert.ok(move({ x: 0, y: 0 }, 600, 0, ws).x < 300);
+});
+
+test('furniture and partitions do not block', () => {
+  const objs: Obj[] = [
+    { id: 'p', kind: 'partition', layer: 'walls', a: { x: 300, y: -500 }, b: { x: 300, y: 500 } } as Obj,
+    { id: 'f', kind: 'furniture', layer: 'furniture', item: 'sofa', x: 100, y: -50, w: 200, h: 90, angle: 0, label: '' } as Obj,
+  ];
+  assert.equal(blockers(objs).length, 0);
+});
+
+test('a curved wall stops you too', () => {
+  const ws = blockers([wall('c', 0, 300, 600, 300, { bulge: 80 })]);
+  const p = move({ x: 300, y: 0 }, 0, 1000, ws);
+  assert.ok(p.y < 300 + 80, `stopped before the arc: ${p.y}`);
+});
+
+test('standing in a corner pushes you out of both walls', () => {
+  const ws = blockers([wall('a', 0, 0, 400, 0), wall('b', 0, 0, 0, 400)]);
+  const p = resolve({ x: 5, y: 5 }, ws);
+  near(p.x, clear, 1e-6); near(p.y, clear, 1e-6);
+});
+
+// ---- stairs ----
+
+const stairs = (x: number, y: number, angle = 0): Obj =>
+  ({ id: 's', kind: 'furniture', layer: 'furniture', item: 'stairs', x, y, w: 100, h: 300, angle, label: '' } as Obj);
+const floors = (objs0: Obj[], objs1: Obj[] = []): Floor[] => [
+  { id: 'f1', name: '1F', elevation: 0, height: 300, objects: objs0 },
+  { id: 'f2', name: '2F', elevation: 300, height: 300, objects: objs1 },
+];
+
+test('the flight rises from its bottom edge to its top edge, linearly', () => {
+  const s = stairs(0, 0) as any;
+  near(stairProgress(s, { x: 50, y: 300 })!, 0, 1e-9);
+  near(stairProgress(s, { x: 50, y: 150 })!, 0.5, 1e-9);
+  near(stairProgress(s, { x: 50, y: 0 })!, 1, 1e-9);
+  assert.equal(stairProgress(s, { x: 150, y: 150 }), null);
+});
+
+test('a turned flight still climbs along its own length', () => {
+  const s = stairs(0, 0, 90) as any;   // centre (50,150); its top edge now faces +x
+  near(stairProgress(s, { x: 50 + 149, y: 150 })!, 1, 0.01);
+  near(stairProgress(s, { x: 50 - 149, y: 150 })!, 0, 0.01);
+});
+
+test('walking up the stairs lifts you to the next storey, and down again', () => {
+  const fs = floors([stairs(0, 0)]);
+  const none = () => [];
+  let w = settle(fs, 0, { x: 50, y: 320 });
+  assert.equal(w.floor, 0); assert.equal(w.z, 0);
+  w = walkStep(fs, w, 0, -170, none);   // half way up
+  near(w.z, 150, 1e-6);
+  w = walkStep(fs, w, 0, -150, none);   // to the head
+  assert.equal(w.floor, 1); near(w.z, 300, 1e-6);
+  w = walkStep(fs, w, 0, -100, none);   // off the top onto 2F
+  assert.equal(w.floor, 1); assert.equal(w.z, 300);
+  w = walkStep(fs, w, 0, 200, none);    // back down onto the flight from above
+  assert.ok(w.z < 300 && w.z > 0, `on the way down: ${w.z}`);
+  w = walkStep(fs, w, 0, 300, none);
+  assert.equal(w.floor, 0); assert.equal(w.z, 0);
+});
+
+test('the top storey has no flight to climb: stairs there are just floor', () => {
+  const fs = floors([], [stairs(0, 0)]);
+  const w = settle(fs, 1, { x: 50, y: 150 });
+  assert.equal(w.floor, 1); assert.equal(w.z, 300);
+});
+
+// ---- B19 審查補的 ----
+
+test('door width alone decides: 50 cm and up gets through any wall, under 50 does not', () => {
+  for (const thickness of [12, 30, 65]) {
+    const ws = (w: number) => blockers([wall('w', 300, -500, 300, 500, { thickness }), door(300, 0, w)]);
+    assert.ok(move({ x: 0, y: 0 }, 800, 0, ws(60)).x > 500, `60 cm door in a ${thickness} cm wall`);
+    assert.ok(move({ x: 0, y: 0 }, 800, 0, ws(48)).x < 300, `48 cm door in a ${thickness} cm wall`);
+  }
+});
+
+test('squeezing never leaves you inside a wall', () => {
+  const ws = blockers([wall('w', 300, -500, 300, 500, { thickness: 65 }), door(300, 0, 45)]);
+  const p = move({ x: 0, y: 0 }, 800, 0, ws);
+  assert.ok(overlap(p, ws) < 0.5, `overlap ${overlap(p, ws)}`);
+});
+
+test('a door in a curved wall is cut along the arc, its full width', () => {
+  // arc from (0,300) to (600,300) bulging 80; a 90 cm door at its middle
+  const objs: Obj[] = [wall('c', 0, 300, 600, 300, { bulge: 80 })];
+  const apex = wallApex({ x: 0, y: 300 }, { x: 600, y: 300 }, 80);
+  objs.push({ id: 'dc', kind: 'door', layer: 'openings', x: apex.x, y: apex.y, width: 90, angle: 0 } as Obj);
+  const ws = blockers(objs);
+  const side = Math.sign(apex.y - 300);   // which way the arc bulges
+  const start = { x: 300, y: 300 - side * 100 }, through = move(start, 0, side * 400, ws);
+  assert.ok((through.y - apex.y) * side > 50, `walked through the arc's door to ${through.y} (apex ${apex.y})`);
+  // and the same arc with no door stops you
+  const shut = move(start, 0, side * 400, blockers([objs[0]]));
+  assert.ok((shut.y - apex.y) * side < 0, `no door: stopped at ${shut.y}`);
+});
+
+test('stairs stacked one above the other: half way up the lower flight you stay on it', () => {
+  const three: Floor[] = [
+    { id: 'f1', name: '1F', elevation: 0, height: 300, objects: [stairs(0, 0)] },
+    { id: 'f2', name: '2F', elevation: 300, height: 300, objects: [stairs(0, 0)] },
+    { id: 'f3', name: '3F', elevation: 600, height: 300, objects: [] },
+  ];
+  let w = settle(three, 0, { x: 50, y: 320 });
+  for (let i = 0; i < 20; i++) {
+    w = walkStep(three, w, 0, -10, () => []);
+    assert.ok(w.z <= 300 + 1e-6, `never jumps to the upper flight: z ${w.z} at y ${w.y}`);
+  }
+  near(w.z, 300 * (0.5 - (w.y - 150) / 300), 1e-6);
+});
+
+test('a pier between two doors, thinner than the wall is thick, still stops you', () => {
+  const objs: Obj[] = [wall('w', 0, 0, 400, 0, { thickness: 20 }),
+    { id: 'd1', kind: 'door', layer: 'openings', x: 100, y: 0, width: 90, angle: 0 } as Obj,
+    { id: 'd2', kind: 'door', layer: 'openings', x: 205, y: 0, width: 90, angle: 0 } as Obj];
+  const ws = blockers(objs);
+  assert.ok(move({ x: 152.5, y: -100 }, 0, 200, ws).y < 0, 'stopped at the 15 cm pier');
+  assert.ok(move({ x: 100, y: -100 }, 0, 200, ws).y > 50, 'either door still lets you through');
+  assert.ok(move({ x: 205, y: -100 }, 0, 200, ws).y > 50);
+});
+
+test('dropped into a niche narrower than you, you can still walk out', () => {
+  // two walls 55 cm apart (45 cm clear), closed at x=0, open towards +x
+  const ws = blockers([wall('a', 0, 0, 300, 0, { thickness: 10 }), wall('b', 0, 55, 300, 55, { thickness: 10 }), wall('c', 0, 0, 0, 55, { thickness: 10 })]);
+  const start = spawnPoint({ x: 150, y: 27 }, ws);
+  const out = move(start, 400, 0, ws);
+  assert.ok(out.x > 330, `walked out to ${out.x}`);
+});
+function spawnPoint(p: { x: number; y: number }, ws: ReturnType<typeof blockers>) { return resolve(p, ws); }

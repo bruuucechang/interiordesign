@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { applyScan } from './textures3d';
+import { DEFAULTS } from '../model/locale-defaults';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 // Proper 3D furniture models assembled from primitives, using rounded-box
@@ -696,7 +697,26 @@ function rattanCabinet(w: number, h: number, height: number, doors = 2, legH = 1
   return g;
 }
 
+/**
+ * A straight flight climbing one storey along its length: low at local +z
+ * (the plan symbol's bottom edge), high at −z — the way ./walk lifts you
+ * (`stairProgress`). Solid steps on a stringer, no rail.
+ */
+export function stairFlight(w: number, h: number, rise: number): THREE.Group {
+  const g = new THREE.Group();
+  const tread = woodMat(0x9a6b3f, 0.5), body = woodMat(0x6b4a2a, 0.6);
+  const n = Math.max(2, Math.round(rise / 18));   // ≈18 cm a step
+  const run = h / n, up = rise / n;
+  for (let i = 0; i < n; i++) {
+    const top = up * (i + 1);
+    // each step is a block from the floor up, so the flight reads solid from the side
+    g.add(box(w, top, run, i % 2 ? body : tread, 0, top / 2, h / 2 - run * (i + 0.5)));
+  }
+  return g;
+}
+
 export const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
+  stairs: (w, h) => stairFlight(w, h, DEFAULTS.wallHeight),
   dining: (w, h) => table(w, h, 75), desk: (w, h) => table(w, h, 75), coffee,
   chair, sofa, armchair,
   bed_double: (w, h) => bed(w, h, true), bed_single: (w, h) => bed(w, h, false),

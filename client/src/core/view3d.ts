@@ -13,6 +13,9 @@ import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { lightParts, LightPart } from './lights3d';
 import { Lamps3D } from './lamps3d';
+import { stairFlight } from './furnitureBuilders';
+import { WalkMode } from './walk3d';
+import { isTextField } from './keys3d';
 /** Share of the night sky fill kept while the lamps are on (B18): enough to see the corners, not enough to drown the lamps. */
 const NIGHT_FILL_WITH_LAMPS = 0.3;
 import { emitters, sightLines } from './lightEmit';
@@ -81,6 +84,8 @@ export class View3D {
   private fly = false;   // WASD/QE camera movement
   /** The fittings as real light sources (B18) — see ./lamps3d. */
   lamps!: Lamps3D;
+  /** First-person walking (B19) — see ./walk3d. */
+  walk!: WalkMode;
   /** null = follow the time of day (on at dusk and night); true/false = the toolbar's override. */
   private lampsOverride: boolean | null = null;
   private lampsOff = new Set<number>();
@@ -152,6 +157,14 @@ export class View3D {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
+    this.walk = new WalkMode(this.camera, this.controls, this.renderer.domElement);
+    // F walks in and out while the 3D pane has the keyboard; Esc out once the mouse is free
+    // (the first Esc only releases pointer lock — the browser keeps that one).
+    window.addEventListener('keydown', e => {
+      if (!this.fly || e.repeat || e.metaKey || e.ctrlKey || e.altKey || isTextField(document.activeElement as HTMLInputElement | null)) return;
+      if (e.code === 'KeyF') { e.preventDefault(); this.setWalking(!this.walk.active); }
+      else if (e.code === 'Escape' && this.walk.active && !document.pointerLockElement) this.setWalking(false);
+    });
     this.setFeel(FEEL_DEFAULTS);
 
     // Contrast-forward lighting: a strong key sun for crisp cast shadows, a weak
@@ -212,11 +225,15 @@ export class View3D {
     dom.addEventListener('pointerdown', e => { this.downXY = { x: e.clientX, y: e.clientY }; });
     dom.addEventListener('pointerup', e => {
       const d = this.downXY; this.downXY = null;
+      // Walking: a click locks the mouse for looking. With the pointer locked
+      // clientX never moves, so every click would read as a still click on the floor.
+      if (this.walk.active) return;
       if (!this.onFloorClick || !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;   // moved → it was orbiting
       const p = this.floorPoint(e);
       if (p) this.onFloorClick(p, this.sceneHit(e));
     });
     dom.addEventListener('pointermove', e => {
+      if (this.walk.active) { this.ghosts.hide(); return; }
       if (this.ghosts.placing) {                     // furniture ghost follows the floor
         const p = this.floorPoint(e);
         if (p) this.ghosts.moveFurniture(p);
@@ -237,6 +254,16 @@ export class View3D {
     this.controls.dampingFactor = o.dampingFactor;
     this.controls.zoomSpeed = o.zoomSpeed;
     this.moveSpeed = o.moveSpeed;
+    if (this.walk) this.walk.look = f.look;
+  }
+
+  /** Walk mode on or off; walks in on the storey being edited. */
+  setWalking(on: boolean) {
+    if (!on) { this.walk.exit(); return; }
+    const doc = this.lastDoc;
+    if (!doc) return;
+    const i = Math.max(0, doc.project.floors.findIndex(f => f.id === doc.project.activeFloorId));
+    this.walk.enter(i);
   }
 
   setFly(on: boolean) { this.fly = on; if (!on) this.pressed.clear(); }
@@ -415,7 +442,11 @@ export class View3D {
     this.ground = ground;
 
     // stack every floor at its elevation
-    for (const floor of doc.project.floors) {
+    const floors = doc.project.floors;
+    for (const floor of floors) {
+      // A flight climbs to the next storey up, however high that is; on the top storey it climbs nowhere.
+      const next = floors.filter(f => f.elevation > floor.elevation).sort((a, b) => a.elevation - b.elevation)[0];
+      this.stairRise = next ? next.elevation - floor.elevation : 0;
       const openings = floor.objects.filter(o => o.kind === 'door' || o.kind === 'window') as Extract<Obj, { kind: 'door' | 'window' }>[];
       // Which wall ends meet another wall — see wallJoins.
       const joins = wallJoins(floor.objects);
@@ -450,8 +481,9 @@ export class View3D {
     this.renderer.shadowMap.needsUpdate = true;   // refresh shadows once for this rebuild
     this.lastDoc = doc;
     this.collectLamps(doc);
+    this.walk.setPlan(doc);
 
-    if (reframe) {
+    if (reframe && !this.walk.active) {   // walking keeps the walker's eye; the walk re-places it below
       this.controls.target.set(...frame.target);
       this.camera.position.set(...frame.eye);
       this.controls.update();
@@ -553,19 +585,37 @@ export class View3D {
     const box = this.planBox.makeEmpty();
     for (const m of this.staticGroup.children) if (m.userData.occludeAt) box.expandByObject(m);
     if (box.isEmpty()) box.setFromObject(this.staticGroup);
-    const inside = cam.x >= box.min.x && cam.x <= box.max.x
-                && cam.z >= box.min.z && cam.z <= box.max.z;
+    // Walking is always inside, with no doll's-house cut: a walker reaching the
+    // edge of the plan is at a window, not looking in from outside.
+    const inside = this.walk.active || (cam.x >= box.min.x && cam.x <= box.max.x
+                && cam.z >= box.min.z && cam.z <= box.max.z);
 
     this.updateWallVisibility(box, inside);
 
     const g = this.ceilingGroup;
     if (!g.children.length) return;
+    if (this.walk.active) {
+      // Each storey's ceiling over its own walker: lowest-ceiling-only hid them all on the upper storey
+      g.visible = true;
+      for (const c of g.children) c.visible = c.position.y > cam.y;
+      return;
+    }
     let lowest = Infinity;
-    for (const c of g.children) lowest = Math.min(lowest, c.position.y);
+    for (const c of g.children) { lowest = Math.min(lowest, c.position.y); c.visible = true; }
     g.visible = inside && cam.y < lowest;
   }
 
   private planBox = new THREE.Box3();
+  /** Height the stairs being built climb: up to the next storey (set per storey in build). */
+  private stairRise = DEFAULTS.wallHeight;
+  /** Built flights by size and rise. Kept like the furniture cache: furnGroup is cleared without disposing. */
+  private stairs = new Map<string, THREE.Object3D>();
+  private stairModel(w: number, h: number): THREE.Object3D {
+    const rise = Math.max(2, this.stairRise), k = `${w}|${h}|${rise}`;
+    let m = this.stairs.get(k);
+    if (!m) this.stairs.set(k, m = stairFlight(w, h, rise));
+    return m;
+  }
   private cullSignX = 1;
   private cullSignZ = 1;
 
@@ -635,7 +685,7 @@ export class View3D {
         break;
       }
       case 'furniture': {
-        const inst = getFurnitureModel(o.item, o.w, o.h).clone();
+        const inst = o.item === 'stairs' ? this.stairModel(o.w, o.h).clone() : getFurnitureModel(o.item, o.w, o.h).clone();
         if (o.color) recolour(inst, o.color, this.tintCache);
         inst.position.set(o.x + o.w / 2, (o.elevation ?? 0) + yBase, o.y + o.h / 2);
         // *= not =: buildFurniture has already scaled the model to the object's
@@ -644,7 +694,7 @@ export class View3D {
         // being their own real size — every scan scales by 1, so = and *= were
         // the same thing right up until Kenney's grid-authored kit arrived, and
         // then a 200 cm wardrobe came out 83.
-        if (o.height) inst.scale.y *= o.height / getModelHeight(o.item, o.w, o.h);   // stretch to the set height
+        if (o.height && o.item !== 'stairs') inst.scale.y *= o.height / getModelHeight(o.item, o.w, o.h);   // stretch to the set height
         inst.rotation.y = -o.angle * Math.PI / 180;
         this.furnGroup.add(inst);
         break;
@@ -827,8 +877,11 @@ export class View3D {
     // Capped like a game's tick: a hitch (a rebuild, a texture upload) must not
     // turn one held W into a several-metre jump.
     const dt = Math.min(this.clock.getDelta(), MAX_STEP_S);
-    if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
-    this.controls.update();
+    if (this.walk.active) this.walk.frame(dt, this.pressed);
+    else {
+      if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
+      this.controls.update();   // never while walking: it would swing the camera back round the old target
+    }
     this.lamps.update(this.camera.position, this.controls.target, WALL_H, now);
     this.updateCeilingVisibility();
     this.composer.render();
