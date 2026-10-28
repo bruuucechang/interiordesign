@@ -485,14 +485,14 @@ header button:disabled { opacity: 0.4; cursor: default; }
 body.drawer-open .light-panel { right: calc(var(--drawer-w) + 20px); }
 
 /* floor buttons, bottom-right of the stage */
-.floor-dock { position: absolute; right: var(--sp-3); bottom: var(--sp-3); z-index: 7; display: flex; flex-direction: column; gap: 2px;
+.floor-dock { position: absolute; right: calc(var(--sp-3) + var(--panel-inset, 0px)); bottom: var(--sp-3); z-index: 7; display: flex; flex-direction: column; gap: 2px;
   padding: 3px; background: rgba(23, 26, 32, 0.88); border: 1px solid var(--line); border-radius: var(--radius-m); }
-body.drawer-open .floor-dock { right: calc(var(--drawer-w) + 20px); }
 .floor-btn { position: relative; min-width: 40px; height: 28px; padding: 0 var(--sp-2); border: none; border-radius: var(--radius-s);
   background: transparent; color: var(--muted); cursor: pointer; font-size: var(--fs-label); font-weight: 600; font-variant-numeric: tabular-nums; }
 .floor-btn:hover { color: var(--text); background: var(--panel2); }
 .floor-btn.active { background: var(--accent-soft); color: var(--text); }
-.floor-btn .floor-del { position: absolute; left: -18px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; padding: 0;
+/* 18px 寬、貼齊按鈕左緣：中間留縫的話，滑鼠慢慢移過去會經過縫、hover 掉了、✕ 跟著不見。 */
+.floor-btn .floor-del { position: absolute; left: -18px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; padding: 0;
   display: none; align-items: center; justify-content: center; border: none; border-radius: 50%; background: var(--panel2); color: var(--muted); cursor: pointer; }
 .floor-btn.active:hover .floor-del { display: inline-flex; }
 .floor-btn .floor-del:hover { color: var(--danger); }
@@ -544,14 +544,14 @@ body.drawer-open .floor-dock { right: calc(var(--drawer-w) + 20px); }
 #hint.idle { display: none; }
 
 /* first-run nudge, bottom-right: never a dialog */
-.tour-nudge { position: fixed; right: 16px; bottom: 16px; z-index: 40; width: 280px; padding: var(--sp-3) 14px;
+.tour-nudge { position: fixed; right: 84px; bottom: calc(var(--catalog-h, 45px) + 12px); z-index: 40; width: 280px; padding: var(--sp-3) 14px;
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-float); font-size: var(--fs-body); }
 .tour-nudge b { display: block; margin-bottom: 4px; font-size: var(--fs-body); }
 .tour-nudge p { margin: 0 0 10px; color: var(--muted); font-size: var(--fs-label); line-height: 1.6; }
 .tour-nudge .acts { display: flex; gap: var(--sp-2); justify-content: flex-end; }
 .tour-nudge button { height: 28px; padding: 0 12px; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; font-size: var(--fs-label); }
 .tour-nudge button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.drawer-peek { position: absolute; top: var(--sp-2); right: var(--sp-2); z-index: 7; height: 28px; padding: 0 10px;
+.drawer-peek { position: absolute; top: var(--sp-2); right: calc(var(--sp-2) + var(--panel-inset, 0px)); z-index: 7; height: 28px; padding: 0 10px;
   display: inline-flex; align-items: center; gap: 6px; background: rgba(23, 26, 32, 0.88); border: 1px solid var(--line);
   border-radius: var(--radius-m); color: var(--text); font-size: var(--fs-label); cursor: pointer; }
 .drawer-peek:hover { border-color: var(--accent); }
@@ -568,4 +568,4 @@ body.drawer-open .floor-dock { right: calc(var(--drawer-w) + 20px); }
 .cat-list::-webkit-scrollbar { display: none; }
 /* The floor buttons sit in the stage's bottom-right corner, so the 3D key read-out
    and hint (one dock, keys3d.ts) centre themselves in what is left of the pane beside them. */
-.dock3d { right: calc(76px + var(--panel-inset, 0px)); }
+.dock3d { right: calc(82px + var(--panel-inset, 0px)); }   /* 讓到右下樓層鈕左邊，置中在剩下的那段（verify-b9 量）*/

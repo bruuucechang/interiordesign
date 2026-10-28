@@ -143,7 +143,8 @@ export function initUI(editor: Editor, doc: Doc) {
   // B20: it no longer opens by itself. The first time this machine sees an empty
   // plan, a small note in the bottom-right corner offers it; 說明 → 導覽 always can.
   // Two seconds' grace so a `?plan=` link has loaded before "is it empty" is asked.
-  setTimeout(() => maybeNudgeTour(doc, () => askRoute(editor, doc)), 2000);
+  // 網址帶 ?plan= 的不是空白方案，不提示（載入可能超過兩秒）。
+  if (!new URLSearchParams(location.search).has('plan')) setTimeout(() => maybeNudgeTour(doc, () => askRoute(editor, doc)), 2000);
 
   // The hint strip speaks only while a tool is working (or a message is up): the
   // select tool's resting text is what was on screen all day saying nothing new.
@@ -323,6 +324,10 @@ function buildCatalog(editor: Editor) {
     b.onclick = () => { if (query) { query = ''; search.value = ''; } open = open === tb.id ? null : tb.id; render(); };
     tabEls.set(tb.id, b); list.appendChild(b);
   }
+  // 窄視窗、長語言時分類列會捲；捲軸藏起來了，所以直向滾輪轉成橫向（跟第二排一樣）。
+  list.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { list.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
   const fit = () => { bar.classList.remove('tight'); if (list.scrollWidth > list.clientWidth + 1) bar.classList.add('tight'); };
   new ResizeObserver(fit).observe(bar);
   void document.fonts?.ready.then(fit);

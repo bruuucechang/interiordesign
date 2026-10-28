@@ -60,6 +60,42 @@ for (const [w, h] of [[1440, 900], [1280, 800]]) {
   await page.waitForTimeout(400);
   ok(!(await page.$eval('#right', e => e.classList.contains('closed'))), `${tag} 選了東西屬性滑出來`);
   await page.screenshot({ path: `${OUT}b20-${tag}-catalog-selected.png` });
+  // B20 審查 1：抽屜滑進來之後，3D 提示要讓到它左邊（--panel-inset 要等動畫跑完再量）。
+  await page.evaluate(() => window.__app.editor.selectTool('furniture'));
+  await page.waitForTimeout(500);
+  const cover = await page.evaluate(() => {
+    const r = (s) => document.querySelector(s).getBoundingClientRect();
+    const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const h = r('#hint3d'), d = r('#right'), f = r('#floors'), k = r('.key-hud');
+    return { shown: h.width > 0, hintDrawer: hit(h, d), hudFloors: hit(k, f), hudDrawer: hit(k, d), floorsDrawer: hit(f, d) };
+  });
+  ok(cover.shown && !cover.hintDrawer && !cover.hudDrawer && !cover.hudFloors && !cover.floorsDrawer,
+    `${tag} 抽屜開著時 3D 提示、鍵帽、樓層鈕互不重疊 ${JSON.stringify(cover)}`);
+  await page.keyboard.press('Escape');
+  // B20 審查 2：照度面板開著時樓層鈕還點得到。
+  for (const drawer of [true, false]) {
+    if (!drawer) await page.evaluate(() => { const d = window.__app.doc; d.select(null); });
+    await page.evaluate(() => { if (document.getElementById('lightPanel').classList.contains('hidden')) document.querySelector('[data-act="lighting"]').click(); });
+    await page.waitForTimeout(600);
+    const reach = await page.evaluate(() => {
+      const b = document.querySelector('.floor-btn.active').getBoundingClientRect();
+      return !!document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)?.closest('.floor-dock');
+    });
+    ok(reach, `${tag} 開著照度${drawer ? '＋抽屜' : ''}時樓層鈕點得到`);
+  }
+  await page.evaluate(() => document.querySelector('[data-act="close-lighting"]').click());
+  await page.waitForTimeout(300);
+  // B20 審查 3：刪除樓層的 ✕ 跟按鈕之間沒有縫（慢慢移過去不會掉）。
+  await page.evaluate(() => window.__app.doc.addFloor());
+  await page.waitForTimeout(300);
+  const act = page.locator('.floor-btn.active');
+  const bb = await act.boundingBox();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+  await page.mouse.move(bb.x - 9, bb.y + bb.height / 2, { steps: 40 });
+  ok(await page.evaluate(() => getComputedStyle(document.querySelector('.floor-btn.active .floor-del')).display !== 'none'),
+    `${tag} 慢慢移到刪除樓層的 ✕ 時它還在`);
+  await page.evaluate(() => { const d = window.__app.doc; d.removeFloor(d.project.activeFloorId); });
+  await page.waitForTimeout(300);
   o = await overlaps(page, `${tag} 抽屜開著`);
   ok(!o.length, `${tag} 抽屜開著沒有重疊${o.length ? '：' + o.join('；') : ''}`);
   // a menu open
@@ -74,6 +110,30 @@ for (const [w, h] of [[1440, 900], [1280, 800]]) {
   ok(await page.$eval('#wallRef', e => e.getBoundingClientRect().width > 0), `${tag} 結構那排看得到牆基準`);
   await page.screenshot({ path: `${OUT}b20-${tag}-structure.png` });
   ok(!errs.length, `${tag} 沒有頁面錯誤${errs.length ? '：' + errs.join(' / ') : ''}`);
+  await ctx.close();
+}
+// 導覽提示（B20 審查 4、5、9）：空白方案第一次才出現、不蓋住風格選單與樓層鈕、
+// 按「看導覽」就記成看過；網址帶 ?plan= 的不出現。
+{
+  const ctx = await br.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => localStorage.setItem('interior_lang', 'zh-Hant'));
+  await page.goto(`${BASE}/?perf=1`);
+  await page.waitForSelector('.tour-nudge', { timeout: 15000 }).catch(() => {});
+  ok(!!(await page.$('.tour-nudge')), '空白方案第一次開：右下角出現導覽提示');
+  const clear = await page.evaluate(() => {
+    const at = (el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); };
+    return { style: at(document.querySelector('.style-select'))?.classList.contains('style-select'),
+      floor: !!at(document.querySelector('.floor-btn'))?.closest('.floor-dock') };
+  });
+  ok(clear.style && clear.floor, `導覽提示不蓋住風格選單與樓層鈕 ${JSON.stringify(clear)}`);
+  await page.click('.tour-nudge .primary');
+  ok(await page.evaluate(() => localStorage.getItem('interior_tour_seen') === '1'), '按「看導覽」就記成看過');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => localStorage.removeItem('interior_tour_seen'));
+  await page.goto(`${BASE}/?perf=1&plan=does-not-exist`);
+  await page.waitForTimeout(3000);
+  ok(!(await page.$('.tour-nudge')), '網址帶 ?plan= 時不出現導覽提示');
   await ctx.close();
 }
 await br.close();

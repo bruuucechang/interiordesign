@@ -30,6 +30,8 @@ const hint = document.getElementById('hint') as HTMLElement;
 const pane2d = document.getElementById('pane2d') as HTMLElement;
 const c3d = document.getElementById('view3d') as HTMLElement;
 watchPanelInset(c3d);
+// 樓層鈕與抽屜把手在 #stage 裡貼右邊，照度、健檢面板或抽屜開著時要讓到它們左邊。
+watchPanelInset(document.getElementById('stage') as HTMLElement);
 const viewModes = document.getElementById('viewModes') as HTMLElement;
 const splitter = document.getElementById('splitter') as HTMLElement;
 const wallRefBtns = document.getElementById('wallRef') as HTMLElement;

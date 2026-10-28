@@ -50,7 +50,9 @@ export function wireTopbarFit() {
   ro.observe(bar);
   for (const child of Array.from(bar.querySelectorAll('.tb-left > *, .tb-center, .tb-right > *'))) ro.observe(child);
   // 頂列裡加減了東西（按鈕出現、消失）也重量一次：那不一定會讓既有的元素變大小。
-  new MutationObserver(refit).observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });   // 不看 class：fitTopbar 自己改 class，看了會每一幀量一次
+  // 選單裡的變動（縮放百分比每格都改字）不影響頂列寬度，略過——不然捲一格滾輪就重量三次。
+  const inMenu = (n: Node) => (n instanceof Element ? n : n.parentElement)?.closest('.menu-pop');
+  new MutationObserver(rs => { if (!rs.every(r => inMenu(r.target))) refit(); }).observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });   // 不看 class：fitTopbar 自己改 class，看了會每一幀量一次
   // 切語言會換掉標籤的字，寬度跟著變。
   new MutationObserver(refit).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
   // 第一次量的時候字型與樣式可能還沒到齊，量到的是比較寬的樣子；收起來之後子元素

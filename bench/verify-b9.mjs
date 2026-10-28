@@ -48,20 +48,26 @@ for (const w of [1280, 1500, 1920]) {
   await page.waitForTimeout(6000);
   for (const lighting of [false, true]) {
     if (lighting) { await page.evaluate(() => document.querySelector('[data-act="lighting"]').click()); await page.waitForTimeout(3000); }
+    // B20：3D 提示只在拿著工具時出現，不拿就是 display:none、矩形全 0，什麼都沒量到也會過。
+    await page.evaluate(() => window.__app.editor.selectTool('furniture'));
+    await page.waitForTimeout(200);
     const m = await page.evaluate(() => {
       const r = (el) => el && el.getBoundingClientRect();
       const hint = r(document.getElementById('hint3d')), hud = r(document.querySelector('.key-hud'));
       const pane = r(document.getElementById('view3d'));
       const lp = document.getElementById('lightPanel');
       const panelLeft = lp.classList.contains('hidden') ? pane.right : Math.min(pane.right, lp.getBoundingClientRect().left);
-      return { hint: hint && { l: hint.left, r: hint.right, t: hint.top, b: hint.bottom }, hud: hud && { l: hud.left, r: hud.right, t: hud.top, b: hud.bottom }, pl: pane.left, vr: panelLeft };
+      // B20：右下角的樓層鈕也佔掉一塊，鍵帽與提示讓到它左邊。
+      const floors = document.getElementById('floors');
+      const visRight = floors ? Math.min(panelLeft, floors.getBoundingClientRect().left) : panelLeft;
+      return { hint: hint && { l: hint.left, r: hint.right, t: hint.top, b: hint.bottom }, hud: hud && { l: hud.left, r: hud.right, t: hud.top, b: hud.bottom }, pl: pane.left, vr: visRight };
     });
     const { hint, hud } = m;
     const overlap = hint && hud && !(hint.b <= hud.t || hud.b <= hint.t || hint.r <= hud.l || hud.r <= hint.l);
     const inside = hint && hud && hint.l >= m.pl && hint.r <= m.vr && hud.l >= m.pl && hud.r <= m.vr;
     const mid = (m.pl + m.vr) / 2, hudMid = hud && (hud.l + hud.r) / 2;
     const centred = hud && Math.abs(hudMid - mid) < 3;
-    check(`${w} ${lighting ? '開照度' : '無面板'}`, !!hint && !!hud && !overlap && inside && centred,
+    check(`${w} ${lighting ? '開照度' : '無面板'}`, !!hint && hint.r - hint.l > 0 && !!hud && !overlap && inside && centred,
       `重疊=${overlap} 在可見區=${inside} 鍵帽中心=${Math.round(hudMid)}／可見區中心=${Math.round(mid)}`);
     if (w !== 1280) await page.screenshot({ timeout: 120000, path: OUT + `b9-u5-3d-${w}${lighting ? '-lighting' : ''}.png` });
   }

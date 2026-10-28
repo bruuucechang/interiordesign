@@ -39,6 +39,9 @@ export function watchPanelInset(el: HTMLElement) {
   const sync = () => el.style.setProperty('--panel-inset', `${panelInsetRight(el)}px`);
   const mo = new MutationObserver(sync);
   for (const p of document.querySelectorAll<HTMLElement>('.light-panel, .health-panel, #right')) mo.observe(p, { attributes: true, attributeFilter: ['class', 'style'] });
+  // 抽屜（#right）是滑進來的：拿掉 .closed 的那一刻它還在畫面外，要等動畫跑完再量一次。
+  // 少了這行，抽屜開著時 --panel-inset 一直是 0，3D 提示被它蓋住（B20 審查）。
+  document.getElementById('right')?.addEventListener('transitionend', sync);
   new ResizeObserver(sync).observe(el);
   sync();
 }

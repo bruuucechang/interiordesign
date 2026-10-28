@@ -341,7 +341,7 @@ export function maybeNudgeTour(doc: { objects: unknown[] }, whenDone?: () => voi
   const no = document.createElement('button'); no.textContent = t('不用了');
   const yes = document.createElement('button'); yes.className = 'primary'; yes.textContent = t('看導覽');
   no.onclick = () => { markSeen(); box.remove(); };
-  yes.onclick = () => { box.remove(); startTour(whenDone); };
+  yes.onclick = () => { markSeen(); box.remove(); startTour(whenDone); };
   acts.append(no, yes);
   box.append(b, p, acts);
   document.body.appendChild(box);
