@@ -115,20 +115,30 @@ console.log('\nB22 放東西的手感');
   const { ctx, page } = await open(`${BASE}/?perf=1`, { mode: '2d' });
   await addRoom(page);
   await page.evaluate(() => { window.__app.editor.vp.scale = 1.6; window.__app.editor.vp.origin = { x: -150, y: -80 }; window.__app.editor.render(); });
+  // 茶几放在地毯上不算重疊（地毯是鋪地的，B22 審查）
+  await page.evaluate(() => window.__app.doc.add({ id: 'rug1', kind: 'furniture', layer: 'furniture', item: 'rug', x: 120, y: 30, w: 200, h: 140, angle: 0, label: '地毯' }));
+  await page.click('[data-cat="客廳"]');
+  await page.click('#catalogShelf .furn-btn:has-text("茶几")');
+  let [sx, sy] = await S(page, 220, 100);
+  await page.mouse.move(sx, sy, { steps: 4 }); await page.waitForTimeout(150);
+  ok(!/地毯/.test(await hint(page)), `茶几滑到地毯上不說重疊（「${await hint(page)}」）`);
+  ok(!(await hint(page)).includes('⚠'), `茶几在地毯上沒有任何警告（「${await hint(page)}」）`);
+  await page.keyboard.press('Escape');
   await page.click('[data-cat="臥室"]');
   await page.click('#catalogShelf .furn-btn:has-text("單人床")');
+  const f0 = await furnCount(page);
   await page.keyboard.down('Shift');
   for (const [x, y] of [[80, 150], [200, 150], [320, 150]]) { const [sx, sy] = await S(page, x, y); await page.mouse.move(sx, sy, { steps: 3 }); await page.mouse.click(sx, sy); }
   await page.keyboard.up('Shift');
-  ok(await furnCount(page) === 3 && await page.evaluate(() => window.__app.editor.toolName) === 'furniture', `按住 Shift 連放三件、東西還在手上（${await furnCount(page)} 件）`);
+  ok(await furnCount(page) === f0 + 3 && await page.evaluate(() => window.__app.editor.toolName) === 'furniture', `按住 Shift 連放三件、東西還在手上（多了 ${await furnCount(page) - f0} 件）`);
   // 疊在剛放的床上：預覽變紅、提示列講原因，照樣放得下去
-  let [sx, sy] = await S(page, 90, 160);
+  [sx, sy] = await S(page, 90, 160);
   await page.mouse.move(sx, sy, { steps: 4 }); await page.waitForTimeout(150);
   const warn = await hint(page);
   ok(/重疊/.test(warn), `疊在床上：提示列寫原因（「${warn}」）`);
   await page.screenshot({ path: `${OUT}polish-overlap-red.png` });
   await page.mouse.click(sx, sy); await page.waitForTimeout(150);
-  ok(await furnCount(page) === 4 && await page.evaluate(() => window.__app.editor.toolName) === 'select', '照樣放得下去，沒按 Shift 就回到選取');
+  ok(await furnCount(page) === f0 + 4 && await page.evaluate(() => window.__app.editor.toolName) === 'select', '照樣放得下去，沒按 Shift 就回到選取');
   // 房間外
   await page.click('#catalogShelf .furn-btn:has-text("單人床")');
   [sx, sy] = await S(page, 700, 150);
@@ -167,8 +177,28 @@ console.log('\nB22 放東西的手感');
     const h3 = await page.evaluate(() => document.getElementById('hint3d').textContent);
     ok(/重疊/.test(h3), `3D 預覽疊在床上：提示寫原因（「${h3}」）`);
     await page.screenshot({ path: `${OUT}polish-overlap-3d.png` });
+    await page.mouse.move(700, 20, { steps: 3 }); await page.waitForTimeout(200);   // 移到頂列，離開 3D 畫面
+    ok(!/⚠/.test(await page.evaluate(() => document.getElementById('hint3d').textContent)), '游標離開 3D 畫面，警告跟著收掉');
   }
   await page.keyboard.press('Escape');
+  // 只開 3D：門點在空地要在 3D 底下說（2D 的提示列這時看不到）
+  await page.click('[data-cat="structure"]');
+  await page.click('.tool-btn[data-tool="door"]');
+  const empty = await page.evaluate(() => {
+    const v = window.__app.view3d, c = v.renderer.domElement.getBoundingClientRect();
+    for (let y = c.bottom - 60; y > c.top + 40; y -= 12) for (let x = c.left + 40; x < c.right - 40; x += 24) {
+      const p = v.floorPoint({ clientX: x, clientY: y });
+      if (p && (p.x < -300 || p.x > 700 || p.y < -300 || p.y > 600)) return [x, y];
+    }
+    return null;
+  });
+  if (empty) {
+    const d0 = await page.evaluate(() => window.__app.doc.objects.filter(o => o.kind === 'door').length);
+    await page.mouse.click(empty[0], empty[1]); await page.waitForTimeout(200);
+    const h3 = await page.evaluate(() => document.getElementById('hint3d').textContent);
+    ok(await page.evaluate(() => window.__app.doc.objects.filter(o => o.kind === 'door').length) === d0 && /門窗要點在牆上/.test(h3),
+      `只開 3D：門點在空地不放、3D 底下說原因（「${h3}」）`);
+  } else ok(false, '3D 裡找不到離牆 3 m 以外的空地');
   await ctx.close();
 }
 

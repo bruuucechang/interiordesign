@@ -66,7 +66,7 @@ const EN: Record<string, string> = {
   '點地板放下去 · 按住 Shift 連續放 · Q／E 轉 90° · Esc 放下手上的東西': 'Click the floor to place · hold Shift to keep placing · Q/E turn 90° · Esc to put it down',
   '點牆放上門窗 · 按住 Shift 連續放 · Esc 放下手上的東西': 'Click a wall to place it · hold Shift to keep placing · Esc to put it down',
   // B22
-  '跟{name}重疊': 'Overlaps {name}', '別的家具': 'another piece', '不在任何房間裡': 'Not inside any room',
+  '跟{name}重疊': 'Overlaps {name}', '卡進牆裡': 'Cuts into a wall', '別的家具': 'another piece', '不在任何房間裡': 'Not inside any room',
   '門窗要點在牆上——最近的牆在 {d} 外': 'Doors and windows go on a wall — the nearest is {d} away',
   '門窗要點在牆上——這層還沒有牆': 'Doors and windows go on a wall — this floor has none yet',
   '門窗要點在牆上——點一面牆': 'Doors and windows go on a wall — click one',

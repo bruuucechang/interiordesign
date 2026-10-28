@@ -67,7 +67,8 @@ export class OpeningTool implements Tool {
 
   /** Off every wall: say where the nearest one is instead of placing a door in mid-air (B22). */
   private offWall(p: Vec) {
-    const d = nearestWallDistance(this.ctx.doc.objects, p);
+    const doc = this.ctx.doc;
+    const d = nearestWallDistance(doc.objects.filter(o => doc.isLayerVisible(o.layer)), p);   // the walls fitOpeningToWall can use
     return Number.isFinite(d)
       ? t('門窗要點在牆上——最近的牆在 {d} 外').replace('{d}', fmtLen(d))
       : t('門窗要點在牆上——這層還沒有牆');
@@ -75,8 +76,8 @@ export class OpeningTool implements Tool {
 
   onMove(p: PointerInfo) {
     this.cand = this.findWall(p.snapped);
-    if (!this.cand) { this.ctx.setPreview(); this.ctx.setHint(this.offWall(p.snapped)); this.ctx.render(); return; }
-    this.ctx.setHint(this.hint);
+    if (!this.cand) { this.ctx.setPreview(); this.say(this.offWall(p.snapped)); this.ctx.render(); return; }
+    this.say(this.hint);
     const c = this.cand, hw = c.width / 2;
     this.ctx.setPreview(
       ctx => {
@@ -103,7 +104,7 @@ export class OpeningTool implements Tool {
   onDown(p: PointerInfo) {
     const c = this.cand ?? this.findWall(p.snapped);
     // It used to fall back to an opening at the cursor — a door standing in mid-room.
-    if (!c) { this.ctx.setHint(this.offWall(p.snapped)); return; }
+    if (!c) { this.say(this.offWall(p.snapped)); return; }
     this.ctx.doc.commit();
     const id = genId(this.kind);
     this.ctx.doc.add({ id, kind: this.kind, layer: layerForKind(this.kind), x: c.pos.x, y: c.pos.y, width: c.width, angle: c.angle, bulge: c.bulge || undefined });
@@ -113,7 +114,10 @@ export class OpeningTool implements Tool {
     this.ctx.selectTool('select');   // place one → select it (don't keep placing another)
   }
   onUp() {}
-  deactivate() { this.cand = null; this.ctx.setPreview(); }
+  deactivate() { this.cand = null; this.said = ''; this.ctx.setPreview(); }
+  /** Only when it changes: setHint cancels a showing flash (「已儲存」), and this runs on every move. */
+  private said = '';
+  private say(s: string) { if (s !== this.said) { this.said = s; this.ctx.setHint(s); } }
 }
 
 /**
@@ -138,9 +142,9 @@ export const FURN_SNAP = 25;
  *     但位置會被推去貼牆，那不是使用者要的
  */
 export function fitFurnitureToWall(
-  doc: Doc, cursor: Vec, item: { w: number; h: number; height?: number; mount?: string },
+  doc: Doc, cursor: Vec, item: { w: number; h: number; height?: number; mount?: string; floorCover?: true },
 ): { pos: Vec; angle: number } | null {
-  if (item.mount === 'ceiling' || (item.height ?? 999) <= 5) return null;
+  if (item.mount === 'ceiling' || item.floorCover || (item.height ?? 999) <= 5) return null;
   let best: { pos: Vec; angle: number } | null = null, bestD = Infinity;
   for (const o of doc.objects) {
     // 曲線牆量弦會把家具貼在弦上、橫跨弧（跟 wallBoxes 一樣先不處理曲線牆）
@@ -166,7 +170,7 @@ export function fitFurnitureToWall(
 }
 
 /** 這一層樓所有直牆的包圍盒。 */
-function wallBoxes(doc: Doc): Box[] {
+export function wallBoxes(doc: Doc): Box[] {
   const walls: Box[] = [];
   for (const o of doc.objects) {
     if (o.kind !== 'wall' || !doc.isLayerVisible(o.layer)) continue;
@@ -263,8 +267,8 @@ export class FurnitureTool implements Tool {
     const c = this.fit.pos, a = this.fit.angle;
     // 放之前就知道放不放得下（B22）：紅框＋提示列寫原因；照樣放得下去（使用者裁示只警告）。
     const issues = placementIssues(this.ctx.doc.objects, { cx: c.x, cy: c.y, w: item.w, h: item.h, angle: a }, item,
-      o => FURNITURE_BY_ID[o.item]);
-    this.ctx.setHint(issues.length ? `⚠ ${issues.join('；')}` : this.hint);
+      o => FURNITURE_BY_ID[o.item], undefined, wallBoxes(this.ctx.doc));
+    this.say(issues.length ? `⚠ ${issues.join('；')}` : this.hint);
     this.ctx.setPreview(ctx => {
       ctx.save(); ctx.globalAlpha = 0.55;
       ctx.translate(c.x, c.y); ctx.rotate(a * Math.PI / 180); ctx.translate(-item.w / 2, -item.h / 2);
@@ -297,7 +301,10 @@ export class FurnitureTool implements Tool {
     this.ctx.selectTool('select');
   }
   onUp() {}
-  deactivate() { this.ctx.setPreview(); }
+  deactivate() { this.said = ''; this.ctx.setPreview(); }
+  /** Only when it changes: setHint cancels a showing flash (「已儲存」), and this runs on every move. */
+  private said = '';
+  private say(s: string) { if (s !== this.said) { this.said = s; this.ctx.setHint(s); } }
 }
 
 /**

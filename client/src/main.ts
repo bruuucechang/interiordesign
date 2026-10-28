@@ -24,6 +24,8 @@ import { flash } from './ui/feedback';
 import { webglAvailable, show3DUnavailable } from './core/webgl';
 import { applyStatic, currentLang, t } from './core/i18n';
 import { savePanorama, isInsidePlan } from './core/panorama';
+import { nearestWallDistance } from './core/placement';
+import { fmtLen } from './core/geometry';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const hint = document.getElementById('hint') as HTMLElement;
@@ -87,7 +89,12 @@ if (view3d) view3d.onFloorClick = (floor, sceneHit) => {
   const tool = editor.toolName;
   if (tool === 'furniture') editor.placeFurnitureAt(floor.x, floor.y);
   else if ((tool === 'door' || tool === 'window') && !editor.placeOpeningAt(tool, sceneHit ?? floor)) {
-    flash(t('門窗要點在牆上——點一面牆'));
+    // In 3D the 2D hint strip may be hidden, so say it down here (B22 review).
+    const p = sceneHit ?? floor, d = nearestWallDistance(doc.objects.filter(o => doc.isLayerVisible(o.layer)), p);
+    openingMiss = Number.isFinite(d) ? t('門窗要點在牆上——最近的牆在 {d} 外').replace('{d}', fmtLen(d)) : t('門窗要點在牆上——這層還沒有牆');
+    sync3dHint();
+    clearTimeout(missTimer);
+    missTimer = window.setTimeout(() => { openingMiss = ''; sync3dHint(); }, 2500);
   }
 };
 if (view3d) view3d.onRotate90 = (deg) => editor.rotateSelection(deg);
@@ -153,6 +160,9 @@ let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 // the floor; a door/window ghost snaps onto the wall the cursor hovers.
 /** Why the furniture under the 3D cursor would not sit well (B22); empty when it would. */
 let ghostWarn = '';
+/** A door or window clicked onto empty floor in 3D, shown for a moment (B22). */
+let openingMiss = '';
+let missTimer: number | undefined;
 function updatePlacementPreview() {
   const t = mode === '2d' ? '' : editor.toolName;
   const it = t === 'furniture' ? FURNITURE_BY_ID[editor.currentFurniture] : null;
@@ -372,6 +382,7 @@ function sync3dHint() {
   const text = view3d?.walk.active
     ? t('行走：點畫面用滑鼠轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或兩次 Esc 離開')
     : tool === 'furniture' && ghostWarn ? `⚠ ${ghostWarn}`
+    : (tool === 'door' || tool === 'window') && openingMiss ? `⚠ ${openingMiss}`
     : tool === 'furniture' || tool === 'electrical'
       ? t('點地板放下去 · 按住 Shift 連續放 · Q／E 轉 90° · Esc 放下手上的東西')
       : tool === 'door' || tool === 'window'

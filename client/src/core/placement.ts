@@ -4,8 +4,9 @@
 // red and show the first reason; they still place it — the user's call was
 // "warn, don't block", because a design is often roughed in first and tidied after.
 //
-// Walls are not checked here: the furniture tool already pushes every footprint
-// clear of straight walls (`keepOutOfWalls`) before it gets this far.
+// Walls are checked when the caller passes them: the 2D tool pushes footprints out
+// of straight walls first, but a piece wider than the alcove it is pushed into
+// stays in, and the 3D view's floor click does not push at all.
 import type { Obj, Vec } from '../model/schema';
 import { Box, separation } from './clearance';
 import { pointInPolygon } from './geometry';
@@ -14,16 +15,29 @@ import { t } from './i18n';
 /** Overlap shallower than this, cm, is two things touching, not one inside the other. */
 export const OVERLAP_TOL = 5;
 
-/** What the piece is, as far as stacking goes. */
-export interface Stackable { mount?: string; height?: number }
+/** Wall intrusion deeper than this, cm, is "in the wall"; touching the face is not. */
+export const WALL_TOL = 3;
+/** Footprints smaller than this, cm², are things that sit on other things (a lamp, a microwave, a vase). */
+export const SMALL_PIECE = 50 * 50;
+
+/** What the piece is, as far as stacking goes — a catalogue entry has all of these. */
+export interface Stackable { name?: string; w?: number; h?: number; mount?: string; height?: number; floorCover?: true }
 
 /**
  * Things that are meant to share floor area with other things and so neither
- * collide nor get collided with: rugs and mats (≤ 5 cm tall), and anything hung
- * from the ceiling or on a wall.
+ * collide nor get collided with: rugs, mats and platforms (`floorCover`, or
+ * ≤ 5 cm tall), anything hung from the ceiling or on a wall, and small pieces
+ * that stand on a counter or a cabinet.
  */
 export const stacksFreely = (it: Stackable | undefined) =>
-  !!it && (it.mount === 'ceiling' || it.mount === 'wall' || (it.height ?? 999) <= 5);
+  !!it && (it.mount === 'ceiling' || it.mount === 'wall' || !!it.floorCover || (it.height ?? 999) <= 5
+    || (it.w !== undefined && it.h !== undefined && it.w * it.h < SMALL_PIECE));
+
+const SEAT = /椅|凳/, NOT_SEAT = /沙發|貴妃椅|躺椅/, TABLE = /桌|几|檯|吧台|中島/;
+const isSeat = (it?: Stackable) => !!it?.name && SEAT.test(it.name) && !NOT_SEAT.test(it.name);
+const isTable = (it?: Stackable) => !!it?.name && TABLE.test(it.name) && !SEAT.test(it.name);
+/** A chair pushed in under a table or desk is how a dining set is drawn, not an overlap. */
+export const tucksUnder = (a?: Stackable, b?: Stackable) => (isSeat(a) && isTable(b)) || (isSeat(b) && isTable(a));
 
 const roomPoly = (r: Extract<Obj, { kind: 'room' }>): Vec[] =>
   r.poly?.length ? r.poly : [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
@@ -36,11 +50,17 @@ const roomPoly = (r: Extract<Obj, { kind: 'room' }>): Vec[] =>
 export function placementIssues(
   objs: readonly Obj[], box: Box, item: Stackable | undefined,
   itemOf: (o: Extract<Obj, { kind: 'furniture' }>) => Stackable | undefined, self?: string,
+  walls: readonly Box[] = [],
 ): string[] {
   const out: string[] = [];
+  if (item?.mount !== 'wall' && item?.mount !== 'ceiling' && walls.some(w => separation(box, w, -WALL_TOL))) {
+    out.push(t('卡進牆裡'));
+  }
   if (!stacksFreely(item)) {
     for (const o of objs) {
-      if (o.kind !== 'furniture' || o.id === self || stacksFreely(itemOf(o))) continue;
+      if (o.kind !== 'furniture' || o.id === self) continue;
+      const cat = itemOf(o), it = cat && { ...cat, w: o.w, h: o.h };   // as resized on the plan
+      if (stacksFreely(it) || tucksUnder(item, it)) continue;
       const other: Box = { cx: o.x + o.w / 2, cy: o.y + o.h / 2, w: o.w, h: o.h, angle: o.angle ?? 0 };
       if (separation(box, other, -OVERLAP_TOL)) {
         out.push(t('跟{name}重疊').replace('{name}', () => o.label || t('別的家具')));

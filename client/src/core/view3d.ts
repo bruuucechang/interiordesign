@@ -242,6 +242,7 @@ export class View3D {
     });
     dom.addEventListener('pointerleave', () => {
       this.ghosts.hide();
+      this.onHover?.(null, null);   // off the view: no ghost, so no warning about it either (B22 review)
     });
 
     this.setTimeOfDay('noon');   // initialize lights + background consistently

@@ -9,7 +9,7 @@ import { Reference, alignWalls, splitWallAt, findFaceSteps, FaceStep, Wall } fro
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, PartitionTool, RoomTool, AreaTool, DimensionTool } from '../tools/draw';
-import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall } from '../tools/place';
+import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall, wallBoxes } from '../tools/place';
 import { CalibrateTool } from '../tools/calibrate';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { Obj, Vec } from '../model/schema';
@@ -167,7 +167,8 @@ export class Editor implements ToolCtx {
   furnitureIssuesAt(x: number, y: number): string[] {
     const item = FURNITURE_BY_ID[this.currentFurniture];
     if (!item) return [];
-    return placementIssues(this.doc.objects, { cx: x, cy: y, w: item.w, h: item.h, angle: 0 }, item, o => FURNITURE_BY_ID[o.item]);
+    return placementIssues(this.doc.objects, { cx: x, cy: y, w: item.w, h: item.h, angle: 0 }, item, o => FURNITURE_BY_ID[o.item],
+      undefined, wallBoxes(this.doc));
   }
 
   // Place a door/window near plan point (x, y), snapped onto the nearest wall.
