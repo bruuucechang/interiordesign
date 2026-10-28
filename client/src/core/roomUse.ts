@@ -43,8 +43,8 @@ const isBed = (n: string) => {
   return /床$/.test(s) || s.includes('床（') || /床架$/.test(s) || s === '上下舖' || s === '榻榻米地台' || s === '布團台';
 };
 // Something to sit at a desk or a table on — not a footstool, a piano stool, a
-// rocker, a lounge chair or a hall bench, which have 椅／凳 in the name too (B23 review).
-const NOT_TABLE_SEAT = /貴妃椅|^腳凳|琴凳|搖椅|單椅|扶手椅|長凳|矮凳/;
+// rocker, a lounge chair or a hall bench (a plain 長凳 is a dining bench), which have 椅／凳 in the name too (B23 review).
+const NOT_TABLE_SEAT = /貴妃椅|^腳凳|琴凳|搖椅|單椅|扶手椅|玄關長凳|矮凳/;
 const isSeat = (n: string) => SEAT.test(n) && !SOFA.test(n) && !NOT_TABLE_SEAT.test(n);
 const isDesk = (n: string) => DESK.test(n) && !SEAT.test(n);
 const isDiningTable = (n: string) => DINING_TABLE.test(n) && !SEAT.test(n);

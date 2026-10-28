@@ -143,7 +143,7 @@ test('a footstool, piano stool or lounge chair is not a chair to sit at a table'
     assert.deepEqual(read([put('木餐桌'), put(name, 200, 200)]).missing, ['燈', '餐椅'], name);
     assert.deepEqual(read([put('L型書桌'), put(name, 200, 200)]).missing, ['燈', '椅子'], name);
   }
-  for (const name of ['餐椅', '吧檯椅', '大阪椅', '橡木椅', '高腳凳']) {
+  for (const name of ['餐椅', '吧檯椅', '大阪椅', '橡木椅', '高腳凳', '長凳']) {
     assert.deepEqual(read([put('木餐桌'), put(name, 200, 200)]).missing, ['燈'], name);
   }
 });
