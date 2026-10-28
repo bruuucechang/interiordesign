@@ -257,3 +257,31 @@
   **審查退回兩輪**：抽屜滑進來時還在畫面外、讓位量成 0（加 `transitionend` 再量）；照度／健檢開著時樓層鈕被蓋住（`#stage` 也掛 `watchPanelInset`，樓層鈕與把手照 `--panel-inset` 讓位）；刪除樓層 ✕ 跟按鈕之間有縫；按「看導覽」沒記成看過；導覽提示蓋住風格選單與樓層鈕；`?plan=` 載入慢時會提示；分類列滾輪捲不到；縮放每格重量頂列；`verify-b9` 的 3D 提示平常藏著、量到全 0 也會過（先拿起工具再量）；
   第二輪：分割拉到 70% 又開抽屜時 3D 提示塌成直排（放不下時改一行截斷、鍵帽收起）。shot-b20 補的回歸各自退掉修正都紅過。
   **已知限制**：核心模組（`core/health.ts`、`lightcheck.ts`、材質與水電符號名稱）的訊息還是只有中文；英文句子裡有些全形標點。家具名稱照規格維持中文。
+
+## B21 三個會壞的：3D 裡的鍵盤指令、行走出生點、牆面貼圖  [未開始]
+- 規格：`docs/spec-game-polish.md` 第一節
+- 目標：3D 有焦點時 ⌘Z／Delete 等照常；行走出生在房間最空的點、朝最遠的方向，離開回到進入前的視角；牆面材質每公分至少 4 px
+- 驗收：`walkSpawn` 單元測試＋mutant；材質密度測試；verify-polish 的 3D 鍵盤、出生點、離開回原位
+- 碰：`core/editor.ts`、`core/walk.ts`、`core/walk3d.ts`、`core/materials.ts`
+- 不做：改行走的碰撞規則（B19）
+
+## B22 放東西的手感：Shift 連放、放不下要說  [未開始]
+- 規格：同檔第二節
+- 目標：Shift 連續放；`placementIssues` 重疊／房間外／卡牆 → 預覽變紅＋提示列原因，照樣放；門窗點空地有提示
+- 驗收：`placementIssues` 單元測試＋mutant；verify-polish 的 Shift 連放、紅色預覽、門點空地
+- 碰：`tools/place.ts`、`core/editor.ts`、`core/renderer.ts`、`core/ghosts3d.ts`、新 `core/placement.ts`
+- 不做：擋下不准放（使用者裁示只警告）
+
+## B23 房間會自己認得  [未開始]
+- 規格：同檔第三節
+- 目標：`roomUse` 照家具認用途、列缺什麼；預設名的房間顯示用途，缺東西多一行小字
+- 驗收：`roomUse` 單元測試（含「床頭櫃不算床」）＋mutant；verify-polish 的臥室／缺燈
+- 碰：新 `core/roomUse.ts`、`core/renderer.ts`、3D 房名標籤、`ui/properties.ts`
+- 不做：改存檔的名字、改面積報表
+
+## B24 開場與圖上的字  [未開始]
+- 規格：同檔第四節
+- 目標：空白方案的開場卡；導覽提示有東西就收；標籤避讓；第一間房鏡頭拉近
+- 驗收：標籤避讓單元測試＋mutant；verify-polish 的開場卡、標籤不重疊、鏡頭拉近；1440／1280 截圖給使用者看
+- 碰：`core/renderer.ts`、`ui/ui.ts`、`ui/tour.ts`、`style.css`
+- 不做：改 2D 繪圖工具本身的行為
