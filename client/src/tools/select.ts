@@ -7,11 +7,12 @@ import { snap, dist } from '../core/geometry';
 import { resizeBox, resizeFurniture, curveBulge, rotateAngle, openingEndpoint, Corner } from '../core/transform';
 import { computeSnap, drawSnap, WallSeg } from '../core/snap';
 import { fitOpeningToWall, furnitureClearOfWalls, groupClearOfWalls } from './place';
+import { t } from '../core/i18n';
 
 type Mode = 'idle' | 'move' | 'corner' | 'endpoint' | 'rotate' | 'curve' | 'pan';
 
 export class SelectTool implements Tool {
-  name = 'select'; cursor = 'grab'; hint = '拖曳物件移動、角落縮放、圓點旋轉；拖曳空白處平移畫面；Delete 刪除';
+  name = 'select'; cursor = 'grab'; hint = t('拖曳物件移動、角落縮放、圓點旋轉；拖曳空白處平移畫面；Delete 刪除');
   private mode: Mode = 'idle';
   private handleId = '';
   private orig: any = null;      // JSON snapshot of the object at drag start (single-object edits)

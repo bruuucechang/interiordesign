@@ -90,7 +90,7 @@ const probe = () => page.evaluate(() => {
 });
 const at = (x, y) => page.evaluate(([x, y]) => window.__app.lighting.at(x, y), [x, y]);
 
-await page.click('[data-act="lighting"]');
+await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());   // B20：在「檢視」選單裡
 await page.waitForTimeout(200);
 check('面板開著、熱圖有掛上', await page.isVisible('#lightPanel') && (await probe()).open);
 check('沒有燈時面板說怎麼開始', (await page.textContent('#lightCircuits')).includes('還沒有燈'));
@@ -291,7 +291,7 @@ check('只移床，區域表的床面數字跟著變', bedAfter && bedAfter !== 
 await page.evaluate(() => window.__app.doc.update('bed', { x: 182.5, y: 127.5 }));
 await page.waitForTimeout(600);
 await page.locator('#lightRooms .lp-room').first().screenshot({ path: join(OUT, 'lighting-zones-room.png') });
-await page.click('[data-act="health"]');
+await page.evaluate(() => document.querySelector('[data-act="health"]').click());   // B20：在「檢視」選單裡
 await page.waitForTimeout(400);
 const healthLight = await page.$$eval('#healthBody .hf.lighting', els => els.length);
 check('空間健檢裡也有這 5 條照明提醒', healthLight === 5, String(healthLight));
@@ -300,6 +300,11 @@ await page.screenshot({ path: join(OUT, 'lighting-zones-health.png') });
 await page.click('[data-act="close-health"]');
 
 // ---- 關掉：熱圖拿掉
+// 健檢跟照度同時只開一個（side-panels.ts），上面開健檢時照度已經自己收起來，
+// 「關閉照度」那顆看不到——這一步以前因此一直逾時（B17 記下、B20 修）。先把照度叫回來再關。
+await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());
+await page.waitForTimeout(400);
+check('照度叫得回來（健檢把它收起來之後）', (await probe()).open && await page.evaluate(() => !!window.__app.editor.heat));
 await page.click('[data-act="close-lighting"]');
 await page.waitForTimeout(150);
 check('關掉面板熱圖就拿掉', !(await probe()).open && await page.evaluate(() => !window.__app.editor.heat));

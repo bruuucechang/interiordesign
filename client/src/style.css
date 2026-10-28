@@ -2,6 +2,14 @@
   --bg: #1e2128; --panel: #262a33; --panel2: #2f343f; --line: #3a404d;
   --text: #dbe0ea; --muted: #8b93a3; --accent: #4c8dff; --accent2: #2b6fe0;
   --good: #47c479; --danger: #ff5c72;
+  /* B20 tokens: the build-mode chrome below uses these, not raw numbers. */
+  --accent-soft: #33405c;
+  --radius-s: 4px; --radius-m: 6px; --radius-l: 10px;
+  --ctl-h: 30px;                 /* every control on the top bar and the catalogue tabs */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --fs-label: 12px; --fs-body: 13px; --fs-title: 15px;
+  --shadow-float: 0 8px 28px rgba(0,0,0,0.45);
+  --drawer-w: 260px;
 }
 * { box-sizing: border-box; }
 /* Keyboard focus has to be visible. Without this the only way to know where the
@@ -27,115 +35,12 @@ button, input, select, textarea, optgroup { font-family: inherit; }
   stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #app { display: flex; flex-direction: column; height: 100vh; }
 
-/* top bar */
-#topbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
-.brand { font-weight: 700; white-space: nowrap; }
-/* A wordmark that wraps is not a wordmark. Without this, adding one control to
-   the bar pushed the title into a vertical column of single characters down the
-   left edge and shoved every other row down with it. */
-.proj-name { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 5px 10px; width: 200px; }
-.save-status { font-size: 12px; color: var(--muted); min-width: 84px; white-space: nowrap; transition: color .2s; }
-.save-status.saving { color: var(--muted); }
-.save-status.saved { color: #5ad19a; }
-.save-status.offline { color: #f0a44c; }
-.save-status.stuck { color: var(--danger); cursor: pointer; text-decoration: underline dotted; }
-.spacer { flex: 1; }
-.sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
-.menu { position: relative; display: inline-flex; }
-.menu.open > button, .menu > button.active { border-color: var(--accent); background: #33405c; }
-/* `min-width` was 150px, which is narrower than half these items: 「匯出專案檔
-   （可再編輯）」and two others wrapped onto a second line, so the menu was a
-   ragged mix of one- and two-line rows. Sized to the longest label instead. */
-.menu-pop { position: absolute; top: calc(100% + 5px); right: 0; z-index: 60; min-width: 232px; padding: 4px;
-  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
-  display: flex; flex-direction: column; gap: 2px; }
-.menu-pop button { width: 100%; justify-content: flex-start; gap: 9px; white-space: nowrap;
-  text-align: left; background: transparent; border: none; color: var(--text);
-  padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-.menu-pop .icon { opacity: 0.75; }
-.menu-group { padding: 7px 12px 3px; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
-.menu-group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 9px; }
-.menu-pop button:hover { background: #33405c; }
-.zoom-ctl { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
-.zoom-ctl button { width: 26px; padding: 4px 0; font-size: 15px; line-height: 1; text-align: center; }
-.zoom { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 46px; text-align: center; cursor: pointer; }
-.chk { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 4px; }
-#topbar button {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: var(--panel2); border: 1px solid var(--line); color: var(--text);
-  border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 13px;
-}
-.zoom-ctl button { justify-content: center; }
-.lbl { white-space: nowrap; }
-/* The bar carries 21 items. Measured with the labels in: it wrapped to two rows
-   at 1512 (the laptop's own screen), three at 1440, and by 1180 the zoom control
-   had wrapped past the end of the bar and could not be clicked. Dropping the
-   labels keeps every control reachable on one row; the titles carry the names,
-   so nothing becomes unknowable, only unlabelled. 1700 rather than 1512 because
-   the first wrap already happened at 1680. */
-/* English labels are wider than the Chinese ones, so the same bar runs out of
-   room sooner. Measured: with labels, the English build was already overflowing
-   at 1920 while Chinese was fine. */
-html[lang="en"] #topbar .lbl { display: none; }
-html[lang="en"] #topbar button { gap: 0; }
-/* `.tight` / `.tighter` are the same two steps, switched on by ui/topbar-fit.ts
-   when the bar measures wider than the window above these breakpoints — the
-   1700 one went stale the day two more buttons were added (1977px at 1920). */
-@media (max-width: 1700px) {
-  #topbar .lbl { display: none; }
-  #topbar .brand { font-size: 0; }               /* keep the 🏡, drop the words */
-  #topbar .brand::first-letter { font-size: 15px; }
-  .proj-name { width: 150px; }
-  #topbar button { gap: 0; }
-  .chk { gap: 0; }
-}
-#topbar.tight .lbl, #topbar.tighter .lbl { display: none; }
-#topbar.tight .brand, #topbar.tighter .brand { font-size: 0; }
-#topbar.tight .brand::first-letter { font-size: 15px; }
-#topbar.tight .proj-name { width: 150px; }
-#topbar.tight button, #topbar.tighter button, #topbar.tight .chk, #topbar.tighter .chk { gap: 0; }
-/* Below this the icons alone still do not fit, so the things that are decoration
-   rather than controls go: the dividers, the wordmark, and half the gap. The
-   save status goes too — it is the only item here that says something rather
-   than doing something, and `已儲存 ✓` is repeated by the title bar anyway. */
-@media (max-width: 1320px) {
-  #topbar { gap: 4px; padding: 8px; }
-  #topbar .sep { display: none; }
-  #topbar .brand { display: none; }
-  .save-status { display: none; }
-  .proj-name { width: 108px; }
-}
-#topbar.tighter { gap: 4px; padding: 8px; }
-#topbar.tighter .sep, #topbar.tighter .brand, #topbar.tighter .save-status { display: none; }
-#topbar.tighter .proj-name { width: 108px; }
-#topbar button:hover { border-color: var(--accent); }
 
-#body { flex: 1; display: flex; min-height: 0; }
-
-/* left */
-#left { width: 210px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow-y: auto; }
-.palette { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; }
-.tool-btn {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  background: var(--panel2); border: 1px solid var(--line); color: var(--text);
-  border-radius: 8px; padding: 9px 4px; cursor: pointer; font-size: 12px;
-}
-.tool-btn .ic { font-size: 18px; }
-.tool-btn.active { border-color: var(--accent); background: #33405c; }
 .panel-title { padding: 8px 12px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; border-top: 1px solid var(--line); }
 .panel-title.collapsible { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
 .panel-title.collapsible::after { content: '▾'; font-size: 10px; transition: transform .15s; }
 .panel-title.collapsible.collapsed::after { transform: rotate(-90deg); }
 .panel-title.collapsible.collapsed + div { display: none !important; }   /* beat the #id display rule on the content div */
-#catalog > .panel-title:first-child { border-top: none; }
-.furniture-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px 10px; }
-.furn-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 6px; cursor: pointer; font-size: 11px; text-align: center; }
-.furn-btn:hover { border-color: var(--accent); }
-.furn-btn.active { border-color: var(--accent); background: #33405c; }
-.furn-btn canvas { display: block; margin: 0 auto 3px; }
-/* 預覽圖用 contain 而不是 cover：家具的長寬比差很多（157cm 的沙發對 23cm 的時鐘），
-   裁切會把矮的那些切成一條。高度給到 46px 是因為預覽是等角視角、比俯視圖高。 */
-.furn-btn img { display: block; margin: 0 auto 3px; width: 60px; height: 46px; object-fit: contain; }
 
 /* stage: main view fills, the other view floats as a corner PiP */
 /* The stage is a two-pane split. Both panes are real views — the 3D one used to
@@ -191,8 +96,6 @@ html[lang="en"] #topbar button { gap: 0; }
 .view3d > .key-hud { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 6; }
 .hidden { display: none !important; }
 
-/* right */
-#right { width: 240px; background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; overflow-y: auto; }
 #layers { padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
 .layer-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; font-size: 13px; }
 .layer-row.active { border-color: var(--accent); }
@@ -227,21 +130,6 @@ html[lang="en"] #topbar button { gap: 0; }
 .pane-empty b { font-size: 14px; color: var(--text); }
 .pane-empty span { font-size: 12px; color: var(--muted); line-height: 1.7; max-width: 34em; }
 
-/* Two characters wide, because language is set once and then never touched —
-   it does not earn permanent width on a bar that already had to drop its labels
-   to fit. The full names were 104px and pushed the whole bar over budget: the
-   English build was being cut off even at 1920. */
-.lang-select { background: var(--panel2); border: 1px solid var(--line); color: var(--text);
-  border-radius: 6px; padding: 6px 4px; font-size: 12px; cursor: pointer; width: 46px; text-align: center; }
-/* The last squeeze. Below this the bar is icons, a name field and a zoom
-   readout — there is nothing left that is not a control, so what gives is
-   padding rather than anything you could need. */
-@media (max-width: 1060px) {
-  #topbar { gap: 3px; padding: 8px 6px; }
-  #topbar button { padding: 6px 7px; }
-  .time-select { max-width: 74px; }
-  .proj-name { width: 88px; }
-}
 
 /* first-run tour: a dimmed page with one thing cut out of it */
 .tour { position: fixed; inset: 0; z-index: 200; }
@@ -356,7 +244,7 @@ header button:disabled { opacity: 0.4; cursor: default; }
   border-radius: 9px; background: var(--danger); color: #fff; font-size: 11px; line-height: 16px;
   text-align: center; font-variant-numeric: tabular-nums; }
 .health-count.none { background: var(--line); color: var(--muted); }
-.health-panel { position: fixed; right: 12px; top: 52px; bottom: 12px; width: min(380px, 92vw);
+.health-panel { position: fixed; right: 12px; top: 54px; bottom: calc(var(--catalog-h, 45px) + 8px); width: min(380px, 92vw);
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px; z-index: 18;
   display: flex; flex-direction: column; box-shadow: 0 8px 28px #0007; }
 .health-panel.hidden { display: none; }
@@ -442,24 +330,9 @@ header button:disabled { opacity: 0.4; cursor: default; }
 
 .align-btn.active { border-color: var(--accent); color: var(--accent); background: #33405c; }
 
-/* ---- furniture palette: search + style chips + folding rooms ----
-   The panel is 141 items. The filter row is sticky because the natural way to
-   use it is scroll → nothing good → change the filter, and a control you have
-   to scroll back up to reach gets used once and then not again. */
-.furn-filter { position: sticky; top: 0; z-index: 2; background: var(--panel); padding: 8px 10px 6px; border-bottom: 1px solid var(--line); }
-.furn-search { width: 100%; box-sizing: border-box; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 7px; padding: 5px 8px; font-size: 12px; }
-.furn-search:focus { outline: none; border-color: var(--accent); }
-.furn-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.chip { background: var(--panel2); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 2px 9px; font-size: 11px; cursor: pointer; }
-.chip:hover { border-color: var(--accent); }
-.chip.on { background: #33405c; border-color: var(--accent); color: var(--text); }
-/* The count is what a filtered section says about itself: "客廳 3" after a
-   filter is information, a bare "客廳" is not. */
-.furn-count { font-size: 10px; color: var(--muted); background: var(--panel2); border-radius: 999px; padding: 1px 6px; }
-.furn-head.collapsible::after { margin-left: 6px; }
 
-/* 照度：靠在屬性面板（#right，240px）左邊，不蓋住它。 */
-.light-panel { position: fixed; right: 252px; top: 52px; bottom: 12px; width: min(320px, 70vw);
+/* 照度：屬性抽屜開著時靠在它左邊（body.drawer-open），不蓋住它。 */
+.light-panel { position: fixed; right: 12px; top: 54px; bottom: calc(var(--catalog-h, 45px) + 8px); width: min(320px, 70vw);
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px; z-index: 17;
   display: flex; flex-direction: column; box-shadow: 0 8px 28px #0007; }
 .light-panel.hidden { display: none; }
@@ -515,3 +388,184 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .feel-foot button:hover { border-color: var(--accent); }
 /* 3D 開燈（B18） */
 .lamps-toggle.on { color: #ffd27a; border-color: #ffd27a55; background: #ffd27a14; }
+
+/* ===== B20: build-mode chrome ===== */
+
+/* top bar: three zones. The two sides share what is left equally, so the view
+   switch sits in the true middle of the window whatever the sides hold. */
+#topbar { display: flex; align-items: center; gap: var(--sp-2); height: 46px; padding: 0 var(--sp-3);
+  background: var(--panel); border-bottom: 1px solid var(--line); flex: none; }
+.tb-left, .tb-right { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: var(--sp-1); }
+.tb-right { justify-content: flex-end; }
+.tb-center { flex: none; }
+.brand { font-size: var(--fs-title); margin-right: var(--sp-1); }
+.proj-name { background: transparent; border: 1px solid transparent; color: var(--text); border-radius: var(--radius-m);
+  height: var(--ctl-h); padding: 0 var(--sp-2); flex: 0 1 200px; width: 200px; min-width: 96px; font-size: var(--fs-body); font-weight: 600; text-overflow: ellipsis; }
+.proj-name:hover { border-color: var(--line); }
+.proj-name:focus { background: var(--panel2); border-color: var(--accent); outline: none; }
+.save-status { font-size: var(--fs-label); color: var(--muted); min-width: 72px; white-space: nowrap; transition: color .2s; }
+.save-status.saving { color: var(--muted); }
+.save-status.saved { color: #5ad19a; }
+.save-status.offline { color: #f0a44c; }
+.save-status.stuck { color: var(--danger); cursor: pointer; text-decoration: underline dotted; }
+.sep { width: 1px; height: 20px; background: var(--line); margin: 0 var(--sp-1); flex: none; }
+#topbar > div > button, #topbar .menu-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h); flex: none;
+  background: transparent; border: 1px solid transparent; color: var(--text);
+  border-radius: var(--radius-m); padding: 0 10px; cursor: pointer; font-size: var(--fs-body); }
+#topbar > div > button:hover:not(:disabled), #topbar .menu-btn:hover { background: var(--panel2); }
+#topbar > div > button:disabled { color: var(--muted); opacity: .5; cursor: default; }
+#topbar .menu.open > .menu-btn { background: var(--accent-soft); }
+.menu-btn .caret { width: 12px; height: 12px; opacity: .6; }
+.lbl { white-space: nowrap; }
+.menu-badge.none { display: none; }
+.time-select { height: var(--ctl-h); background: transparent; border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--radius-m); padding: 0 6px; cursor: pointer; font-size: var(--fs-body); flex: none; }
+.time-select:hover { background: var(--panel2); }
+#topbar .view-modes { display: inline-flex; gap: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 2px; }
+#topbar .view-modes button { height: 26px; padding: 0 12px !important; border: none; background: transparent; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-s); cursor: pointer; font-size: var(--fs-body); }
+#topbar .view-modes button:hover { color: var(--text); }
+#topbar .view-modes button.active { background: var(--accent-soft) !important; color: var(--text); }
+/* Narrow windows: the walk / lamps words go first (their icons and tooltips stay),
+   then the save status. Measured by ui/topbar-fit.ts, not guessed. */
+#topbar.tight .tb-right .lbl:not(.keep) { display: none; }
+#topbar.tight .tb-right > button { padding: 0 8px; }
+#topbar.tighter .save-status, #topbar.tighter .brand { display: none; }
+
+/* menus: static DOM, opened by toggling `hidden` on the pop. */
+.menu { position: relative; display: inline-flex; flex: none; }
+.menu-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 240px; padding: var(--sp-1);
+  background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-float);
+  display: flex; flex-direction: column; gap: 1px; }
+.menu-pop[hidden] { display: none; }
+.menu-pop.right { left: auto; right: 0; }
+.menu-pop > button, .menu-check { display: flex; align-items: center; gap: 10px; width: 100%; white-space: nowrap;
+  text-align: left; background: transparent; border: none; color: var(--text);
+  height: 32px; padding: 0 var(--sp-3); border-radius: var(--radius-m); cursor: pointer; font-size: var(--fs-body); }
+.menu-pop > button > span:first-of-type, .menu-check > span { flex: 1; }
+.menu-pop > button:hover, .menu-check:hover { background: var(--accent-soft); }
+.menu-pop > button.active { color: var(--accent); }
+.menu-pop .icon { opacity: .75; }
+.menu-pop kbd { font: 11px ui-monospace, monospace; color: var(--muted); }
+.menu-check input { margin: 0; accent-color: var(--accent); }
+.menu-group { padding: var(--sp-2) var(--sp-3) 2px; font-size: 11px; color: var(--muted); }
+.menu-group:not(:first-child) { margin-top: var(--sp-1); border-top: 1px solid var(--line); padding-top: var(--sp-2); }
+.menu-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  height: 34px; padding: 0 var(--sp-2) 0 var(--sp-3); font-size: var(--fs-body); }
+.menu-row.zoom-ctl { justify-content: flex-start; gap: 2px; }
+.menu-row button { height: 26px; min-width: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius-s); cursor: pointer; font-size: var(--fs-body); padding: 0 8px; }
+.menu-row button:hover { border-color: var(--accent); }
+.menu-row .zoom { min-width: 58px; font-variant-numeric: tabular-nums; color: var(--muted); }
+#zoomFit { margin-left: auto; }
+.lang-select { height: 26px; background: var(--panel); border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--radius-s); padding: 0 6px; font-size: var(--fs-label); cursor: pointer; }
+.menu-pop .health-count { margin-left: 0; }
+#topbar .menu-pop button.active[data-act="lighting"] { color: #ffb547; }
+
+/* stage + drawer */
+/* overflow: clip — the closed drawer waits just past the right edge, and without
+   this it made the page 268px wider than the window (verify-b8 caught it). */
+#body { flex: 1; display: flex; min-height: 0; position: relative; overflow: clip; }
+#stage { position: relative; }
+.drawer { position: absolute; top: var(--sp-2); right: var(--sp-2); bottom: var(--sp-2); width: var(--drawer-w); z-index: 15;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-float);
+  display: flex; flex-direction: column; overflow-y: auto; transition: transform .16s ease-out, opacity .16s; }
+.drawer.closed { transform: translateX(calc(100% + 16px)); opacity: 0; pointer-events: none; visibility: hidden; }
+.drawer > .panel-title:first-child { border-top: none; }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; }
+.drawer-head button { background: none; border: none; color: var(--muted); cursor: pointer; display: inline-flex; padding: 0; }
+.drawer-head button:hover { color: var(--text); }
+#layersBox:not(.hidden) { display: block; }
+/* The properties block hides itself while it only says 未選取物件 and the layers
+   list is what opened the drawer. */
+#right.only-layers > .panel-title:first-child, #right.only-layers #properties { display: none; }
+/* The lighting panel leans on the drawer's left edge when the drawer is out. */
+body.drawer-open .light-panel { right: calc(var(--drawer-w) + 20px); }
+
+/* floor buttons, bottom-right of the stage */
+.floor-dock { position: absolute; right: var(--sp-3); bottom: var(--sp-3); z-index: 7; display: flex; flex-direction: column; gap: 2px;
+  padding: 3px; background: rgba(23, 26, 32, 0.88); border: 1px solid var(--line); border-radius: var(--radius-m); }
+body.drawer-open .floor-dock { right: calc(var(--drawer-w) + 20px); }
+.floor-btn { position: relative; min-width: 40px; height: 28px; padding: 0 var(--sp-2); border: none; border-radius: var(--radius-s);
+  background: transparent; color: var(--muted); cursor: pointer; font-size: var(--fs-label); font-weight: 600; font-variant-numeric: tabular-nums; }
+.floor-btn:hover { color: var(--text); background: var(--panel2); }
+.floor-btn.active { background: var(--accent-soft); color: var(--text); }
+.floor-btn .floor-del { position: absolute; left: -18px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; padding: 0;
+  display: none; align-items: center; justify-content: center; border: none; border-radius: 50%; background: var(--panel2); color: var(--muted); cursor: pointer; }
+.floor-btn.active:hover .floor-del { display: inline-flex; }
+.floor-btn .floor-del:hover { color: var(--danger); }
+.floor-btn .floor-del .icon { width: 10px; height: 10px; }
+.floor-add { color: var(--muted); font-weight: 400; font-size: 15px; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-s) var(--radius-s); }
+
+/* bottom catalogue */
+#catalogBar { flex: none; background: var(--panel); border-top: 1px solid var(--line); display: flex; flex-direction: column; }
+.cat-tabs { display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 var(--sp-3); }
+.cat-tab { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h); padding: 0 10px; flex: none;
+  background: transparent; border: 1px solid transparent; color: var(--muted); border-radius: var(--radius-m); cursor: pointer; font-size: var(--fs-body); }
+.cat-tab:hover { color: var(--text); background: var(--panel2); }
+.cat-tab.open { color: var(--text); background: var(--accent-soft); }
+.cat-tab.tool-btn.active { color: var(--text); border-color: var(--accent); }
+.cat-tab .icon { width: 16px; height: 16px; }
+.cat-tab .cat-n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cat-sep { width: 1px; height: 20px; background: var(--line); margin: 0 var(--sp-1); flex: none; }
+.cat-find { margin-left: var(--sp-2); display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+.furn-search { width: 180px; height: var(--ctl-h); background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--radius-m); padding: 0 10px; font-size: var(--fs-body); }
+.furn-search:focus { outline: none; border-color: var(--accent); }
+.style-select { height: var(--ctl-h); background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--radius-m); padding: 0 6px; font-size: var(--fs-body); cursor: pointer; }
+.style-select.on { border-color: var(--accent); }
+.cat-shelf { border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; padding: var(--sp-2) var(--sp-3) 10px; }
+.cat-subs { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; min-height: 22px; }
+.cat-subs .shelf-title { font-size: var(--fs-label); color: var(--muted); margin-right: var(--sp-2); }
+.chip { background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 2px 10px; font-size: var(--fs-label); cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--text); }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+.cat-strip { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; scrollbar-width: thin; min-height: 84px; align-items: stretch; }
+.cat-strip .furn-btn, .cat-strip .tool-btn { flex: 0 0 84px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: var(--radius-m); padding: 6px 4px;
+  cursor: pointer; font-size: 11px; line-height: 1.3; text-align: center; }
+.cat-strip .furn-btn:hover, .cat-strip .tool-btn:hover { border-color: var(--accent); }
+.cat-strip .furn-btn.active, .cat-strip .tool-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+.furn-btn canvas, .furn-btn img { display: block; width: 60px; height: 46px; object-fit: contain; flex: none; }
+.furn-btn .fname { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-btn .ic { font-size: 22px; height: 46px; display: flex; align-items: center; justify-content: center; }
+.cat-strip .wallref-box { flex: none; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 var(--sp-2) 0 var(--sp-3);
+  margin-left: var(--sp-2); border-left: 1px solid var(--line); font-size: var(--fs-label); color: var(--muted); }
+.wallref-box .view-modes { display: inline-flex; gap: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 2px; }
+.wallref-box .view-modes button { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border: none; background: transparent;
+  color: var(--muted); border-radius: var(--radius-s); cursor: pointer; font-size: var(--fs-label); }
+.wallref-box .view-modes button.active { background: var(--accent-soft); color: var(--text); }
+.shelf-empty { align-self: center; color: var(--muted); font-size: var(--fs-body); padding: 0 var(--sp-2); }
+
+/* hints: only while a tool is working */
+#hint.idle { display: none; }
+
+/* first-run nudge, bottom-right: never a dialog */
+.tour-nudge { position: fixed; right: 16px; bottom: 16px; z-index: 40; width: 280px; padding: var(--sp-3) 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-float); font-size: var(--fs-body); }
+.tour-nudge b { display: block; margin-bottom: 4px; font-size: var(--fs-body); }
+.tour-nudge p { margin: 0 0 10px; color: var(--muted); font-size: var(--fs-label); line-height: 1.6; }
+.tour-nudge .acts { display: flex; gap: var(--sp-2); justify-content: flex-end; }
+.tour-nudge button { height: 28px; padding: 0 12px; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; font-size: var(--fs-label); }
+.tour-nudge button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.drawer-peek { position: absolute; top: var(--sp-2); right: var(--sp-2); z-index: 7; height: 28px; padding: 0 10px;
+  display: inline-flex; align-items: center; gap: 6px; background: rgba(23, 26, 32, 0.88); border: 1px solid var(--line);
+  border-radius: var(--radius-m); color: var(--text); font-size: var(--fs-label); cursor: pointer; }
+.drawer-peek:hover { border-color: var(--accent); }
+/* Narrower windows: the per-tab counts go first (the shelf still says how many),
+   then the search box gives up some width. Measured: at 1280 the style filter
+   was pushed past the right edge. */
+@media (max-width: 1480px) {
+  .cat-tab .cat-n { display: none; }
+  .cat-tab { padding: 0 8px; }
+  .furn-search { width: 140px; }
+}
+#catalog.tight .cat-tab .icon { display: none; }
+.cat-list { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.cat-list::-webkit-scrollbar { display: none; }
+/* The floor buttons sit in the stage's bottom-right corner, so the 3D key read-out
+   and hint (one dock, keys3d.ts) centre themselves in what is left of the pane beside them. */
+.dock3d { right: calc(76px + var(--panel-inset, 0px)); }

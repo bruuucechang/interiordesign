@@ -1,4 +1,4 @@
-// 貼右側的兩個浮動面板（照度、空間健檢）共用的兩條規則。
+// 貼右側的浮動面板（照度、空間健檢、B20 的屬性抽屜）共用的兩條規則。
 //
 // 一、同時只開一個。兩個都是 `position: fixed` 貼右邊，一起開的時候健檢整個蓋在
 //     照度右半上，「最暗」「最亮」「建議」三欄看不到（docs/review-2026-10.md 的 U2）。
@@ -21,8 +21,9 @@ export function onOtherPanel(name: string, close: () => void) {
 export function panelInsetRight(canvas: HTMLElement): number {
   const c = canvas.getBoundingClientRect();
   let left = c.right;
-  for (const el of document.querySelectorAll<HTMLElement>('.light-panel, .health-panel')) {
-    if (el.classList.contains('hidden')) continue;
+  // #right 是屬性抽屜（B20）：浮在畫面上，收起來時帶 .closed。
+  for (const el of document.querySelectorAll<HTMLElement>('.light-panel, .health-panel, #right')) {
+    if (el.classList.contains('hidden') || el.classList.contains('closed')) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.left >= c.right || r.right <= c.left) continue;
     left = Math.min(left, r.left);
@@ -37,7 +38,7 @@ export function panelInsetRight(canvas: HTMLElement): number {
 export function watchPanelInset(el: HTMLElement) {
   const sync = () => el.style.setProperty('--panel-inset', `${panelInsetRight(el)}px`);
   const mo = new MutationObserver(sync);
-  for (const p of document.querySelectorAll<HTMLElement>('.light-panel, .health-panel')) mo.observe(p, { attributes: true, attributeFilter: ['class', 'style'] });
+  for (const p of document.querySelectorAll<HTMLElement>('.light-panel, .health-panel, #right')) mo.observe(p, { attributes: true, attributeFilter: ['class', 'style'] });
   new ResizeObserver(sync).observe(el);
   sync();
 }

@@ -13,10 +13,26 @@
 
 const LEVELS = ['tight', 'tighter'] as const;
 
+// B20：頂列分左中右三區，左右兩區平分剩下的寬度，所以要量的是兩側各自放不放得下。
+// 不能用 scrollWidth：右區靠右對齊，放不下時是往**左**溢出，scrollWidth 量不到
+// （verify-b8 抓到的：撐到溢出了 .tight 也不會上）。改成把子元素的寬加起來比。
+function contentWidth(zone: HTMLElement) {
+  const kids = Array.from(zone.children) as HTMLElement[];
+  const gap = parseFloat(getComputedStyle(zone).columnGap) || 0;
+  const shown = kids.filter(k => k.getBoundingClientRect().width > 0);
+  return shown.reduce((w, k) => {
+    const cs = getComputedStyle(k);
+    return w + k.getBoundingClientRect().width + (parseFloat(cs.marginLeft) || 0) + (parseFloat(cs.marginRight) || 0);
+  }, 0) + gap * Math.max(0, shown.length - 1);
+}
+const overflows = (bar: HTMLElement) =>
+  bar.scrollWidth > bar.clientWidth + 1
+  || Array.from(bar.querySelectorAll<HTMLElement>('.tb-left, .tb-right')).some(z => contentWidth(z) > z.clientWidth + 1);
+
 export function fitTopbar(bar: HTMLElement) {
   bar.classList.remove(...LEVELS);
   for (const level of LEVELS) {
-    if (bar.scrollWidth <= bar.clientWidth) return;
+    if (!overflows(bar)) return;
     bar.classList.add(level);
   }
 }
@@ -32,7 +48,9 @@ export function wireTopbarFit() {
   };
   const ro = new ResizeObserver(refit);
   ro.observe(bar);
-  for (const child of Array.from(bar.children)) ro.observe(child);
+  for (const child of Array.from(bar.querySelectorAll('.tb-left > *, .tb-center, .tb-right > *'))) ro.observe(child);
+  // 頂列裡加減了東西（按鈕出現、消失）也重量一次：那不一定會讓既有的元素變大小。
+  new MutationObserver(refit).observe(bar, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });   // 不看 class：fitTopbar 自己改 class，看了會每一幀量一次
   // 切語言會換掉標籤的字，寬度跟著變。
   new MutationObserver(refit).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
   // 第一次量的時候字型與樣式可能還沒到齊，量到的是比較寬的樣子；收起來之後子元素

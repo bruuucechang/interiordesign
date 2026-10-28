@@ -30,7 +30,7 @@ await page.goto('http://localhost:5180/?plan=plan1151022');
 await page.waitForTimeout(2500);
 await page.locator('#canvas').screenshot({ path: join(OUT, 'pdf1151022-app.png') });
 
-await page.click('[data-act="health"]');
+await page.evaluate(() => document.querySelector('[data-act="health"]').click());   // B20：在「檢視」選單裡
 await page.waitForTimeout(400);
 const body = await page.locator('#healthBody').innerText();
 const geom = ['沒接上', '不在任何牆上', '還沒圍成'].filter((k) => body.includes(k));

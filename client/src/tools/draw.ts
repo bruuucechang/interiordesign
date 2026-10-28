@@ -6,6 +6,7 @@ import { layerForKind } from '../model/catalogue';
 import { fmtLen, dist, angleDeg, alignWallEnd, bulgeFrom } from '../core/geometry';
 import { applyReference } from '../core/wallEdit';
 import { DEFAULTS } from '../model/locale-defaults';
+import { t } from '../core/i18n';
 import { computeSnap, drawSnap, SnapResult, WallSeg } from '../core/snap';
 
 /** 台灣住宅的預設牆厚。來源與其他在地預設值一起列在 locale-defaults.ts。 */
@@ -27,7 +28,7 @@ export function placePoint(pt: Vec, snap: SnapResult | null): Vec {
 // Endpoints snap onto nearby walls (foolproof joining); otherwise they soft-snap
 // to 0/45/90° for grid alignment (Shift = force).
 export class WallTool implements Tool {
-  name = 'wall'; cursor = 'crosshair'; hint = '點擊放置端點，或直接輸入長度（Tab 切角度、Enter 放置、Backspace 修改）；R 切換基準線；Esc 結束';
+  name = 'wall'; cursor = 'crosshair'; hint = t('點擊放置端點，或直接輸入長度（Tab 切角度、Enter 放置、Backspace 修改）；R 切換基準線；Esc 結束');
   private start: Vec | null = null;
   private snap: SnapResult | null = null;   // set when the current end snapped to a wall / alignment
   /** Last pointer position, so typed input has a direction to fall back on. */
@@ -139,7 +140,7 @@ export class WallTool implements Tool {
 
 // Drag a rectangle to make a room.
 export class RoomTool implements Tool {
-  name = 'room'; cursor = 'crosshair'; hint = '拖曳一個矩形建立房間';
+  name = 'room'; cursor = 'crosshair'; hint = t('拖曳一個矩形建立房間');
   private a: { x: number; y: number } | null = null;
   constructor(private ctx: ToolCtx) {}
   onDown(p: PointerInfo) { this.a = p.snapped; }
@@ -170,7 +171,7 @@ export class RoomTool implements Tool {
  * reads — so it goes back to the select tool afterwards, ready to rename.
  */
 export class AreaTool implements Tool {
-  name = 'area'; cursor = 'crosshair'; hint = '在房間裡拖曳一個矩形畫子區域（只算照度，不算面積）；Esc 結束';
+  name = 'area'; cursor = 'crosshair'; hint = t('在房間裡拖曳一個矩形畫子區域（只算照度，不算面積）；Esc 結束');
   private a: Vec | null = null;
   constructor(private ctx: ToolCtx) {}
   onDown(p: PointerInfo) { this.a = p.snapped; }
@@ -201,7 +202,7 @@ export class AreaTool implements Tool {
 // Chains from the previous endpoint like the straight tool.
 export class CurvedWallTool implements Tool {
   name = 'wallCurve'; cursor = 'crosshair';
-  hint = '點擊起點與終點，移動滑鼠設定弧度後再點擊確認；自動貼合牆體端點；Esc 結束';
+  hint = t('點擊起點與終點，移動滑鼠設定弧度後再點擊確認；自動貼合牆體端點；Esc 結束');
   private a: Vec | null = null;          // chain start
   private wallId: string | null = null;  // wall currently being curved
   private b: Vec | null = null;          // its end
@@ -262,7 +263,7 @@ export class CurvedWallTool implements Tool {
 const BEAM_WIDTH = 20, BEAM_HEIGHT = 40, BEAM_ELEV = 230;   // cm (underside near a 270 ceiling)
 export class BeamTool implements Tool {
   name = 'beam'; cursor = 'crosshair';
-  hint = '點擊放置樑的端點；自動貼合牆體，近水平/垂直對齊格線；Esc 結束';
+  hint = t('點擊放置樑的端點；自動貼合牆體，近水平/垂直對齊格線；Esc 結束');
   private start: Vec | null = null;
   private snap: SnapResult | null = null;
   constructor(private ctx: ToolCtx) {}
@@ -318,7 +319,7 @@ export class BeamTool implements Tool {
  */
 export class PartitionTool implements Tool {
   name = 'partition'; cursor = 'crosshair';
-  hint = '點擊放置隔間線的端點；它只在平面上分割區域（不蓋東西、3D 不出現）；端點會貼合牆體；Esc 結束';
+  hint = t('點擊放置隔間線的端點；它只在平面上分割區域（不蓋東西、3D 不出現）；端點會貼合牆體；Esc 結束');
   private start: Vec | null = null;
   private snap: SnapResult | null = null;
   constructor(private ctx: ToolCtx) {}
@@ -367,7 +368,7 @@ export class PartitionTool implements Tool {
 
 // Drag between two points to place a dimension line.
 export class DimensionTool implements Tool {
-  name = 'dimension'; cursor = 'crosshair'; hint = '拖曳量測兩點之間的距離';
+  name = 'dimension'; cursor = 'crosshair'; hint = t('拖曳量測兩點之間的距離');
   private a: { x: number; y: number } | null = null;
   constructor(private ctx: ToolCtx) {}
   onDown(p: PointerInfo) { this.a = p.snapped; }

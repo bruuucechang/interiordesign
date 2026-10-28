@@ -35,9 +35,9 @@ const SECTIONS_ZH: Section[] = [
   {
     title: '二、開始一張新圖的三種方式',
     body: [
-      '**有平面圖的照片或掃描檔**：工具列的「底圖」匯入，然後沿著它描。最快，也最常用。',
-      '**手上什麼都沒有**：直接選左邊的「直線牆」開始畫。畫的時候可以直接輸入精確長度，不必靠滑鼠瞄。',
-      '**有 CAD 檔（.dxf）**：從「匯出／匯入」旁的匯入 DXF 進來，會列出圖層讓你勾選要哪幾層變成牆。**.dwg 不支援**，要先在 CAD 軟體另存成 .dxf。',
+      '**有平面圖的照片或掃描檔**：「檔案」→「底圖」匯入，然後沿著它描。最快，也最常用。',
+      '**手上什麼都沒有**：打開底下的「結構」，選「直線牆」開始畫。畫的時候可以直接輸入精確長度，不必靠滑鼠瞄。',
+      '**有 CAD 檔（.dxf）**：從「檔案」→「DXF 圖檔」匯入，會列出圖層讓你勾選要哪幾層變成牆。**.dwg 不支援**，要先在 CAD 軟體另存成 .dxf。',
     ],
   },
   {
@@ -46,15 +46,15 @@ const SECTIONS_ZH: Section[] = [
       '匯入的圖片，軟體不知道它是多大的房子，只能先假設最長邊約 10 公尺。那是猜的。',
       '所以匯入後會自動切到「校正」工具：**在底圖上找一段標了尺寸的線，沿著它拉一條，然後輸入那一段的實際公分數**。整張圖的比例就對了。',
       '**跳過這一步不會有任何錯誤訊息。** 描出來的圖看起來完全正常、每個房間的比例也都對，只是所有尺寸都是錯的，而且後面沒有任何地方會發現。',
-      '底圖匯入時會自動鎖定，描圖時不會被誤拖。要調它的位置、大小或透明度，先到右邊「圖層」把「底圖」解鎖。',
+      '底圖匯入時會自動鎖定，描圖時不會被誤拖。要調它的位置、大小或透明度，先到「檢視」→「圖層」把「底圖」解鎖。',
     ],
   },
   {
     title: '四、畫牆',
     body: [
-      '選左邊的「直線牆」，在圖上點一下放起點，再點一下放下一個點，會一直接下去。**按 Esc 結束這一段。**',
+      '打開底下的「結構」、選「直線牆」，在圖上點一下放起點，再點一下放下一個點，會一直接下去。**按 Esc 結束這一段。**',
       '**不用滑鼠也能畫**：放好起點之後直接打長度數字，Tab 切到角度，Enter 放置，Backspace 修改。要精確尺寸時比拖滑鼠準得多。',
-      '**「中心／左緣／右緣」是這個工具最容易搞錯的地方。** 牆有厚度，圖上一道牆其實是兩條線。從 CAD 圖描要選「中心」；拿捲尺貼著牆量的選「左緣」或「右緣」。選錯的話整間房子會一致地差半個牆厚——12 公分的牆，一間房就差 12 公分，而且因為是一致的偏差，看起來完全正常。',
+      '**「中心／左緣／右緣」是這個工具最容易搞錯的地方。** 牆有厚度，圖上一道牆其實是兩條線。從 CAD 圖描要選「中心」；拿捲尺貼著牆量的選「左緣」或「右緣」。選錯的話整間房子會一致地差半個牆厚——12 公分的牆，一間房就差 12 公分，而且因為是一致的偏差，看起來完全正常。這個選擇在「結構」那一排的最後面，畫的途中也可以按 R 切換。',
       '端點會自動貼合既有牆的端點，接近水平／垂直／45° 時會自動對齊。按住 Shift 強制對齊。',
       '另外還有「曲線牆」（點起點、點終點，再移動滑鼠拉出弧度）、「樑」與「隔間線」。隔間線不是牆，但它一樣會把空間圍成房間、算進面積。',
     ],
@@ -63,15 +63,15 @@ const SECTIONS_ZH: Section[] = [
     title: '五、門與窗',
     body: [
       '選「門」或「窗」，在牆上點一下就嵌進去了，會自動吸附到最近的那道牆並對齊牆的方向。',
-      '放好之後點選它，右邊可以改寬度、高度、離地高度，門還可以改樣式、鉸鏈在哪一邊、往哪邊開。',
+      '放好之後點選它，右邊滑出的面板可以改寬度、高度、離地高度，門還可以改樣式、鉸鏈在哪一邊、往哪邊開。',
     ],
   },
   {
     title: '六、家具',
     body: [
-      '左邊面板下半部有 251 件家具，三種找法互相獨立：上面的搜尋框（打名字）、風格標籤（單選，再按一次同一顆回到全部）、以及每個分類標題可以摺疊。',
+      '家具在畫面底下那一排，依房間分類（客廳、餐廳、臥室……），燈與水電、樓梯各一類。點一個分類，第二排展開那一類的東西；一次只看一類。右邊的搜尋框跨所有分類找名字，風格選單把看得到的再縮小——兩個互相獨立。',
       '點一件家具，游標會帶著它的預覽，在圖上點一下放下。**靠近牆（60 公分內）時會自動轉成背對牆並貼上去**——沙發不會臉朝牆。吊燈、地毯這類沒有正面的東西不套用。',
-      '放好之後點選它，右邊可以改尺寸、角度、材質顏色。吊燈與吊扇會自動掛到天花板高度。',
+      '放好之後點選它，右邊滑出的面板可以改尺寸、角度、材質顏色；沒選東西時面板收起來。吊燈與吊扇會自動掛到天花板高度。',
       '多選（框選或按住 Shift 點）之後可以用 Ctrl+G 組成群組，之後移動、旋轉、複製都會整組一起動。',
     ],
   },
@@ -86,23 +86,23 @@ const SECTIONS_ZH: Section[] = [
   {
     title: '八、樓層與圖層',
     body: [
-      '右上角是樓層：可以新增樓層、雙擊改名、改樓高。每一層有自己的物件，切換樓層只會看到那一層的。',
-      '下面是圖層（牆、家具、電氣、尺寸、底圖…）：每一層可以單獨隱藏或鎖定。鎖定的圖層點不到也拖不動，描底圖時很有用。',
+      '樓層在畫面右下角，一層一顆按鈕、最高的在上面：「＋」新增，雙擊改名，選了那層之後滑過去會出現刪除。每一層有自己的物件，切換樓層只會看到那一層的。',
+      '圖層在「檢視」→「圖層」（牆、家具、電氣、尺寸、底圖…）：每一層可以單獨隱藏或鎖定。鎖定的圖層點不到也拖不動，描底圖時很有用。',
     ],
   },
   {
     title: '九、3D 檢視',
     body: [
-      '工具列中間可以切「2D／並排／3D」。並排最常用：左邊改一筆，右邊立刻看到。',
+      '頂列正中間可以切「2D／分割／3D」。分割最常用：左邊改一筆，右邊立刻看到。',
       '3D 裡拖曳滑鼠轉視角、滾輪縮放、**WASD 往視線方向走**、Shift 與空白鍵上下升降、方向鍵沿畫面平移。',
-      '右邊的「時段」下拉可以換日照方向與光線顏色。',
+      '頂列右邊的「時段」可以換日照方向與光線顏色；「開燈」讓燈具真的發光（黃昏、夜晚自動開）；「行走」讓你用人的高度走進房子裡，牆會擋、門可以過、樓梯可以上下樓（F 進出）。',
       '如果這台電腦沒有 3D 繪圖能力（很舊的機器、關掉硬體加速、遠端桌面），3D 那一格會顯示說明，**平面圖不受影響**，照樣可以畫、可以出圖。',
     ],
   },
   {
     title: '十、出圖與匯出',
     body: [
-      '工具列的「匯出」裡有五樣：',
+      '「檔案」選單的「匯出」底下有這幾樣：',
       '**PNG** — 目前畫面的圖片。**PDF** — 同一張圖的 PDF。',
       '**施工圖 PDF** — 帶圖框、比例尺與尺寸標註的正式圖。',
       '**面積報表（.xlsx）** — 每個房間的面積表。',
@@ -112,18 +112,18 @@ const SECTIONS_ZH: Section[] = [
   {
     title: '十一、存檔',
     body: [
-      '**不用記得存檔。** 每一次改動都會自動儲存，狀態顯示在工具列右邊：「儲存中…」「已儲存 ✓」。',
-      '「新建」會清空目前畫布開一張新的（會先問一次）。「開啟」列出所有存過的圖。',
+      '**不用記得存檔。** 每一次改動都會自動儲存，狀態顯示在方案名稱旁邊：「儲存中…」「已儲存 ✓」。',
+      '「檔案」→「新建」會清空目前畫布開一張新的（會先問一次）。「開啟」列出所有存過的圖。',
       '刪掉的專案會進回收桶，30 天內都救得回來。',
     ],
   },
   {
     title: '十二、卡住的時候',
     body: [
-      '**按錯了** — Ctrl+Z 復原，Ctrl+Shift+Z 重做，工具列也有這兩顆按鈕。',
-      '**點不到某個東西** — 它可能在鎖定或隱藏的圖層上，到右邊「圖層」看看。',
+      '**按錯了** — Ctrl+Z 復原，Ctrl+Shift+Z 重做，頂列右邊也有這兩顆按鈕。',
+      '**點不到某個東西** — 它可能在鎖定或隱藏的圖層上，到「檢視」→「圖層」看看。',
       '**想脫離目前的工具** — 按 Esc 回到「選取」。',
-      '**畫面跑掉了** — 點工具列的縮放百分比回到 100% 並置中。',
+      '**畫面跑掉了** — 「檢視」選單的縮放那一列：點百分比回到 100%，「全部」把整張圖放進畫面。',
       '**尺寸怪怪的** — 多半是底圖沒有校正比例，或是畫牆時基準線選錯（見第三、四節）。',
     ],
   },
@@ -140,8 +140,8 @@ const SECTIONS_EN: Section[] = [
   {
     title: '2. Three ways to start a plan',
     body: [
-      '**You have a photo or a scan of a floor plan**: import it with Underlay in the toolbar and trace over it. Fastest, and the usual case.',
-      '**You have nothing**: pick Wall on the left and start drawing. You can type exact lengths instead of aiming with the mouse.',
+      '**You have a photo or a scan of a floor plan**: import it with File → Underlay and trace over it. Fastest, and the usual case.',
+      '**You have nothing**: open Structure along the bottom, pick Wall and start drawing. You can type exact lengths instead of aiming with the mouse.',
       '**You have a CAD file (.dxf)**: import it and pick which layers become walls. **.dwg is not supported** — save it as .dxf from your CAD software first.',
     ],
   },
@@ -151,13 +151,13 @@ const SECTIONS_EN: Section[] = [
       'The software cannot know how big the imported picture is, so it assumes the longest side is about 10 m. That is a guess.',
       'So it switches straight to the Calibrate tool: **find something on the drawing that carries a dimension, draw a line along it, and type that real length in centimetres.** The whole drawing is then to scale.',
       '**Skipping this produces no error of any kind.** The traced plan looks completely normal, every room is in proportion, and every single measurement in it is wrong — and nothing later in the app notices.',
-      'The underlay is locked on import so tracing cannot drag it. To move, resize or fade it, unlock the Underlay layer on the right first.',
+      'The underlay is locked on import so tracing cannot drag it. To move, resize or fade it, unlock the Underlay layer under View → Layers first.',
     ],
   },
   {
     title: '4. Drawing walls',
     body: [
-      'Pick Wall on the left, click to place the start, click again for the next point — it keeps chaining. **Press Esc to end the run.**',
+      'Open Structure along the bottom and pick Wall; click to place the start, click again for the next point — it keeps chaining. **Press Esc to end the run.**',
       '**You can draw without the mouse**: after the start point, type the length, Tab for the angle, Enter to place, Backspace to correct. Much more precise than dragging.',
       '**Centre / Left face / Right face is the easiest thing here to get wrong.** A wall has thickness, so on a drawing it is really two lines. Tracing a CAD drawing: pick Centre. Measuring on site with a tape against one face: pick Left or Right. Get it wrong and the whole flat is consistently out by half a wall thickness — and because it is consistent, it looks entirely normal.',
       'Endpoints snap to existing wall ends, and near-horizontal, near-vertical and 45° runs align themselves. Hold Shift to force alignment.',
@@ -168,13 +168,13 @@ const SECTIONS_EN: Section[] = [
     title: '5. Doors and windows',
     body: [
       'Pick Door or Window and click on a wall — it snaps into the nearest wall and takes its direction.',
-      'Select it afterwards and the right-hand panel sets width, height and sill height; doors also set style, which side the hinge is on and which way they open.',
+      'Select it afterwards and the panel that slides out on the right sets width, height and sill height; doors also set style, which side the hinge is on and which way they open.',
     ],
   },
   {
     title: '6. Furniture',
     body: [
-      'The lower half of the left panel holds 251 pieces. Three independent ways to find one: the search box (by name), the style tags (single choice — press the same one again for everything), and the collapsible category headings.',
+      'The furniture is in the row along the bottom, one category per room (living, dining, bedroom…), plus lights & power and stairs. Pick a category and its pieces open in a second row — one category at a time. The search box on the right looks through every category by name; the style list narrows what is showing. The two are independent.',
       'Click a piece and the cursor carries a preview; click on the plan to drop it. **Within 60 cm of a wall it turns to face away from the wall and backs onto it** — sofas do not end up facing the wall. Ceiling items and rugs are left alone, since they have no front.',
       'Select a placed piece to change its size, angle and finish. Pendant lights and ceiling fans mount at ceiling height automatically.',
       'Select several (rubber-band or Shift-click) and Ctrl+G groups them, so moving, rotating and copying treat them as one.',
@@ -191,14 +191,14 @@ const SECTIONS_EN: Section[] = [
   {
     title: '8. Floors and layers',
     body: [
-      'Top right is the storey list: add storeys, double-click to rename, set the height. Each storey holds its own objects.',
+      'Floors are the small buttons at the bottom right of the view, highest on top: ＋ adds one, double-click renames, and hovering the current one shows delete. Each storey holds its own objects.',
       'Below it are layers (walls, furniture, electrical, dimensions, underlay …). Each can be hidden or locked on its own; a locked layer cannot be clicked or dragged, which is what makes tracing workable.',
     ],
   },
   {
     title: '9. The 3D view',
     body: [
-      'The middle of the toolbar switches 2D / Split / 3D. Split is the usual one.',
+      'The middle of the top bar switches 2D / Split / 3D. Split is the usual one. On the right: Walk (at eye height, walls stop you, doors and stairs work — F in and out), time of day, and Lamps.',
       'In 3D: drag to turn, scroll to zoom, **WASD walks in the direction you are looking**, Shift and Space go down and up, the arrow keys slide the view.',
       'The time-of-day dropdown changes the sun direction and light colour.',
       'On a machine with no 3D capability (an old laptop, hardware acceleration off, a remote desktop) the 3D pane explains itself and **the plan is unaffected** — drawing and exporting work exactly the same.',
@@ -207,7 +207,7 @@ const SECTIONS_EN: Section[] = [
   {
     title: '10. Exporting',
     body: [
-      'Five things under Export:',
+      'Under File → Export:',
       '**PNG** — a picture of the current plan. **PDF** — the same as a PDF.',
       '**Construction PDF** — a formal sheet with a title block, scale bar and dimensions.',
       '**Area schedule (.xlsx)** — every room and its area.',
@@ -217,7 +217,7 @@ const SECTIONS_EN: Section[] = [
   {
     title: '11. Saving',
     body: [
-      '**You do not have to remember to save.** Every change is stored automatically; the indicator on the right of the toolbar shows Saving… / Saved ✓.',
+      '**You do not have to remember to save.** Every change is stored automatically; the indicator next to the plan name shows Saving… / Saved ✓.',
       'New clears the canvas for a fresh plan (it asks first). Open lists everything you have saved.',
       'Deleted projects go to a bin and can be restored for 30 days.',
     ],
@@ -225,10 +225,10 @@ const SECTIONS_EN: Section[] = [
   {
     title: '12. When you are stuck',
     body: [
-      '**Wrong move** — Ctrl+Z undoes, Ctrl+Shift+Z redoes; both are in the toolbar too.',
+      '**Wrong move** — Ctrl+Z undoes, Ctrl+Shift+Z redoes; both are at the right of the top bar too.',
       '**Cannot click something** — it is probably on a locked or hidden layer. Check the Layers list.',
       '**Want out of the current tool** — Esc returns to Select.',
-      '**Lost the view** — click the zoom percentage in the toolbar to reset to 100% and centre.',
+      '**Lost the view** — View → zoom: click the percentage to reset to 100%, or Fit to see the whole plan.',
       '**Dimensions look wrong** — almost always an uncalibrated underlay, or the wrong wall reference face (sections 3 and 4).',
     ],
   },

@@ -1,6 +1,7 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { Obj, Vec } from '../model/schema';
 import { calibrate, calibrationMessage, Rect } from '../core/calibrate';
+import { t } from '../core/i18n';
 import { fmtLen } from '../core/geometry';
 
 /**
@@ -20,7 +21,7 @@ import { fmtLen } from '../core/geometry';
 export class CalibrateTool implements Tool {
   name = 'calibrate';
   cursor = 'crosshair';
-  hint = '沿著圖上標有尺寸的一段拉一條線，放開後輸入它的實際長度';
+  hint = t('沿著圖上標有尺寸的一段拉一條線，放開後輸入它的實際長度');
 
   private from: Vec | null = null;
   private to: Vec | null = null;
@@ -56,7 +57,7 @@ export class CalibrateTool implements Tool {
       ctx => {
         // The current reading, which is the number the user is about to correct.
         const s = this.ctx.vp.toScreen({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-        const txt = `目前 ${fmtLen(Math.hypot(b.x - a.x, b.y - a.y))}`;
+        const txt = `${t('目前')} ${fmtLen(Math.hypot(b.x - a.x, b.y - a.y))}`;
         ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         const w = ctx.measureText(txt).width + 12;
         ctx.fillStyle = 'rgba(10,12,16,0.85)'; ctx.fillRect(s.x - w / 2, s.y - 22, w, 18);
@@ -73,25 +74,25 @@ export class CalibrateTool implements Tool {
     if (!a || !b) return;
 
     const img = this.image();
-    if (!img) { this.ctx.onCalibrated?.('沒有底圖可以校正'); return; }
+    if (!img) { this.ctx.onCalibrated?.(t('沒有底圖可以校正')); return; }
 
     const drawn = Math.hypot(b.x - a.x, b.y - a.y);
     const typed = prompt(
-      `這一段在實際的房子裡有多長？（公分）\n\n目前這張底圖認為它是 ${fmtLen(drawn)}。`,
+      t('這一段在實際的房子裡有多長？（公分）') + '\n\n' + t('目前這張底圖認為它是 {len}。').replace('{len}', fmtLen(drawn)),
       String(Math.round(drawn)),
     );
     if (typed === null) { this.ctx.selectTool('select'); return; }   // cancelled
 
     const res = calibrate(img as unknown as Rect, a, b, Number(typed));
-    if (typeof res === 'string') { this.ctx.onCalibrated?.(calibrationMessage(res)); return; }
+    if (typeof res === 'string') { this.ctx.onCalibrated?.(t(calibrationMessage(res))); return; }
 
     this.ctx.doc.commit();
     this.ctx.doc.update(img.id, { x: res.rect.x, y: res.rect.y, w: res.rect.w, h: res.rect.h } as Partial<Obj>);
     this.ctx.selectTool('select');
     this.ctx.onCalibrated?.(
       res.factor === 1
-        ? '比例本來就是對的，底圖沒有變動'
-        : `底圖已校正：${res.factor > 1 ? '放大' : '縮小'} ${res.factor.toFixed(3)} 倍，現在描出來就是真實尺寸`,
+        ? t('比例本來就是對的，底圖沒有變動')
+        : t('底圖已校正：{dir} {f} 倍，現在描出來就是真實尺寸').replace('{dir}', res.factor > 1 ? t('放大') : t('縮小')).replace('{f}', res.factor.toFixed(3)),
       true,
     );
   }

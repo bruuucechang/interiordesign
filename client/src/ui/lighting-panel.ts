@@ -169,7 +169,7 @@ function paintCircuits(editor: Editor, doc: Doc) {
   const list = circuitsOf(doc.objects, doc.activeFloor.height);
   if (!list.length) {
     const m = document.createElement('div'); m.className = 'lp-muted';
-    m.textContent = t('這層樓還沒有燈。從左邊「水電」的燈具放幾盞，熱圖就會出現。');
+    m.textContent = t('這層樓還沒有燈。從底下「燈與電」放幾盞，熱圖就會出現。');
     host.appendChild(m);
     return;
   }

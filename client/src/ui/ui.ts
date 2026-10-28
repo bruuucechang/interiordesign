@@ -11,7 +11,7 @@ import { exportPNG, exportPDF } from '../core/exporter';
 
 import { flash } from './feedback';
 import { askRoute, renderSteps } from './onboarding';
-import { startTour, maybeStartTour } from './tour';
+import { startTour, maybeNudgeTour, dismissTourNudge } from './tour';
 import { openHelp, wireHelp } from './help';
 import { toggleHealth, wireHealth, scheduleHealth } from './health-panel';
 import { toggleLighting, wireLighting } from './lighting-panel';
@@ -27,9 +27,8 @@ import { dwgNotSupportedModal, dxfImportModal, plotModal, openModal } from './mo
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
-// 常用 = the everyday drawing tools, shown as the first catalog section.
-const COMMON_TOOLS = [
-  { name: 'select', ic: '✋', label: '平移' },   // 拖曳物件移動；拖曳空白處平移視角
+// 結構 = the drawing tools, the first tab of the catalogue.
+const STRUCTURE_TOOLS = [
   { name: 'wall', ic: '▬', label: '直線牆' },
   { name: 'wallCurve', ic: '◠', label: '曲線牆' },
   { name: 'beam', ic: '═', label: '樑' },
@@ -53,17 +52,12 @@ export function initUI(editor: Editor, doc: Doc) {
   // 伺服器會擋下來，這裡負責把它變成一個人看得懂、而且有得選的東西：你的版本還
   // 完整地留在本機，所以「另存新檔」永遠是安全出口。
   setConflictHandler((id, storedAtIso) => {
-    const when = storedAtIso ? storedAtIso.replace('T', ' ').slice(0, 19) : '剛剛';
-    const keep = confirm(
-      `這份圖在別的地方被存過了（${when}）。\n\n`
-      + `直接存下去會蓋掉那一版。\n\n`
-      + `按「確定」另存成新的一份（兩版都保住），\n`
-      + `按「取消」先不存 — 你的改動仍在本機，什麼都不會弄丟。`,
-    );
+    const when = storedAtIso ? storedAtIso.replace('T', ' ').slice(0, 19) : t('剛剛');
+    const keep = confirm(t('這份圖在別的地方被存過了（{when}）。\n\n直接存下去會蓋掉那一版。\n\n按「確定」另存成新的一份（兩版都保住），\n按「取消」先不存 — 你的改動仍在本機，什麼都不會弄丟。').replace('{when}', when));
     if (!keep) { flash(t('已暫停儲存 — 你的改動還在，重新載入可以看到別人的版本')); return; }
     const copy = doc.serialize();
     copy.id = genId('proj');
-    copy.name = `${copy.name}（我的版本）`;
+    copy.name = `${copy.name}${t('（我的版本）')}`;
     doc.load(copy);
     $<HTMLInputElement>('#projectName').value = copy.name;
     markDirty();
@@ -74,15 +68,11 @@ export function initUI(editor: Editor, doc: Doc) {
   // 這份圖屬於別人。跟衝突走同一個原則：你的改動一直在本機，所以「另存新檔」永遠是
   // 安全出口，不會有「選錯就沒了」的分支。
   setNotYoursHandler(() => {
-    const keep = confirm(
-      '這份平面圖屬於另一個使用者（或另一個瀏覽器）。\n\n'
-      + '你的改動沒有被存進去，但完整地留在這台機器上。\n\n'
-      + '按「確定」另存成你自己的一份，按「取消」先不存。',
-    );
+    const keep = confirm(t('這份平面圖屬於另一個使用者（或另一個瀏覽器）。\n\n你的改動沒有被存進去，但完整地留在這台機器上。\n\n按「確定」另存成你自己的一份，按「取消」先不存。'));
     if (!keep) { flash(t('已暫停儲存 — 你的改動還在本機')); return; }
     const copy = doc.serialize();
     copy.id = genId('proj');
-    copy.name = `${copy.name}（我的版本）`;
+    copy.name = `${copy.name}${t('（我的版本）')}`;
     doc.load(copy);
     $<HTMLInputElement>('#projectName').value = copy.name;
     markDirty();
@@ -91,7 +81,7 @@ export function initUI(editor: Editor, doc: Doc) {
   });
 
   editor.hooks.command = (name) => { void handle(name === 'plot' ? 'plot-pdf' : name, editor, doc); };
-  editor.hooks.toolChange = (name) => markActiveTool(name);
+  editor.hooks.toolChange = (name) => { markActiveTool(name); $('#hint').dispatchEvent(new Event('toolchange')); };
   editor.onCalibrated = (msg, ok) => { flash(msg); if (ok) renderSteps(editor, doc); };
   editor.hooks.zoom = (pct) => { $('#zoomLabel').textContent = pct + '%'; };
   markActiveTool('select');
@@ -149,7 +139,21 @@ export function initUI(editor: Editor, doc: Doc) {
   // being told about it.
   // The route question is asked once, at the end of that first tour — never on
   // 新建, and never again. From then on it lives in 使用說明.
-  requestAnimationFrame(() => maybeStartTour(() => askRoute(editor, doc)));
+  //
+  // B20: it no longer opens by itself. The first time this machine sees an empty
+  // plan, a small note in the bottom-right corner offers it; 說明 → 導覽 always can.
+  // Two seconds' grace so a `?plan=` link has loaded before "is it empty" is asked.
+  setTimeout(() => maybeNudgeTour(doc, () => askRoute(editor, doc)), 2000);
+
+  // The hint strip speaks only while a tool is working (or a message is up): the
+  // select tool's resting text is what was on screen all day saying nothing new.
+  const hintEl = $('#hint');
+  const restingHint = hintEl.textContent;
+  const syncHint = () => hintEl.classList.toggle('idle',
+    !hintEl.textContent || (editor.toolName === 'select' && hintEl.textContent === restingHint));
+  new MutationObserver(syncHint).observe(hintEl, { childList: true, characterData: true, subtree: true });
+  hintEl.addEventListener('toolchange', syncHint);
+  syncHint();
 
   const projFileInput = $<HTMLInputElement>('#projectFileInput');
   projFileInput.addEventListener('change', () => {
@@ -159,201 +163,245 @@ export function initUI(editor: Editor, doc: Doc) {
   });
 }
 
-// ---- unified catalog: 常用 tools first, then furniture by room ----
-function buildCatalog(editor: Editor) {
-  const host = $('#catalog'); host.innerHTML = '';
-  const title = (text: string) => { const d = document.createElement('div'); d.className = 'panel-title'; d.textContent = t(text); host.appendChild(d); };
+// ---- the catalogue: one row of categories, the second row opens on demand ----
+//
+// It was a left column with three hundred pictures stacked in it; finding a bed
+// meant scrolling past four screens of sofas. Now it works the way a build mode
+// does: the bottom row is the categories, and picking one opens a second row
+// with that category's sub-groups and pictures — one category at a time.
+//
+// Every button is built once, up front, and only *moved* between the shelf and
+// nowhere. The preview images and pictogram canvases are the expensive part, and
+// switching tabs or typing in the search must not pay for them again.
+//
+// Search and the style filter stay independent of each other and of the tab:
+// search looks through every piece of furniture whatever tab is open, the style
+// filter narrows whatever is showing. If they gated each other an empty shelf
+// would have three possible causes and the user would have to guess which.
+interface ShelfGroup { label: string; els: HTMLElement[] }
+interface Tab { id: string; label: string; icon: string; groups: ShelfGroup[]; extra?: HTMLElement; furniture: boolean }
 
-  // 常用 — everyday drawing tools
-  title('常用');
-  const pal = document.createElement('div'); pal.className = 'palette';
-  // `tool`, not `t` — the loop variable used to shadow the translator, which is
-  // why this palette stayed Chinese while everything around it translated.
-  for (const tool of COMMON_TOOLS) {
+const TAB_ICON: Record<string, string> = {
+  select: '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-6.5v-1a1.5 1.5 0 0 1 3 0V12m0-5.5a1.5 1.5 0 0 1 3 0V12m0-3.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1.5a6 6 0 0 1-4.6-2.2L4.3 15.6a1.6 1.6 0 0 1 2.4-2.1L8 15"/>',
+  structure: '<path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-6h6v6"/>',
+  room: '<path d="M4 18v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5M4 15h16M6 18v2M18 18v2M7 11V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/>',
+  lights: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  stairs: '<path d="M3 21h5v-5h5v-5h5V6h3"/>',
+};
+const svg = (d: string) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+
+function buildCatalog(editor: Editor) {
+  const bar = $('#catalog'), shelf = $('#catalogShelf');
+  bar.innerHTML = ''; shelf.innerHTML = '';
+  const LS_STYLE = 'furnStyle';
+  const styleSel = new Set<string>(JSON.parse(localStorage.getItem(LS_STYLE) || '[]'));
+  let query = '';
+  let open: string | null = null;
+  const sub = new Map<string, number>();          // which sub-group each tab shows (-1 = all)
+  const itemOf = new Map<HTMLElement, FurnitureItem>();
+  const nameOf = new Map<HTMLElement, string>();
+
+  const clearPicked = () => {
+    document.querySelectorAll('.furn-btn').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
+  };
+  const furnButton = (item: FurnitureItem) => {
+    const b = document.createElement('button');
+    b.className = 'furn-btn'; b.dataset.furn = item.id; b.title = item.name;
+    const cv = document.createElement('canvas');
+    const maxW = 60, maxH = 46; const s = Math.min(maxW / item.w, maxH / item.h);
+    cv.width = maxW; cv.height = maxH;
+    const ctx = cv.getContext('2d')!;
+    ctx.translate((maxW - item.w * s) / 2, (maxH - item.h * s) / 2); ctx.scale(s, s);
+    item.draw(ctx, item.w, item.h);
+    b.appendChild(cv);
+    // The model's own preview picture where there is one: a top-down pictogram
+    // cannot tell a 太師椅 from a 餐椅. Swapped in on load, so the drawn one is
+    // the fallback and nothing is missing while it arrives. Items built in code
+    // (`proc`) have no thumb.png, and asking anyway put 27 red 404s in the
+    // console on every load. Not lazy: a lazy image in a hidden shelf never asks.
+    if (!item.proc) {
+      const img = new Image();
+      img.alt = ''; img.decoding = 'async';
+      img.src = new URL(`models/${item.id}/thumb.png`, document.baseURI).href;
+      img.onload = () => { if (cv.parentNode === b) b.replaceChild(img, cv); };
+    }
+    const n = document.createElement('span'); n.className = 'fname'; n.textContent = item.name;
+    b.appendChild(n);
+    b.onclick = () => {
+      editor.currentFurniture = item.id;
+      editor.selectTool('furniture');
+      clearPicked(); b.classList.add('active');
+    };
+    itemOf.set(b, item); nameOf.set(b, item.name);
+    return b;
+  };
+  const elecButton = (spec: typeof ELECTRICAL[number]) => {
+    const b = document.createElement('button');
+    b.className = 'furn-btn'; b.dataset.elec = spec.id;
+    b.title = `${spec.name}　${t('安裝高度')} ${spec.elevation} cm`;
+    const cv = document.createElement('canvas');
+    cv.width = 60; cv.height = 46;
+    const ctx = cv.getContext('2d')!;
+    ctx.translate(30, 28); ctx.scale(0.85, 0.85);
+    ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166';
+    ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ELECTRICAL_SYMBOLS[spec.id](ctx);
+    const n = document.createElement('span'); n.className = 'fname'; n.textContent = spec.name;
+    b.append(cv, n);
+    b.onclick = () => {
+      editor.currentElectrical = spec.id;
+      editor.selectTool('electrical');
+      clearPicked(); b.classList.add('active');
+    };
+    nameOf.set(b, spec.name);
+    return b;
+  };
+  const toolButton = (tool: typeof STRUCTURE_TOOLS[number]) => {
     const b = document.createElement('button');
     b.className = 'tool-btn'; b.dataset.tool = tool.name;
     const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = tool.ic;
-    b.append(ic, document.createTextNode(t(tool.label)));
+    const n = document.createElement('span'); n.className = 'fname'; n.textContent = t(tool.label);
+    b.append(ic, n);
     b.onclick = () => editor.selectTool(tool.name);
-    pal.appendChild(b);
+    return b;
+  };
+
+  // 牆基準 lives with the wall tools: it is a question about the wall you are
+  // about to draw, and it is only worth looking at while drawing one.
+  // The markup ships in index.html (main.ts wires its buttons before this runs);
+  // it is only moved onto the shelf while 結構 is open.
+  const wallRef = $('.wallref-box');
+  wallRef.remove();
+
+  const furnTab = (cat: string, label = cat, icon = TAB_ICON.room): Tab => ({
+    id: cat, label, icon, furniture: true,
+    groups: [{ label: cat, els: FURNITURE.filter(f => f.cat === cat).map(furnButton) }],
+  });
+  const ROOMS = FURNITURE_CATS.filter(c => c !== '燈具' && c !== '常用');
+  const tabs: Tab[] = [
+    { id: 'structure', label: '結構', icon: TAB_ICON.structure, furniture: false, extra: wallRef,
+      groups: [{ label: '結構', els: STRUCTURE_TOOLS.map(toolButton) }] },
+    ...ROOMS.map(c => furnTab(c)),
+    { id: 'lights', label: '燈與電', icon: TAB_ICON.lights, furniture: true, groups: [
+      { label: '燈具', els: FURNITURE.filter(f => f.cat === '燈具').map(furnButton) },
+      ...['插座', '開關', '燈具'].map(c => ({
+        label: c === '燈具' ? '燈位與排風' : c,
+        els: ELECTRICAL.filter(e => e.cat === c).map(elecButton),
+      })),
+    ] },
+    furnTab('常用', '樓梯', TAB_ICON.stairs),
+  ].filter(tb => tb.groups.some(g => g.els.length));
+  for (const tb of tabs) sub.set(tb.id, -1);
+
+  const passes = (el: HTMLElement) => {
+    const item = itemOf.get(el);
+    if (styleSel.size && (!item || !item.style || !styleSel.has(item.style))) return false;
+    if (!query) return true;
+    const name = (nameOf.get(el) ?? '').toLowerCase();
+    return name.includes(query) || !!item?.id.includes(query);
+  };
+
+  // first row
+  const pick = document.createElement('button');
+  pick.className = 'cat-tab tool-btn'; pick.dataset.tool = 'select';
+  pick.innerHTML = `${svg(TAB_ICON.select)}<span>${t('選取')}</span>`;
+  pick.title = t('選取與移動：拖曳物件移動，拖曳空白處平移畫面（Esc）');
+  pick.onclick = () => editor.selectTool('select');
+  // The tabs live in their own strip so a long language can never push the search
+  // and style filter off the end: the strip first drops its icons (`.tight`,
+  // measured), and past that it scrolls sideways rather than overflowing.
+  const list = document.createElement('div'); list.className = 'cat-list';
+  bar.append(list);
+  list.append(pick, sep());
+  const tabEls = new Map<string, HTMLButtonElement>();
+  for (const tb of tabs) {
+    if (tb.id === 'lights' || (tb.id === ROOMS[0])) list.appendChild(sep());
+    const b = document.createElement('button');
+    b.className = 'cat-tab'; b.dataset.cat = tb.id;
+    b.innerHTML = `${svg(tb.icon)}<span>${t(tb.label)}</span>` + (tb.furniture ? '<span class="cat-n"></span>' : '');
+    b.onclick = () => { if (query) { query = ''; search.value = ''; } open = open === tb.id ? null : tb.id; render(); };
+    tabEls.set(tb.id, b); list.appendChild(b);
   }
-  host.appendChild(pal);
-
-  // ---- furniture: search, style filter, collapsible rooms ----
-  //
-  // A flat list stopped working somewhere past a hundred pieces: 客廳 alone is
-  // 48 buttons, so finding one is scrolling past four screens of pictures. The
-  // three controls are deliberately independent — search is a name substring,
-  // the chips pick one style, the fold is per-room — because the moment they
-  // gate each other, an empty panel has three possible causes and the user has
-  // to guess which one they tripped.
-  //
-  // Fold state persists. A palette that re-opens all eight rooms every reload
-  // undoes the tidying every time, which is the same as not having it.
-  const LS_FOLD = 'furnFold', LS_STYLE = 'furnStyle';
-  const folded = new Set<string>(JSON.parse(localStorage.getItem(LS_FOLD) || '[]'));
-  const styleSel = new Set<string>(JSON.parse(localStorage.getItem(LS_STYLE) || '[]'));
-  let query = '';
-
-  const bar = document.createElement('div'); bar.className = 'furn-filter';
+  const fit = () => { bar.classList.remove('tight'); if (list.scrollWidth > list.clientWidth + 1) bar.classList.add('tight'); };
+  new ResizeObserver(fit).observe(bar);
+  void document.fonts?.ready.then(fit);
+  const find = document.createElement('div'); find.className = 'cat-find';
   const search = document.createElement('input');
   search.type = 'search'; search.placeholder = t('搜尋家具…'); search.className = 'furn-search';
-  bar.appendChild(search);
-  const chips = document.createElement('div'); chips.className = 'furn-chips';
-  const STYLES = ['現代', '北歐', '日式', '古典', '鄉村', '工業', '中式'];
-  const chipEls = new Map<string, HTMLButtonElement>();
-  const allChip = document.createElement('button');
-  allChip.className = 'chip'; allChip.textContent = t('全部');
-  chips.appendChild(allChip);
-  for (const st of STYLES) {
-    const c = document.createElement('button');
-    c.className = 'chip'; c.textContent = t(st);
-    // 單選。複選的聯集在這裡是反效果：現代 75 件加古典 37 件不會幫你找到東西，
-    // 只是把兩堆風格不同的家具倒在一起——而使用者按第二個鍵的意思幾乎一定是
-    // 「改看這個」，不是「兩個都要」。再按一次同一顆等於回到全部。
-    c.onclick = () => {
-      const only = styleSel.size === 1 && styleSel.has(st);
-      styleSel.clear();
-      if (!only) styleSel.add(st);
-      apply();
-    };
-    chipEls.set(st, c); chips.appendChild(c);
+  search.setAttribute('aria-label', t('搜尋家具…'));
+  const style = document.createElement('select'); style.className = 'style-select';
+  style.title = t('風格'); style.setAttribute('aria-label', t('風格'));
+  // 單選：使用者選第二個風格的意思幾乎一定是「改看這個」，不是「兩個都要」。
+  for (const st of ['', '現代', '北歐', '日式', '古典', '鄉村', '工業', '中式']) {
+    const o = document.createElement('option'); o.value = st; o.textContent = st ? t(st) : t('全部風格');
+    style.appendChild(o);
   }
-  allChip.onclick = () => { styleSel.clear(); apply(); };
-  bar.appendChild(chips);
-  host.appendChild(bar);
-  search.oninput = () => { query = search.value.trim().toLowerCase(); apply(); };
+  style.value = [...styleSel][0] ?? '';
+  style.onchange = () => { styleSel.clear(); if (style.value) styleSel.add(style.value); render(); };
+  search.oninput = () => { query = search.value.trim().toLowerCase(); render(); };
+  find.append(search, style);
+  bar.appendChild(find);
 
-  const sections: { head: HTMLElement; grid: HTMLElement; cat: string; btns: { el: HTMLElement; item: FurnitureItem }[] }[] = [];
-  /** Re-run the filter over the buttons that already exist. Nothing is rebuilt:
-   *  the pictogram canvases and the 141 preview images are the expensive part,
-   *  and typing must not pay for them on every keystroke. */
-  function apply() {
-    allChip.classList.toggle('on', styleSel.size === 0);
-    for (const [st, c] of chipEls) c.classList.toggle('on', styleSel.has(st));
+  function sep() { const s = document.createElement('span'); s.className = 'cat-sep'; return s; }
+
+  /** Second row: the open tab's sub-groups and pictures, or the search results. */
+  function render() {
     localStorage.setItem(LS_STYLE, JSON.stringify([...styleSel]));
-    for (const s of sections) {
-      let shown = 0;
-      for (const { el, item } of s.btns) {
-        const ok = (!query || item.name.toLowerCase().includes(query) || item.id.includes(query))
-          && (!styleSel.size || (item.style ? styleSel.has(item.style) : false));
-        el.style.display = ok ? '' : 'none';
-        if (ok) shown++;
+    style.classList.toggle('on', styleSel.size > 0);
+    for (const tb of tabs) {
+      const n = tabEls.get(tb.id)!.querySelector('.cat-n');
+      if (n) n.textContent = String(tb.groups.reduce((k, g) => k + g.els.filter(e => !itemOf.has(e) || passes(e)).length, 0));
+      tabEls.get(tb.id)!.classList.toggle('open', !query && open === tb.id);
+    }
+    if (!query && !open) { shelf.classList.add('hidden'); shelf.replaceChildren(); return; }
+    shelf.classList.remove('hidden');
+    const subs = document.createElement('div'); subs.className = 'cat-subs';
+    const strip = document.createElement('div'); strip.className = 'cat-strip';
+    // A vertical wheel scrolls the row sideways — the only direction it goes.
+    strip.addEventListener('wheel', e => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { strip.scrollLeft += e.deltaY; e.preventDefault(); }
+    }, { passive: false });
+    let shown: HTMLElement[] = [];
+    if (query) {
+      const all = tabs.filter(tb => tb.furniture).flatMap(tb => tb.groups.flatMap(g => g.els));
+      shown = all.filter(passes);
+      const h = document.createElement('span'); h.className = 'shelf-title';
+      h.textContent = `${t('搜尋')}「${search.value.trim()}」 · ${shown.length} ${t('件')}`;
+      subs.appendChild(h);
+    } else {
+      const tb = tabs.find(x => x.id === open)!;
+      const k = sub.get(tb.id)!;
+      if (tb.groups.length > 1) {
+        const chip = (label: string, i: number) => {
+          const c = document.createElement('button'); c.className = 'chip' + (k === i ? ' on' : '');
+          c.textContent = t(label); c.onclick = () => { sub.set(tb.id, i); render(); };
+          subs.appendChild(c);
+        };
+        chip('全部', -1);
+        tb.groups.forEach((g, i) => chip(g.label, i));
       }
-      // A section with nothing left in it goes away entirely — leaving the
-      // heading behind reads as "客廳 has no sofas" rather than "your filter
-      // excluded them".
-      s.head.style.display = shown ? '' : 'none';
-      s.grid.style.display = shown && !folded.has(s.cat) ? '' : 'none';
-      const n = s.head.querySelector('.furn-count');
-      if (n) n.textContent = String(shown);
+      shown = (k < 0 ? tb.groups : [tb.groups[k]]).flatMap(g => g.els).filter(e => !itemOf.has(e) || passes(e));
     }
-  }
-
-  for (const cat of FURNITURE_CATS) {
-    const items = FURNITURE.filter(f => f.cat === cat);
-    if (!items.length) continue;
-    const head = document.createElement('div');
-    head.className = 'panel-title collapsible furn-head';
-    if (folded.has(cat)) head.classList.add('collapsed');
-    head.innerHTML = `<span>${cat}</span><span class="furn-count">${items.length}</span>`;
-    host.appendChild(head);
-    const grid = document.createElement('div'); grid.className = 'furniture-grid';
-    const btns: { el: HTMLElement; item: FurnitureItem }[] = [];
-    head.onclick = () => {
-      folded.has(cat) ? folded.delete(cat) : folded.add(cat);
-      head.classList.toggle('collapsed', folded.has(cat));
-      localStorage.setItem(LS_FOLD, JSON.stringify([...folded]));
-      apply();
-    };
-    sections.push({ head, grid, cat, btns });
-    for (const item of items) {
-      const b = document.createElement('button');
-      b.className = 'furn-btn'; b.dataset.furn = item.id;
-      const cv = document.createElement('canvas');
-      const maxW = 60, maxH = 34; const s = Math.min(maxW / item.w, maxH / item.h);
-      cv.width = maxW; cv.height = maxH;
-      const ctx = cv.getContext('2d')!;
-      ctx.translate((maxW - item.w * s) / 2, (maxH - item.h * s) / 2); ctx.scale(s, s);
-      item.draw(ctx, item.w, item.h);
-      b.appendChild(cv);
-      // The palette shows the model's own preview picture where there is one.
-      // A top-down pictogram cannot tell a 太師椅 from a 餐椅 or a 吊燈 from a
-      // 吸頂燈 — they are the same rounded rectangle — and with 72 items that is
-      // most of the panel. Both libraries already ship a render per model, so
-      // this costs a file rather than a browser-side render pass.
-      //
-      // Swapped in on load rather than used directly: the drawn one is the
-      // fallback for anything with no model, and building it first means no
-      // gap while the picture arrives and nothing to undo if it never does.
-      //
-      // **Not asked for at all when there is nothing to ask for.** The 27 items
-      // marked `proc` are built by `furnitureBuilders.ts` and have no downloaded
-      // model, so they have no `thumb.png` either — and requesting one anyway
-      // put 27 red 404s in the console on every single load. Nothing looked
-      // wrong, because the drawn pictogram is the fallback and it stayed; the
-      // cost was that a console full of expected errors is a console nobody
-      // reads, which is where a real error goes to hide.
-      if (!item.proc) {
-        const img = new Image();
-        // 不用 loading="lazy"：面板是一條長清單，懶載入下離開視窗的那些永遠不會
-        // 發出請求，onload 也就永遠不觸發——實測 72 個按鈕換上 0 張。72 張小圖總共
-        // 約 1MB，一次載完比較單純。
-        img.alt = ''; img.decoding = 'async';
-        img.src = new URL(`models/${item.id}/thumb.png`, document.baseURI).href;
-        img.onload = () => { if (cv.parentNode === b) b.replaceChild(img, cv); };
-      }
-      b.appendChild(document.createTextNode(item.name));
-      b.onclick = () => {
-        editor.currentFurniture = item.id;
-        editor.selectTool('furniture');
-        document.querySelectorAll('.furn-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
-      };
-      btns.push({ el: b, item });
-      grid.appendChild(b);
+    strip.append(...shown);
+    if (!shown.length) {
+      const e = document.createElement('div'); e.className = 'shelf-empty';
+      e.textContent = styleSel.size
+        ? t('這個風格沒有符合的家具 — 把風格換回「全部風格」看看')
+        : t('沒有符合的家具 — 換個名字搜尋');
+      strip.appendChild(e);
     }
-    host.appendChild(grid);
+    if (!query && open === 'structure') strip.appendChild(wallRef);
+    // A row of sub-groups only where there is more than one; the open tab already names the shelf.
+    if (subs.childElementCount) shelf.replaceChildren(subs, strip); else shelf.replaceChildren(strip);
   }
-  apply();
-
-  // 水電 — the electrical schedule a Taiwanese handover needs
-  for (const cat of ['插座', '開關', '燈具']) {
-    const items = ELECTRICAL.filter(e => e.cat === cat);
-    if (!items.length) continue;
-    title(cat);
-    const grid = document.createElement('div'); grid.className = 'furniture-grid';
-    for (const spec of items) {
-      const b = document.createElement('button');
-      b.className = 'furn-btn'; b.dataset.elec = spec.id;
-      b.title = `${spec.name}　安裝高度 ${spec.elevation} cm`;
-      const cv = document.createElement('canvas');
-      cv.width = 60; cv.height = 34;
-      const ctx = cv.getContext('2d')!;
-      ctx.translate(30, 22); ctx.scale(0.85, 0.85);
-      ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166';
-      ctx.lineWidth = 2; ctx.lineCap = 'round';
-      ELECTRICAL_SYMBOLS[spec.id](ctx);
-      b.appendChild(cv);
-      b.appendChild(document.createTextNode(spec.name));
-      b.onclick = () => {
-        editor.currentElectrical = spec.id;
-        editor.selectTool('electrical');
-        document.querySelectorAll('.furn-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
-      };
-      grid.appendChild(b);
-    }
-    host.appendChild(grid);
-  }
+  render();
 }
+
 function markActiveTool(name: string) {
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', (b as HTMLElement).dataset.tool === name));
   if (name !== 'furniture' && name !== 'electrical') document.querySelectorAll('.furn-btn').forEach(b => b.classList.remove('active'));
 }
-
 function updateUndoRedo(doc: Doc) {
   const u = document.querySelector('[data-act="undo"]') as HTMLButtonElement | null;
   const r = document.querySelector('[data-act="redo"]') as HTMLButtonElement | null;
@@ -361,24 +409,29 @@ function updateUndoRedo(doc: Doc) {
   if (r) r.disabled = !doc.canRedo;
 }
 
-// ---- floors ----
+// ---- floors: small buttons in the bottom-right corner of the stage ----
 function buildFloors(editor: Editor, doc: Doc) {
   const host = $('#floors'); host.innerHTML = '';
   for (const f of [...doc.floors].reverse()) {   // highest level on top
-    const row = document.createElement('div'); row.className = 'floor-row' + (f.id === doc.project.activeFloorId ? ' active' : '');
-    const name = document.createElement('span'); name.className = 'fname'; name.textContent = f.name;
-    name.title = t('點擊切換樓層，雙擊重新命名');
-    name.onclick = () => doc.setActiveFloor(f.id);
-    name.ondblclick = () => { const n = prompt('樓層名稱', f.name); if (n) doc.renameFloor(f.id, n); };
-    const elev = document.createElement('span'); elev.className = 'felev'; elev.textContent = (f.elevation / 100).toFixed(1) + 'm';
-    elev.title = defaultNote('樓高', DEFAULTS.floorHeight);
-    const del = iconButton('close', '刪除樓層');
-    del.onclick = (e) => { e.stopPropagation(); if (doc.floors.length > 1 && confirm(`刪除樓層「${f.name}」？`)) doc.removeFloor(f.id); };
-    row.append(name, elev, del);
-    host.appendChild(row);
+    const active = f.id === doc.project.activeFloorId;
+    const b = document.createElement('button');
+    b.className = 'floor-btn' + (active ? ' active' : '');
+    b.dataset.floor = f.id;
+    b.setAttribute('aria-pressed', String(active));
+    b.append(document.createTextNode(f.name));
+    b.title = `${f.name} · ${t('樓板高度')} ${(f.elevation / 100).toFixed(1)} m — ${t('點擊切換樓層，雙擊重新命名')}`;
+    b.onclick = () => doc.setActiveFloor(f.id);
+    b.ondblclick = () => { const n = prompt(t('樓層名稱'), f.name); if (n) doc.renameFloor(f.id, n); };
+    if (active && doc.floors.length > 1) {
+      const del = iconButton('close', t('刪除樓層'));
+      del.className = 'floor-del';
+      del.onclick = (e) => { e.stopPropagation(); if (confirm(`${t('刪除樓層')}「${f.name}」？`)) doc.removeFloor(f.id); };
+      b.appendChild(del);
+    }
+    host.appendChild(b);
   }
-  const add = document.createElement('button'); add.className = 'add-floor';
-  add.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${PANEL_ICON.plus}</svg><span>新增樓層</span>`;
+  const add = document.createElement('button'); add.className = 'floor-btn floor-add';
+  add.textContent = '＋'; add.title = t('新增樓層'); add.setAttribute('aria-label', t('新增樓層'));
   add.onclick = () => doc.addFloor();
   host.appendChild(add);
 }
@@ -406,6 +459,7 @@ const PANEL_ICON: Record<string, string> = {
 /** A button whose whole content is one of the icons above. */
 export function iconButton(icon: keyof typeof PANEL_ICON, title: string): HTMLButtonElement {
   const b = document.createElement('button');
+  title = t(title);
   b.title = title; b.setAttribute('aria-label', title);
   b.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${PANEL_ICON[icon]}</svg>`;
   return b;
@@ -473,87 +527,94 @@ function importProjectFile(editor: Editor, doc: Doc, file: File) {
   reader.readAsText(file);
 }
 
-// Collapsible 匯出 menu: its items are built only while open and removed on
-// close (dynamic rendering — no idle DOM), keeping the topbar light.
-function wireExportMenu(editor: Editor, doc: Doc) {
-  const wrap = $('#exportMenu'), toggle = $('#exportToggle');
-  // Icons are drawn, not typed, for the same reason the toggle's are: an emoji
-  // is a font lookup that can miss. Two other things were wrong here and both
-  // were the kind you stop seeing after a week — `匯出 PNG` and `匯出 PDF` had
-  // no icon at all, so they sat 20px left of everything else, and 📐 was on
-  // both `匯入 DXF` and `匯出施工圖 PDF`, which are not the same thing.
-  const ic = (d: string, extra = '') =>
-    `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" ${extra}>${d}</svg>`;
-  const ICONS: Record<string, string> = {
-    'import-dxf': ic('<path d="M12 21V10m0 0 4 4m-4-4-4 4"/><path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/>'),
-    'export-project': ic('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/>'),
-    'export-png': ic('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 5-4 4 3 3-2 6 5"/>'),
-    'export-pdf': ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/><path d="M9 17h6"/>'),
-    'plot-pdf': ic('<path d="M3 20 20 3v17z"/><path d="M13 15h3M9.5 18.5h3"/>'),
-    'export-pano': ic('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/>'),
-    'export-report': ic('<path d="M3 21h18"/><rect x="5" y="11" width="4" height="7"/><rect x="10" y="6" width="4" height="12"/><rect x="15" y="14" width="4" height="4"/>'),
-    'export-glb': ic('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>'),
+// ---- the four top-bar menus (檔案／檢視／設定／說明) ----
+//
+// Static markup in index.html, opened by un-hiding the pop. Once one is open,
+// sliding the pointer onto the next menu button opens that one instead — the
+// way a desktop menu bar behaves. A pick closes it; the zoom buttons, the snap
+// box and the language list do not, because you usually press zoom twice.
+function wireMenus() {
+  const menus = Array.from(document.querySelectorAll<HTMLElement>('#topbar .menu'));
+  let current: HTMLElement | null = null;
+  const parts = (m: HTMLElement) => ({
+    btn: m.querySelector(':scope > .menu-btn') as HTMLElement,
+    pop: m.querySelector(':scope > .menu-pop') as HTMLElement,
+  });
+  const close = () => {
+    if (!current) return;
+    const { btn, pop } = parts(current);
+    current.classList.remove('open'); pop.hidden = true; btn.setAttribute('aria-expanded', 'false');
+    current = null;
   };
-  // `匯入 DXF` used to live in here — an import, in a menu labelled 匯出.
-  // It keeps its place in the list because that is where the muscle memory is,
-  // but it is now under its own heading and separated, so the menu no longer
-  // claims it is an export.
-  const items: { label: string; act: string; group?: string }[] = [
-    { label: '匯入 DXF 圖檔…', act: 'import-dxf', group: '匯入' },
-    { label: '專案檔（可再編輯）', act: 'export-project', group: '匯出' },
-    { label: 'PNG 影像', act: 'export-png' },
-    { label: 'PDF（畫面快照）', act: 'export-pdf' },
-    { label: '施工圖 PDF…', act: 'plot-pdf' },
-    { label: '360 全景', act: 'export-pano' },
-    { label: '面積報表（Excel）', act: 'export-report' },
-    { label: '3D 模型', act: 'export-glb' },
-  ];
-  let pop: HTMLElement | null = null;
-  const onDoc = (e: Event) => { if (!wrap.contains(e.target as Node)) close(); };
-  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-  function close() {
-    if (pop) { pop.remove(); pop = null; }
-    wrap.classList.remove('open');
-    document.removeEventListener('click', onDoc, true);
-    document.removeEventListener('keydown', onKey);
+  const open = (m: HTMLElement) => {
+    close();
+    const { btn, pop } = parts(m);
+    m.classList.add('open'); pop.hidden = false; btn.setAttribute('aria-expanded', 'true');
+    current = m;
+  };
+  for (const m of menus) {
+    const { btn, pop } = parts(m);
+    btn.onclick = (e) => { e.stopPropagation(); current === m ? close() : open(m); };
+    btn.addEventListener('mouseenter', () => { if (current && current !== m) open(m); });
+    pop.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('button[data-act]')) close(); });
   }
-  function open() {
-    pop = document.createElement('div'); pop.className = 'menu-pop';
-    for (const it of items) {
-      if (it.group) {
-        const h = document.createElement('div'); h.className = 'menu-group'; h.textContent = it.group;
-        pop.appendChild(h);
-      }
-      const b = document.createElement('button');
-      // innerHTML, not textContent: the icon is markup. Both halves are literals
-      // from ICONS and `items` above — nothing here comes from a plan or a file.
-      b.innerHTML = (ICONS[it.act] ?? '') + `<span>${it.label}</span>`;
-      b.onclick = () => { close(); handle(it.act, editor, doc); };
-      pop.appendChild(b);
-    }
-    wrap.appendChild(pop); wrap.classList.add('open');
-    document.addEventListener('click', onDoc, true);
-    document.addEventListener('keydown', onKey);
+  document.addEventListener('pointerdown', (e) => { if (current && !current.contains(e.target as Node)) close(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && current) { close(); e.stopPropagation(); } }, true);
+}
+
+// ---- the properties drawer ----
+//
+// Out only while there is something in it: a selection, the layers list (檢視 →
+// 圖層), or — when nothing is selected — the underlay and wall-face controls the
+// properties panel shows on its own. Those last two do not push the drawer out by
+// themselves; a small handle at the top right says they are there.
+let layersOpen = false;
+let drawerPinned = false;
+function syncDrawer(doc: Doc) {
+  const right = $('#right'), props = $('#properties'), peek = $('#drawerPeek');
+  const selected = doc.selectedIds.length > 0;
+  const extras = !selected && Array.from(props.children).some(c => !c.classList.contains('muted'));
+  if (!extras) drawerPinned = false;
+  const showProps = selected || (extras && drawerPinned);
+  const isOpen = showProps || layersOpen;
+  right.classList.toggle('closed', !isOpen);
+  right.classList.toggle('only-layers', !showProps && layersOpen);
+  $('#layersBox').classList.toggle('hidden', !layersOpen);
+  document.body.classList.toggle('drawer-open', isOpen);
+  document.querySelector('[data-act="layers"]')?.classList.toggle('active', layersOpen);
+  peek.classList.toggle('hidden', isOpen || !extras);
+  if (extras && !isOpen) {
+    const names = Array.from(props.querySelectorAll('.panel-title, .facestep-head')).map(e => (e.textContent ?? '').trim()).filter(Boolean);
+    peek.textContent = `‹ ${names[0] ?? t('屬性')}`;
+    peek.title = names.join('、');
   }
-  toggle.onclick = (e) => { e.stopPropagation(); pop ? close() : open(); };
+}
+function wireDrawer(editor: Editor, doc: Doc) {
+  const sync = () => syncDrawer(doc);
+  new MutationObserver(sync).observe($('#properties'), { childList: true });
+  $('#drawerPeek').onclick = () => { drawerPinned = true; sync(); };
+  $('[data-act="close-drawer"]').onclick = () => {
+    drawerPinned = false; layersOpen = false;
+    if (doc.selectedIds.length) doc.select(null);
+    sync();
+  };
+  $('[data-act="close-layers"]').onclick = () => { layersOpen = false; sync(); };
+  // The light and health panels sit above the catalogue, whatever height it has.
+  const bar = $('#catalogBar');
+  new ResizeObserver(() => document.documentElement.style.setProperty('--catalog-h', `${bar.offsetHeight}px`)).observe(bar);
+  sync();
 }
 
 function wireTopbar(editor: Editor, doc: Doc) {
   document.querySelectorAll('#topbar [data-act]').forEach(btn => {
     (btn as HTMLElement).onclick = () => handle((btn as HTMLElement).dataset.act!, editor, doc);
   });
-  wireExportMenu(editor, doc);
+  wireMenus();
+  wireDrawer(editor, doc);
   wireHelp();
   wireHealth(editor, doc);
   wireLighting(editor, doc);
   wireTopbarFit();
-  // `:not(.furn-head)` — 家具面板的分類標題自己有處理器（要存摺疊狀態、要重跑
-  // 篩選）。這一行是在 buildCatalog 之後跑的，少了排除條件就會把它整個蓋掉：
-  // 外觀完全正常（class 照樣 toggle、CSS 照樣把下一個 div 收起來），只是狀態
-  // 不再被記住、篩選也不再更新。是 bench/verify-palette.mjs 抓到的。
-  document.querySelectorAll<HTMLElement>('.panel-title.collapsible:not(.furn-head)').forEach(h => {
-    h.onclick = () => h.classList.toggle('collapsed');   // fold/unfold the section below
-  });
   $('#zoomOut').onclick = () => editor.zoomBy(1 / 1.1);
   $('#zoomIn').onclick = () => editor.zoomBy(1.1);
   $('#zoomLabel').onclick = () => editor.resetView();
@@ -580,6 +641,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       doc.load(Doc.blank()); $<HTMLInputElement>('#projectName').value = doc.project.name; editor.resetView();
       syncPlanUrl(null);
       renderSteps(editor, doc);
+      maybeNudgeTour(doc, () => askRoute(editor, doc));
       break;
     case 'save': {
       // `flushSave` returns whether the stored copy is now up to date, and this
@@ -587,7 +649,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       // 9.2.1 exists to stop, through a different door — and the correct
       // pattern was already three lines below, in export-report.
       doc.project.name = name(); markDirty();
-      flash(await flushSave(doc) ? '已儲存' : '存不上去 — 改動留在本機，連上線會自動送出');
+      flash(await flushSave(doc) ? t('已儲存') : t('存不上去 — 改動留在本機，連上線會自動送出'));
       break;
     }
     case 'open': await openModal(editor, doc); break;
@@ -654,7 +716,12 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'health': toggleHealth(editor, doc); break;
     case 'lighting': toggleLighting(editor, doc); break;
     case 'help': openHelp(editor, doc); break;
-    case 'tour': startTour(); break;   // kept so an old bookmark/keystroke still works
+    case 'tour': dismissTourNudge(); startTour(); break;
+    case 'layers': layersOpen = !layersOpen; syncDrawer(doc); break;
+    case 'fullscreen':
+      if (document.fullscreenElement) void document.exitFullscreen();
+      else void document.documentElement.requestFullscreen?.().catch(() => flash(t('這個瀏覽器不讓網頁進入全螢幕')));
+      break;
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
     case 'feel': openFeelSettings(); break;
   }

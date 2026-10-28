@@ -24,7 +24,7 @@ const ROOT = new URL('../client', import.meta.url).pathname;
 const SRC = join(ROOT, 'src');
 const LIST = process.argv.includes('--list');
 
-const SKIP_FILES = ['data/furniture.ts', 'data/electrical.ts', 'core/i18n.ts'];
+const SKIP_FILES = ['data/furniture.ts', 'data/electrical.ts', 'core/i18n.ts', 'core/i18n-en-props.ts', 'core/i18n-en-panels.ts'];
 const CJK = /[一-鿿]/;
 
 /** Strip line and block comments so Chinese prose in them is not counted. */
@@ -90,7 +90,9 @@ console.log('  兩者都翻好了但看起來像沒包。真正的量法是把�
 // `t()` 的設計是缺字就退回中文，所以「包起來」不等於「翻好了」——一個全部包了 t()
 // 卻沒有任何英文條目的介面，覆蓋率是 100%，畫面上仍然全是中文。這裡把兩者分開數。
 {
-  const src = readFileSync(new URL('../client/src/core/i18n.ts', import.meta.url), 'utf8');
+  // B20：英文字典拆成三份（i18n.ts 本體＋屬性面板＋其餘面板），一起讀。
+  const src = ['i18n.ts', 'i18n-en-props.ts', 'i18n-en-panels.ts']
+    .map(f => readFileSync(new URL(`../client/src/core/${f}`, import.meta.url), 'utf8')).join('\n');
   // Not `^\s*'key':` — the dictionary puts short pairs two to a line, so an
   // anchored pattern saw only the first of each and reported 30 keys as missing
   // that were sitting right there. Match every `'key':` instead.

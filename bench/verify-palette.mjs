@@ -1,11 +1,10 @@
-// 左側家具面板：搜尋、風格篩選、分類摺疊。
+// 底部型錄列（B20）：分類、搜尋、風格篩選。
 //
 //   node bench/verify-palette.mjs
 //
-// 這三個控制項各自獨立，而「獨立」正是唯一值得端到端驗的性質：單元測試看不到
-// `display: none`，而三者互相卡住的話，一個空面板有三種可能的原因，使用者只能猜。
-// 所以這裡驗的是組合——搜尋加篩選要是交集，摺疊不能改變誰被篩掉，重載之後
-// 兩個狀態都還在。
+// 這三個控制項各自獨立，而「獨立」正是唯一值得端到端驗的性質：三者互相卡住的話，
+// 一個空的第二排有三種可能的原因，使用者只能猜。所以這裡驗的是組合——搜尋加篩選
+// 要是交集、搜尋跨分類、風格套在分類上，重載之後風格還在；外加一次只開一個分類。
 //
 // Headless，理由同 soak.mjs。
 
@@ -43,7 +42,7 @@ const page = await browser.newPage({ viewport: { width: 1400, height: 950 } });
 await page.addInitScript(() => {
   // Benches are not testing onboarding, and the first-run tour would eat the
   // first Escape (its capture listener) and cover the app with an overlay.
-  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+  try { localStorage.setItem('interior_tour_seen', '1'); localStorage.setItem('interior_lang', 'zh-Hant'); } catch { /* ignore */ }
 });
 
 page.on('pageerror', (e) => { console.error('PAGEERROR', String(e).split('\n')[0]); fail++; });
@@ -52,77 +51,90 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? '  ✔' : '  ✘'} ${name}${detail ? `  ${detail}` : ''}`);
   if (!ok) fail++;
 };
-const visible = () => page.$$eval('.furn-btn[data-furn]', (b) => b.filter((x) => x.style.display !== 'none').length);
-const heads = () => page.$$eval('.furn-head', (h) => h.filter((x) => x.style.display !== 'none').map((x) => x.textContent));
+// B20：家具在底部的型錄列，一次只展開一個分類。看得到的＝第二排（#catalogShelf）裡的按鈕。
+const visible = () => page.$$eval('#catalogShelf .furn-btn[data-furn]', (b) => b.length);
+const openTabs = () => page.$$eval('.cat-tab.open', (t) => t.map((x) => x.dataset.cat));
+const count = (pred) => page.evaluate(`window.__app.FURNITURE.filter(${pred}).length`);
 
 await page.goto(`${base}/?perf=1`);
-await page.waitForSelector('.furn-btn', { state: 'attached' });   // 摺疊還原後第一顆可能是隱藏的
+await page.waitForSelector('.cat-tab[data-cat]');
 
-const total = await visible();
-const catalogue = await page.evaluate(() => window.__app.FURNITURE.length);
-check('一開始全部顯示', total === catalogue, `${total} / ${catalogue}`);
+check('一開始第二排收著（畫面留給房子）', (await page.$eval('#catalogShelf', (e) => e.classList.contains('hidden'))) && (await visible()) === 0);
 
-// --- 搜尋 ---
+// --- 每個家具分類點開，件數跟目錄對得上；全部加起來＝整份目錄 ---
+const cats = await page.$$eval('.cat-tab[data-cat]', (t) => t.map((x) => x.dataset.cat));
+let sum = 0;
+for (const c of cats) {
+  if (c === 'structure') continue;
+  await page.click(`.cat-tab[data-cat="${c}"]`);
+  await page.waitForTimeout(40);
+  const n = await visible();
+  const expect = c === 'lights' ? await count("f => f.cat === '燈具'") : await count(`f => f.cat === '${c === 'lights' ? '燈具' : c}'`);
+  if (!(n === expect)) check(`分類「${c}」件數`, false, `${n} / ${expect}`);
+  sum += n;
+}
+const total = await page.evaluate(() => window.__app.FURNITURE.length);
+check('每個分類點開的件數加起來＝整份目錄', sum === total, `${sum} / ${total}`);
+check('一次只開一個分類', (await openTabs()).length === 1);
+const last = cats[cats.length - 1];
+await page.click(`.cat-tab[data-cat="${last}"]`);
+await page.waitForTimeout(40);
+check('再點一次同一個分類就收起來', (await openTabs()).length === 0 && (await page.$eval('#catalogShelf', (e) => e.classList.contains('hidden'))));
+
+// --- 燈與電：小分類 ---
+await page.click('.cat-tab[data-cat="lights"]');
+await page.click('#catalogShelf .chip:has-text("插座")');
+await page.waitForTimeout(40);
+check('燈與電 → 插座只剩插座', (await page.$$eval('#catalogShelf [data-elec]', (b) => b.length)) === 5 && (await visible()) === 0);
+
+// --- 搜尋跨分類，而且不屬於哪個分類 ---
 await page.fill('.furn-search', '衣櫃');
 await page.waitForTimeout(80);
 const q = await visible();
-const expectQ = await page.evaluate(() => window.__app.FURNITURE.filter((f) => f.name.includes('衣櫃')).length);
-check('搜尋「衣櫃」', q === expectQ && q > 1, `${q} 件（目錄裡有 ${expectQ} 件）`);
-check('沒有結果的分類整段收起來', (await heads()).every((t) => !/(\D)0$/.test(t)));
+const expectQ = await count("f => f.name.includes('衣櫃')");
+check('搜尋「衣櫃」跨分類找', q === expectQ && q > 1, `${q} 件（目錄裡有 ${expectQ} 件）`);
+check('搜尋時沒有分類亮著', (await openTabs()).length === 0);
 
-// --- 搜尋 + 風格是交集，不是互相取代 ---
-await page.click('.chip:has-text("現代")');
+// --- 搜尋 + 風格是交集 ---
+await page.selectOption('.style-select', '現代');
 await page.waitForTimeout(80);
 const both = await visible();
-const expectBoth = await page.evaluate(() =>
-  window.__app.FURNITURE.filter((f) => f.name.includes('衣櫃') && f.style === '現代').length);
+const expectBoth = await count("f => f.name.includes('衣櫃') && f.style === '現代'");
 check('搜尋 ∩ 風格', both === expectBoth && both < q, `${both} 件`);
 
-// --- 清掉搜尋，只留風格 ---
+// --- 清掉搜尋，風格留著，套在分類上 ---
 await page.fill('.furn-search', '');
+await page.click('.cat-tab[data-cat="客廳"]');
 await page.waitForTimeout(80);
-const onlyStyle = await visible();
-const expectStyle = await page.evaluate(() => window.__app.FURNITURE.filter((f) => f.style === '現代').length);
-check('只留風格', onlyStyle === expectStyle, `${onlyStyle} 件`);
+const livingModern = await visible();
+check('只留風格，客廳只剩現代', livingModern === await count("f => f.cat === '客廳' && f.style === '現代'"), `${livingModern} 件`);
+check('分類上的數字跟著風格', (await page.$eval('.cat-tab[data-cat="客廳"] .cat-n', (e) => e.textContent)) === String(livingModern));
 
-// --- 風格是單選：按第二顆要把第一顆放掉 ---
-await page.click('.chip:has-text("古典")');
+// --- 風格單選：換一個就取代 ---
+await page.selectOption('.style-select', '古典');
 await page.waitForTimeout(80);
-const two = await visible();
-const expectTwo = await page.evaluate(() => window.__app.FURNITURE.filter((f) => f.style === '古典').length);
-check('選另一個風格會取代前一個', two === expectTwo, `${two} 件（古典）`);
-check('前一個風格的按鈕已經不再亮著', (await page.$$('.chip.on')).length === 1);
+const classic = await visible();
+check('選另一個風格會取代前一個', classic === await count("f => f.cat === '客廳' && f.style === '古典'"), `${classic} 件（古典）`);
 
-// 再按一次同一顆 = 回到全部
-await page.click('.chip:has-text("古典")');
+// --- 篩到沒有東西時說為什麼 ---
+await page.click('.cat-tab[data-cat="浴室"]');
 await page.waitForTimeout(80);
-check('再按一次同一顆回到全部', (await visible()) === total);
-await page.click('.chip:has-text("古典")');
-await page.waitForTimeout(80);
+if ((await visible()) === 0) check('篩到空的時候第二排說怎麼辦', (await page.textContent('#catalogShelf')).includes('全部風格'));
 
-// --- 摺疊不影響「誰被篩掉」，只影響看不看得到 ---
-const firstHead = await page.$('.furn-head:not([style*="none"])');
-await firstHead.click();
-await page.waitForTimeout(80);
-const afterFold = await visible();
-check('摺疊不改變篩選結果', afterFold === two, `${afterFold} 件仍在篩選內`);
-const gridHidden = await page.$$eval('.furn-head', (hs) => {
-  const h = hs.find((x) => x.classList.contains('collapsed'));
-  return h ? getComputedStyle(h.nextElementSibling).display === 'none' : false;
-});
-check('摺疊真的把格線收起來', gridHidden);
-
-// --- 重載之後兩個狀態都還在 ---
+// --- 重載之後風格還在 ---
 await page.reload();
-await page.waitForSelector('.furn-btn', { state: 'attached' });   // 摺疊還原後第一顆可能是隱藏的
-await page.waitForTimeout(150);
-check('重載後風格還記得', (await visible()) === two, `${await visible()} 件`);
-check('重載後摺疊還記得', (await page.$$('.furn-head.collapsed')).length === 1);
+await page.waitForSelector('.cat-tab[data-cat]');
+check('重載後風格還記得', (await page.$eval('.style-select', (e) => e.value)) === '古典');
 
-// --- 全部 ---
-await page.click('.chip:has-text("全部")');
+// --- 全部風格 ---
+await page.selectOption('.style-select', '');
+await page.click('.cat-tab[data-cat="客廳"]');
 await page.waitForTimeout(80);
-check('「全部」清掉風格', (await visible()) === total);
+check('「全部風格」清掉篩選', (await visible()) === await count("f => f.cat === '客廳'"));
+
+// --- 點一件就拿在手上 ---
+await page.click('#catalogShelf .furn-btn[data-furn]');
+check('點一件家具就切到放家具', await page.evaluate(() => window.__app.editor.toolName === 'furniture'));
 
 console.log(fail ? `\n${fail} 項失敗` : '\n面板全過');
 await browser.close();
