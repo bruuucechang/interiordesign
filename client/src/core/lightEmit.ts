@@ -30,7 +30,7 @@ export interface Emitter {
   cone: number;
   /** Peak intensity, candela, maintenance factor applied. */
   candela: number;
-  /** Linear RGB 0–1 for its colour temperature. */
+  /** sRGB 0–1 for its colour temperature. */
   color: [number, number, number];
   circuit: number;
 }
@@ -97,9 +97,10 @@ export const SHADOW_LIGHTS = 6;
 
 /**
  * The lights to switch on for a viewer at (x, y, eye height `h`): those whose
- * pool of light it can see (same room, or through a door or window) first, nearest
- * first; then, if the pool is not full, the nearest of the rest — they light
- * the walls you can see from behind them. At most `max`.
+ * pool of light it can see (same room, or through a door or window), nearest
+ * first; then, only while shadow-casting slots are left, the nearest of the
+ * rest — they light the walls you can see from behind them, and their shadow
+ * keeps them there. At most `max`.
  */
 export function pickEmitters(list: readonly Emitter[], at: { x: number; y: number; h: number },
                              walls: readonly ShadeSeg[], max = ACTIVE_LIGHTS): Emitter[] {
@@ -107,8 +108,13 @@ export function pickEmitters(list: readonly Emitter[], at: { x: number; y: numbe
   // "Seen" = you can see the floor it lights (1 m up, under it), not the fitting itself:
   // a lamp just past a door hides behind the head but pours light through the opening.
   const scored = list.map(e => ({ e, seen: !wallBetween(walls, at.x, at.y, at.h, e.x, e.y, Math.min(e.z, LIT_SPOT_H)), d: d2(e) }));
-  scored.sort((a, b) => (a.seen === b.seen ? a.d - b.d : a.seen ? -1 : 1));
-  return scored.slice(0, max).map(s => s.e);
+  scored.sort((a, b) => a.d - b.d);
+  // A lamp behind a wall is only allowed into a slot that casts shadows — the
+  // shadow is what stops it at the wall. Without one it would shine straight
+  // through into the room you are standing in.
+  const seen = scored.filter(s => s.seen), hidden = scored.filter(s => !s.seen);
+  const room = Math.max(0, Math.min(max, SHADOW_LIGHTS) - seen.length);
+  return [...seen.slice(0, max), ...hidden.slice(0, room)].map(s => s.e);
 }
 
 /**

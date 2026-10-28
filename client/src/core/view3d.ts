@@ -829,8 +829,7 @@ export class View3D {
     const dt = Math.min(this.clock.getDelta(), MAX_STEP_S);
     if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
     this.controls.update();
-    // Overview: light what the orbit centres on; inside (flying low): light around the eye.
-    this.lamps.update(this.camera.position.y < WALL_H * 1.5 ? this.camera.position : this.controls.target, now);
+    this.lamps.update(this.camera.position, this.controls.target, WALL_H, now);
     this.updateCeilingVisibility();
     this.composer.render();
     this.releaseRetired();

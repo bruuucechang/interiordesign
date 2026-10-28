@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emitters, kelvinRGB, coneOf, pickEmitters, sightLines, threeIntensity, MAX_CONE, LUX_GAIN } from '../src/core/lightEmit';
+import { emitters, kelvinRGB, coneOf, pickEmitters, sightLines, threeIntensity, MAX_CONE, LUX_GAIN, SHADOW_LIGHTS } from '../src/core/lightEmit';
 import { luminaires, sources, lux, MAINTENANCE } from '../src/core/lighting';
 import type { Electrical, ElectricalId, Obj } from '../src/model/schema';
 
@@ -75,4 +75,17 @@ test('a door in the wall makes the light behind it visible again', () => {
   assert.equal(picked[0].id, list[1].id);
   const shut = pickEmitters(emitters(objs.filter(o => o.kind !== 'door'), CEIL), { x: 100, y: 100, h: 160 }, sightLines(objs.filter(o => o.kind !== 'door')), 1);
   assert.equal(shut[0].id, list[0].id, 'no door: the far lamp in your own room wins');
+});
+
+test('a lamp behind a wall only gets a shadow-casting slot: with those full of visible lamps it is left out', () => {
+  const objs: Obj[] = [wall('w', 300, -500, 300, 500), elec('downlight', 320, 0)];
+  for (let i = 0; i < SHADOW_LIGHTS; i++) objs.push(elec('downlight', 100 - i * 40, 0));
+  const list = emitters(objs, CEIL);
+  const behind = list[0];
+  const picked = pickEmitters(list, { x: 100, y: 0, h: 160 }, sightLines(objs));
+  assert.equal(picked.length, SHADOW_LIGHTS);
+  assert.ok(!picked.includes(behind), 'no unshadowed slot for the lamp behind the wall');
+  // one fewer visible lamp frees a shadow slot for it
+  const fewer = objs.slice(0, -1);
+  assert.ok(pickEmitters(emitters(fewer, CEIL), { x: 100, y: 0, h: 160 }, sightLines(fewer)).some(e => e.x === 320));
 });

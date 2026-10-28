@@ -20,6 +20,8 @@ export class Lamps3D {
   private storeys: StoreyLamps[] = [];
   private on = false;
   private last = { x: NaN, y: NaN, t: 0, key: '' };
+  /** The plan or the switch changed: re-aim even if the same ids come out (they may now be none). */
+  private dirty = true;
   /** Ids lit right now, for tests and the bench. */
   active: string[] = [];
 
@@ -44,6 +46,7 @@ export class Lamps3D {
     this.on = on;
     if (on) this.scene.add(this.group); else this.scene.remove(this.group);
     this.last.key = '';   // force a re-pick
+    this.dirty = true;
     this.renderer.shadowMap.needsUpdate = true;
   }
 
@@ -51,22 +54,36 @@ export class Lamps3D {
   setStoreys(s: StoreyLamps[]) {
     this.storeys = s;
     this.last.key = '';
-    this.active = [];   // same ids may carry new numbers (lumens, colour, a moved lamp)
+    this.dirty = true;   // same ids may carry new numbers (lumens, colour, a moved lamp), or there may be none left
     this.renderer.shadowMap.needsUpdate = true;
   }
 
-  /** Point the pool at the lamps that matter for a viewer at world (x, y, z). Cheap when nothing changed. */
-  update(viewer: THREE.Vector3, now: number) {
+  /** The storey whose floor is the highest one below `y`, or the lowest storey when `y` is under them all. */
+  storeyAt(y: number): StoreyLamps | undefined {
+    let st: StoreyLamps | undefined;
+    for (const s of this.storeys) if (s.base <= y && (!st || s.base > st.base)) st = s;
+    return st ?? this.storeys.reduce<StoreyLamps | undefined>((a, b) => (!a || b.base < a.base ? b : a), undefined);
+  }
+
+  /**
+   * Point the pool at the lamps that matter. Standing in a room (the eye less
+   * than one and a half storeys above its floor), around the eye; looking down
+   * on the plan, around what the orbit turns about. Cheap when nothing changed.
+   */
+  update(eye: THREE.Vector3, target: THREE.Vector3, storeyHeight: number, now: number) {
     if (!this.on) return;
+    const at = this.storeyAt(eye.y);
+    const viewer = at && eye.y - at.base < storeyHeight * 1.5 ? eye : target;
     const moved = Math.hypot(viewer.x - this.last.x, viewer.z - this.last.y) > MOVE_CM;
     if (this.last.key && !moved && now - this.last.t < REPICK_MS) return;
     // The storey the viewer stands in: the highest whose floor is below the eye.
-    let st = this.storeys[0];
-    for (const s of this.storeys) if (s.base <= viewer.y && (!st || s.base >= st.base)) st = s;
-    const picked = st ? pickEmitters(st.emitters, { x: viewer.x, y: viewer.z, h: viewer.y - st.base }, st.walls) : [];
+    const st = this.storeyAt(viewer.y);
+    if (!st) return;
+    const picked = pickEmitters(st.emitters, { x: viewer.x, y: viewer.z, h: viewer.y - st.base }, st.walls);
     const key = picked.map(e => e.id).join(',');
     this.last = { x: viewer.x, y: viewer.z, t: now, key };
-    if (key === this.active.join(',')) return;
+    if (!this.dirty && key === this.active.join(',')) return;
+    this.dirty = false;
     this.active = picked.map(e => e.id);
     // Shadow casters go to the nearest picks: `pickEmitters` already put them first.
     for (let i = 0; i < this.pool.length; i++) {
