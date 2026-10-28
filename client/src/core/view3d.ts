@@ -13,6 +13,8 @@ import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { lightParts, LightPart } from './lights3d';
 import { Lamps3D } from './lamps3d';
+import { WalkMode } from './walk3d';
+import { isTextField } from './keys3d';
 /** Share of the night sky fill kept while the lamps are on (B18): enough to see the corners, not enough to drown the lamps. */
 const NIGHT_FILL_WITH_LAMPS = 0.3;
 import { emitters, sightLines } from './lightEmit';
@@ -81,6 +83,8 @@ export class View3D {
   private fly = false;   // WASD/QE camera movement
   /** The fittings as real light sources (B18) — see ./lamps3d. */
   lamps!: Lamps3D;
+  /** First-person walking (B19) — see ./walk3d. */
+  walk!: WalkMode;
   /** null = follow the time of day (on at dusk and night); true/false = the toolbar's override. */
   private lampsOverride: boolean | null = null;
   private lampsOff = new Set<number>();
@@ -152,6 +156,14 @@ export class View3D {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
+    this.walk = new WalkMode(this.camera, this.controls, this.renderer.domElement);
+    // F walks in and out while the 3D pane has the keyboard; Esc out once the mouse is free
+    // (the first Esc only releases pointer lock — the browser keeps that one).
+    window.addEventListener('keydown', e => {
+      if (!this.fly || e.repeat || isTextField(document.activeElement as HTMLInputElement | null)) return;
+      if (e.code === 'KeyF') { e.preventDefault(); this.setWalking(!this.walk.active); }
+      else if (e.code === 'Escape' && this.walk.active && !document.pointerLockElement) this.setWalking(false);
+    });
     this.setFeel(FEEL_DEFAULTS);
 
     // Contrast-forward lighting: a strong key sun for crisp cast shadows, a weak
@@ -237,6 +249,16 @@ export class View3D {
     this.controls.dampingFactor = o.dampingFactor;
     this.controls.zoomSpeed = o.zoomSpeed;
     this.moveSpeed = o.moveSpeed;
+    if (this.walk) this.walk.look = f.look;
+  }
+
+  /** Walk mode on or off; walks in on the storey being edited. */
+  setWalking(on: boolean) {
+    if (!on) { this.walk.exit(); return; }
+    const doc = this.lastDoc;
+    if (!doc) return;
+    const i = Math.max(0, doc.project.floors.findIndex(f => f.id === doc.project.activeFloorId));
+    this.walk.enter(i);
   }
 
   setFly(on: boolean) { this.fly = on; if (!on) this.pressed.clear(); }
@@ -450,6 +472,7 @@ export class View3D {
     this.renderer.shadowMap.needsUpdate = true;   // refresh shadows once for this rebuild
     this.lastDoc = doc;
     this.collectLamps(doc);
+    this.walk.setPlan(doc);
 
     if (reframe) {
       this.controls.target.set(...frame.target);
@@ -827,8 +850,11 @@ export class View3D {
     // Capped like a game's tick: a hitch (a rebuild, a texture upload) must not
     // turn one held W into a several-metre jump.
     const dt = Math.min(this.clock.getDelta(), MAX_STEP_S);
-    if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
-    this.controls.update();
+    if (this.walk.active) this.walk.frame(dt, this.pressed);
+    else {
+      if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
+      this.controls.update();   // never while walking: it would swing the camera back round the old target
+    }
     this.lamps.update(this.camera.position, this.controls.target, WALL_H, now);
     this.updateCeilingVisibility();
     this.composer.render();

@@ -8,7 +8,16 @@ import { archetypeFor, footprintScale, modelKey } from './furnitureFit';
 // otherwise the piece built from primitives in ./furnitureBuilders. Cached per
 // (item, size); callers clone.
 
+/**
+ * Pieces that always use their built shape, never the scan. The stairs: the
+ * scan is a spiral, but the plan symbol is a straight flight and walk mode
+ * climbs it straight along its length (./walk) — a spiral squeezed into a
+ * 100 × 300 box matched neither.
+ */
+const BUILT_ONLY = new Set(['stairs']);
+
 function buildFurniture(item: string, w: number, h: number): THREE.Object3D {
+  if (BUILT_ONLY.has(item)) return BUILDERS[item](w, h);
   // Start the load here rather than leaving it to the idle-time warmer. The
   // warmer runs on requestIdleCallback, and a 3D view rendering every frame
   // starves it: with 35 pieces on one plan only 8 of the 17 models had arrived
