@@ -348,6 +348,15 @@ function scanned(
 
 // ---------------------------------------------------------------- the library
 
+/** Side of every generated texture, px (textures3d.ts draws them at this size). */
+export const TEXTURE_PX = 512;
+/**
+ * The least detail a generated *wall* texture may have, px per cm (B21). Walking
+ * puts your eyes half a metre from a wall; 乳膠漆 was 512 px across 400 cm
+ * (1.28 px/cm) and its grain showed up as a mosaic of blocks.
+ */
+export const WALL_PX_PER_CM = 4;
+
 export const MATERIALS: MaterialDef[] = [
   {
     id: 'wood', label: '橡木地板', category: 'floor', tileCm: 240,
@@ -496,7 +505,7 @@ export const MATERIALS: MaterialDef[] = [
 
   // ---- walls ----
   {
-    id: 'paint', label: '乳膠漆', category: 'wall', tileCm: 400,
+    id: 'paint', label: '乳膠漆', category: 'wall', tileCm: 120,
     roughness: 0.94, metalness: 0, swatch: '#eceff4', bump: 0.35,
     albedo(c, s, r) { c.fillStyle = '#eceff4'; c.fillRect(0, 0, s, s); grain(c, s, r, 0.25); },
     height(c, s, r) { c.fillStyle = '#888'; c.fillRect(0, 0, s, s); grain(c, s, r, 0.8); },

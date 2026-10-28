@@ -236,6 +236,10 @@ export class Editor implements ToolCtx {
     window.addEventListener('keydown', e => {
       const el = e.target as HTMLElement | null;
       const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable === true;
+      // A dropdown keeps ⌘ shortcuts (⌘Z right after changing a finish has to work)
+      // but not the single keys: Backspace there used to delete the selected room,
+      // and the arrow keys are how a dropdown changes its option (B21 review).
+      const inSelect = el?.tagName === 'SELECT';
       // Esc is document-level, not a 2D tool shortcut, so it is handled *before*
       // both guards below.
       //
@@ -249,7 +253,7 @@ export class Editor implements ToolCtx {
       // as well because you happened to be editing a number is not what anyone
       // means by cancel; a second press then clears it.
       if (e.key === 'Escape') {
-        if (typing) { el!.blur(); return; }
+        if (typing || inSelect) { el!.blur(); return; }
         this.selectTool('select');
         this.doc.select(null);
         return;
@@ -278,20 +282,36 @@ export class Editor implements ToolCtx {
         if (doc[k]) { doc[k](); e.preventDefault(); return; }
       }
 
+      // ---- editing shortcuts, also before the focus guard (B21) ----
+      //
+      // Undo, copy/paste, group and Delete act on the *document* too. They used to sit
+      // behind the guard below, so with the 3D view in front you could place a sofa
+      // by clicking the floor and then neither undo it nor delete it — ⌘Z and Delete
+      // did nothing at all. Only the keys the 3D view moves with stay 2D-only.
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && !e.altKey) {
+        const k = e.key.toLowerCase();
+        const edit: Record<string, () => void> = {
+          z: () => (e.shiftKey ? this.doc.redo() : this.doc.undo()),
+          y: () => this.doc.redo(),
+          c: () => this.copySelection(),
+          v: () => this.pasteClipboard(),
+          d: () => this.duplicateSelection(),
+          x: () => this.cutSelection(),
+          a: () => this.selectAll(),
+          g: () => (e.shiftKey ? this.doc.ungroupSelection() : this.doc.groupSelection()),
+        };
+        if (edit[k]) { edit[k](); e.preventDefault(); return; }
+      }
+      if (inSelect) return;
+      if (!this.inputEnabled && (e.key === 'Delete' || e.key === 'Backspace')) {
+        const objs = this.doc.selectedObjects;
+        if (objs.length) { this.doc.commit(); for (const o of objs) this.doc.remove(o.id); e.preventDefault(); }
+        return;
+      }
+
       if (!this.inputEnabled) return; // 2D is only the preview — ignore shortcuts
       if (e.code === 'Space') { this.space = true; this.canvas.style.cursor = 'grab'; return; }
-      const meta = e.metaKey || e.ctrlKey;
-      if (meta && e.key.toLowerCase() === 'z') { e.shiftKey ? this.doc.redo() : this.doc.undo(); e.preventDefault(); return; }
-      if (meta && e.key.toLowerCase() === 'y') { this.doc.redo(); e.preventDefault(); return; }
-      if (meta && e.key.toLowerCase() === 'c') { this.copySelection(); e.preventDefault(); return; }
-      if (meta && e.key.toLowerCase() === 'v') { this.pasteClipboard(); e.preventDefault(); return; }
-      if (meta && e.key.toLowerCase() === 'd') { this.duplicateSelection(); e.preventDefault(); return; }
-      if (meta && e.key.toLowerCase() === 'x') { this.cutSelection(); e.preventDefault(); return; }
-      if (meta && e.key.toLowerCase() === 'a') { this.selectAll(); e.preventDefault(); return; }
-      if (meta && e.key.toLowerCase() === 'g') {
-        e.shiftKey ? this.doc.ungroupSelection() : this.doc.groupSelection();
-        e.preventDefault(); return;
-      }
       // note: W/A/S/D are reserved for 3D camera movement, so they are NOT tool shortcuts
       const map: Record<string, string> = { v: 'select', h: 'select', n: 'window', m: 'dimension' };
       if (!meta && map[e.key.toLowerCase()]) { this.selectTool(map[e.key.toLowerCase()]); return; }

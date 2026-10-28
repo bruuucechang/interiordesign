@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Doc } from '../model/doc';
-import { Blocker, Walker, WALK, blockers, spawn, walkStep } from './walk';
+import { Blocker, Walker, WALK, blockers, spawn, walkSpawn, walkStep } from './walk';
 import { FEEL_BASE } from './controlFeel';
 
 /** How far up and down you can look, radians — short of straight, where yaw stops meaning anything. */
@@ -58,18 +58,29 @@ export class WalkMode {
     this.place();
   }
 
+  /** The orbit view walking started from: leaving puts the camera back there (B21). */
+  private before: { pos: THREE.Vector3; target: THREE.Vector3 } | null = null;
+  /** The plan heading walkSpawn chose on the last enter (bench/verify-polish checks the camera faces it). */
+  lastHeading = 0;
+
   /**
-   * Step in where the camera is looking: the point on the current storey's
-   * floor straight ahead of the orbit (its target), pushed clear of walls.
+   * Step in at the room the camera is looking at: its most open point, facing
+   * the longest clear view (`walkSpawn`). It used to be the orbit target itself,
+   * facing the camera's way — nose to a wall on the A1 plan.
    */
   enter(floor: number) {
     if (!this.doc || this.active) return;
     const floors = this.doc.project.floors;
     const t = this.controls.target;
-    this.walker = spawn(floors, floor, { x: t.x, y: t.z }, this.walls[floor] ?? []);
+    this.before = { pos: this.camera.position.clone(), target: t.clone() };
+    const walls = this.walls[floor] ?? [];
+    const objs = (floors[floor]?.objects ?? []).filter(o => this.doc!.isLayerVisible(o.layer));
+    const at = walkSpawn(objs, walls, { x: t.x, y: t.z });
+    this.walker = spawn(floors, floor, at.p, walls);
     this.floorId = floors[this.walker.floor]?.id ?? '';
-    const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
-    this.yaw = Math.atan2(-dir.x, -dir.z);
+    // Plan forward (cos h, sin h) is (−sin yaw, −cos yaw) in this camera's frame.
+    this.yaw = Math.atan2(-Math.cos(at.heading), -Math.sin(at.heading));
+    this.lastHeading = at.heading;
     this.pitch = 0;
     this.active = true;
     this.controls.enabled = false;
@@ -81,9 +92,13 @@ export class WalkMode {
     if (!this.active) return;
     this.active = false;
     if (document.pointerLockElement === this.dom) document.exitPointerLock?.();
-    // Hand the orbit a target 3 m ahead, so the next drag turns around what you were looking at.
-    const ahead = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).multiplyScalar(300);
-    this.controls.target.copy(this.camera.position).add(ahead).setY(this.walker.z + 100);
+    // Back to the view walking started from — like leaving first person in a build
+    // game. Staying where the walker stood left the orbit camera against a wall.
+    if (this.before) {
+      this.camera.position.copy(this.before.pos);
+      this.controls.target.copy(this.before.target);
+      this.before = null;
+    }
     this.controls.enabled = true;
     this.controls.update();
     this.onToggle?.(false);

@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   rng, hash, heightToNormal, material, repeatFor, MATERIALS, floorMaterials, wallMaterials,
-  herringbonePlanks, plankCells,
+  herringbonePlanks, plankCells, TEXTURE_PX, WALL_PX_PER_CM,
 } from '../src/core/materials';
 
 // ---------------------------------------------------------------- 亂數
@@ -275,5 +276,19 @@ test('不同材質的填充不會長得一模一樣', () => {
       assert.fail(`${m.id} 與 ${prev} 的填充完全相同`);
     }
     seen.set(s, m.id);
+  }
+});
+
+// ---------------------------------------------------------------- B21 牆面近看
+
+test('程式產生的牆面貼圖每公分至少 4 px（行走時站在牆前不會看到馬賽克）', () => {
+  // 有照片的材質照實際尺寸鋪（磚就是那麼大），產生的那張只是照片到之前的替身，不在這裡管；
+  // 這裡管的是一直用產生貼圖的牆面（乳膠漆原本 400 cm 一張、每公分 1.28 px）。
+  const photos = JSON.parse(readFileSync(new URL('../public/textures/manifest.json', import.meta.url), 'utf8')).materials;
+  const generated = wallMaterials().filter((m) => !photos[m.id]);
+  assert.ok(generated.some((m) => m.id === 'paint'), '乳膠漆沒有照片，應該在名單裡');
+  for (const m of generated) {
+    const tile = m.tileCm ?? 100;
+    assert.ok(TEXTURE_PX / tile >= WALL_PX_PER_CM, `${m.id}：${TEXTURE_PX}px / ${tile}cm = ${(TEXTURE_PX / tile).toFixed(2)} px/cm`);
   }
 });
