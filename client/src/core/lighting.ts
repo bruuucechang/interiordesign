@@ -253,7 +253,7 @@ export interface ShadeSeg {
   ax: number; ay: number; bx: number; by: number;
   half: number;
   top: number;
-  holes: { t0: number; t1: number; z0: number; z1: number; door: boolean }[];
+  holes: { t0: number; t1: number; z0: number; z1: number }[];
 }
 
 /**
@@ -277,7 +277,7 @@ export function shadeSegs(walls: readonly Wall[], openings: readonly Opening[]):
         ax: w.a.x, ay: w.a.y, bx: w.b.x, by: w.b.y, half, top,
         holes: openingsOnWall(w, ops).map(h => {
           const { elev, height } = openingSpan(h.op);
-          return { t0: h.s / len, t1: h.e / len, z0: elev, z1: elev + height, door: h.op.kind === 'door' };
+          return { t0: h.s / len, t1: h.e / len, z0: elev, z1: elev + height };
         }),
       });
       continue;
@@ -287,7 +287,7 @@ export function shadeSegs(walls: readonly Wall[], openings: readonly Opening[]):
     const pts = quadPoints(w.a, wallControl(w.a, w.b, w.bulge), w.b, ARC_PIECES);
     const cum = [0];
     for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
-    const spans: { s: number; e: number; z0: number; z1: number; door: boolean }[] = [];
+    const spans: { s: number; e: number; z0: number; z1: number }[] = [];
     for (const op of ops) {
       let best = { d: Infinity, at: 0 };
       for (let i = 0; i + 1 < pts.length; i++) {
@@ -299,7 +299,7 @@ export function shadeSegs(walls: readonly Wall[], openings: readonly Opening[]):
       }
       if (best.d > half + 10) continue;   // the same tolerance as openingsOnWall
       const { elev, height } = openingSpan(op);
-      spans.push({ s: best.at - op.width / 2, e: best.at + op.width / 2, z0: elev, z1: elev + height, door: op.kind === 'door' });
+      spans.push({ s: best.at - op.width / 2, e: best.at + op.width / 2, z0: elev, z1: elev + height });
     }
     for (let i = 0; i + 1 < pts.length; i++) {
       const len = cum[i + 1] - cum[i];
@@ -307,7 +307,7 @@ export function shadeSegs(walls: readonly Wall[], openings: readonly Opening[]):
       out.push({
         ax: pts[i].x, ay: pts[i].y, bx: pts[i + 1].x, by: pts[i + 1].y, half, top,
         holes: spans.filter(h => h.e > cum[i] && h.s < cum[i + 1]).map(h => ({
-          t0: Math.max(0, (h.s - cum[i]) / len), t1: Math.min(1, (h.e - cum[i]) / len), z0: h.z0, z1: h.z1, door: h.door,
+          t0: Math.max(0, (h.s - cum[i]) / len), t1: Math.min(1, (h.e - cum[i]) / len), z0: h.z0, z1: h.z1,
         })),
       });
     }
@@ -387,47 +387,52 @@ export function portals(r: LightRoom, shade: readonly ShadeSeg[]): Portal[] {
 /**
  * The luminaires whose direct light can reach this room: its own, and — when
  * walls cast shadows — each other light on the floor that has a clear line to
- * one of the room's openings (`portals`) and would still be bright enough
- * through the nearest one to matter (an upper bound: straight on). A
- * neighbour sealed off by walls drops out, so moving it does not recompute
- * this room. Whether a wall blocks a given point is `lux`'s test.
+ * one of the room's openings (`portals`, through doors or windows alike) and
+ * would still be bright enough through the nearest one to matter. A neighbour
+ * sealed off by walls drops out, so moving it does not recompute this room.
+ * Whether a wall blocks a given point is `lux`'s test.
  */
 export function reaching(r: LightRoom, all: readonly Luminaire[]): Luminaire[] {
   const own = roomLuminaires(r, all);
   if (!r.shade) return own;
   const mine = new Set(own);
-  const out = [...own];
-  let ways: Portal[] | null = null;
-  // On its way to this room's openings a neighbour's light may pass doors, not
-  // other windows: out of one window and back in through another is a path,
-  // but a faint one, and around a flat with windows on every side it made every
-  // light a neighbour of every room.
-  const doorsOnly = r.shade.map(w => ({ ...w, holes: w.holes.filter(h => h.door) }));
+  const ways = portals(r, r.shade);
+  if (!ways.length) return own;
+  // Each neighbour's upper bound through the nearest opening. The faintest are
+  // left out only while together they stay under REACH_LUX: forty lights at
+  // 0.9 lux each are not nothing.
+  const cand: { L: Luminaire; bound: number }[] = [];
   for (const L of all) {
     if (mine.has(L)) continue;
-    ways ??= portals(r, r.shade);
-    if (!ways.length) break;
     const half = L.tube ? L.tube.length / 2 : 0;
     let rho = Infinity;
     for (const q of ways) rho = Math.min(rho, Math.max(0, Math.hypot(q.x - L.x, q.y - L.y) - half));
-    if (reachBound(L, rho) < REACH_LUX) continue;
-    if (seesWayIn(doorsOnly, L, ways)) out.push(L);
+    cand.push({ L, bound: reachBound(L, rho) });
   }
+  cand.sort((p, q) => p.bound - q.bound);
+  let dropped = 0, k = 0;
+  while (k < cand.length && dropped + cand[k].bound < REACH_LUX) dropped += cand[k++].bound;
+  const out = [...own];
+  for (; k < cand.length; k++) if (seesWayIn(r.shade, cand[k].L, ways)) out.push(cand[k].L);
   return out;
 }
 
 /**
- * The most lux a light can put on any work plane (floor to desk) at least
+ * The most lux a light can put on any work plane (floor to 120 cm) at least
  * `rho` cm away in plan, using its own distribution, not straight-on
  * intensity: on a horizontal plane Δz below, a downward cosⁿ source gives
  * I·Δzⁿ⁺¹ / dⁿ⁺³ and a sideways tube at most I·Δz / d³ — far less than I/ρ²
  * once the point is off to the side, which is where a neighbour's room is.
  */
+/** The highest work plane anything is measured on, cm — above the desk: counters and vanities. */
+const HIGHEST_PLANE = 120;
+
 export function reachBound(L: Luminaire, rho: number): number {
   const peak = L.tube ? 2 * L.lumens / (Math.PI * Math.PI) : L.lumens * ((L.exponent ?? 1) + 1) / (2 * Math.PI);
   const r = rho / 100;
   const n = L.tube ? 0 : (L.exponent ?? 1);   // a tube's cos(ca) towards the plane is ≤ 1: bound it by cb alone
-  const lo = Math.max(0.01, (L.z - PLANES.desk) / 100), hi = Math.max(lo, L.z / 100);
+  // Up to a worktop or a vanity top (zones go to ~110 cm), down to the floor.
+  const lo = Math.max(0.01, (L.z - HIGHEST_PLANE) / 100), hi = Math.max(lo, L.z / 100);
   // f(Δz) = Δzⁿ⁺¹ / (ρ² + Δz²)^((n+3)/2) peaks at Δz = ρ·√((n+1)/2); clamp to the planes' range
   const best = Math.min(hi, Math.max(lo, r * Math.sqrt((n + 1) / 2)));
   const f = Math.pow(best, n + 1) / Math.pow(r * r + best * best, (n + 3) / 2);

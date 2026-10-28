@@ -151,7 +151,7 @@ test('只照到門口一小片的隔壁燈也算進來（不靠粗格點探測�
   assert.ok(b.grid.max > 5, `門口那一片有光：${b.grid.max}`);
 });
 
-test('從自己房間的窗戶照出去、再從別間的窗戶照進來的燈，不算隔壁的燈', () => {
+test('從自己房間的窗戶照出去、再從別間的窗戶照進來的燈也算（夠亮就算，跟門一樣）', () => {
   // a = 0..300 × 0..300；b = 300..600 × 100..400，往下錯開 100，所以 a 的東牆 y<100 那段是外牆。
   // a 的東牆在 y=50 開一扇落地窗，b 的北牆在 x=350 開一扇落地窗：燈 → a 的窗 → 室外 → b 的窗，一條直線。
   const glass = (id: string, x: number, y: number, angle: number): Obj =>
@@ -161,8 +161,20 @@ test('從自己房間的窗戶照出去、再從別間的窗戶照進來的燈�
     wall('an', 0, 0, 300, 0), wall('aw', 0, 0, 0, 300), wall('as', 0, 300, 300, 300), wall('ae', 300, 0, 300, 400),
     wall('bn', 300, 100, 600, 100), wall('be', 600, 100, 600, 400), wall('bs', 300, 400, 600, 400),
     glass('wa', 300, 50, 90), glass('wb', 350, 100, 0), elec('downlight', 200, 0 + 5)];
-  const [, lb] = lightFloor(objs, CEIL, view);
-  assert.equal(lb.near.length, 0);
+  const [, lb] = lightFloor(objs, CEIL, { ...view, height: PLANES.floor });
+  assert.equal(lb.near.length, 1);
+  assert.ok(lb.grid.max > 1, `b 間有一片被照到：${lb.grid.max}`);
+  // 把 b 的窗拿掉：一條路都沒有了
+  const [, shut] = lightFloor(objs.filter(o => o.id !== 'wb'), CEIL, { ...view, height: PLANES.floor });
+  assert.equal(shut.near.length, 0);
+});
+
+test('很多盞各自很暗的隔壁燈，加起來超過門檻就留下來', () => {
+  // b 間的門在 x=300、y=150；a 間在門口外很遠處排一列燈，每盞上界都 < 1 lux
+  const objs: Obj[] = [room('a', -3000, 0, 3300, 300), room('b', 300, 0, 300, 300), wall('w', 300, 0, 300, 300), door('d', 300, 150, 90)];
+  for (let i = 0; i < 40; i++) objs.push(elec('downlight', -1100 - i * 5, 150));
+  const [, b] = lightFloor(objs, CEIL, view);
+  assert.ok(b.near.length > 0, '沒有整批丟掉');
 });
 
 test('曲線牆：房間自己的弧牆不會擋暗貼著它的那一條地板', () => {
