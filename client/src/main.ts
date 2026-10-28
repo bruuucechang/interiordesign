@@ -17,6 +17,7 @@ import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
 import { onFeel } from './ui/controls-settings';
+import { CIRCUITS_EVENT, circuitsOff } from './ui/lighting-panel';
 import { lightingProbe } from './ui/lighting-panel';
 import { panelInsetRight, watchPanelInset } from './ui/side-panels';
 import { flash } from './ui/feedback';
@@ -306,6 +307,16 @@ splitter.addEventListener('dblclick', () => {
 
 const timeSel = document.getElementById('timeOfDay') as HTMLSelectElement;
 timeSel.onchange = () => view3d?.setTimeOfDay(timeSel.value as any);
+
+// B18: lamps that really shine. On at dusk and night; the button overrides until the time changes.
+const lampsBtn = document.getElementById('lampsToggle') as HTMLButtonElement;
+if (view3d) {
+  const v = view3d;
+  v.onLampsChange = on => { lampsBtn.classList.toggle('on', on); lampsBtn.setAttribute('aria-pressed', String(on)); };
+  lampsBtn.onclick = () => v.setLampsOn(!v.lampsOn);
+  v.setLampCircuitsOff(new Set(circuitsOff()));
+  window.addEventListener(CIRCUITS_EVENT, e => v.setLampCircuitsOff(new Set((e as CustomEvent<number[]>).detail)));
+} else lampsBtn.hidden = true;
 
 // live sync: any plan change rebuilds the (always-present) 3D view; if 2D is the
 // PiP, keep it fitted too
