@@ -36,7 +36,13 @@ export function panelInsetRight(canvas: HTMLElement): number {
  * 3D 底部的提示靠它置中於看得到的那段，不然 1920 寬開著照度面板時右半被切掉（U5）。
  */
 export function watchPanelInset(el: HTMLElement) {
-  const sync = () => el.style.setProperty('--panel-inset', `${panelInsetRight(el)}px`);
+  const sync = () => {
+    const inset = panelInsetRight(el);
+    el.style.setProperty('--panel-inset', `${inset}px`);
+    // 3D 那格扣掉面板與右下樓層鈕之後放不下提示：提示改一行、截斷，鍵帽收起來，
+    // 不然分割拉到 70% 又開著抽屜時提示會被擠成一個字一行的直排（B20 第二輪審查）。
+    if (el.id === 'view3d') el.classList.toggle('dock-cramped', el.clientWidth - inset - 82 < 300);
+  };
   const mo = new MutationObserver(sync);
   for (const p of document.querySelectorAll<HTMLElement>('.light-panel, .health-panel, #right')) mo.observe(p, { attributes: true, attributeFilter: ['class', 'style'] });
   // 抽屜（#right）是滑進來的：拿掉 .closed 的那一刻它還在畫面外，要等動畫跑完再量一次。

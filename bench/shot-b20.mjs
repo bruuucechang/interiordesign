@@ -112,6 +112,28 @@ for (const [w, h] of [[1440, 900], [1280, 800]]) {
   ok(!errs.length, `${tag} 沒有頁面錯誤${errs.length ? '：' + errs.join(' / ') : ''}`);
   await ctx.close();
 }
+// B20 第二輪審查：分割拉到 70%（3D 那格很窄）又開著抽屜時，提示不塌成直排、鍵帽不壓樓層鈕。
+{
+  const ctx = await br.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => { localStorage.setItem('interior_tour_seen', '1'); localStorage.setItem('interior_view_mode', 'split');
+    localStorage.setItem('interior_view_split', '70'); localStorage.setItem('interior_owner', 'own_orsxp52fbvey'); localStorage.setItem('interior_lang', 'zh-Hant'); });
+  await page.goto(`${BASE}/?perf=1&plan=plan1151022`, { timeout: 400000 });
+  await page.waitForFunction(() => window.__app?.doc.objects.length > 50, null, { timeout: 120000 });
+  await page.waitForTimeout(2000);
+  await page.evaluate(() => { const a = window.__app; a.editor.selectTool('furniture'); a.doc.select(a.doc.objects.find(o => o.kind === 'furniture').id); });
+  await page.waitForTimeout(600);
+  const m = await page.evaluate(() => {
+    const r = (s) => document.querySelector(s).getBoundingClientRect();
+    const hit = (a, b) => a.width > 0 && b.width > 0 && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const h = r('#hint3d'), k = r('.key-hud'), f = r('#floors'), d = r('#right');
+    return { h: Math.round(h.height), hudFloors: hit(k, f), hintDrawer: hit(h, d), hintFloors: hit(h, f) };
+  });
+  ok(m.h > 0 && m.h < 40 && !m.hudFloors && !m.hintDrawer && !m.hintFloors, `1280 分割 70%＋抽屜：3D 提示一行、不壓樓層鈕與抽屜 ${JSON.stringify(m)}`);
+  await page.screenshot({ path: `${OUT}b20-1280-split70-drawer.png` });
+  await ctx.close();
+}
+
 // 導覽提示（B20 審查 4、5、9）：空白方案第一次才出現、不蓋住風格選單與樓層鈕、
 // 按「看導覽」就記成看過；網址帶 ?plan= 的不出現。
 {

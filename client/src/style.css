@@ -568,4 +568,6 @@ body.drawer-open .light-panel { right: calc(var(--drawer-w) + 20px); }
 .cat-list::-webkit-scrollbar { display: none; }
 /* The floor buttons sit in the stage's bottom-right corner, so the 3D key read-out
    and hint (one dock, keys3d.ts) centre themselves in what is left of the pane beside them. */
-.dock3d { right: calc(82px + var(--panel-inset, 0px)); }   /* 讓到右下樓層鈕左邊，置中在剩下的那段（verify-b9 量）*/
+.dock3d { right: calc(82px + var(--panel-inset, 0px)); }
+.view3d.dock-cramped .dock3d .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.view3d.dock-cramped .key-hud { display: none; }   /* 讓到右下樓層鈕左邊，置中在剩下的那段（verify-b9 量）*/
