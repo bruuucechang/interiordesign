@@ -22,6 +22,7 @@ import { DEFAULTS, defaultNote } from '../model/locale-defaults';
 import { flushSave, markDirty, scheduleAutosave, startAutosave, syncPlanUrl } from './autosave';
 import { setConflictHandler, setNotYoursHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
+import { wireStartCard } from './start-card';
 import { refreshProps } from './properties';
 import { dwgNotSupportedModal, dxfImportModal, plotModal, openModal } from './modals';
 
@@ -94,6 +95,7 @@ export function initUI(editor: Editor, doc: Doc) {
     scheduleAutosave(doc); scheduleReconcile(doc); updateUndoRedo(doc); scheduleHealth(editor, doc);
     renderSteps(editor, doc);   // 進度是從文件推出來的，不是記住的
   });
+  wireStartCard(editor, doc);   // B24：空白這層的開場卡、有東西就收起導覽提示、第一間房拉近
   startAutosave(doc);
   updateUndoRedo(doc);
   const nameInput = $<HTMLInputElement>('#projectName');
