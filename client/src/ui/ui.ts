@@ -1,4 +1,5 @@
 import { Editor } from '../core/editor';
+import { openFeelSettings } from './controls-settings';
 import { Doc, genId } from '../model/doc';
 import { Obj, Project } from '../model/schema';
 import { ELECTRICAL } from '../model/catalogue';
@@ -655,6 +656,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
     case 'help': openHelp(editor, doc); break;
     case 'tour': startTour(); break;   // kept so an old bookmark/keystroke still works
     case 'shortcuts': $('#shortcutsModal').classList.remove('hidden'); break;
+    case 'feel': openFeelSettings(); break;
   }
 }
 

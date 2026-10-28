@@ -1,4 +1,5 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
+import { JOIN_PX } from './draw';
 import { Obj, Vec } from '../model/schema';
 import { handles } from '../core/handles';
 import { hitTest, furnitureCenter } from '../core/hit';
@@ -133,7 +134,7 @@ export class SelectTool implements Tool {
 
   private doResize(o: Obj, p: PointerInfo) {
     const g = this.orig;
-    const grid = this.ctx.snapEnabled ? this.ctx.gridSize : 0;
+    const grid = this.ctx.snapEnabled && !p.alt ? this.ctx.gridSize : 0;
     if (o.kind === 'furniture') this.patch(o, resizeFurniture(g, p.world, grid) as any);
     else if (o.kind === 'room' || o.kind === 'image' || o.kind === 'area') {
       this.patch(o, resizeBox(g, this.handleId as Corner, p.snapped) as any);
@@ -143,7 +144,7 @@ export class SelectTool implements Tool {
   private doCurve(o: Obj, p: PointerInfo) {
     if (o.kind !== 'wall') return;
     const g = this.orig;
-    this.patch(o, { bulge: curveBulge(g.a, g.b, p.world, this.ctx.gridSize, this.ctx.snapEnabled) } as any);
+    this.patch(o, { bulge: curveBulge(g.a, g.b, p.world, this.ctx.gridSize, this.ctx.snapEnabled && !p.alt) } as any);
   }
 
   private doEndpoint(o: Obj, p: PointerInfo) {
@@ -151,9 +152,9 @@ export class SelectTool implements Tool {
     if (o.kind === 'wall' || o.kind === 'beam' || o.kind === 'dimension') {
       let pt = p.snapped;
       this.ctx.setPreview();
-      if ((o.kind === 'wall' || o.kind === 'beam') && this.ctx.snapEnabled) {   // same smart snap as drawing
+      if ((o.kind === 'wall' || o.kind === 'beam') && this.ctx.snapEnabled && !p.alt) {   // same smart snap as drawing
         const walls = this.ctx.doc.objects.filter(w => w.kind === 'wall') as unknown as WallSeg[];
-        const s = computeSnap(walls, p.world, 14 / this.ctx.vp.scale, { excludeId: o.id });
+        const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale, { excludeId: o.id });
         if (s) {
           pt = s.point;
           this.ctx.setPreview(undefined, ctx => drawSnap(ctx, this.ctx.vp, s));

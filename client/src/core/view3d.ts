@@ -12,6 +12,7 @@ import { curvedWallBands } from './wallGeometry';
 import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { lightParts, LightPart } from './lights3d';
+import { FEEL_BASE, FEEL_DEFAULTS, FeelSettings, MAX_STEP_S, orbitFeel } from './controlFeel';
 import { material as materialDef } from './materials';
 import { TimeKey, LIGHTING, sunPose, wallJoins, straightWallBoxes, sweptBand, occluder, cullFrame, cutsAway, objectExtent, sceneFrame, flyAxes, panAxes, lightMeshSpec } from './view3dMath';
 import { attachFlyKeys } from './keys3d';
@@ -74,7 +75,7 @@ export class View3D {
   onContextLost?: () => void;
   onContextRestored?: () => void;
   private fly = false;   // WASD/QE camera movement
-  private moveSpeed = 500; // cm/s, scaled to the scene in build()
+  private moveSpeed: number = FEEL_BASE.fly; // cm/s — fixed, not scaled to the scene (see ./controlFeel)
   onFloorClick: ((floor: { x: number; y: number }, sceneHit: { x: number; y: number } | null) => void) | null = null;   // click → floor-plane point + nearest-mesh hit (walls)
   onRotate90: ((deg: number) => void) | null = null;                        // Q/E in 3D → rotate the selected object ±90°
   private raycaster = new THREE.Raycaster();
@@ -140,6 +141,7 @@ export class View3D {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
+    this.setFeel(FEEL_DEFAULTS);
 
     // Contrast-forward lighting: a strong key sun for crisp cast shadows, a weak
     // opposite fill so shadowed faces stay legible, minimal ambient. Depth/contact
@@ -215,6 +217,15 @@ export class View3D {
     });
 
     this.setTimeOfDay('noon');   // initialize lights + background consistently
+  }
+
+  /** Turn, wheel and movement sensitivity — the controls settings panel's multipliers. */
+  setFeel(f: FeelSettings) {
+    const o = orbitFeel(f);
+    this.controls.rotateSpeed = o.rotateSpeed;
+    this.controls.dampingFactor = o.dampingFactor;
+    this.controls.zoomSpeed = o.zoomSpeed;
+    this.moveSpeed = o.moveSpeed;
   }
 
   setFly(on: boolean) { this.fly = on; if (!on) this.pressed.clear(); }
@@ -396,7 +407,6 @@ export class View3D {
 
     const frame = sceneFrame({ minX, maxX, minZ, maxZ });
     const { cx, cz, span } = frame;
-    this.moveSpeed = frame.moveSpeed;
 
     this.sunCenter = { x: cx, z: cz }; this.sunSpan = span;
     const sc = this.dir.shadow.camera;
@@ -777,7 +787,9 @@ export class View3D {
     this.lastDraw = now;
 
     const t0 = mark();
-    const dt = this.clock.getDelta();
+    // Capped like a game's tick: a hitch (a rebuild, a texture upload) must not
+    // turn one held W into a several-metre jump.
+    const dt = Math.min(this.clock.getDelta(), MAX_STEP_S);
     if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
     this.controls.update();
     this.updateCeilingVisibility();

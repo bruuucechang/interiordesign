@@ -145,16 +145,13 @@ test('an empty plan frames a 4 m square around the origin', () => {
   const f = sceneFrame({ minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
   assert.equal(f.cx, 0);
   assert.equal(f.span, 600);
-  assert.equal(f.moveSpeed, 420);
   assert.deepEqual(f.target, [0, 40, 0]);
   assert.deepEqual(f.eye, [420, 480, 540]);
 });
 
-test('a small plan still frames at least 3 m, and the fly speed never drops under 3 m/s', () => {
-  const f = sceneFrame({ minX: 0, maxX: 50, minZ: 0, maxZ: 50 });
-  assert.equal(f.span, 500);
-  assert.equal(f.moveSpeed, 350);
-  assert.equal(sceneFrame({ minX: 0, maxX: 10, minZ: 0, maxZ: 10 }).moveSpeed, 350);
+test('a small plan still frames at least 3 m', () => {
+  assert.equal(sceneFrame({ minX: 0, maxX: 50, minZ: 0, maxZ: 50 }).span, 500);
+  assert.equal(sceneFrame({ minX: 0, maxX: 10, minZ: 0, maxZ: 10 }).span, 500);
 });
 
 // ---- input ----

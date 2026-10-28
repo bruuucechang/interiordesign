@@ -11,7 +11,7 @@ import { computeSnap, drawSnap, SnapResult, WallSeg } from '../core/snap';
 /** 台灣住宅的預設牆厚。來源與其他在地預設值一起列在 locale-defaults.ts。 */
 const WALL_THICKNESS = DEFAULTS.wallThickness;
 const DIM_OFFSET = 40;       // cm
-const JOIN_PX = 14;          // screen-px radius for snapping onto other walls
+export const JOIN_PX = 10;          // screen-px radius for snapping onto other walls (14 grabbed neighbours while drawing short runs)
 const PLACE_STEP = 1;        // cm — round placed endpoints to a clean grid
 
 // Round a freshly placed endpoint to the nearest cm so lengths/areas don't carry
@@ -57,14 +57,14 @@ export class WallTool implements Tool {
 
   // endpoint for the current cursor: prefer a smart wall/alignment snap, else grid/angle align
   private end(p: PointerInfo): Vec {
-    if (this.ctx.snapEnabled) {
+    if (this.ctx.snapEnabled && !p.alt) {
       const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as unknown as WallSeg[];
       const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
       if (s) { this.snap = s; return s.point; }
     }
     this.snap = null;
     if (!this.start) return p.snapped;
-    return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+    return ((this.ctx.snapEnabled && !p.alt) || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
   }
 
   onDown(p: PointerInfo) {
@@ -209,13 +209,13 @@ export class CurvedWallTool implements Tool {
   constructor(private ctx: ToolCtx) {}
 
   private snap(p: PointerInfo): Vec {
-    if (this.ctx.snapEnabled) {
+    if (this.ctx.snapEnabled && !p.alt) {
       const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as unknown as WallSeg[];
       const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale, { excludeId: this.wallId ?? undefined });
       if (s) { this.snapRes = s; return s.point; }
     }
     this.snapRes = null;
-    if (this.a && !this.wallId) return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.a, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+    if (this.a && !this.wallId) return ((this.ctx.snapEnabled && !p.alt) || p.shift) ? alignWallEnd(this.a, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
     return p.snapped;
   }
 
@@ -235,7 +235,7 @@ export class CurvedWallTool implements Tool {
     if (this.wallId && this.b) {                       // setting the arc depth
       let bulge = bulgeFrom(this.a!, this.b, p.world);
       const grid = this.ctx.gridSize;
-      if (this.ctx.snapEnabled) bulge = Math.round(bulge / grid) * grid;
+      if (this.ctx.snapEnabled && !p.alt) bulge = Math.round(bulge / grid) * grid;
       if (Math.abs(bulge) < grid) bulge = 0;
       this.ctx.doc.update(this.wallId, { bulge } as any);
       this.ctx.setPreview(); this.ctx.render();
@@ -268,14 +268,14 @@ export class BeamTool implements Tool {
   constructor(private ctx: ToolCtx) {}
 
   private end(p: PointerInfo): Vec {
-    if (this.ctx.snapEnabled) {
+    if (this.ctx.snapEnabled && !p.alt) {
       const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as unknown as WallSeg[];
       const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
       if (s) { this.snap = s; return s.point; }
     }
     this.snap = null;
     if (!this.start) return p.snapped;
-    return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+    return ((this.ctx.snapEnabled && !p.alt) || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
   }
 
   onDown(p: PointerInfo) {
@@ -324,14 +324,14 @@ export class PartitionTool implements Tool {
   constructor(private ctx: ToolCtx) {}
 
   private end(p: PointerInfo): Vec {
-    if (this.ctx.snapEnabled) {
+    if (this.ctx.snapEnabled && !p.alt) {
       const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall' || o.kind === 'partition') as unknown as WallSeg[];
       const s = computeSnap(walls, p.world, JOIN_PX / this.ctx.vp.scale);
       if (s) { this.snap = s; return s.point; }
     }
     this.snap = null;
     if (!this.start) return p.snapped;
-    return (this.ctx.snapEnabled || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
+    return ((this.ctx.snapEnabled && !p.alt) || p.shift) ? alignWallEnd(this.start, p.snapped, this.ctx.gridSize, p.shift) : p.snapped;
   }
 
   onDown(p: PointerInfo) {

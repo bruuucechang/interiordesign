@@ -16,6 +16,7 @@ import { bounds } from './core/hit';
 import { FURNITURE_BY_ID } from './data/furniture';
 import { fitOpeningToWall } from './tools/place';
 import { initUI } from './ui/ui';
+import { onFeel } from './ui/controls-settings';
 import { lightingProbe } from './ui/lighting-panel';
 import { panelInsetRight, watchPanelInset } from './ui/side-panels';
 import { flash } from './ui/feedback';
@@ -67,6 +68,10 @@ if (webglAvailable()) {
   }
 }
 if (!view3d) show3DUnavailable(c3d, viewModes);
+// Sensitivity from the controls settings panel: now, and every time a slider moves.
+onFeel(f => { view3d?.setFeel(f); editor.wheelFeel = f.wheel; });
+// Alt is held to place freely; on Windows a lone Alt press would otherwise hand focus to the browser menu.
+window.addEventListener('keydown', e => { if (e.key === 'Alt') e.preventDefault(); });
 
 // Place objects by clicking in the 3D view (when 3D is the main view): furniture
 // drops on the floor point; a door/window snaps onto the wall under the cursor.

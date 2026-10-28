@@ -101,7 +101,11 @@ export class OpeningTool implements Tool {
   deactivate() { this.cand = null; this.ctx.setPreview(); }
 }
 
-const FURN_SNAP = 60;   // cm — 游標離牆多近才算「要靠牆放」
+/**
+ * 家具背面離牆面多近才算「要靠牆放」（cm）。量的是家具背面到牆面的空隙，不是游標到牆中線——
+ * 舊的 60 cm 量游標到中線：淺的層架離牆 40 cm 也被吸過去、深的床要先插進牆裡才吸得到。
+ */
+export const FURN_SNAP = 25;
 
 /**
  * 靠牆放的家具要背對牆。
@@ -122,16 +126,22 @@ export function fitFurnitureToWall(
   doc: Doc, cursor: Vec, item: { w: number; h: number; height?: number; mount?: string },
 ): { pos: Vec; angle: number } | null {
   if (item.mount === 'ceiling' || (item.height ?? 999) <= 5) return null;
-  let best: { pos: Vec; angle: number } | null = null, bestD = FURN_SNAP;
+  let best: { pos: Vec; angle: number } | null = null, bestD = Infinity;
   for (const o of doc.objects) {
-    if (o.kind !== 'wall' || !doc.isLayerVisible(o.layer)) continue;
+    // 曲線牆量弦會把家具貼在弦上、橫跨弧（跟 wallBoxes 一樣先不處理曲線牆）
+    if (o.kind !== 'wall' || o.bulge || !doc.isLayerVisible(o.layer)) continue;
     const cs = closestOnSegment(cursor, o.a, o.b);
+    // 垂足要落在牆身上：牆尾外最近點是端點，法線是斜的，深的床會被轉成斜放
+    if (cs.t <= 0 || cs.t >= 1) continue;
     const d = dist(cursor, cs.point);
-    if (d >= bestD || d < 1e-6) continue;
+    if (d < 1e-6) continue;
+    // 家具背面到牆面的空隙；插進牆裡是負的，一樣要貼。
+    const gap = d - (o.thickness ?? 12) / 2 - item.h / 2;
+    if (gap >= FURN_SNAP || Math.abs(gap) >= bestD) continue;
     // 內法線：從牆指向游標那一側。牆有兩面，使用者點的那一面就是要靠的那一面。
     const n = { x: (cursor.x - cs.point.x) / d, y: (cursor.y - cs.point.y) / d };
     const off = (o.thickness ?? 12) / 2 + item.h / 2;
-    bestD = d;
+    bestD = Math.abs(gap);
     best = {
       pos: { x: cs.point.x + n.x * off, y: cs.point.y + n.y * off },
       angle: Math.atan2(-n.x, n.y) * 180 / Math.PI,
@@ -157,7 +167,7 @@ function wallBoxes(doc: Doc): Box[] {
 /**
  * 家具不能放進牆壁裡面。
  *
- * `fitFurnitureToWall` 只在游標離牆 60cm 內才動作，而且它做的是「貼上去」——
+ * `fitFurnitureToWall` 只在家具背面離牆面 25cm 內才動作，而且它做的是「貼上去」——
  * 離牆遠一點、或者用拖曳的、或者按方向鍵推過去，都可以把一張沙發推到牆的正中間。
  * 2D 看起來只是畫在牆上面，像是一個決定；3D 是一面牆從沙發中間穿過去。
  *
@@ -223,8 +233,8 @@ export class FurnitureTool implements Tool {
 
 
   /** 貼牆轉向之後再推出牆體：先轉再推，因為轉過的家具佔的是不同一塊地。 */
-  private resolve(cursor: Vec, item: { w: number; h: number; height?: number; mount?: string }) {
-    const fit = fitFurnitureToWall(this.ctx.doc, cursor, item);
+  private resolve(cursor: Vec, item: { w: number; h: number; height?: number; mount?: string }, free = false) {
+    const fit = free ? null : fitFurnitureToWall(this.ctx.doc, cursor, item);   // Alt：自由擺，不貼牆
     const angle = fit?.angle ?? 0, at = fit?.pos ?? cursor;
     const pos = keepOutOfWalls(this.ctx.doc, { cx: at.x, cy: at.y, w: item.w, h: item.h, angle }, item);
     return { pos, angle };
@@ -234,7 +244,7 @@ export class FurnitureTool implements Tool {
     const item = FURNITURE_BY_ID[this.ctx.currentFurniture];
     if (!item) { this.ctx.setPreview(); return; }
     // 預覽就要轉好、也要推好。放下去才動的話，使用者是在對著一個跟結果不一樣的鬼影瞄準。
-    this.fit = this.resolve(p.snapped, item);
+    this.fit = this.resolve(p.snapped, item, p.alt);
     const c = this.fit.pos, a = this.fit.angle;
     this.ctx.setPreview(ctx => {
       ctx.save(); ctx.globalAlpha = 0.55;
@@ -254,7 +264,7 @@ export class FurnitureTool implements Tool {
     const ceiling = this.ctx.doc.activeFloor.height;
     const elevation = item.mount === 'ceiling' ? Math.max(0, ceiling - 60)
       : item.mount === 'wall' ? 150 : undefined;
-    const fit = this.fit ?? this.resolve(p.snapped, item);
+    const fit = this.fit ?? this.resolve(p.snapped, item, p.alt);
     const c = fit.pos;
     this.ctx.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: c.x - item.w / 2, y: c.y - item.h / 2, w: item.w, h: item.h, angle: fit.angle, label: item.name, ...(elevation ? { elevation } : {}), ...(item.height ? { height: item.height } : {}) });
     this.ctx.doc.select(id);

@@ -1,5 +1,6 @@
 import { Doc, genId } from '../model/doc';
 import { Viewport } from './viewport';
+import { wheelZoomFactor } from './controlFeel';
 import { Renderer } from './renderer';
 import { snapPoint, rotate, distToSegment } from './geometry';
 import { bounds } from './hit';
@@ -33,6 +34,8 @@ export class Editor implements ToolCtx {
    */
   wallRef: Reference = 'center';
   gridSize = 10; // cm
+  /** 2D wheel sensitivity multiplier (controls settings). */
+  wheelFeel = 1;
   inputEnabled = true; // false while the 2D view is just the corner preview
 
   // exportPano returns the message to show the user — it can decline (camera
@@ -186,7 +189,8 @@ export class Editor implements ToolCtx {
     const r = this.canvas.getBoundingClientRect();
     const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
     const world = this.vp.toWorld(screen);
-    const snapped = this.snapEnabled ? snapPoint(world, this.gridSize) : world;
+    // Alt (Option) holds every snap off, as free placement does in building games.
+    const snapped = this.snapEnabled && !e.altKey ? snapPoint(world, this.gridSize) : world;
     return { world, snapped, screen, shift: e.shiftKey, alt: e.altKey };
   }
 
@@ -220,7 +224,7 @@ export class Editor implements ToolCtx {
       e.preventDefault();
       const r = c.getBoundingClientRect();
       const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
-      this.vp.zoomAt(screen, e.deltaY < 0 ? 1.1 : 1 / 1.1);
+      this.vp.zoomAt(screen, wheelZoomFactor(e.deltaY, e.deltaMode, this.wheelFeel));
       this.hooks.zoom?.(Math.round(this.vp.scale / 0.4 * 100));
       this.render();
     }, { passive: false });
