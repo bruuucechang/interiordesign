@@ -13,13 +13,21 @@
 //     the tube's ends; I₀ = 2Φ / π² / SEG
 //   · inter-reflection: Φ·ρ / (total surface · (1 − ρ)), the same everywhere
 //
+// Walls cast shadows (B17, docs/spec-game-mode.md §2): when a room's LightRoom
+// carries `shade`, a source's direct light reaches a point only if the line
+// between them crosses no wall — or crosses it inside a door or window opening,
+// below the head and above the sill. Lights in other rooms then count too,
+// through the doorway; the reflected term stays the room's own lights.
+//
 // Not modelled, and the panel has to say so: daylight, dimming, furniture
 // casting shadows. Full-height cabinets only remove grid points — nobody reads
 // a book inside a wardrobe.
 //
 // Pure: no DOM, no canvas, no doc. Plans go in as objects, numbers come out.
 
-import type { Electrical, Room, Vec, Wall } from '../model/schema';
+import type { Electrical, Opening, Room, Vec, Wall } from '../model/schema';
+import { quadPoints, wallControl } from './geometry';
+import { openingSpan, openingsOnWall } from './wallGeometry';
 import { ELECTRICAL_BY_ID, LIGHT_DEFAULTS, T5_SIZES, T5_DEFAULT_SIZE, T5_BELOW_CEILING } from '../model/catalogue';
 import type { Box } from './clearance';
 
@@ -126,9 +134,29 @@ export interface Source {
   /** cosⁿ exponent of a downward source. */
   exp: number;
   I: number;
+  /** The walls that can stand between this source and the room it is lighting; absent = nothing blocks. */
+  shade?: ShadeSeg[];
 }
 
-export function sources(lums: readonly Luminaire[]): Source[] {
+/**
+ * The luminaires as point sources. With a room that carries `shade`, each
+ * source keeps only the wall pieces inside the box spanning it and the room —
+ * the only ones a line from it to the room can cross.
+ */
+export function sources(lums: readonly Luminaire[], r?: LightRoom): Source[] {
+  const s = rawSources(lums);
+  if (!r?.shade) return s;
+  const xs = r.poly.map(p => p.x), ys = r.poly.map(p => p.y);
+  const rx0 = Math.min(...xs), rx1 = Math.max(...xs), ry0 = Math.min(...ys), ry1 = Math.max(...ys);
+  for (const src of s) {
+    const x0 = Math.min(rx0, src.x), x1 = Math.max(rx1, src.x), y0 = Math.min(ry0, src.y), y1 = Math.max(ry1, src.y);
+    src.shade = r.shade.filter(w => Math.max(w.ax, w.bx) >= x0 && Math.min(w.ax, w.bx) <= x1
+      && Math.max(w.ay, w.by) >= y0 && Math.min(w.ay, w.by) <= y1);
+  }
+  return s;
+}
+
+function rawSources(lums: readonly Luminaire[]): Source[] {
   const s: Source[] = [];
   for (const L of lums) {
     if (!L.tube) {
@@ -163,12 +191,126 @@ export function lux(src: readonly Source[], x: number, y: number, h: number, ind
     if (ca <= 0) continue;
     const cb = -vz / d;
     if (cb <= 0) continue;
+    if (s.shade && wallBetween(s.shade, s.x, s.y, s.z, x, y, h)) continue;
     let k: number;
     if (s.ax) { const u = (vx * s.ax[0] + vy * s.ax[1]) / d; k = Math.sqrt(Math.max(0, 1 - u * u)); }
     else k = s.exp === 1 ? ca : Math.pow(ca, s.exp);
     e += s.I * k * cb / d2;
   }
   return e * MAINTENANCE + ind;
+}
+
+// ------------------------------------------------------------------ walls in the way
+
+/**
+ * A wall as light sees it: its centre line, solid from the floor to `top`,
+ * with a hole wherever a door or window is — `t0`–`t1` along it (0 at a, 1 at
+ * b), `z0`–`z1` off the floor. A door is open; a window is glass.
+ */
+export interface ShadeSeg {
+  ax: number; ay: number; bx: number; by: number;
+  top: number;
+  holes: { t0: number; t1: number; z0: number; z1: number }[];
+}
+
+/** Pieces a curved wall is cut into; its openings land on whichever piece their centre is on. */
+const ARC_PIECES = 12;
+
+/** Every wall on a floor as segments with their openings punched through. Partitions are lines on paper, not walls. */
+export function shadeSegs(walls: readonly Wall[], openings: readonly Opening[]): ShadeSeg[] {
+  const out: ShadeSeg[] = [];
+  const ops = [...openings];
+  for (const w of walls) {
+    const pts = w.bulge ? quadPoints(w.a, wallControl(w.a, w.b, w.bulge), w.b, ARC_PIECES) : [w.a, w.b];
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const piece = { ...w, a: pts[i], b: pts[i + 1], bulge: 0 };
+      const len = Math.hypot(piece.b.x - piece.a.x, piece.b.y - piece.a.y);
+      if (len < 1e-6) continue;
+      out.push({
+        ax: piece.a.x, ay: piece.a.y, bx: piece.b.x, by: piece.b.y,
+        top: w.height ?? Infinity,
+        holes: openingsOnWall(piece, ops).map(h => {
+          const { elev, height } = openingSpan(h.op);
+          return { t0: h.s / len, t1: h.e / len, z0: elev, z1: elev + height };
+        }),
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Does a wall stand between (sx, sy, sz) and (px, py, pz)? Only a crossing
+ * strictly between the two ends counts — a fitting mounted on a wall sits on
+ * its line and must not shade itself — and only where the ray is below the
+ * wall's top and outside every hole at the height it passes.
+ */
+export function wallBetween(segs: readonly ShadeSeg[], sx: number, sy: number, sz: number, px: number, py: number, pz: number): boolean {
+  const rx = px - sx, ry = py - sy;
+  for (const w of segs) {
+    const wx = w.bx - w.ax, wy = w.by - w.ay;
+    const den = rx * wy - ry * wx;
+    if (Math.abs(den) < 1e-9) continue;   // parallel: grazing along a wall, not through it
+    const qx = w.ax - sx, qy = w.ay - sy;
+    const u = (qx * wy - qy * wx) / den;   // along the ray
+    if (u <= 1e-6 || u >= 1 - 1e-6) continue;
+    const t = (qx * ry - qy * rx) / den;   // along the wall
+    if (t < 0 || t > 1) continue;
+    const z = sz + (pz - sz) * u;
+    if (z >= w.top) continue;
+    if (w.holes.some(h => t >= h.t0 && t <= h.t1 && z >= h.z0 && z <= h.z1)) continue;
+    return true;
+  }
+  return false;
+}
+
+/** Below this the brightest a neighbour's light could make any point of a room, it is left out (lux). */
+export const REACH_LUX = 1;
+
+/**
+ * The luminaires whose direct light can reach this room: its own, and — when
+ * walls cast shadows — any other light on the floor bright enough at the
+ * room's nearest edge to matter (an upper bound: straight on, nothing in the
+ * way). Whether a wall actually blocks it is `lux`'s per-point test.
+ */
+export function reaching(r: LightRoom, all: readonly Luminaire[]): Luminaire[] {
+  const own = roomLuminaires(r, all);
+  if (!r.shade) return own;
+  const mine = new Set(own);
+  const xs = r.poly.map(p => p.x), ys = r.poly.map(p => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const out = [...own];
+  for (const L of all) {
+    if (mine.has(L)) continue;
+    const half = L.tube ? L.tube.length / 2 : 0;
+    const dx = Math.max(0, x0 - L.x - half, L.x - x1 - half), dy = Math.max(0, y0 - L.y - half, L.y - y1 - half);
+    const d2 = (dx * dx + dy * dy) / 1e4;
+    const peak = L.tube ? 2 * L.lumens / (Math.PI * Math.PI) : L.lumens * ((L.exponent ?? 1) + 1) / (2 * Math.PI);
+    if (d2 > 0 && MAINTENANCE * peak / d2 < REACH_LUX) continue;
+    if (!seesRoom(r, L)) continue;
+    out.push(L);
+  }
+  return out;
+}
+
+/** Spacing of the coarse probe `seesRoom` uses, cm. */
+const PROBE_STEP = 40;
+
+/**
+ * Does any straight line from this light reach the room's floor or desk
+ * height? A coarse probe — every 40 cm — so a neighbour sealed off by walls
+ * drops out of `reaching`, and moving it does not recompute this room.
+ */
+function seesRoom(r: LightRoom, L: Luminaire): boolean {
+  const xs = r.poly.map(p => p.x), ys = r.poly.map(p => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const [src] = sources([L], r);
+  const pts = L.tube ? sources([L], r).filter((_, i) => i % 5 === 0 || i === SEG - 1) : [src];
+  for (let y = y0 + PROBE_STEP / 2; y < y1; y += PROBE_STEP) for (let x = x0 + PROBE_STEP / 2; x < x1; x += PROBE_STEP) {
+    if (!inside(r.poly, x, y)) continue;
+    for (const s of pts) for (const h of [PLANES.floor, PLANES.desk]) if (!wallBetween(s.shade ?? [], s.x, s.y, s.z, x, y, h)) return true;
+  }
+  return false;
 }
 
 // ------------------------------------------------------------------ rooms
@@ -180,6 +322,8 @@ export interface LightRoom {
   blocked: Box[];
   /** The walls the outline was pulled in from; `reachAt` asks them how thick the wall under a point is. */
   walls: readonly Wall[];
+  /** The floor's walls as light blockers; absent = the old per-room model where nothing blocks. */
+  shade?: ShadeSeg[];
 }
 
 /** `reachAt` off any wall, or on one no thicker than 24 cm. */
@@ -209,10 +353,14 @@ export function reachAt(r: LightRoom, x: number, y: number): number {
  * floor. Without it a bedroom gains a strip half a wall thick all round — dark
  * points against the wall that drag the average down by 7 % (B5, notebook).
  */
-export function lightRoom(room: Room, ceiling: number, blocked: Box[] = [], walls: readonly Wall[] = []): LightRoom {
+export function lightRoom(room: Room, ceiling: number, blocked: Box[] = [], walls: readonly Wall[] = [],
+                          openings?: readonly Opening[]): LightRoom {
   const poly = room.poly && room.poly.length >= 3 ? room.poly
     : [{ x: room.x, y: room.y }, { x: room.x + room.w, y: room.y }, { x: room.x + room.w, y: room.y + room.h }, { x: room.x, y: room.y + room.h }];
-  return { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked, walls };
+  const r: LightRoom = { poly: walls.length ? innerOutline(poly, walls) : poly, ceiling, blocked, walls };
+  // `openings` given = walls cast shadows (B17). Without it, the per-room model of the prototype.
+  if (openings) r.shade = shadeSegs(walls, openings);
+  return r;
 }
 
 /** How far off a wall's centre line an outline edge may lie and still be on that wall (cm). */
@@ -346,8 +494,13 @@ export interface LuxGrid {
 export interface GridOptions { height: number; rho: number; step: number; }
 
 /** Sample the room on a square grid anchored at its bounding box's corner. */
-export function grid(r: LightRoom, lums: readonly Luminaire[], o: GridOptions): LuxGrid {
-  const src = sources(lums);
+/**
+ * `lums` are the room's own lights — they fill the reflected term. `near` are
+ * the ones whose direct light is counted (`reaching`: its own plus neighbours'
+ * through the doors); by default the same.
+ */
+export function grid(r: LightRoom, lums: readonly Luminaire[], o: GridOptions, near: readonly Luminaire[] = lums): LuxGrid {
+  const src = sources(near, r);
   const ind = indirect(lums.reduce((a, L) => a + L.lumens, 0), surfaceArea(r), o.rho);
   const xs = r.poly.map(p => p.x), ys = r.poly.map(p => p.y);
   const x0 = Math.min(...xs), y0 = Math.min(...ys);

@@ -289,7 +289,7 @@ function paintAnalysis(editor: Editor, doc: Doc) {
       m.textContent = t('房間裡沒有子區域、床、書桌、做到頂的櫃子或門，沒有區域可以分析。');
       host.appendChild(m);
     } else {
-      const litNow = litBy(r.lr, r.lums, v.rho);
+      const litNow = litBy(r.lr, r.lums, v.rho, r.near);
       const rows: (string | Node)[][] = [];
       const shown: typeof zones = [];
       for (const z of zones) {

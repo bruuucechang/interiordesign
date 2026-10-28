@@ -9,11 +9,11 @@
 //
 // Pure: objects in, numbers out. No DOM, no canvas, no doc.
 
-import type { Furniture, Obj, Room, Wall } from '../model/schema';
+import type { Furniture, Obj, Opening, Room, Wall } from '../model/schema';
 import { polygonArea } from './geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import type { Box } from './clearance';
-import { LightRoom, Luminaire, LuxGrid, grid, lightRoom, luminaires, roomLuminaires } from './lighting';
+import { LightRoom, Luminaire, LuxGrid, grid, lightRoom, luminaires, reaching, roomLuminaires } from './lighting';
 
 /**
  * A cabinet counts as built to the ceiling — and so as floor nobody stands on —
@@ -51,6 +51,8 @@ export interface LitRoom {
   lr: LightRoom;
   /** The luminaires that are on and light this room. */
   lums: Luminaire[];
+  /** Those plus the neighbours' whose light gets in through a door or window (direct light only). */
+  near: Luminaire[];
   grid: LuxGrid;
   /** Floor area, m². */
   area: number;
@@ -68,22 +70,24 @@ export interface LightView {
 }
 
 /** The inputs that decide one room's grid, as a string — equal keys, equal grids. */
-export function roomKey(r: LightRoom, lums: readonly Luminaire[], v: LightView): string {
-  return JSON.stringify([r.poly, r.ceiling, r.blocked, lums, v.height, v.rho, v.step]);
+export function roomKey(r: LightRoom, lums: readonly Luminaire[], v: LightView, near: readonly Luminaire[] = lums): string {
+  return JSON.stringify([r.poly, r.ceiling, r.blocked, lums, near === lums ? 0 : near, r.shade ?? 0, v.height, v.rho, v.step]);
 }
 
-interface Prepared { room: Room; lr: LightRoom; lums: Luminaire[]; key: string }
+interface Prepared { room: Room; lr: LightRoom; lums: Luminaire[]; near: Luminaire[]; key: string }
 
 function prepare(objs: readonly Obj[], ceiling: number, v: LightView): Prepared[] {
   const all = luminaires(objs, ceiling, v.on ?? undefined);
   const blocked = fullHeightBoxes(objs, ceiling);
   const walls = objs.filter((o): o is Wall => o.kind === 'wall');
+  const openings = objs.filter((o): o is Opening => o.kind === 'door' || o.kind === 'window');
   const out: Prepared[] = [];
   for (const o of objs) {
     if (o.kind !== 'room') continue;
-    const lr = lightRoom(o, ceiling, blocked, walls);
+    const lr = lightRoom(o, ceiling, blocked, walls, openings);   // walls cast shadows (B17)
     const lums = roomLuminaires(lr, all);
-    out.push({ room: o, lr, lums, key: o.id + roomKey(lr, lums, v) });
+    const near = reaching(lr, all);
+    out.push({ room: o, lr, lums, near, key: o.id + roomKey(lr, lums, v, near) });
   }
   return out;
 }
@@ -107,15 +111,15 @@ export function lightFloor(objs: readonly Obj[], ceiling: number, v: LightView,
                            cache?: Map<string, LuxGrid>): LitRoom[] {
   const out: LitRoom[] = [];
   const seen = new Set<string>();
-  for (const { room, lr, lums, key } of prepare(objs, ceiling, v)) {
+  for (const { room, lr, lums, near, key } of prepare(objs, ceiling, v)) {
     seen.add(key);
     let g = cache?.get(key);
     if (!g) {
-      g = grid(lr, lums, { height: v.height, rho: v.rho, step: v.step });
+      g = grid(lr, lums, { height: v.height, rho: v.rho, step: v.step }, near);
       cache?.set(key, g);
     }
     out.push({
-      room, lr, lums, grid: g, area: polygonArea(lr.poly) / 1e4,
+      room, lr, lums, near, grid: g, area: polygonArea(lr.poly) / 1e4,
       lumens: lums.reduce((a, L) => a + L.lumens, 0),
       watts: lums.reduce((a, L) => a + L.watts, 0),
     });

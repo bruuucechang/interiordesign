@@ -154,12 +154,21 @@
   驗收：`npm test` client／server 全綠；`client/test/controlFeel.test.ts` 13 條，mutant「滾輪改回每事件 ×1.1」紅 3、「貼牆改回量中線」紅 2、「拿掉牆尾檢查」紅 1；
   `node bench/verify-b16.mjs` 8 項全過（mutant「拿掉 dt 封頂」紅 2），截圖 `bench/results/b16-settings.png`
 
-## B17 2D 熱圖加牆遮擋  [未開始]
+## B17 2D 熱圖加牆遮擋  [完成]
 - 規格：同檔第二節「2D」
 - 目標：每盞燈到量測點的連線碰到牆就擋，門窗開口透光、隔間線不擋；反射項照舊每房自己算
 - 驗收：關起來的房間跟原型數字差 ≤ 1%（`lighting.test.ts` 原有數字照過）；新增「隔壁燈從門口透過來」「L 形轉角後變暗」兩條，各自 mutant 紅一次；熱圖重算仍 < 50 ms（verify-lighting）
 - 碰：`client/src/core/lighting.ts`、`lightzones.ts`、`client/test/lighting.test.ts`
 - 不做：3D（B18）
+- 結果（2026-10-28）：`lighting.ts` 新增 `shadeSegs`（每道牆的中線切成段，門窗是洞：門當開著、窗是玻璃；曲線牆切 12 段；
+  牆的 `height` 以上不擋）、`wallBetween`（光線只算嚴格穿過牆身的交點，貼牆的燈不擋自己；穿過洞的高度要在窗台與門楣之間）、
+  `reaching`（自己的燈＋隔壁亮到 ≥ 1 lux 而且有 40 cm 粗格點直線看得到的燈——封死的隔壁不算，拖它不會讓這間重算）。
+  `lightRoom(…, openings)` 有給 openings 才開遮擋（不給＝原型的每房模型，舊測試照舊）；直射用 `near`、反射照舊只算自己的燈；
+  開法比較（迴路組合）只比自己的燈。`lightmap`／`lightcheck`／照度面板都改用新的。
+  驗收：`npm test` 綠；`lighting.test.ts` 新增「關起來的你的房間開遮擋 = 316.77／128.95（±1%）」；`lightmap.test.ts` 新增沒牆照得過去、
+  門口透光、門楣擋光、L 形轉角變暗四條；mutant「不擋」紅 3、「門不透光」紅 2、「不看門楣」紅 1。
+  `node bench/verify-lighting.mjs` 數字項全過（拖燈重算最慢 2.3 ms、原型區域 ±5% 內），但腳本後段點「關閉照度」逾時——
+  **乾淨的 master 上同樣逾時**，是之前就壞的，留給 B20 改介面時一起修。A1 單元空間健檢 19 → 22 則（轉角與門口外變暗多出的照度提醒）。
 
 ## B18 3D 燈真的發光（距離衰減）  [未開始]
 - 規格：同檔第二節「3D」

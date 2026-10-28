@@ -19,7 +19,7 @@ import type { Box } from './clearance';
 import { wallBox } from './clearance';
 import { ELECTRICAL_BY_ID } from '../model/catalogue';
 import { LIGHTING } from '../model/locale-defaults';
-import { Luminaire, PLANES, REFLECTANCE, grid, inside, lightRoom, luminaires, roomLuminaires } from './lighting';
+import { Luminaire, PLANES, REFLECTANCE, grid, inside, lightRoom, luminaires, reaching, roomLuminaires } from './lighting';
 import { fullHeightBoxes, fullHeightFurniture, furnitureBox } from './lightmap';
 import { distToBox, litBy, pillowPoint, roomZones, toLocal, verdict, isBed, zoneStat } from './lightzones';
 
@@ -150,9 +150,10 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
   const beams = objs.filter((o): o is Beam => o.kind === 'beam');
   const doors = objs.filter((o): o is Opening => o.kind === 'door');
   const out: Finding[] = [];
+  const openings = objs.filter((o): o is Opening => o.kind === 'door' || o.kind === 'window');
   const rooms = objs.filter((o): o is Room => o.kind === 'room').map(room => {
-    const lr = lightRoom(room, ceiling, blocked, walls);
-    return { room, lr, lums: roomLuminaires(lr, all) };
+    const lr = lightRoom(room, ceiling, blocked, walls, openings);   // walls cast shadows (B17)
+    return { room, lr, lums: roomLuminaires(lr, all), near: reaching(lr, all) };
   });
   /** 燈屬於哪一間：第一間照到它的。面板靠這個把提醒分到房間。 */
   const roomOfLum = new Map<string, string>();
@@ -218,7 +219,7 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
   }
 
   // ---- 一、四、五：一間一間看，只看有燈的房間
-  for (const { room, lr, lums } of rooms) {
+  for (const { room, lr, lums, near } of rooms) {
     if (!lums.length) continue;
     const rname = room.name || '房間';
 
@@ -253,7 +254,7 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
     }
 
     // 四：整間均勻度
-    const g = grid(lr, lums, { height: PLANES.desk, rho: RHO, step: STEP });
+    const g = grid(lr, lums, { height: PLANES.desk, rho: RHO, step: STEP }, near);
     if (g.avg > 0 && g.uniformity < L.uniformity) out.push({
       id: `light-uniform:${room.id}:${g.uniformity.toFixed(2)}`, rule: 'light-uniformity', severity: 'lighting',
       title: `${rname}明暗差比較大`,
@@ -263,7 +264,7 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
     });
 
     // 五：各區域達標
-    const lit = litBy(lr, lums, RHO);
+    const lit = litBy(lr, lums, RHO, near);
     for (const z of roomZones(lr, objs, ceiling)) {
       const st = zoneStat(lr, lit, z);
       if (!st) continue;
