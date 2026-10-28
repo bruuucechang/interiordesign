@@ -10,6 +10,8 @@ import { DEFAULT_CIRCUIT } from './lighting';
 import { circuitColor } from './lightmap';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment, wallCap, wallEndCounts, wallEndCaps } from './geometry';
 import { handles } from './handles';
+import { roomUse, isDefaultRoomName } from './roomUse';
+import { t } from './i18n';
 import { furnitureCenter, bounds } from './hit';
 
 export interface RenderOpts {
@@ -22,6 +24,7 @@ export interface RenderOpts {
   skipKinds?: ObjKind[]; // object kinds to leave out entirely (e.g. the underlay image when plotting)
   heat?: (ctx: CanvasRenderingContext2D) => void;   // lighting overlay in world space, over floors, under everything built
   marker?: (ctx: CanvasRenderingContext2D) => void; // walk mode's "you are here", world space, over everything built
+  roomUse?: boolean;     // name default rooms by their furniture and say what they lack (default true; exports pass false, B23)
 }
 
 const INK = '#000000';
@@ -139,6 +142,7 @@ export class Renderer {
     // labelObject and every furniture draw() get it without knowing.
     this.monoInk = !!opts.mono;
     this.heatOn = !!opts.heat;
+    this.roomHints = opts.roomUse !== false;
     if (opts.mono) this.ctx = monoContext(real);
     try {
       this.renderInto(opts);
@@ -234,6 +238,7 @@ export class Renderer {
    */
   private monoInk = false;
   private heatOn = false;
+  private roomHints = true;
   private hatchCache = new Map<string, CanvasPattern | null>();
   private hatchFor(floor: string | undefined): CanvasPattern | null {
     if (floor && floor.startsWith('#')) return null;
@@ -512,8 +517,21 @@ export class Renderer {
         const poly = o.poly && o.poly.length >= 3 ? o.poly : null;
         const c = poly ? polygonCentroid(poly) : { x: o.x + o.w / 2, y: o.y + o.h / 2 };
         const area = poly ? polygonArea(poly) : o.w * o.h;
-        this.text({ x: c.x, y: c.y - 12 / this.vp.scale }, o.name || '房間', '#dbe0ea', 13);
-        this.text({ x: c.x, y: c.y + 12 / this.vp.scale }, fmtArea(area), '#8b93a3');
+        // B23: a default-named room shows what its furniture makes it, and an
+        // amber line under the name lists what it still lacks. Screen only — an
+        // export or a plot keeps the saved name, like the area report does.
+        const reading = this.roomHints ? roomUse(o, this.doc.objects) : null;
+        const name = reading ? (isDefaultRoomName(o.name) && reading.use ? t(reading.use) : o.name || '房間') : o.name || '房間';
+        const lack = reading?.use && reading.missing.length ? t('缺：') + reading.missing.map(t).join(t('、')) : '';
+        const k = 1 / this.vp.scale;
+        if (lack) {
+          this.text({ x: c.x, y: c.y - 18 * k }, name, '#dbe0ea', 13);
+          this.text({ x: c.x, y: c.y }, lack, '#ffb347', 11);
+          this.text({ x: c.x, y: c.y + 18 * k }, fmtArea(area), '#8b93a3');
+        } else {
+          this.text({ x: c.x, y: c.y - 12 * k }, name, '#dbe0ea', 13);
+          this.text({ x: c.x, y: c.y + 12 * k }, fmtArea(area), '#8b93a3');
+        }
         break;
       }
       case 'area': {
