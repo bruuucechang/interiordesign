@@ -19,7 +19,7 @@ import type { Box } from './clearance';
 import { wallBox } from './clearance';
 import { ELECTRICAL_BY_ID } from '../model/catalogue';
 import { LIGHTING } from '../model/locale-defaults';
-import { Luminaire, PLANES, REFLECTANCE, grid, inside, lightRoom, luminaires, reaching, roomLuminaires } from './lighting';
+import { Luminaire, PLANES, REFLECTANCE, grid, inside, lightRoom, luminaires, reaching, roomLuminaires, shadeSegs } from './lighting';
 import { fullHeightBoxes, fullHeightFurniture, furnitureBox } from './lightmap';
 import { distToBox, litBy, pillowPoint, roomZones, toLocal, verdict, isBed, zoneStat } from './lightzones';
 
@@ -151,8 +151,9 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
   const doors = objs.filter((o): o is Opening => o.kind === 'door');
   const out: Finding[] = [];
   const openings = objs.filter((o): o is Opening => o.kind === 'door' || o.kind === 'window');
+  const shade = shadeSegs(walls, openings);   // walls cast shadows (B17), built once for the floor
   const rooms = objs.filter((o): o is Room => o.kind === 'room').map(room => {
-    const lr = lightRoom(room, ceiling, blocked, walls, openings);   // walls cast shadows (B17)
+    const lr = lightRoom(room, ceiling, blocked, walls, openings, shade);
     return { room, lr, lums: roomLuminaires(lr, all), near: reaching(lr, all) };
   });
   /** 燈屬於哪一間：第一間照到它的。面板靠這個把提醒分到房間。 */

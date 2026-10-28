@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { lightFloor, fullHeightBoxes, circuitsOf, contour, sample, luxColor, heatPixels, LUX_STOPS } from '../src/core/lightmap';
-import { grid, lightRoom, luminaires, PLANES, REFLECTANCE } from '../src/core/lighting';
+import { grid, lightRoom, luminaires, shadeSegs, wallBetween, PLANES, REFLECTANCE } from '../src/core/lighting';
+import { quadPoints, wallControl } from '../src/core/geometry';
 import type { LuxGrid } from '../src/core/lighting';
-import type { Electrical, ElectricalId, Obj } from '../src/model/schema';
+import type { Electrical, ElectricalId, Obj, Opening, Wall } from '../src/model/schema';
 import { fitElectricalToWall } from '../src/tools/place';
 import { electricalEnds } from '../src/core/hit';
 
@@ -137,4 +138,68 @@ test('T5 的兩端：120 cm 的 4 尺沿它的方向展開', () => {
   assert.ok(Math.abs(a.x - 100) < 1e-9 && Math.abs(b.y - a.y - 119.4) < 1e-9);
   const [c, d] = electricalEnds(elec('downlight', 5, 5) as any);
   assert.deepEqual(c, d);
+});
+
+// ---- B17 審查補的四條 ----
+
+test('只照到門口一小片的隔壁燈也算進來（不靠粗格點探測）', () => {
+  // 牆 x=300，b 間 300..500，門在 y=250 寬 80；燈在 a 間靠北 (280,60)
+  const objs: Obj[] = [room('a', 0, 0, 300, 300), room('b', 300, 0, 200, 300),
+    wall('w', 300, 0, 300, 300), door('d', 300, 250, 80), elec('downlight', 280, 60)];
+  const [, b] = lightFloor(objs, CEIL, view);
+  assert.equal(b.near.length, 1);
+  assert.ok(b.grid.max > 5, `門口那一片有光：${b.grid.max}`);
+});
+
+test('從自己房間的窗戶照出去、再從別間的窗戶照進來的燈，不算隔壁的燈', () => {
+  // a = 0..300 × 0..300；b = 300..600 × 100..400，往下錯開 100，所以 a 的東牆 y<100 那段是外牆。
+  // a 的東牆在 y=50 開一扇落地窗，b 的北牆在 x=350 開一扇落地窗：燈 → a 的窗 → 室外 → b 的窗，一條直線。
+  const glass = (id: string, x: number, y: number, angle: number): Obj =>
+    ({ id, kind: 'window', layer: 'openings', x, y, width: 80, angle, elevation: 0, height: 270 } as Obj);
+  const b: Obj = { id: 'b', kind: 'room', layer: 'rooms', x: 300, y: 100, w: 300, h: 300, name: 'b' } as Obj;
+  const objs: Obj[] = [room('a', 0, 0, 300, 300), b,
+    wall('an', 0, 0, 300, 0), wall('aw', 0, 0, 0, 300), wall('as', 0, 300, 300, 300), wall('ae', 300, 0, 300, 400),
+    wall('bn', 300, 100, 600, 100), wall('be', 600, 100, 600, 400), wall('bs', 300, 400, 600, 400),
+    glass('wa', 300, 50, 90), glass('wb', 350, 100, 0), elec('downlight', 200, 0 + 5)];
+  const [, lb] = lightFloor(objs, CEIL, view);
+  assert.equal(lb.near.length, 0);
+});
+
+test('曲線牆：房間自己的弧牆不會擋暗貼著它的那一條地板', () => {
+  // 北牆往外凸 100，房間外框是伺服器切的 14 段弧
+  const A = { x: 0, y: 0 }, B = { x: 400, y: 0 };
+  const arc = quadPoints(A, wallControl(A, B, -100), B, 14);
+  const r: Obj = { id: 'r', kind: 'room', layer: 'rooms', x: 0, y: -100, w: 400, h: 500, name: 'r',
+    poly: [...arc, { x: 400, y: 400 }, { x: 0, y: 400 }] } as Obj;
+  const objs: Obj[] = [r, { ...wall('n', 0, 0, 400, 0), bulge: -100 } as Obj, wall('e', 400, 0, 400, 400), wall('s', 400, 400, 0, 400),
+    wall('w', 0, 400, 0, 0), elec('downlight', 200, 200)];
+  const [lit] = lightFloor(objs, CEIL, view);
+  let dark = 0;
+  for (const x of lit.grid.v) if (!Number.isNaN(x) && x < lit.grid.indirect + 1e-6) dark++;
+  assert.equal(dark, 0, '沒有只剩反射光的格點');
+});
+
+test('曲線牆上的門整個寬度都是洞，不只中心那一段', () => {
+  const w = { id: 'c', kind: 'wall', layer: 'walls', a: { x: 0, y: 0 }, b: { x: 400, y: 0 }, thickness: 12, bulge: 60 } as Wall;
+  const apex = wallControl(w.a, w.b, 60);
+  const d = { id: 'd', kind: 'door', layer: 'openings', x: (apex.x + 200) / 2, y: (apex.y + 0) / 2, width: 120, angle: 0 } as Opening;
+  let total = 0;
+  for (const s of shadeSegs([w], [d])) for (const h of s.holes) total += (h.t1 - h.t0) * Math.hypot(s.bx - s.ax, s.by - s.ay);
+  assert.ok(Math.abs(total - 120) < 1, `洞總長 ${total}`);
+});
+
+test('穿過兩道牆接點的光線照樣被擋', () => {
+  // 兩段共線、斜放的牆接在 (137.3, 91.1)
+  const j = { x: 137.3, y: 91.1 }, dir = { x: 0.8, y: 0.6 };
+  const segs = shadeSegs([
+    { id: 'a', kind: 'wall', layer: 'walls', a: { x: j.x - dir.x * 200, y: j.y - dir.y * 200 }, b: j, thickness: 12 } as Wall,
+    { id: 'b', kind: 'wall', layer: 'walls', a: j, b: { x: j.x + dir.x * 200, y: j.y + dir.y * 200 }, thickness: 12 } as Wall,
+  ], []);
+  let leaks = 0;
+  for (let k = 0; k < 2000; k++) {
+    const a = (k / 2000) * Math.PI, nx = -dir.y, ny = dir.x, ox = Math.cos(a) * dir.x + Math.sin(a) * nx, oy = Math.cos(a) * dir.y + Math.sin(a) * ny;
+    if (Math.abs(Math.sin(a)) < 0.05) continue;
+    if (!wallBetween(segs, j.x - ox * 300, j.y - oy * 300, 100, j.x + ox * 300, j.y + oy * 300, 100)) leaks++;
+  }
+  assert.equal(leaks, 0);
 });

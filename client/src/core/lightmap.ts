@@ -13,7 +13,7 @@ import type { Furniture, Obj, Opening, Room, Wall } from '../model/schema';
 import { polygonArea } from './geometry';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import type { Box } from './clearance';
-import { LightRoom, Luminaire, LuxGrid, grid, lightRoom, luminaires, reaching, roomLuminaires } from './lighting';
+import { LightRoom, Luminaire, LuxGrid, directGrid, grid, lightRoom, luminaires, reaching, roomLuminaires, shadeSegs } from './lighting';
 
 /**
  * A cabinet counts as built to the ceiling — and so as floor nobody stands on —
@@ -70,24 +70,28 @@ export interface LightView {
 }
 
 /** The inputs that decide one room's grid, as a string — equal keys, equal grids. */
-export function roomKey(r: LightRoom, lums: readonly Luminaire[], v: LightView, near: readonly Luminaire[] = lums): string {
-  return JSON.stringify([r.poly, r.ceiling, r.blocked, lums, near === lums ? 0 : near, r.shade ?? 0, v.height, v.rho, v.step]);
+export function roomKey(r: LightRoom, lums: readonly Luminaire[], v: LightView, near: readonly Luminaire[] = lums,
+                        shadeKey = ''): string {
+  // `shadeKey` is the floor's walls and openings, serialised once by the caller — not once per room.
+  return JSON.stringify([r.poly, r.ceiling, r.blocked, lums, near === lums ? 0 : near, v.height, v.rho, v.step]) + shadeKey;
 }
 
-interface Prepared { room: Room; lr: LightRoom; lums: Luminaire[]; near: Luminaire[]; key: string }
+interface Prepared { room: Room; lr: LightRoom; lums: Luminaire[]; near: Luminaire[]; key: string; shadeKey: string }
 
 function prepare(objs: readonly Obj[], ceiling: number, v: LightView): Prepared[] {
   const all = luminaires(objs, ceiling, v.on ?? undefined);
   const blocked = fullHeightBoxes(objs, ceiling);
   const walls = objs.filter((o): o is Wall => o.kind === 'wall');
   const openings = objs.filter((o): o is Opening => o.kind === 'door' || o.kind === 'window');
+  const shade = shadeSegs(walls, openings);   // walls cast shadows (B17)
+  const shadeKey = JSON.stringify(shade);
   const out: Prepared[] = [];
   for (const o of objs) {
     if (o.kind !== 'room') continue;
-    const lr = lightRoom(o, ceiling, blocked, walls, openings);   // walls cast shadows (B17)
+    const lr = lightRoom(o, ceiling, blocked, walls, openings, shade);
     const lums = roomLuminaires(lr, all);
     const near = reaching(lr, all);
-    out.push({ room: o, lr, lums, near, key: o.id + roomKey(lr, lums, v, near) });
+    out.push({ room: o, lr, lums, near, key: o.id + roomKey(lr, lums, v, near, shadeKey), shadeKey });
   }
   return out;
 }
@@ -108,14 +112,24 @@ export function floorSignature(objs: readonly Obj[], ceiling: number, v: LightVi
  * each time and it is pruned to the rooms still present.
  */
 export function lightFloor(objs: readonly Obj[], ceiling: number, v: LightView,
-                           cache?: Map<string, LuxGrid>): LitRoom[] {
+                           cache?: Map<string, LuxGrid>, parts?: Map<string, Float32Array>): LitRoom[] {
   const out: LitRoom[] = [];
-  const seen = new Set<string>();
-  for (const { room, lr, lums, near, key } of prepare(objs, ceiling, v)) {
+  const seen = new Set<string>(), seenParts = new Set<string>();
+  const prepared = prepare(objs, ceiling, v);
+  const shadeKey = prepared[0]?.shadeKey ?? '';
+  for (const { room, lr, lums, near, key } of prepared) {
     seen.add(key);
+    // One light's share of one room depends on the room, the walls, the view and that light only.
+    const base = room.id + JSON.stringify([lr.poly, lr.blocked, v.height, v.step]) + shadeKey;
+    for (const L of near) seenParts.add(base + JSON.stringify(L));
     let g = cache?.get(key);
     if (!g) {
-      g = grid(lr, lums, { height: v.height, rho: v.rho, step: v.step }, near);
+      g = grid(lr, lums, { height: v.height, rho: v.rho, step: v.step }, near, L => {
+        const k = base + JSON.stringify(L);
+        let p = parts?.get(k);
+        if (!p) { p = directGrid(lr, L, v.height, v.step); parts?.set(k, p); }
+        return p;
+      });
       cache?.set(key, g);
     }
     out.push({
@@ -125,6 +139,7 @@ export function lightFloor(objs: readonly Obj[], ceiling: number, v: LightView,
     });
   }
   if (cache) for (const k of cache.keys()) if (!seen.has(k)) cache.delete(k);
+  if (parts) for (const k of parts.keys()) if (!seenParts.has(k)) parts.delete(k);
   return out;
 }
 
