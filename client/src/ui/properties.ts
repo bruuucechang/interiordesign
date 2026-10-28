@@ -8,6 +8,7 @@ import { getModelHeight } from '../core/furniture3d';
 import { dimensionChain, detectWalls } from '../net/api';
 import { flash } from './feedback';
 import { t } from '../core/i18n';
+import { roomUse, isDefaultRoomName } from '../core/roomUse';
 import { MaterialDef, floorMaterials, wallMaterials } from '../core/materials';
 import { DEFAULTS, LIGHTING, defaultNote } from '../model/locale-defaults';
 import { Unit, ALL_UNITS, unitLabel, stepFor, fieldValue, formatLength, formatArea, parseLength } from '../core/units';
@@ -153,6 +154,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
     const l = document.createElement('label'); l.textContent = t(label);
     const v = document.createElement('span'); v.textContent = value;
     row.append(l, v); parent.appendChild(row);
+    return row;
   };
   const section = (title: string) => {
     const el = document.createElement('details'); el.className = 'prop-sec'; el.open = true;
@@ -326,6 +328,13 @@ export function refreshProps(editor: Editor, doc: Doc) {
       break;
     case 'room': {
       text(basics, t('名稱'), o.name, v => up(o, { name: v, auto: false }));   // renaming adopts an auto room
+      // B23: what the furniture makes it and what it still lacks. Shown, never
+      // written — the saved name stays as typed, and no undo step is made.
+      const reading = roomUse(o, doc.objects);
+      if (reading.use) {
+        if (isDefaultRoomName(o.name)) info(basics, '用途', t(reading.use));
+        if (reading.missing.length) info(basics, '缺', reading.missing.map(t).join(t('、'))).classList.add('prop-lack');
+      }
       const poly = o.poly && o.poly.length >= 3 ? o.poly : null;
       info(basics, t('面積'), formatArea(poly ? polygonArea(poly) : o.w * o.h, unit));
       if (!poly) {

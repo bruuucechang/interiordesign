@@ -70,6 +70,9 @@ const EN: Record<string, string> = {
   '門窗要點在牆上——最近的牆在 {d} 外': 'Doors and windows go on a wall — the nearest is {d} away',
   '門窗要點在牆上——這層還沒有牆': 'Doors and windows go on a wall — this floor has none yet',
   '門窗要點在牆上——點一面牆': 'Doors and windows go on a wall — click one',
+  // B23
+  '缺：': 'Missing: ', '、': ', ', '燈': 'light', '排風扇': 'exhaust fan', '抽油煙機': 'range hood',
+  '衣櫃': 'wardrobe', '椅子': 'chair', '餐椅': 'dining chairs', '用途': 'Used as', '缺': 'Missing',
   '方案名稱': 'Plan name', '已儲存': 'Saved', '剛剛': 'just now', '（我的版本）': ' (my version)',
   '這份圖在別的地方被存過了（{when}）。\n\n直接存下去會蓋掉那一版。\n\n按「確定」另存成新的一份（兩版都保住），\n按「取消」先不存 — 你的改動仍在本機，什麼都不會弄丟。':
     'This plan was saved somewhere else ({when}).\n\nSaving now would overwrite that version.\n\nOK saves yours as a new copy (both versions kept),\nCancel holds off — your changes stay on this device, nothing is lost.',

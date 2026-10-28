@@ -110,6 +110,7 @@ button, input, select, textarea, optgroup { font-family: inherit; }
 .prop label { color: var(--muted); }
 .prop input, .prop select { width: 110px; background: var(--panel2); border: 1px solid var(--line); color: var(--text); border-radius: 5px; padding: 4px 6px; }
 .prop .full { width: 100%; }
+.prop-lack span { color: #ffb347; }   /* B23: what a room still lacks — same amber as the plan label */
 .muted { color: var(--muted); }
 .prop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .prop-type { font-weight: 600; }

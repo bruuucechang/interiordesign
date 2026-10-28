@@ -202,6 +202,51 @@ console.log('\nB22 放東西的手感');
   await ctx.close();
 }
 
+// ---------------------------------------------------------------- B23
+console.log('\nB23 房間會自己認得');
+{
+  const { ctx, page } = await open(`${BASE}/?perf=1`, { mode: '2d' });
+  await addRoom(page);
+  await page.evaluate(() => { window.__app.editor.vp.scale = 1.6; window.__app.editor.vp.origin = { x: -150, y: -80 }; window.__app.editor.render(); });
+  // 平面圖上畫了哪些字：攔 fillText 重畫一次
+  const drawn = () => page.evaluate(() => {
+    const P = CanvasRenderingContext2D.prototype, orig = P.fillText, seen = [];
+    P.fillText = function (s, ...r) { seen.push(String(s)); return orig.call(this, s, ...r); };
+    try { window.__app.editor.renderNow(); } finally { P.fillText = orig; }
+    return seen;
+  });
+  const roomName = () => page.evaluate(() => window.__app.doc.objects.find(o => o.id === 'r1').name);
+  const placeFrom = async (cat, name, x, y) => {
+    await page.click(`[data-cat="${cat}"]`);
+    await page.locator(`#catalogShelf .furn-btn:has-text("${name}")`).first().click();
+    const [sx, sy] = await S(page, x, y);
+    await page.mouse.move(sx, sy, { steps: 3 }); await page.mouse.click(sx, sy); await page.waitForTimeout(150);
+  };
+  ok(!(await drawn()).some(s => s.startsWith('缺')), '空房間：沒有「缺」那一行');
+  await placeFrom('臥室', '單人床', 120, 150);
+  let t = await drawn();
+  ok(t.includes('臥室') && t.includes('缺：燈、衣櫃'), `放了床：房名顯示「臥室」、下一行「缺：燈、衣櫃」（畫了：${t.filter(s => /臥室|缺|房間/.test(s)).join(' / ')}）`);
+  ok(await roomName() === '房間', `存檔的名字沒被改（${await roomName()}）`);
+  await page.screenshot({ path: `${OUT}polish-room-use.png` });
+  await placeFrom('lights', '吸頂燈', 260, 150);
+  t = await drawn();
+  ok(t.includes('缺：衣櫃') && !t.includes('缺：燈、衣櫃'), `放了燈：「缺」只剩衣櫃（${t.filter(s => s.startsWith('缺')).join(' / ')}）`);
+  await placeFrom('臥室', '衣櫃', 300, 260);
+  t = await drawn();
+  ok(t.includes('臥室') && !t.some(s => s.startsWith('缺')), `燈和衣櫃都有了：「缺」那一行消失（${t.filter(s => s.startsWith('缺')).join(' / ') || '沒有'}）`);
+  // 屬性面板：選房間看得到用途；改了名就以使用者的為準
+  await page.evaluate(() => { window.__app.doc.select('r1'); });
+  await page.waitForTimeout(200);
+  const panel = await page.evaluate(() => document.getElementById('properties')?.textContent ?? document.body.textContent);
+  ok(/用途\s*臥室/.test(panel), '屬性面板寫「用途 臥室」');
+  await page.evaluate(() => { const d = window.__app.doc; d.commit(); d.update('r1', { name: '主臥', auto: false }); });
+  // 拿掉衣櫃：改過名的房間照樣說缺什麼，房名不換
+  await page.evaluate(() => { const d = window.__app.doc; const w = d.objects.find(o => o.kind === 'furniture' && o.item === 'wardrobe'); d.commit(); d.remove(w.id); });
+  t = await drawn();
+  ok(t.includes('主臥') && !t.includes('臥室') && t.includes('缺：衣櫃'), `改名「主臥」：房名不被換掉、照樣寫缺什麼（${t.filter(s => /臥|缺/.test(s)).join(' / ')}）`);
+  await ctx.close();
+}
+
 ok(!errs.length, `沒有頁面錯誤${errs.length ? '：' + errs.join(' / ') : ''}`);
 await br.close();
 console.log(fails ? `\n✘ ${fails} 項沒過` : '\n✔ 全部通過');
