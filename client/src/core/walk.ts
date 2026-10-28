@@ -27,7 +27,16 @@ export interface Blocker { ax: number; ay: number; bx: number; by: number; half:
 /** Matches the curved-wall tessellation everywhere else (lighting.ts, server/app/rooms.py). */
 const ARC_PIECES = 14;
 
-/** The solid parts of a storey's walls: each wall minus its doors. Windows stay solid. */
+/**
+ * The solid parts of a storey's walls: each wall minus its doors. Windows stay solid.
+ *
+ * A door is cut out along the wall's whole length — on a curved wall by arc
+ * length, the way 3D cuts it, not piece by piece (a 14-piece arc has pieces
+ * narrower than a door). The wall either side of a door then stops `half` its
+ * thickness short of the opening: a blocker is a segment with round ends of
+ * radius `half`, and that round end must land on the door jamb, not half a
+ * wall into the doorway — otherwise thicker walls need wider doors.
+ */
 export function blockers(objs: readonly Obj[]): Blocker[] {
   const doors = objs.filter((o): o is Opening => o.kind === 'door');
   const out: Blocker[] = [];
@@ -35,17 +44,48 @@ export function blockers(objs: readonly Obj[]): Blocker[] {
     if (w.kind !== 'wall') continue;
     const half = w.thickness / 2;
     const pts = w.bulge ? quadPoints(w.a, wallControl(w.a, w.b, w.bulge), w.b, ARC_PIECES) : [w.a, w.b];
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const piece: Wall = { ...w, a: pts[i], b: pts[i + 1], bulge: 0 };
-      const len = Math.hypot(piece.b.x - piece.a.x, piece.b.y - piece.a.y);
-      if (len < 1e-6) continue;
-      const ux = (piece.b.x - piece.a.x) / len, uy = (piece.b.y - piece.a.y) / len;
-      let s = 0;
-      for (const h of openingsOnWall(piece, doors)) {
-        if (h.s > s) out.push({ ax: piece.a.x + ux * s, ay: piece.a.y + uy * s, bx: piece.a.x + ux * h.s, by: piece.a.y + uy * h.s, half });
-        s = Math.max(s, h.e);
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+    const total = cum[cum.length - 1];
+    if (total < 1e-6) continue;
+    // Door spans along the wall, in arc length
+    const holes: [number, number][] = [];
+    if (!w.bulge) for (const h of openingsOnWall(w, doors)) holes.push([h.s, h.e]);
+    else for (const d of doors) {
+      let best = { d: Infinity, at: 0 };
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const A = pts[i], B = pts[i + 1], len = cum[i + 1] - cum[i];
+        if (len < 1e-9) continue;
+        const t = Math.max(0, Math.min(1, ((d.x - A.x) * (B.x - A.x) + (d.y - A.y) * (B.y - A.y)) / (len * len)));
+        const dd = Math.hypot(A.x + (B.x - A.x) * t - d.x, A.y + (B.y - A.y) * t - d.y);
+        if (dd < best.d) best = { d: dd, at: cum[i] + t * len };
       }
-      if (len > s) out.push({ ax: piece.a.x + ux * s, ay: piece.a.y + uy * s, bx: piece.b.x, by: piece.b.y, half });
+      if (best.d <= half + 10) holes.push([Math.max(0, best.at - d.width / 2), Math.min(total, best.at + d.width / 2)]);
+    }
+    holes.sort((p, q) => p[0] - q[0]);
+    // Solid stretches between them, pulled back from each door by half the thickness
+    const solid: [number, number][] = [];
+    let s = 0;
+    for (const [h0, h1] of holes) {
+      if (h0 > s) solid.push([s === 0 ? 0 : s + half, h0 - half]);
+      s = Math.max(s, h1);
+    }
+    if (total > s) solid.push([s === 0 ? 0 : s + half, total]);
+    if (holes.length && solid.length && solid[0][0] === 0 && holes[0][0] <= 0) solid[0][0] = half;
+    // ...and back onto the polyline, piece by piece
+    const at = (x: number) => {
+      let i = 0;
+      while (i + 2 < cum.length && cum[i + 1] < x) i++;
+      const len = cum[i + 1] - cum[i], t = len > 1e-9 ? (x - cum[i]) / len : 0;
+      return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, y: pts[i].y + (pts[i + 1].y - pts[i].y) * t };
+    };
+    for (const [s0, s1] of solid) {
+      if (s1 - s0 <= 1e-6) continue;
+      const cuts = [s0, ...cum.filter(c => c > s0 && c < s1), s1];
+      for (let k = 0; k + 1 < cuts.length; k++) {
+        const p = at(cuts[k]), q = at(cuts[k + 1]);
+        out.push({ ax: p.x, ay: p.y, bx: q.x, by: q.y, half });
+      }
     }
   }
   return out;
@@ -54,7 +94,7 @@ export function blockers(objs: readonly Obj[]): Blocker[] {
 /** Push a circle at p out of every blocker it overlaps; a few rounds settle corners. */
 export function resolve(p: Vec, walls: readonly Blocker[], radius = WALK.radius): Vec {
   let { x, y } = p;
-  for (let round = 0; round < 4; round++) {
+  for (let round = 0; round < 8; round++) {
     let moved = false;
     for (const w of walls) {
       const wx = w.bx - w.ax, wy = w.by - w.ay, l2 = wx * wx + wy * wy;
@@ -80,8 +120,26 @@ const SUBSTEP = 10;
 export function move(p: Vec, dx: number, dy: number, walls: readonly Blocker[], radius = WALK.radius): Vec {
   const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / SUBSTEP));
   let q = p;
-  for (let i = 0; i < n; i++) q = resolve({ x: q.x + dx / n, y: q.y + dy / n }, walls, radius);
+  for (let i = 0; i < n; i++) {
+    const r = resolve({ x: q.x + dx / n, y: q.y + dy / n }, walls, radius);
+    // Squeezed between two walls closer than you are wide, the pushes only take
+    // turns and never settle: then this step is not taken. A gap narrower than
+    // the circle is a gap you do not fit through.
+    if (overlap(r, walls, radius) > 0.5) break;
+    q = r;
+  }
   return q;
+}
+
+/** How deep the circle at p is inside the worst wall, cm (0 when clear). */
+export function overlap(p: Vec, walls: readonly Blocker[], radius = WALK.radius): number {
+  let worst = 0;
+  for (const w of walls) {
+    const wx = w.bx - w.ax, wy = w.by - w.ay, l2 = wx * wx + wy * wy;
+    const t = l2 ? Math.max(0, Math.min(1, ((p.x - w.ax) * wx + (p.y - w.ay) * wy) / l2)) : 0;
+    worst = Math.max(worst, radius + w.half - Math.hypot(w.ax + wx * t - p.x, w.ay + wy * t - p.y));
+  }
+  return worst;
 }
 
 // ---- stairs ----
@@ -111,7 +169,11 @@ export interface Walker { x: number; y: number; /** Storey index into project.fl
  * below (coming down), the height follows the flight and the storey becomes
  * whichever end is nearer; anywhere else, this storey's floor.
  */
-export function settle(floors: readonly Floor[], floor: number, p: Vec): Walker {
+export function settle(floors: readonly Floor[], floor: number, p: Vec, prevZ = floors[floor]?.elevation ?? 0): Walker {
+  // Flights stacked one above the other are the usual way up a house: the
+  // point is then on two of them at once. The one you are on is the one whose
+  // height at this point is nearest where your feet were.
+  let best: Walker | null = null;
   for (const f of [floor, floor - 1]) {
     const here = floors[f], up = floors[f + 1];
     if (!here || !up) continue;
@@ -120,9 +182,10 @@ export function settle(floors: readonly Floor[], floor: number, p: Vec): Walker 
       const t = stairProgress(s, p);
       if (t === null) continue;
       const z = here.elevation + (up.elevation - here.elevation) * t;
-      return { x: p.x, y: p.y, floor: t >= 0.5 ? f + 1 : f, z };
+      if (!best || Math.abs(z - prevZ) < Math.abs(best.z - prevZ)) best = { x: p.x, y: p.y, floor: t >= 0.5 ? f + 1 : f, z };
     }
   }
+  if (best) return best;
   const f = floors[floor];
   return { x: p.x, y: p.y, floor, z: f ? f.elevation : 0 };
 }
@@ -136,7 +199,7 @@ export function walkStep(floors: readonly Floor[], w: Walker, dx: number, dy: nu
   // Settle every sub-step: a long frame that crossed the middle of a flight
   // would otherwise never notice it changed storey on the way.
   const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / SUBSTEP));
-  for (let i = 0; i < n; i++) w = settle(floors, w.floor, move(w, dx / n, dy / n, wallsOf(w.floor)));
+  for (let i = 0; i < n; i++) w = settle(floors, w.floor, move(w, dx / n, dy / n, wallsOf(w.floor)), w.z);
   return w;
 }
 
@@ -144,6 +207,6 @@ export function walkStep(floors: readonly Floor[], w: Walker, dx: number, dy: nu
  * Where to put someone entering walk mode near a plan point: there if it is
  * clear of walls, else pushed out to the nearest clear spot.
  */
-export function spawn(floors: readonly Floor[], floor: number, p: Vec, walls: readonly Blocker[]): Walker {
-  return settle(floors, floor, resolve(p, walls));
+export function spawn(floors: readonly Floor[], floor: number, p: Vec, walls: readonly Blocker[], prevZ?: number): Walker {
+  return settle(floors, floor, resolve(p, walls), prevZ);
 }

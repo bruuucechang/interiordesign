@@ -209,6 +209,7 @@ function applyMode() {
       view3d?.build(doc, true);   // reframe for the new pane size
       view3d?.start();
     } else {
+      view3d?.setWalking(false);   // walking only happens in 3D: leaving it would strand the walker (and the 2D marker)
       view3d?.stop();             // nothing to draw into a pane that is not laid out
     }
   });
@@ -386,6 +387,7 @@ async function openFromUrl() {
   editor.resetView();
   editor.vp.resize();
   fit2D();
+  view3d?.setWalking(false);   // a different plan: the walker's storey and walls are gone
   if (mode !== '2d') { view3d?.resize(); view3d?.build(doc, true); }
 }
 void openFromUrl();

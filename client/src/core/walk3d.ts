@@ -25,7 +25,11 @@ export class WalkMode {
   onToggle: ((on: boolean) => void) | null = null;
 
   constructor(private camera: THREE.PerspectiveCamera, private controls: OrbitControls, private dom: HTMLElement) {
-    dom.addEventListener('click', () => { if (this.active && document.pointerLockElement !== dom) dom.requestPointerLock?.(); });
+    dom.addEventListener('click', () => {
+      if (!this.active || document.pointerLockElement === dom) return;
+      // Refused in some frames and in headless browsers; walking still works on the keys alone.
+      void Promise.resolve(dom.requestPointerLock?.()).catch(() => {});
+    });
     document.addEventListener('mousemove', e => {
       if (!this.active || document.pointerLockElement !== dom) return;
       const k = FEEL_BASE.look * this.look * Math.PI / 180;
@@ -35,10 +39,23 @@ export class WalkMode {
     });
   }
 
-  /** The plan's walls, storey by storey; called on every rebuild. */
+  /** The storey being walked, by id: an index would point at another storey once one is added below or removed. */
+  private floorId = '';
+
+  /**
+   * The plan's walls, storey by storey; called on every rebuild. While
+   * walking, find the walker's storey again by id (gone → step out), stand
+   * clear of any wall that moved onto you, and put the camera back on the eye
+   * — a rebuild may have reframed it.
+   */
   setPlan(doc: Doc) {
     this.doc = doc;
     this.walls = doc.project.floors.map(f => blockers(f.objects.filter(o => doc.isLayerVisible(o.layer))));
+    if (!this.active) return;
+    const i = doc.project.floors.findIndex(f => f.id === this.floorId);
+    if (i < 0) { this.exit(); return; }
+    this.walker = spawn(doc.project.floors, i, this.walker, this.walls[i] ?? [], this.walker.z);
+    this.place();
   }
 
   /**
@@ -50,6 +67,7 @@ export class WalkMode {
     const floors = this.doc.project.floors;
     const t = this.controls.target;
     this.walker = spawn(floors, floor, { x: t.x, y: t.z }, this.walls[floor] ?? []);
+    this.floorId = floors[this.walker.floor]?.id ?? '';
     const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
     this.yaw = Math.atan2(-dir.x, -dir.z);
     this.pitch = 0;
@@ -82,6 +100,7 @@ export class WalkMode {
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     const dx = (-sy * f + cy * r) * v, dy = (-cy * f - sy * r) * v;
     this.walker = walkStep(this.doc.project.floors, this.walker, dx, dy, i => this.walls[i] ?? []);
+    this.floorId = this.doc.project.floors[this.walker.floor]?.id ?? this.floorId;
     this.place();
   }
 

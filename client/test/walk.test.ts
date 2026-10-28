@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { blockers, move, resolve, settle, stairProgress, walkStep, WALK } from '../src/core/walk';
+import { blockers, move, overlap, resolve, settle, stairProgress, walkStep, WALK } from '../src/core/walk';
 import type { Floor, Obj } from '../src/model/schema';
+import { wallApex } from '../src/core/geometry';
 
 const near = (a: number, b: number, tol: number) => assert.ok(Math.abs(a - b) <= tol, `${a} ≉ ${b} ±${tol}`);
 const wall = (id: string, ax: number, ay: number, bx: number, by: number, more = {}): Obj =>
@@ -114,4 +115,48 @@ test('the top storey has no flight to climb: stairs there are just floor', () =>
   const fs = floors([], [stairs(0, 0)]);
   const w = settle(fs, 1, { x: 50, y: 150 });
   assert.equal(w.floor, 1); assert.equal(w.z, 300);
+});
+
+// ---- B19 審查補的 ----
+
+test('door width alone decides: 50 cm and up gets through any wall, under 50 does not', () => {
+  for (const thickness of [12, 30, 65]) {
+    const ws = (w: number) => blockers([wall('w', 300, -500, 300, 500, { thickness }), door(300, 0, w)]);
+    assert.ok(move({ x: 0, y: 0 }, 800, 0, ws(60)).x > 500, `60 cm door in a ${thickness} cm wall`);
+    assert.ok(move({ x: 0, y: 0 }, 800, 0, ws(48)).x < 300, `48 cm door in a ${thickness} cm wall`);
+  }
+});
+
+test('squeezing never leaves you inside a wall', () => {
+  const ws = blockers([wall('w', 300, -500, 300, 500, { thickness: 65 }), door(300, 0, 45)]);
+  const p = move({ x: 0, y: 0 }, 800, 0, ws);
+  assert.ok(overlap(p, ws) < 0.5, `overlap ${overlap(p, ws)}`);
+});
+
+test('a door in a curved wall is cut along the arc, its full width', () => {
+  // arc from (0,300) to (600,300) bulging 80; a 90 cm door at its middle
+  const objs: Obj[] = [wall('c', 0, 300, 600, 300, { bulge: 80 })];
+  const apex = wallApex({ x: 0, y: 300 }, { x: 600, y: 300 }, 80);
+  objs.push({ id: 'dc', kind: 'door', layer: 'openings', x: apex.x, y: apex.y, width: 90, angle: 0 } as Obj);
+  const ws = blockers(objs);
+  const side = Math.sign(apex.y - 300);   // which way the arc bulges
+  const start = { x: 300, y: 300 - side * 100 }, through = move(start, 0, side * 400, ws);
+  assert.ok((through.y - apex.y) * side > 50, `walked through the arc's door to ${through.y} (apex ${apex.y})`);
+  // and the same arc with no door stops you
+  const shut = move(start, 0, side * 400, blockers([objs[0]]));
+  assert.ok((shut.y - apex.y) * side < 0, `no door: stopped at ${shut.y}`);
+});
+
+test('stairs stacked one above the other: half way up the lower flight you stay on it', () => {
+  const three: Floor[] = [
+    { id: 'f1', name: '1F', elevation: 0, height: 300, objects: [stairs(0, 0)] },
+    { id: 'f2', name: '2F', elevation: 300, height: 300, objects: [stairs(0, 0)] },
+    { id: 'f3', name: '3F', elevation: 600, height: 300, objects: [] },
+  ];
+  let w = settle(three, 0, { x: 50, y: 320 });
+  for (let i = 0; i < 20; i++) {
+    w = walkStep(three, w, 0, -10, () => []);
+    assert.ok(w.z <= 300 + 1e-6, `never jumps to the upper flight: z ${w.z} at y ${w.y}`);
+  }
+  near(w.z, 300 * (0.5 - (w.y - 150) / 300), 1e-6);
 });

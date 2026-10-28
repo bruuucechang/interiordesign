@@ -118,6 +118,19 @@ await page.keyboard.press('f');
 check('再按 F 離開', await page.evaluate(() => !window.__app.view3d.walk.active));
 check('離開後 2D 標記收掉', await page.evaluate(() => window.__app.editor.marker === undefined));
 
+// 審查補：行走中選了家具工具、點畫面（鎖滑鼠的那一下）不能放出家具
+const n0 = await page.evaluate(() => window.__app.doc.objects.length);
+await page.evaluate(() => { const { editor, view3d: v } = window.__app; editor.currentFurniture = 'sofa'; editor.selectTool('furniture'); v.setWalking(true); });
+const box = await page.locator('#view3d canvas').boundingBox();
+await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.7);
+await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.7);
+check('行走中點畫面不會放出家具', await page.evaluate((n) => window.__app.doc.objects.length === n, n0));
+await page.evaluate(() => window.__app.editor.selectTool('select'));
+// 切回 2D：自動離開行走、2D 標記收掉
+await page.evaluate(() => document.querySelector('#viewModes [data-mode="2d"]').click());
+await page.waitForTimeout(500);
+check('切到 2D 自動離開行走', await page.evaluate(() => !window.__app.view3d.walk.active && window.__app.editor.marker === undefined));
+
 check('沒有頁面錯誤', errs.length === 0, errs.join(' | '));
 await br.close();
 process.exit(bad ? 1 : 0);
