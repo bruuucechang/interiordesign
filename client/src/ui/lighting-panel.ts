@@ -65,6 +65,8 @@ const signature = (doc: Doc) => floorSignature(doc.objects, doc.activeFloor.heig
 let settle: number | undefined;
 
 const cache = new Map<string, LuxGrid>();
+/** 每盞燈對每間房的直射光，照格距分開存：拖曳中的 8 cm 與停下來的 5 cm 不互相清掉。 */
+const parts = new Map<number, Map<string, Float32Array>>();
 let lit: LitRoom[] = [];
 /** 最近一次真的有重算時花的毫秒數（全部命中快取的那幾幀不算）——bench 讀這個。 */
 let lastComputeMs = 0;
@@ -85,7 +87,8 @@ function compute(doc: Doc): LitRoom[] {
   const step = performance.now() - lastChange < COARSE_MS ? COARSE : FINE;
   const before = cache.size, keys = new Set(cache.keys());
   const t0 = performance.now();
-  const out = lightFloor(doc.objects, ceiling, view(step), cache);
+  if (!parts.has(step)) parts.set(step, new Map());
+  const out = lightFloor(doc.objects, ceiling, view(step), cache, parts.get(step));
   const ms = performance.now() - t0;
   // 有新的格點才算一次重算；全部命中快取的幀是 0.1 ms 的查表，量它沒有意義。
   if ([...cache.keys()].some(k => !keys.has(k)) || cache.size !== before) lastComputeMs = ms;
@@ -289,7 +292,7 @@ function paintAnalysis(editor: Editor, doc: Doc) {
       m.textContent = t('房間裡沒有子區域、床、書桌、做到頂的櫃子或門，沒有區域可以分析。');
       host.appendChild(m);
     } else {
-      const litNow = litBy(r.lr, r.lums, v.rho);
+      const litNow = litBy(r.lr, r.lums, v.rho, r.near);
       const rows: (string | Node)[][] = [];
       const shown: typeof zones = [];
       for (const z of zones) {

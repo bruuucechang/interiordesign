@@ -50,6 +50,18 @@ test('你的房間只開崁燈：整間平均 130 ±5%', () => {
   near(g.avg, 128.95, 0.01);
 });
 
+test('牆擋光（B17）打開時，關起來的你的房間跟原型一樣（±1%）', () => {
+  // 四面牆中線在房間外 6 cm（厚 12），內面剛好是 0..W × 0..D；沒有門窗、外面沒有燈
+  const wall = (id: string, ax: number, ay: number, bx: number, by: number): Wall =>
+    ({ id, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness: 12 });
+  const walls = [wall('n', -12, -6, W + 12, -6), wall('s', -12, D + 6, W + 12, D + 6), wall('w', -6, -12, -6, D + 12), wall('e', W + 6, -12, W + 6, D + 12)];
+  const shaded = lightRoom(roomA, CEIL, cabinetsA, walls, []);
+  assert.ok(shaded.shade && shaded.shade.length === 4);
+  const all = luminaires(lightsA, CEIL);
+  near(grid(shaded, all, opts).avg, 316.77, 3.17);
+  near(grid(shaded, luminaires(lightsA, CEIL, new Set([3])), opts).avg, 128.95, 1.29);
+});
+
 test('櫃子裡的格點不算，櫃子表面的算', () => {
   const g = grid(A, luminaires(lightsA, CEIL), opts);
   const at = (x: number, y: number) => g.v[(y / 5) * g.nx + x / 5];

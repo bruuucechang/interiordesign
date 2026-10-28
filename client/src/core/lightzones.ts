@@ -200,8 +200,9 @@ export function roomZones(r: LightRoom, objs: readonly Obj[], ceiling: number): 
 
 /** The lit inputs every sample in a room shares. */
 export interface Lit { src: Source[]; ind: number }
-export const litBy = (r: LightRoom, lums: readonly Luminaire[], rho: number): Lit => ({
-  src: sources(lums), ind: indirect(lums.reduce((a, L) => a + L.lumens, 0), surfaceArea(r), rho),
+/** `lums` fill the reflected term; `near` (own plus neighbours' through the doors, see `reaching`) give the direct light. */
+export const litBy = (r: LightRoom, lums: readonly Luminaire[], rho: number, near: readonly Luminaire[] = lums): Lit => ({
+  src: sources(near, r), ind: indirect(lums.reduce((a, L) => a + L.lumens, 0), surfaceArea(r), rho),
 });
 
 const ZONE_STEP = 10;
