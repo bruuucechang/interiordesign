@@ -7,7 +7,7 @@
 // 「房間」, and once the user names the room theirs wins.
 import type { Obj, Vec } from '../model/schema';
 import { FURNITURE_BY_ID } from '../data/furniture';
-import { closestOnSegment, dist, pointInPolygon } from './geometry';
+import { pointInPolygon } from './geometry';
 
 export type RoomUseName = '浴室' | '廚房' | '臥室' | '書房' | '餐廳' | '客廳';
 export interface RoomReading { use: RoomUseName | null; missing: string[]; }
@@ -40,9 +40,12 @@ const EXHAUST = /排風扇|抽風機/;
  */
 const isBed = (n: string) => {
   const s = n.replace(/\s+[IVX]+$/, '');   // 床頭櫃 II → 床頭櫃
-  return /床$/.test(s) || s.includes('床（') || /床架$/.test(s) || s === '上下舖' || /地台$/.test(s) || s === '布團台';
+  return /床$/.test(s) || s.includes('床（') || /床架$/.test(s) || s === '上下舖' || s === '榻榻米地台' || s === '布團台';
 };
-const isSeat = (n: string) => SEAT.test(n) && !SOFA.test(n) && !/貴妃椅/.test(n);
+// Something to sit at a desk or a table on — not a footstool, a piano stool, a
+// rocker, a lounge chair or a hall bench, which have 椅／凳 in the name too (B23 review).
+const NOT_TABLE_SEAT = /貴妃椅|^腳凳|琴凳|搖椅|單椅|扶手椅|長凳|矮凳/;
+const isSeat = (n: string) => SEAT.test(n) && !SOFA.test(n) && !NOT_TABLE_SEAT.test(n);
 const isDesk = (n: string) => DESK.test(n) && !SEAT.test(n);
 const isDiningTable = (n: string) => DINING_TABLE.test(n) && !SEAT.test(n);
 
@@ -51,14 +54,6 @@ const WALL_REACH = 30;
 
 const polyOf = (r: Room): Vec[] =>
   r.poly && r.poly.length >= 3 ? r.poly : [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
-
-function nearEdge(p: Vec, poly: Vec[], reach: number): boolean {
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length];
-    if (dist(p, closestOnSegment(p, a, b).point) <= reach) return true;
-  }
-  return false;
-}
 
 /**
  * The names a thing on the plan goes by, plus what kind of thing it is.
@@ -84,9 +79,13 @@ function describe(o: Obj, poly: Vec[], itemOf: (id: string) => UseItem | undefin
   const f = o as Furniture;
   const item = itemOf(f.item);
   const c = { x: f.x + f.w / 2, y: f.y + f.h / 2 };
-  // A wall lamp's centre is on the wall; it belongs to the room it is next to.
-  const inRoom = pointInPolygon(c, poly) || (item?.mount === 'wall' && nearEdge(c, poly, WALL_REACH));
-  if (!inRoom) return null;
+  // A wall-hung piece sits against the wall, a few centimetres from the room's
+  // edge (the polygon runs along wall centre lines). Step into the room it faces
+  // before asking — (-sin a, cos a), the inward normal fitFurnitureToWall turned
+  // it to — so it never counts for the room behind the wall (B23 review).
+  const r = (f.angle ?? 0) * Math.PI / 180;
+  const p = item?.mount === 'wall' ? { x: c.x - Math.sin(r) * WALL_REACH, y: c.y + Math.cos(r) * WALL_REACH } : c;
+  if (!pointInPolygon(p, poly)) return null;
   const names = [item?.name, f.label].filter((n): n is string => !!n && !!n.trim()).map(n => n.trim());
   // A catalogue lamp counts by its category (a 吊扇 is filed under 燈具 and is not one);
   // a traced piece counts by its label.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { roomUse, shownRoomName, isDefaultRoomName } from '../src/core/roomUse';
 import { FURNITURE } from '../src/data/furniture';
 import type { Obj } from '../src/model/schema';
+import { fitFurnitureToWall } from '../src/tools/place';
 
 // Real catalogue entries, looked up by name, so a renamed or recategorised
 // item breaks the test instead of a made-up one passing it.
@@ -117,4 +118,37 @@ test('a wall-hung range hood whose centre sits on the wall line still belongs to
   assert.deepEqual(read([put('爐具'), put('抽油煙機', 100, -30, 90, 50)]).missing, ['燈']);
   // …but a floor-standing piece out there is in the next room.
   assert.equal(read([put('雙人床', 100, -300, 160, 200)]).use, null);
+});
+
+test('a piece hung on a shared wall counts only for the room it faces', () => {
+  // Two rooms sharing the wall at y = 400; hang things on the upper room's side with
+  // the real wall-fit, and the lower room (just a bed) must not see them.
+  for (const thickness of [8, 10, 12]) {
+    const wall = { id: 'w', kind: 'wall', layer: 'walls', a: { x: 0, y: 400 }, b: { x: 400, y: 400 }, thickness } as Obj;
+    const hang = (name: string, cursor: { x: number; y: number }) => {
+      const it = FURNITURE.find(f => f.name === name && f.mount === 'wall')!;
+      const fit = fitFurnitureToWall({ objects: [wall], isLayerVisible: () => true } as any, cursor, it)!;
+      return { id: 'h' + n++, kind: 'furniture', layer: 'furniture', item: it.id, x: fit.pos.x - it.w / 2, y: fit.pos.y - it.h / 2, w: it.w, h: it.h, angle: fit.angle, label: '' } as Obj;
+    };
+    const upper = room('房間', 0, 0), lower = room('房間', 0, 400);
+    const lamp = hang('壁燈', { x: 200, y: 370 }), hood = hang('抽油煙機', { x: 200, y: 360 });
+    const things = [upper, lower, wall, put('雙人床', 100, 500, 160, 200), lamp, hood];
+    assert.deepEqual(roomUse(lower, things), { use: '臥室', missing: ['燈', '衣櫃'] }, `wall ${thickness}`);
+    assert.deepEqual(roomUse(upper, [upper, wall, put('爐具', 100, 100), lamp, hood]).missing, [], `wall ${thickness}`);
+  }
+});
+
+test('a footstool, piano stool or lounge chair is not a chair to sit at a table', () => {
+  for (const name of ['腳凳', '琴凳', '搖椅', '單椅', '溫徹斯特扶手椅', '玄關長凳']) {
+    assert.deepEqual(read([put('木餐桌'), put(name, 200, 200)]).missing, ['燈', '餐椅'], name);
+    assert.deepEqual(read([put('L型書桌'), put(name, 200, 200)]).missing, ['燈', '椅子'], name);
+  }
+  for (const name of ['餐椅', '吧檯椅', '大阪椅', '橡木椅', '高腳凳']) {
+    assert.deepEqual(read([put('木餐桌'), put(name, 200, 200)]).missing, ['燈'], name);
+  }
+});
+
+test('a raised tatami platform is not a bed; the tatami bed platform is', () => {
+  assert.equal(read([put('和室高地台')]).use, null);
+  assert.equal(read([put('榻榻米地台')]).use, '臥室');
 });
