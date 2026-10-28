@@ -9,12 +9,13 @@ import { Reference, alignWalls, splitWallAt, findFaceSteps, FaceStep, Wall } fro
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, PartitionTool, RoomTool, AreaTool, DimensionTool } from '../tools/draw';
-import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall } from '../tools/place';
+import { OpeningTool, FurnitureTool, ElectricalTool, fitOpeningToWall, wallBoxes } from '../tools/place';
 import { CalibrateTool } from '../tools/calibrate';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { Obj, Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
 import { hintChanged } from '../ui/feedback';
+import { placementIssues } from './placement';
 
 export class Editor implements ToolCtx {
   vp: Viewport;
@@ -56,7 +57,13 @@ export class Editor implements ToolCtx {
   private panShift = false;
   private clipboard: Obj[] = [];
 
+  /** Shift is down — the 3D view's placing clicks keep the piece in hand while it is (B22). */
+  shiftHeld = false;
+
   constructor(private canvas: HTMLCanvasElement, public doc: Doc, private hintEl: HTMLElement) {
+    window.addEventListener('keydown', e => { if (e.key === 'Shift') this.shiftHeld = true; });
+    window.addEventListener('keyup', e => { if (e.key === 'Shift') this.shiftHeld = false; });
+    window.addEventListener('blur', () => { this.shiftHeld = false; });
     this.vp = new Viewport(canvas);
     this.renderer = new Renderer(canvas, this.vp, doc);
     this.renderer.onImageLoad = () => this.render();
@@ -152,20 +159,30 @@ export class Editor implements ToolCtx {
     const id = genId('furn');
     this.doc.add({ id, kind: 'furniture', layer: layerForKind('furniture'), item: item.id, x: x - item.w / 2, y: y - item.h / 2, w: item.w, h: item.h, angle: 0, label: item.name } as Obj);
     this.doc.select(id);
-    this.selectTool('select');
+    if (!this.shiftHeld) this.selectTool('select');
     return true;
   }
 
-  // Place a door/window near plan point (x, y), snapped onto the nearest wall
-  // (falls back to an unsnapped opening if none). Used by 3D wall-click placement.
+  /** Why the current furniture would not sit well centred at (x, y) — the 3D ghost's warning (B22). */
+  furnitureIssuesAt(x: number, y: number): string[] {
+    const item = FURNITURE_BY_ID[this.currentFurniture];
+    if (!item) return [];
+    return placementIssues(this.doc.objects, { cx: x, cy: y, w: item.w, h: item.h, angle: 0 }, item, o => FURNITURE_BY_ID[o.item],
+      undefined, wallBoxes(this.doc));
+  }
+
+  // Place a door/window near plan point (x, y), snapped onto the nearest wall.
+  // Used by 3D wall-click placement. No wall within 2 m: nothing is placed and it
+  // returns false — it used to stand a door up in mid-room (B22).
   placeOpeningAt(kind: 'door' | 'window', pt: { x: number; y: number }): boolean {
     const width = kind === 'door' ? 90 : 120;
-    const fit = fitOpeningToWall(this.doc, pt, width, kind === 'window', 200) ?? { pos: pt, angle: 0, width, bulge: 0 };
+    const fit = fitOpeningToWall(this.doc, pt, width, kind === 'window', 200);
+    if (!fit) return false;
     this.doc.commit();
     const id = genId(kind);
     this.doc.add({ id, kind, layer: layerForKind(kind), x: fit.pos.x, y: fit.pos.y, width: fit.width, angle: fit.angle, bulge: fit.bulge || undefined } as Obj);
     this.doc.select(id);
-    this.selectTool('select');
+    if (!this.shiftHeld) this.selectTool('select');
     return true;
   }
 

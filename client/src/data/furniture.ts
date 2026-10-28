@@ -19,6 +19,12 @@ export interface FurnitureItem {
    */
   mount?: 'ceiling' | 'wall';
   /**
+   * Covers the floor rather than standing on it — rugs, mats, a tatami platform
+   * or futon base that other furniture sits on. Placement does not call it an
+   * overlap either way, and it is not turned to back onto a wall (B22).
+   */
+  floorCover?: true;
+  /**
    * Real height in centimetres, where the model's own is wrong.
    *
    * The footprint comes from `w`/`h` and the height follows the smaller of the
@@ -123,7 +129,7 @@ export const FURNITURE: FurnitureItem[] = [
       body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#7bc6ff'; ctx.beginPath(); ctx.moveTo(w * 0.2, 6); ctx.lineTo(w * 0.8, 6); ctx.stroke();
     } },
-  { id: 'rug', name: '地毯', style: '現代', cat: '客廳', w: 200, h: 140, draw(ctx, w, h) {
+  { id: 'rug', floorCover: true, name: '地毯', style: '現代', cat: '客廳', w: 200, h: 140, draw(ctx, w, h) {
       ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.setLineDash([10, 8]); rr(ctx, 10, 10, w - 20, h - 20, 3); ctx.stroke(); ctx.setLineDash([]);
@@ -411,17 +417,17 @@ export const FURNITURE: FurnitureItem[] = [
   { id: 'side_drawers', name: '抽屜邊几', style: '現代', cat: '客廳', w: 45, h: 40, draw(ctx, w, h) {
       cabinet(ctx, w, h, 2);
     } },
-  { id: 'rug_round', name: '圓地毯', style: '現代', cat: '客廳', w: 160, h: 160, draw(ctx, w, h) {
+  { id: 'rug_round', floorCover: true, name: '圓地毯', style: '現代', cat: '客廳', w: 160, h: 160, draw(ctx, w, h) {
       ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 2, 0, 7); ctx.fill(); ctx.stroke();
       ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(w / 2, h / 2, Math.min(w, h) / 2 - 9, 0, 7); ctx.stroke(); ctx.setLineDash([]);
     } },
-  { id: 'rug_square', name: '方地毯', style: '現代', cat: '客廳', w: 200, h: 200, draw(ctx, w, h) {
+  { id: 'rug_square', floorCover: true, name: '方地毯', style: '現代', cat: '客廳', w: 200, h: 200, draw(ctx, w, h) {
       ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.setLineDash([8, 6]); rr(ctx, 7, 7, w - 14, h - 14, 3); ctx.stroke(); ctx.setLineDash([]);
     } },
-  { id: 'doormat', name: '門墊', style: '現代', cat: '客廳', w: 75, h: 45, draw(ctx, w, h) {
+  { id: 'doormat', floorCover: true, name: '門墊', style: '現代', cat: '客廳', w: 75, h: 45, draw(ctx, w, h) {
       ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
       ctx.setLineDash([8, 6]); rr(ctx, 7, 7, w - 14, h - 14, 3); ctx.stroke(); ctx.setLineDash([]);
@@ -625,13 +631,13 @@ export const FURNITURE: FurnitureItem[] = [
 
   // ---- 日式與北歐：新增的兩個風格分類。實掃圖庫沒有和室家具，但這兩個風格的
   // 辨識度幾乎全在材料（藺草、障子紙、藤編），而材料是掃得到的 ----
-  { id: 'jp_tatami', name: '榻榻米地台', style: '日式', cat: '臥室', proc: true, w: 180, h: 90, draw(ctx, w, h) {
+  { id: 'jp_tatami', floorCover: true, name: '榻榻米地台', style: '日式', cat: '臥室', proc: true, w: 180, h: 90, draw(ctx, w, h) {
       ctx.fillStyle = '#4a5138'; ctx.strokeStyle = '#c9c07a'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#c9c07a66';
       for (let i = 1; i < Math.max(2, Math.round(w / 90)); i++) { const x = w * i / Math.max(2, Math.round(w / 90)); ctx.beginPath(); ctx.moveTo(x, 2); ctx.lineTo(x, h - 2); ctx.stroke(); }
     } },
-  { id: 'jp_tatami_high', name: '和室高地台', style: '日式', cat: '臥室', proc: true, w: 180, h: 180, draw(ctx, w, h) {
+  { id: 'jp_tatami_high', floorCover: true, name: '和室高地台', style: '日式', cat: '臥室', proc: true, w: 180, h: 180, draw(ctx, w, h) {
       ctx.fillStyle = '#4a5138'; ctx.strokeStyle = '#c9c07a'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#c9c07a66';
@@ -651,7 +657,7 @@ export const FURNITURE: FurnitureItem[] = [
   { id: 'jp_low_cabinet', name: '和室矮櫃', style: '日式', cat: '客廳', proc: true, w: 150, h: 40, draw(ctx, w, h) {
       cabinet(ctx, w, h, 3);
     } },
-  { id: 'jp_futon', name: '布團台', style: '日式', cat: '臥室', proc: true, w: 140, h: 200, draw(ctx, w, h) {
+  { id: 'jp_futon', floorCover: true, name: '布團台', style: '日式', cat: '臥室', proc: true, w: 140, h: 200, draw(ctx, w, h) {
       ctx.fillStyle = '#4a5138'; ctx.strokeStyle = '#c9c07a'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#c9c07a66';
