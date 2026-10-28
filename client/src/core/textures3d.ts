@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MaterialDef, material, heightToNormal, rng, hash, repeatFor, Category } from './materials';
+import { MaterialDef, material, heightToNormal, rng, hash, repeatFor, Category, TEXTURE_PX } from './materials';
 
 // Turning a MaterialDef into three.js objects. The drawing and the arithmetic
 // live in materials.ts; this file only knows about textures and materials.
@@ -15,7 +15,7 @@ import { MaterialDef, material, heightToNormal, rng, hash, repeatFor, Category }
 // per surface uploads a fresh 512² image to the GPU for every room on the plan,
 // and nothing reports it except the number going up.
 
-const SIZE = 512;
+const SIZE = TEXTURE_PX;
 
 interface Maps {
   map: THREE.Texture;

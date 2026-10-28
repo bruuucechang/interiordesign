@@ -41,6 +41,8 @@ const standAt = (x, y, dx, dy) => page.evaluate(([x, y, dx, dy]) => {
   if (v.walk.active) v.setWalking(false);
   v.controls.target.set(x, 0, y);
   v.setWalking(true);
+  // B21：進入行走會挑房間裡最空的點站（walkSpawn），這裡要的是指定位置，直接放過去。
+  v.walk.walker = { ...v.walk.walker, x, y };
   v.walk.yaw = Math.atan2(-dx, -dy);   // face plan direction (dx, dy)
   v.walk.frame(0, new Set());
   return v.walk.state;

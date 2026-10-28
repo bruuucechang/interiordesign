@@ -15,7 +15,7 @@
 //     overlaps, a few rounds, in sub-steps short enough never to jump a wall
 
 import type { Floor, Furniture, Obj, Opening, Vec, Wall } from '../model/schema';
-import { quadPoints, wallControl } from './geometry';
+import { pointInPolygon, polygonArea, quadPoints, wallControl } from './geometry';
 import { openingsOnWall } from './wallGeometry';
 
 /** The walker's numbers (cm, cm/s). Not facts — tuned to feel right; see the spec. */
@@ -222,4 +222,69 @@ export function walkStep(floors: readonly Floor[], w: Walker, dx: number, dy: nu
  */
 export function spawn(floors: readonly Floor[], floor: number, p: Vec, walls: readonly Blocker[], prevZ?: number): Walker {
   return settle(floors, floor, resolve(p, walls), prevZ);
+}
+
+/** Clear distance from p to the nearest wall face, cm (0 when inside a wall). */
+function clearance(p: Vec, walls: readonly Blocker[]): number {
+  let best = Infinity;
+  for (const w of walls) {
+    const wx = w.bx - w.ax, wy = w.by - w.ay, l2 = wx * wx + wy * wy;
+    const t = l2 ? Math.max(0, Math.min(1, ((p.x - w.ax) * wx + (p.y - w.ay) * wy) / l2)) : 0;
+    best = Math.min(best, Math.hypot(p.x - (w.ax + wx * t), p.y - (w.ay + wy * t)) - w.half);
+  }
+  return Math.max(0, best);
+}
+
+/** How far a ray from p along (ux, uy) gets before it meets a wall's centre line, capped at `max`. */
+function sightline(p: Vec, ux: number, uy: number, walls: readonly Blocker[], max = 2000): number {
+  let best = max;
+  for (const w of walls) {
+    const ex = w.bx - w.ax, ey = w.by - w.ay;
+    const den = ux * ey - uy * ex;
+    if (Math.abs(den) < 1e-12) continue;
+    const qx = w.ax - p.x, qy = w.ay - p.y;
+    const t = (qx * ey - qy * ex) / den, s = (qx * uy - qy * ux) / den;
+    if (t > 0 && s >= 0 && s <= 1) best = Math.min(best, Math.max(0, t - w.half));
+  }
+  return best;
+}
+
+const roomPoly = (r: Extract<Obj, { kind: 'room' }>): Vec[] =>
+  r.poly?.length ? r.poly : [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
+
+/**
+ * Where to stand and which way to face when walking starts (B21).
+ *
+ * It used to be wherever the orbit camera was looking, facing the camera's way —
+ * on the A1 plan that put you nose to a wall, and in an empty room it faced a
+ * corner. Now: the room under `near` (or the storey's largest room), at the point
+ * of it farthest from any wall (40 cm grid), facing the longest clear sightline
+ * of sixteen. `heading` is plan radians: forward is (cos, sin).
+ */
+export function walkSpawn(objs: readonly Obj[], walls: readonly Blocker[], near: Vec): { p: Vec; heading: number } {
+  const rooms = objs.filter((o): o is Extract<Obj, { kind: 'room' }> => o.kind === 'room').map(r => roomPoly(r));
+  const room = rooms.find(poly => pointInPolygon(near, poly))
+    ?? rooms.slice().sort((a, b) => polygonArea(b) - polygonArea(a))[0];
+  let p = resolve(near, walls);
+  if (room) {
+    const xs = room.map(v => v.x), ys = room.map(v => v.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    let best = -1;
+    for (let x = x0 + 20; x < x1; x += 40) for (let y = y0 + 20; y < y1; y += 40) {
+      const q = { x, y };
+      if (!pointInPolygon(q, room)) continue;
+      // ties go to the point nearer the room's middle
+      const score = clearance(q, walls) - 1e-3 * Math.hypot(x - cx, y - cy);
+      if (score > best) { best = score; p = q; }
+    }
+    p = resolve(p, walls);
+  }
+  let heading = 0, far = -1;
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const d = sightline(p, Math.cos(a), Math.sin(a), walls);
+    if (d > far + 1e-6) { far = d; heading = a; }
+  }
+  return { p, heading };
 }

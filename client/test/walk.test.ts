@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { blockers, move, overlap, resolve, settle, stairProgress, walkStep, WALK } from '../src/core/walk';
+import { blockers, move, overlap, resolve, settle, stairProgress, walkSpawn, walkStep, WALK } from '../src/core/walk';
 import type { Floor, Obj } from '../src/model/schema';
 import { wallApex } from '../src/core/geometry';
 
@@ -179,3 +179,37 @@ test('dropped into a niche narrower than you, you can still walk out', () => {
   assert.ok(out.x > 330, `walked out to ${out.x}`);
 });
 function spawnPoint(p: { x: number; y: number }, ws: ReturnType<typeof blockers>) { return resolve(p, ws); }
+
+// ---- B21: where walking starts ----
+const room = (id: string, x: number, y: number, w: number, h: number, name = '房間'): Obj =>
+  ({ id, kind: 'room', layer: 'rooms', x, y, w, h, name } as Obj);
+const box = (x0: number, y0: number, x1: number, y1: number): Obj[] => [
+  wall('n' + x0 + y0, x0, y0, x1, y0), wall('e' + x0 + y0, x1, y0, x1, y1),
+  wall('s' + x0 + y0, x1, y1, x0, y1), wall('w' + x0 + y0, x0, y1, x0, y0)];
+
+test('walking starts in the open middle of the room, not against the wall the camera aimed at', () => {
+  const objs = [...box(0, 0, 400, 300), room('r', 0, 0, 400, 300)];
+  const ws = blockers(objs);
+  const s = walkSpawn(objs, ws, { x: 30, y: 30 });   // the orbit target sits in a corner
+  near(s.p.x, 200, 25); near(s.p.y, 150, 25);
+});
+
+test('walking starts facing the long way down a long room', () => {
+  const objs = [...box(0, 0, 1000, 300), room('r', 0, 0, 1000, 300)];
+  const s = walkSpawn(objs, blockers(objs), { x: 500, y: 150 });
+  near(Math.abs(Math.cos(s.heading)), 1, 1e-9);     // along x, not across
+});
+
+test('a target outside every room starts you in the largest room', () => {
+  const objs = [...box(0, 0, 300, 300), room('small', 0, 0, 300, 300),
+    ...box(1000, 0, 1600, 500), room('big', 1000, 0, 600, 500)];
+  const s = walkSpawn(objs, blockers(objs), { x: 700, y: 1200 });
+  assert.ok(s.p.x > 1000 && s.p.x < 1600 && s.p.y > 0 && s.p.y < 500, JSON.stringify(s.p));
+});
+
+test('with no rooms, walking starts where the camera aimed, pushed clear of walls', () => {
+  const objs = [wall('w', 0, -500, 0, 500)];
+  const ws = blockers(objs);
+  const s = walkSpawn(objs, ws, { x: 5, y: 0 });
+  assert.equal(overlap(s.p, ws), 0);
+});
