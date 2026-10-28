@@ -17,8 +17,8 @@ export const OVERLAP_TOL = 5;
 
 /** Wall intrusion deeper than this, cm, is "in the wall"; touching the face is not. */
 export const WALL_TOL = 3;
-/** Footprints smaller than this, cm², are things that sit on other things (a lamp, a microwave, a vase). */
-export const SMALL_PIECE = 50 * 50;
+/** Pieces no longer than this on either side, cm, sit on other things (a lamp, a microwave, a vase). */
+export const SMALL_PIECE = 50;
 
 /** What the piece is, as far as stacking goes — a catalogue entry has all of these. */
 export interface Stackable { name?: string; w?: number; h?: number; mount?: string; height?: number; floorCover?: true }
@@ -31,13 +31,22 @@ export interface Stackable { name?: string; w?: number; h?: number; mount?: stri
  */
 export const stacksFreely = (it: Stackable | undefined) =>
   !!it && (it.mount === 'ceiling' || it.mount === 'wall' || !!it.floorCover || (it.height ?? 999) <= 5
-    || (it.w !== undefined && it.h !== undefined && it.w * it.h < SMALL_PIECE));
+    || (it.w !== undefined && it.h !== undefined && Math.max(it.w, it.h) <= SMALL_PIECE));
+// Both sides, not the area: by area a 180×4 shoji screen and an 80×30 bookcase were
+// "small" and walked straight through a bed without a word (B22 review).
 
 const SEAT = /椅|凳/, NOT_SEAT = /沙發|貴妃椅|躺椅/, TABLE = /桌|几|檯|吧台|中島/;
 const isSeat = (it?: Stackable) => !!it?.name && SEAT.test(it.name) && !NOT_SEAT.test(it.name);
 const isTable = (it?: Stackable) => !!it?.name && TABLE.test(it.name) && !SEAT.test(it.name);
-/** A chair pushed in under a table or desk is how a dining set is drawn, not an overlap. */
+/** A chair and a table or desk — the pair that may be pushed together (see `inside` below). */
 export const tucksUnder = (a?: Stackable, b?: Stackable) => (isSeat(a) && isTable(b)) || (isSeat(b) && isTable(a));
+
+/** Is p inside box b (turned with it)? */
+function inside(p: Vec, b: Box): boolean {
+  const r = -b.angle * Math.PI / 180, dx = p.x - b.cx, dy = p.y - b.cy;
+  const u = dx * Math.cos(r) - dy * Math.sin(r), v = dx * Math.sin(r) + dy * Math.cos(r);
+  return Math.abs(u) <= b.w / 2 && Math.abs(v) <= b.h / 2;
+}
 
 const roomPoly = (r: Extract<Obj, { kind: 'room' }>): Vec[] =>
   r.poly?.length ? r.poly : [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
@@ -60,8 +69,15 @@ export function placementIssues(
     for (const o of objs) {
       if (o.kind !== 'furniture' || o.id === self) continue;
       const cat = itemOf(o), it = cat && { ...cat, w: o.w, h: o.h };   // as resized on the plan
-      if (stacksFreely(it) || tucksUnder(item, it)) continue;
+      if (stacksFreely(it)) continue;
       const other: Box = { cx: o.x + o.w / 2, cy: o.y + o.h / 2, w: o.w, h: o.h, angle: o.angle ?? 0 };
+      // A chair pushed in under a table is how a dining set is drawn — but only
+      // pushed in: a whole armchair sunk into a coffee table is still an overlap.
+      if (tucksUnder(item, it)) {
+        const seatIsNew = isSeat(item);
+        const seat = seatIsNew ? box : other, table = seatIsNew ? other : box;
+        if (!inside({ x: seat.cx, y: seat.cy }, table)) continue;
+      }
       if (separation(box, other, -OVERLAP_TOL)) {
         out.push(t('跟{name}重疊').replace('{name}', () => o.label || t('別的家具')));
         break;

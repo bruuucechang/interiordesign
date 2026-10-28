@@ -72,13 +72,25 @@ test('a chair pushed under a table is not an overlap; a bed on the table is', ()
   assert.ok(!tucksUnder({ name: '雙人沙發' }, { name: '茶几' }) && !tucksUnder({ name: '雙人床' }, { name: '餐桌' }));
   const cat: Record<string, { name: string; w: number; h: number }> = { table: { name: '餐桌', w: 160, h: 90 } };
   const objs = [furn('t', 0, 0, 160, 90, 'table', '餐桌')];
-  assert.deepEqual(placementIssues(objs, box(40, 80, 50, 55), { name: '餐椅', w: 50, h: 55 }, o => cat[o.item]), []);
+  assert.deepEqual(placementIssues(objs, box(40, 100, 50, 55), { name: '餐椅', w: 50, h: 55 }, o => cat[o.item]), []);   // 18 cm under the table's edge
   assert.equal(placementIssues(objs, box(80, 45, 160, 200), { name: '雙人床', w: 160, h: 200 }, o => cat[o.item]).length, 1);
 });
 
-test('small pieces that stand on counters do not overlap anything', () => {
-  assert.ok(stacksFreely({ name: '微波爐', w: 50, h: 35 }));
+test('small pieces that stand on counters do not overlap anything; long thin ones still do', () => {
+  assert.ok(stacksFreely({ name: '微波爐', w: 50, h: 38 }));
   assert.ok(!stacksFreely({ name: '餐桌', w: 160, h: 90 }));
+  for (const id of ['jp_shoji', 'bookshelf_q', 'sh_toilet']) {
+    assert.ok(FURNITURE_BY_ID[id], `${id} in the catalogue`);
+    assert.ok(!stacksFreely(FURNITURE_BY_ID[id]), `${id} (${FURNITURE_BY_ID[id].w}×${FURNITURE_BY_ID[id].h}) is not small`);
+  }
+});
+
+test('a chair sunk wholly into a table is an overlap; pushed in up to its middle is not', () => {
+  const cat: Record<string, { name: string; w: number; h: number }> = { table: { name: '茶几', w: 120, h: 60 } };
+  const objs = [furn('t', 0, 0, 120, 60, 'table', '茶几')];
+  const arm = { name: '休閒單椅', w: 101, h: 119 };
+  assert.equal(placementIssues(objs, box(60, 30, 101, 119), arm, o => cat[o.item]).length, 1);          // centre inside the table
+  assert.deepEqual(placementIssues(objs, box(60, 60 + 20, 50, 55), { name: '餐椅', w: 50, h: 55 }, o => cat[o.item]), []);   // tucked from the side
 });
 
 test('turned 45°, 4 cm into a bed is touching, 10 cm is an overlap', () => {
