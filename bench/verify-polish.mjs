@@ -48,6 +48,16 @@ console.log('B21 3D 裡的鍵盤指令');
   ok(!(await page.evaluate(() => window.__app.doc.objects.some(o => o.id === 'w1'))), '只看 3D 時 Delete 刪掉選取的牆');
   await page.keyboard.press('Control+z'); await page.waitForTimeout(200);
   ok(await page.evaluate(() => window.__app.doc.objects.some(o => o.id === 'w1')), 'Ctrl+Z 也能復原');
+  // 焦點在下拉選單上：⌘ 組合鍵照常，Delete 不刪（B21 第二輪審查）
+  await page.evaluate(() => window.__app.doc.select('w1'));
+  await page.focus('#timeOfDay');
+  await page.keyboard.press('Delete'); await page.waitForTimeout(150);
+  ok(await page.evaluate(() => window.__app.doc.objects.some(o => o.id === 'w1')), '焦點在下拉選單時 Delete 不刪東西');
+  const n1 = await count(page);
+  await page.keyboard.press('Meta+z'); await page.waitForTimeout(150);
+  ok(await count(page) < n1, '焦點在下拉選單時 ⌘Z 照常復原');
+  await page.keyboard.press('Meta+Shift+z'); await page.waitForTimeout(150);
+  await page.mouse.click(700, 400);
   // 3D 移動鍵不能被 2D 搶走：按 W 不會切工具、也不會平移 2D
   const tool0 = await page.evaluate(() => window.__app.editor.toolName);
   await page.keyboard.press('n'); await page.waitForTimeout(100);

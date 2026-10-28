@@ -235,8 +235,11 @@ export class Editor implements ToolCtx {
 
     window.addEventListener('keydown', e => {
       const el = e.target as HTMLElement | null;
-      // SELECT too: Backspace with a properties dropdown focused used to delete the selected room (B21 review).
-      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.tagName === 'SELECT' || el?.isContentEditable === true;
+      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable === true;
+      // A dropdown keeps ⌘ shortcuts (⌘Z right after changing a finish has to work)
+      // but not the single keys: Backspace there used to delete the selected room,
+      // and the arrow keys are how a dropdown changes its option (B21 review).
+      const inSelect = el?.tagName === 'SELECT';
       // Esc is document-level, not a 2D tool shortcut, so it is handled *before*
       // both guards below.
       //
@@ -250,7 +253,7 @@ export class Editor implements ToolCtx {
       // as well because you happened to be editing a number is not what anyone
       // means by cancel; a second press then clears it.
       if (e.key === 'Escape') {
-        if (typing) { el!.blur(); return; }
+        if (typing || inSelect) { el!.blur(); return; }
         this.selectTool('select');
         this.doc.select(null);
         return;
@@ -300,6 +303,7 @@ export class Editor implements ToolCtx {
         };
         if (edit[k]) { edit[k](); e.preventDefault(); return; }
       }
+      if (inSelect) return;
       if (!this.inputEnabled && (e.key === 'Delete' || e.key === 'Backspace')) {
         const objs = this.doc.selectedObjects;
         if (objs.length) { this.doc.commit(); for (const o of objs) this.doc.remove(o.id); e.preventDefault(); }
