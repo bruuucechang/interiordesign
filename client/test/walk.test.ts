@@ -160,3 +160,22 @@ test('stairs stacked one above the other: half way up the lower flight you stay 
   }
   near(w.z, 300 * (0.5 - (w.y - 150) / 300), 1e-6);
 });
+
+test('a pier between two doors, thinner than the wall is thick, still stops you', () => {
+  const objs: Obj[] = [wall('w', 0, 0, 400, 0, { thickness: 20 }),
+    { id: 'd1', kind: 'door', layer: 'openings', x: 100, y: 0, width: 90, angle: 0 } as Obj,
+    { id: 'd2', kind: 'door', layer: 'openings', x: 205, y: 0, width: 90, angle: 0 } as Obj];
+  const ws = blockers(objs);
+  assert.ok(move({ x: 152.5, y: -100 }, 0, 200, ws).y < 0, 'stopped at the 15 cm pier');
+  assert.ok(move({ x: 100, y: -100 }, 0, 200, ws).y > 50, 'either door still lets you through');
+  assert.ok(move({ x: 205, y: -100 }, 0, 200, ws).y > 50);
+});
+
+test('dropped into a niche narrower than you, you can still walk out', () => {
+  // two walls 55 cm apart (45 cm clear), closed at x=0, open towards +x
+  const ws = blockers([wall('a', 0, 0, 300, 0, { thickness: 10 }), wall('b', 0, 55, 300, 55, { thickness: 10 }), wall('c', 0, 0, 0, 55, { thickness: 10 })]);
+  const start = spawnPoint({ x: 150, y: 27 }, ws);
+  const out = move(start, 400, 0, ws);
+  assert.ok(out.x > 330, `walked out to ${out.x}`);
+});
+function spawnPoint(p: { x: number; y: number }, ws: ReturnType<typeof blockers>) { return resolve(p, ws); }

@@ -69,6 +69,10 @@ if (webglAvailable()) {
   }
 }
 if (!view3d) show3DUnavailable(c3d, viewModes);
+// A different plan (opened, imported, new, a saved copy): step out of walk mode.
+// Every way of switching plans goes through doc.load, and a copy keeps its storey ids,
+// so the walker would otherwise carry on in the new plan.
+{ const load = doc.load.bind(doc); doc.load = (p) => { view3d?.setWalking(false); load(p); }; }
 // Sensitivity from the controls settings panel: now, and every time a slider moves.
 onFeel(f => { view3d?.setFeel(f); editor.wheelFeel = f.wheel; });
 // Alt is held to place freely; on Windows a lone Alt press would otherwise hand focus to the browser menu.
@@ -387,7 +391,6 @@ async function openFromUrl() {
   editor.resetView();
   editor.vp.resize();
   fit2D();
-  view3d?.setWalking(false);   // a different plan: the walker's storey and walls are gone
   if (mode !== '2d') { view3d?.resize(); view3d?.build(doc, true); }
 }
 void openFromUrl();

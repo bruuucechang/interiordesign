@@ -79,6 +79,17 @@ export function blockers(objs: readonly Obj[]): Blocker[] {
       const len = cum[i + 1] - cum[i], t = len > 1e-9 ? (x - cum[i]) / len : 0;
       return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * t, y: pts[i].y + (pts[i + 1].y - pts[i].y) * t };
     };
+    // A pier between two doors narrower than the wall is thick: pulled back from
+    // both doors it has no length left, but it is still there. A post at its
+    // middle as wide as the pier stops you without narrowing either door.
+    let prev = 0;
+    for (const [h0, h1] of holes) {
+      if (prev > 0 && h0 > prev && h0 - prev < 2 * half) {
+        const p = at((prev + h0) / 2);
+        out.push({ ax: p.x, ay: p.y, bx: p.x, by: p.y, half: (h0 - prev) / 2 });
+      }
+      prev = Math.max(prev, h1);
+    }
     for (const [s0, s1] of solid) {
       if (s1 - s0 <= 1e-6) continue;
       const cuts = [s0, ...cum.filter(c => c > s0 && c < s1), s1];
@@ -124,8 +135,10 @@ export function move(p: Vec, dx: number, dy: number, walls: readonly Blocker[], 
     const r = resolve({ x: q.x + dx / n, y: q.y + dy / n }, walls, radius);
     // Squeezed between two walls closer than you are wide, the pushes only take
     // turns and never settle: then this step is not taken. A gap narrower than
-    // the circle is a gap you do not fit through.
-    if (overlap(r, walls, radius) > 0.5) break;
+    // the circle is a gap you do not fit through. Only a step that goes deeper
+    // is refused — someone who starts wedged in (dropped into a niche, a wall
+    // dragged onto them) can still walk out.
+    if (overlap(r, walls, radius) > Math.max(0.5, overlap(q, walls, radius) + 1e-6)) break;
     q = r;
   }
   return q;

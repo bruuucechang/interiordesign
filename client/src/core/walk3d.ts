@@ -92,6 +92,13 @@ export class WalkMode {
   /** One frame: WASD from the 3D key set (`up` is Shift — run here, not rise). */
   frame(dt: number, pressed: ReadonlySet<string>) {
     if (!this.active || !this.doc) return;
+    // A storey added or removed since the last rebuild: find ours by id, and
+    // wait for the rebuild if the walls are still the old list.
+    const floors = this.doc.project.floors;
+    const i = floors.findIndex(f => f.id === this.floorId);
+    if (i < 0) { this.exit(); return; }
+    if (this.walls.length !== floors.length) return;
+    if (i !== this.walker.floor) this.walker = { ...this.walker, floor: i };
     const f = (pressed.has('w') ? 1 : 0) - (pressed.has('s') ? 1 : 0);
     const r = (pressed.has('d') ? 1 : 0) - (pressed.has('a') ? 1 : 0);
     if (!f && !r) return;
