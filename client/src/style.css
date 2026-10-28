@@ -572,3 +572,12 @@ body.drawer-open .light-panel { right: calc(var(--drawer-w) + 20px); }
 .dock3d { right: calc(82px + var(--panel-inset, 0px)); }
 .view3d.dock-cramped .dock3d .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .view3d.dock-cramped .key-hud { display: none; }   /* 讓到右下樓層鈕左邊，置中在剩下的那段（verify-b9 量）*/
+/* B24 空白這層的開場卡：平面圖正中間。拿著工具時變淡、點擊穿過去（第一筆常常就點在這裡）。 */
+.start-card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; width: 320px; padding: var(--sp-3) 16px 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-float); text-align: center; transition: opacity .15s; }
+.start-card b { display: block; margin-bottom: 6px; font-size: var(--fs-title); }
+.start-card p { margin: 0 0 12px; color: var(--muted); font-size: var(--fs-label); line-height: 1.6; }
+.start-card .acts { display: flex; gap: var(--sp-2); justify-content: center; flex-wrap: wrap; }
+.start-card button { height: 30px; padding: 0 14px; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; font-size: var(--fs-label); }
+.start-card button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.start-card.passive { opacity: .35; pointer-events: none; }

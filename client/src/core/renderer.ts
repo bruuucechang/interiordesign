@@ -11,6 +11,7 @@ import { circuitColor } from './lightmap';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment, wallCap, wallEndCounts, wallEndCaps } from './geometry';
 import { handles } from './handles';
 import { roomUse, isDefaultRoomName } from './roomUse';
+import { layoutLabels, LABEL_PRIORITY, LabelBox } from './labelLayout';
 import { t } from './i18n';
 import { furnitureCenter, bounds } from './hit';
 
@@ -25,6 +26,7 @@ export interface RenderOpts {
   heat?: (ctx: CanvasRenderingContext2D) => void;   // lighting overlay in world space, over floors, under everything built
   marker?: (ctx: CanvasRenderingContext2D) => void; // walk mode's "you are here", world space, over everything built
   roomUse?: boolean;     // name default rooms by their furniture and say what they lack (default true; exports pass false, B23)
+  declutter?: boolean;   // drop labels that would overlap better ones (default true; exports pass false — paper cannot zoom in, B24)
 }
 
 const INK = '#000000';
@@ -195,8 +197,18 @@ export class Renderer {
     pass(floorish, drawIt);
     if (opts.heat) { ctx.save(); opts.heat(ctx); ctx.restore(); }
     pass(o => !floorish(o) && !fitting(o), drawIt);
+    // B24: every label is measured first and laid out together, so a wall's
+    // length can lose its spot to the room name it would cover even though the
+    // two are drawn in different passes. Collected in the same order they draw.
     this.setScreen();
-    pass(o => o.kind === 'room' || o.kind === 'area', o => this.labelObject(o));
+    this.labels = [];
+    // An export is the same with or without a selection, so it promotes nothing.
+    this.selectedSet = new Set(opts.selection === false ? [] : this.doc.selectedIds);
+    pass(o => o.kind === 'room' || o.kind === 'area', o => this.labelObject(o, true));
+    pass(o => o.kind !== 'room' && o.kind !== 'area', o => this.labelObject(o, false));
+    const kept = opts.declutter === false ? new Set(this.labels.keys()) : layoutLabels(this.labels, { w: vp.width, h: vp.height });
+    const drawLabels = (under: boolean) => this.labels.forEach((l, i) => { if (l.under === under && kept.has(i)) l.draw(); });
+    drawLabels(true);
     this.setWorld();
     pass(fitting, drawIt);
     if (opts.world) { ctx.save(); opts.world(ctx); ctx.restore(); }
@@ -204,7 +216,7 @@ export class Renderer {
 
     // labels + selection + previews in screen space
     this.setScreen();
-    pass(o => o.kind !== 'room' && o.kind !== 'area', o => this.labelObject(o));
+    drawLabels(false);
     if (opts.selection !== false) { const sel = this.doc.selectedObjects; for (const s of sel) this.drawSelection(s, sel.length === 1); }
     if (opts.screen) { ctx.save(); opts.screen(ctx); ctx.restore(); }
   }
@@ -482,28 +494,48 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private text(worldPos: Vec, str: string, color = '#dbe0ea', size = 12) {
+  /**
+   * Queue one label: measured now, drawn later only if `layoutLabels` keeps it.
+   * The box is the dark backing rectangle, which is what has to stay clear.
+   */
+  private text(worldPos: Vec, str: string, color = '#dbe0ea', size = 12, priority: number = LABEL_PRIORITY.wall) {
+    if (!str) return;
     const { ctx, vp } = this;
     const s = vp.toScreen(worldPos);
-    ctx.font = `${size}px ui-monospace, monospace`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const font = `${size}px ui-monospace, monospace`;
+    ctx.font = font;
     const w = ctx.measureText(str).width;
-    ctx.fillStyle = 'rgba(10,12,16,0.8)';
-    ctx.fillRect(s.x - w / 2 - 4, s.y - 9, w + 8, 18);
-    ctx.fillStyle = color;
-    ctx.fillText(str, s.x, s.y);
+    const box = { x: s.x - w / 2 - 4, y: s.y - 9, w: w + 8, h: 18 };
+    this.labels.push({
+      ...box, under: this.labelUnder,
+      priority: this.selectedSet.has(this.labelOwner) ? LABEL_PRIORITY.selected : priority,
+      draw: () => {
+        ctx.font = font;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(10,12,16,0.8)';
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+        ctx.fillStyle = color;
+        ctx.fillText(str, s.x, s.y);
+      },
+    });
   }
+  private labels: (LabelBox & { under: boolean; draw: () => void })[] = [];
+  private selectedSet = new Set<string>();
+  private labelOwner = '';
+  private labelUnder = false;
 
-  private labelObject(o: Obj) {
+  private labelObject(o: Obj, under: boolean) {
+    this.labelOwner = o.id; this.labelUnder = under;
+    const P = LABEL_PRIORITY;
     switch (o.kind) {
       case 'wall': {
         const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
-        this.text(mid, fmtLen(dist(o.a, o.b)), '#c9cfdb');
+        this.text(mid, fmtLen(dist(o.a, o.b)), '#c9cfdb', 12, P.wall);
         break;
       }
       case 'beam': {
         const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
-        this.text(mid, `↥${fmtLen(o.elevation)}`, '#c9a8ea');   // underside clearance off the floor
+        this.text(mid, `↥${fmtLen(o.elevation)}`, '#c9a8ea', 12, P.wall);   // underside clearance off the floor
         break;
       }
       case 'door': case 'window':
@@ -525,25 +557,25 @@ export class Renderer {
         const lack = reading?.use && reading.missing.length ? t('缺：') + reading.missing.map(t).join(t('、')) : '';
         const k = 1 / this.vp.scale;
         if (lack) {
-          this.text({ x: c.x, y: c.y - 18 * k }, name, '#dbe0ea', 13);
-          this.text({ x: c.x, y: c.y }, lack, '#ffb347', 11);
-          this.text({ x: c.x, y: c.y + 18 * k }, fmtArea(area), '#8b93a3');
+          this.text({ x: c.x, y: c.y - 18 * k }, name, '#dbe0ea', 13, P.roomName);
+          this.text({ x: c.x, y: c.y }, lack, '#ffb347', 11, P.missing);
+          this.text({ x: c.x, y: c.y + 18 * k }, fmtArea(area), '#8b93a3', 12, P.area);
         } else {
-          this.text({ x: c.x, y: c.y - 12 * k }, name, '#dbe0ea', 13);
-          this.text({ x: c.x, y: c.y + 12 * k }, fmtArea(area), '#8b93a3');
+          this.text({ x: c.x, y: c.y - 12 * k }, name, '#dbe0ea', 13, P.roomName);
+          this.text({ x: c.x, y: c.y + 12 * k }, fmtArea(area), '#8b93a3', 12, P.area);
         }
         break;
       }
       case 'area': {
         // Along its top edge, out of the way of the room's own name at the room's centre.
-        this.text({ x: o.x + o.w / 2, y: o.y + 14 / this.vp.scale }, o.name || '子區域', '#ffd166', 11);
+        this.text({ x: o.x + o.w / 2, y: o.y + 14 / this.vp.scale }, o.name || '子區域', '#ffd166', 11, P.roomName);
         break;
       }
       case 'dimension': {
         const d = sub(o.b, o.a); const L = len(d) || 1;
         const n = { x: -d.y / L, y: d.x / L };
         const mid = { x: (o.a.x + o.b.x) / 2 + n.x * o.offset, y: (o.a.y + o.b.y) / 2 + n.y * o.offset };
-        this.text(mid, fmtLen(dist(o.a, o.b)), '#8bffb0');
+        this.text(mid, fmtLen(dist(o.a, o.b)), '#8bffb0', 12, P.measure);
         break;
       }
       case 'furniture': {
@@ -552,7 +584,7 @@ export class Renderer {
         // from the palette sets no label, so those still read 衣櫃 / 冰箱; but a
         // piece traced off a drawing carries the drawing's name — 系統開放衣櫃 4抽,
         // 汙衣櫃 — and that is the whole reason it was written down.
-        this.text(c, o.label || FURNITURE_BY_ID[o.item]?.name || '', '#e0b45a', 11);
+        this.text(c, o.label || FURNITURE_BY_ID[o.item]?.name || '', '#e0b45a', 11, P.furniture);
         break;
       }
     }

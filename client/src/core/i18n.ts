@@ -61,6 +61,9 @@ const EN: Record<string, string> = {
   '一分鐘的導覽會指給你看：牆從哪裡畫、家具在哪裡、怎麼走進房子裡。之後也可以從「說明」叫出來。':
     'A one-minute tour shows where walls are drawn, where the furniture is, and how to walk inside. Help can bring it back later.',
   '不用了': 'No thanks', '看導覽': 'Take the tour',
+  // B24
+  '從這裡開始': 'Start here', '先畫出房子的牆，或匯入平面圖照片照著描。': 'Draw the walls of the place, or import a photo of a floor plan and trace over it.',
+  '畫牆': 'Draw walls', '匯入平面圖照片': 'Import a floor plan photo',
   '行走：點畫面用滑鼠轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或兩次 Esc 離開':
     'Walking: click the view to look with the mouse · WASD to walk · Shift to run · walk up the stairs to change floor · F or Esc twice to leave',
   '點地板放下去 · 按住 Shift 連續放 · Q／E 轉 90° · Esc 放下手上的東西': 'Click the floor to place · hold Shift to keep placing · Q/E turn 90° · Esc to put it down',
