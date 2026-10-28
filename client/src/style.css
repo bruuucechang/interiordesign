@@ -513,3 +513,5 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .feel-note { color: var(--muted, #8b93a3); }
 .feel-foot button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
 .feel-foot button:hover { border-color: var(--accent); }
+/* 3D 開燈（B18） */
+.lamps-toggle.on { color: #ffd27a; border-color: #ffd27a55; background: #ffd27a14; }

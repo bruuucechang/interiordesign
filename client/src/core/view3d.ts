@@ -12,6 +12,10 @@ import { curvedWallBands } from './wallGeometry';
 import { buildDoor3D, buildWindow3D } from './openings3d';
 import { getFurnitureModel, getModelHeight } from './furniture3d';
 import { lightParts, LightPart } from './lights3d';
+import { Lamps3D } from './lamps3d';
+/** Share of the night sky fill kept while the lamps are on (B18): enough to see the corners, not enough to drown the lamps. */
+const NIGHT_FILL_WITH_LAMPS = 0.3;
+import { emitters, sightLines } from './lightEmit';
 import { FEEL_BASE, FEEL_DEFAULTS, FeelSettings, MAX_STEP_S, orbitFeel } from './controlFeel';
 import { material as materialDef } from './materials';
 import { TimeKey, LIGHTING, sunPose, wallJoins, straightWallBoxes, sweptBand, occluder, cullFrame, cutsAway, objectExtent, sceneFrame, flyAxes, panAxes, lightMeshSpec } from './view3dMath';
@@ -75,6 +79,12 @@ export class View3D {
   onContextLost?: () => void;
   onContextRestored?: () => void;
   private fly = false;   // WASD/QE camera movement
+  /** The fittings as real light sources (B18) — see ./lamps3d. */
+  lamps!: Lamps3D;
+  /** null = follow the time of day (on at dusk and night); true/false = the toolbar's override. */
+  private lampsOverride: boolean | null = null;
+  private lampsOff = new Set<number>();
+  onLampsChange: ((on: boolean) => void) | null = null;
   private moveSpeed: number = FEEL_BASE.fly; // cm/s — fixed, not scaled to the scene (see ./controlFeel)
   onFloorClick: ((floor: { x: number; y: number }, sceneHit: { x: number; y: number } | null) => void) | null = null;   // click → floor-plane point + nearest-mesh hit (walls)
   onRotate90: ((deg: number) => void) | null = null;                        // Q/E in 3D → rotate the selected object ±90°
@@ -119,6 +129,7 @@ export class View3D {
 
     this.scene = new THREE.Scene();
     this.ghosts = new PlacementGhosts(this.scene);
+    this.lamps = new Lamps3D(this.scene, this.renderer);
     this.scene.background = new THREE.Color(0xdbe2ea);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -266,6 +277,30 @@ export class View3D {
     this.renderer.toneMappingExposure = P.exposure;
     this.applySun();
     this.renderer.shadowMap.needsUpdate = true;
+    this.lampsOverride = null;   // a new time of day decides again
+    this.applyLamps();
+  }
+
+  /** Lamps on at dusk and night unless the toolbar said otherwise. */
+  get lampsOn() { return this.lampsOverride ?? (this.time === 'dusk' || this.time === 'night'); }
+  setLampsOn(on: boolean) { this.lampsOverride = on; this.applyLamps(); }
+  /** Switch groups turned off in the lighting panel; the 3D lamps follow them. */
+  setLampCircuitsOff(off: ReadonlySet<number>) { this.lampsOff = new Set(off); this.lastDoc && this.collectLamps(this.lastDoc); }
+  private applyLamps() {
+    if (!this.lamps) return;
+    this.lamps.setOn(this.lampsOn);
+    // At night the sky fill is what makes a room readable with no lamps; with
+    // lamps on it would wash out their pools, so it drops to a bounce-light level.
+    const P = LIGHTING[this.time], f = this.lampsOn && this.time === 'night' ? NIGHT_FILL_WITH_LAMPS : 1;
+    this.hemi.intensity = P.hemi * f; this.amb.intensity = P.amb * f; this.scene.environmentIntensity = P.env * f;
+    this.onLampsChange?.(this.lampsOn);
+  }
+  private lastDoc: Doc | null = null;
+  private collectLamps(doc: Doc) {
+    this.lamps.setStoreys(doc.project.floors.map(f => {
+      const objs = f.objects.filter(o => doc.isLayerVisible(o.layer));
+      return { base: f.elevation, emitters: emitters(objs, WALL_H, this.lampsOff), walls: sightLines(objs) };
+    }));
   }
   private applySun() {
     const sun = sunPose(this.time, this.sunCenter, this.sunSpan);
@@ -413,6 +448,8 @@ export class View3D {
     sc.left = -span; sc.right = span; sc.top = span; sc.bottom = -span; sc.near = 1; sc.far = span * 4; sc.updateProjectionMatrix();
     this.applySun();                              // position the sun for the current time of day
     this.renderer.shadowMap.needsUpdate = true;   // refresh shadows once for this rebuild
+    this.lastDoc = doc;
+    this.collectLamps(doc);
 
     if (reframe) {
       this.controls.target.set(...frame.target);
@@ -792,6 +829,8 @@ export class View3D {
     const dt = Math.min(this.clock.getDelta(), MAX_STEP_S);
     if (this.fly) { this.applyFly(dt); this.applyPan(dt); }
     this.controls.update();
+    // Overview: light what the orbit centres on; inside (flying low): light around the eye.
+    this.lamps.update(this.camera.position.y < WALL_H * 1.5 ? this.camera.position : this.controls.target, now);
     this.updateCeilingVisibility();
     this.composer.render();
     this.releaseRetired();

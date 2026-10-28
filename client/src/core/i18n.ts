@@ -46,6 +46,7 @@ const EN: Record<string, string> = {
   // dialogs
   '開啟專案': 'Open project', '搜尋專案名稱…': 'Search project names…',
   '從檔案匯入專案檔…': 'Import a project file…', '刪除': 'Delete', '還原': 'Restore',
+  '開燈': 'Lamps', '3D 開燈：燈具真的發光（黃昏、夜晚自動開）': 'Lamps in 3D: fittings really shine (on by itself at dusk and night)',
   '操作設定': 'Controls', '操作設定：轉視角、移動、滾輪的靈敏度': 'Controls: turn, move and wheel sensitivity',
   '轉視角': 'Turn', '移動速度': 'Move speed', '滾輪縮放': 'Wheel zoom', '行走轉頭': 'Walk look',
   '3D 裡拖曳滑鼠轉動視角的速度': 'How fast dragging turns the 3D view',

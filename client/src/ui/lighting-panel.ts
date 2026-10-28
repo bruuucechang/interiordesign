@@ -32,6 +32,11 @@ const RHO_LABEL: Record<RhoKey, string> = { light: '淺色', medium: '中間', d
  * 看圖的設定存 localStorage、不進存檔：「我現在只開迴路 1 看看」是在看，不是在
  * 改這張圖。存的是**關掉的**迴路，所以新加的迴路預設是開的。
  */
+/** 迴路勾選改了就喊一聲（detail＝關掉的迴路）：3D 的燈跟著開關。 */
+export const CIRCUITS_EVENT = 'lighting-circuits';
+/** 現在關掉的迴路。 */
+export const circuitsOff = (): number[] => [...off];
+
 const VIEW_KEY = 'interior_lighting_view';
 interface Saved { plane: PlaneKey; rho: RhoKey; off: number[] }
 function readView(): Saved {
@@ -175,6 +180,7 @@ function paintCircuits(editor: Editor, doc: Doc) {
       if (cb.checked) off.delete(circuit); else off.add(circuit);
       lightSig = signature(doc);   // a view change, not an edit: keep the fine grid
       writeView(); editor.render();
+      window.dispatchEvent(new CustomEvent(CIRCUITS_EVENT, { detail: [...off] }));
     };
     const chip = document.createElement('span'); chip.className = 'lp-chip'; chip.style.background = circuitColor(circuit);
     const txt = document.createElement('span'); txt.textContent = `${t('迴路')} ${circuit}（${count} ${t('盞')}）`;

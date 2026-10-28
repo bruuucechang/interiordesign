@@ -6,9 +6,10 @@
 // how far a wall light stands off its wall, that nothing pokes through the
 // ceiling) can be tested without a GL context.
 //
-// Shape only: the glowing parts are drawn with an unlit material, and no real
-// light source is added. Eighty point lights would bring a low-end GPU to its
-// knees, and the illuminance itself is the 2D heat map's job (docs/review-2026-10.md S1).
+// Shape only: the glowing parts are drawn with an unlit material. The light
+// they give is ./lightEmit + ./lamps3d (B18): a pool of twelve spot lights
+// that follows you round the plan — eighty would bring a low-end GPU to its
+// knees (docs/review-2026-10.md S1).
 //
 // Positions and heights come from `luminaire()` in lighting.ts, the same
 // resolution the illuminance maths uses, so a T5 is drawn where it is counted.
