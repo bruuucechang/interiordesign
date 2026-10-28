@@ -200,6 +200,18 @@ test('walking starts facing the long way down a long room', () => {
   near(Math.abs(Math.cos(s.heading)), 1, 1e-9);     // along x, not across
 });
 
+test('walking does not start facing a closed door, however far the corridor behind it runs', () => {
+  // 400×300 room, a door in its east wall onto a 1000 cm corridor. Walkable, the
+  // doorway is a gap; seen in 3D the door is shut, so east is a 2 m view of a door.
+  const objs = [...box(0, 0, 400, 300), room('r', 0, 0, 400, 300),
+    wall('cn', 400, 100, 1400, 100), wall('cs', 400, 200, 1400, 200), door(400, 150, 90, 90)];
+  const s = walkSpawn(objs, blockers(objs), { x: 200, y: 150 });
+  // where the view meets the east wall line, if it goes east at all: not in the doorway (y 105–195)
+  const c = Math.cos(s.heading);
+  const hitY = c > 1e-9 ? s.p.y + Math.tan(s.heading) * (400 - s.p.x) : Infinity;
+  assert.ok(Math.abs(hitY - 150) > 45, `faces the door: heading ${(s.heading * 180 / Math.PI).toFixed(0)}°, meets the wall at y ${hitY.toFixed(0)}`);
+});
+
 test('a target outside every room starts you in the largest room', () => {
   const objs = [...box(0, 0, 300, 300), room('small', 0, 0, 300, 300),
     ...box(1000, 0, 1600, 500), room('big', 1000, 0, 600, 500)];

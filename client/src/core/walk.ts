@@ -280,10 +280,14 @@ export function walkSpawn(objs: readonly Obj[], walls: readonly Blocker[], near:
     }
     p = resolve(p, walls);
   }
+  // What you can *see* is not what you can walk through: in 3D a door is shut, so
+  // for choosing the view the doorways are solid (B21 review — every A1 room
+  // picked a heading straight at a closed door, through the gap `walls` has).
+  const view = blockers(objs.filter(o => o.kind !== 'door'));
   let heading = 0, far = -1;
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2;
-    const d = sightline(p, Math.cos(a), Math.sin(a), walls);
+    const d = sightline(p, Math.cos(a), Math.sin(a), view);
     if (d > far + 1e-6) { far = d; heading = a; }
   }
   return { p, heading };

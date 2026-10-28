@@ -60,6 +60,8 @@ export class WalkMode {
 
   /** The orbit view walking started from: leaving puts the camera back there (B21). */
   private before: { pos: THREE.Vector3; target: THREE.Vector3 } | null = null;
+  /** The plan heading walkSpawn chose on the last enter (bench/verify-polish checks the camera faces it). */
+  lastHeading = 0;
 
   /**
    * Step in at the room the camera is looking at: its most open point, facing
@@ -78,6 +80,7 @@ export class WalkMode {
     this.floorId = floors[this.walker.floor]?.id ?? '';
     // Plan forward (cos h, sin h) is (−sin yaw, −cos yaw) in this camera's frame.
     this.yaw = Math.atan2(-Math.cos(at.heading), -Math.sin(at.heading));
+    this.lastHeading = at.heading;
     this.pitch = 0;
     this.active = true;
     this.controls.enabled = false;

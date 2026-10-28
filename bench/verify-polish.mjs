@@ -14,6 +14,8 @@ const errs = [];
 async function open(url, { plan = false, mode = '2d', w = 1440, h = 900 } = {}) {
   const ctx = await br.newContext({ viewport: { width: w, height: h } });
   const page = await ctx.newPage();
+  // 只讀不寫：A1 是使用者的真資料，空白方案也不該留在他的清單裡（同 verify-b19）。
+  await page.route('**/api/**', (r) => (r.request().method() === 'GET' ? r.continue() : r.abort()));
   page.on('pageerror', e => errs.push(String(e)));
   await page.addInitScript((mode) => { localStorage.setItem('interior_tour_seen', '1'); localStorage.setItem('interior_lang', 'zh-Hant');
     localStorage.setItem('interior_owner', 'own_orsxp52fbvey'); localStorage.setItem('interior_view_mode', mode); }, mode);
@@ -70,6 +72,15 @@ console.log('\nB21 行走出生點');
     return 400;
   });
   ok(ahead >= 200, `A1 進行走：正前方 ${ahead} cm 內沒有牆（至少 200）`);
+  // 3D 的朝向就是 walkSpawn 選的方向（yaw 換算沒有轉反）
+  const dot = await page.evaluate(() => {
+    const a = window.__app, s = a.view3d.walk.state, v = a.view3d.walk;
+    const objs = a.doc.project.floors[s.floor].objects;
+    const fx = -Math.sin(s.yaw), fy = -Math.cos(s.yaw);
+    const h = v.lastHeading;
+    return fx * Math.cos(h) + fy * Math.sin(h);
+  });
+  ok(dot > 0.99, `行走朝向跟選的方向一致（內積 ${dot.toFixed(3)}）`);
   await page.screenshot({ path: `${OUT}polish-walk-spawn.png` });
   // 靠到牆前看牆面（不該是馬賽克）：往前走到停
   await page.keyboard.down('w'); await page.waitForTimeout(4000); await page.keyboard.up('w');

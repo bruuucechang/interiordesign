@@ -235,7 +235,8 @@ export class Editor implements ToolCtx {
 
     window.addEventListener('keydown', e => {
       const el = e.target as HTMLElement | null;
-      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.isContentEditable === true;
+      // SELECT too: Backspace with a properties dropdown focused used to delete the selected room (B21 review).
+      const typing = el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.tagName === 'SELECT' || el?.isContentEditable === true;
       // Esc is document-level, not a 2D tool shortcut, so it is handled *before*
       // both guards below.
       //
