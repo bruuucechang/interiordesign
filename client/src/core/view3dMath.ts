@@ -197,7 +197,7 @@ export function objectExtent(o: Obj): Vec[] {
   return [{ x: o.x, y: o.y }];
 }
 
-/** Centre, size, fly speed and the reframed camera for a plan's bounds (Infinity when empty). */
+/** Centre, size and the reframed camera for a plan's bounds (Infinity when empty). */
 export function sceneFrame(b: { minX: number; maxX: number; minZ: number; maxZ: number }) {
   let { minX, maxX, minZ, maxZ } = b;
   if (!isFinite(minX)) { minX = -200; maxX = 200; minZ = -200; maxZ = 200; }
@@ -205,7 +205,6 @@ export function sceneFrame(b: { minX: number; maxX: number; minZ: number; maxZ: 
   const span = Math.max(maxX - minX, maxZ - minZ, 300) + 200;
   return {
     cx, cz, span,
-    moveSpeed: Math.max(300, span * 0.7),   // perceptible regardless of scene scale
     target: [cx, 40, cz] as V3,
     eye: [cx + span * 0.7, span * 0.8, cz + span * 0.9] as V3,
   };

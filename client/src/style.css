@@ -502,3 +502,14 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .lp-note { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 10px; }
 #lightPlane, #lightRho { display: flex; gap: 4px; flex-wrap: wrap; }
 #topbar button.active[data-act="lighting"] { color: #ffb547; }
+
+/* 操作設定（ui/controls-settings.ts） */
+.feel-box { width: min(400px, 92vw); }
+.feel-rows { padding: 14px 18px 6px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.feel-row { display: grid; grid-template-columns: 5.5em 1fr 3.5em; align-items: center; gap: 10px; }
+.feel-row input { width: 100%; accent-color: var(--accent, #4b8cf5); }
+.feel-val { font-variant-numeric: tabular-nums; text-align: right; color: var(--muted, #8b93a3); }
+.feel-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 18px 14px; font-size: 12px; }
+.feel-note { color: var(--muted, #8b93a3); }
+.feel-foot button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.feel-foot button:hover { border-color: var(--accent); }

@@ -139,12 +139,20 @@
   `npm test` client 539／server 142 綠；verify-b10 `--runs 0`、verify-b14 interact 不回歸。
   **沒動的**：第一次切 3D 仍是 266 ms，其中約 270 ms 是第一次編 23 個 shader（冷啟動，不是重建）；要壓得在 2D 閒置時先編好，留給之後決定
 
-## B16 靈敏度重調  [未開始]
+## B16 靈敏度重調  [完成]
 - 規格：`docs/spec-game-mode.md` 第一節（數字表在那裡）
 - 目標：3D 轉視角、WASD、3D／2D 滾輪、2D 吸附、家具靠牆改成表上的值；Alt 暫停吸附；操作設定面板四條滑桿（localStorage）
 - 驗收：`npm test` 綠；新測試釘 2D 滾輪縮放對 deltaY 成比例且每次事件封頂 ×1.1（改回固定 ×1.1 會紅）；headless 量按住 W 1 秒移動 250±30 cm
 - 碰：`client/src/core/view3d.ts`、`view3dMath.ts`、`editor.ts`、`tools/draw.ts`、`tools/place.ts`、新 `ui/controls-settings.ts`
 - 不做：介面重排（B20）
+- 結果（2026-10-28）：新模組 `client/src/core/controlFeel.ts`（基準值、乘數存讀、2D 滾輪換算）＋ `ui/controls-settings.ts`（頂列滑桿圖示 → 四條滑桿、回復預設）。
+  3D 轉速 0.5、阻尼 0.15、滾輪 0.5；WASD 固定 250 cm/s（`sceneFrame` 不再算速度）；**每幀 dt 封頂 0.1 s**——原本畫面卡一下按住 W 就一口氣飛出去
+  （swiftshader 拿掉封頂實測 5 幀 21 m）。2D 滾輪 `exp(−deltaY·0.0008)`、每事件封頂 ×1.1：觸控板 40×2.5 px 一次滑動 ×1.083（舊版 ×45）、滑鼠 120 px 一格 ×1.10。
+  牆端點吸附 14→10 px；按住 Alt 關掉格線、牆端點、家具靠牆；家具靠牆改量**背面到牆面的空隙 < 25 cm**（舊的量游標到牆中線 60 cm：淺層架離牆 40 cm 也被吸、深的床要插進牆裡才吸得到），轉角取空隙最小的那面。
+  審查補：貼牆只認垂足落在牆身上（牆尾外的深床曾被轉成斜的）、曲線牆不貼（量弦會橫跨弧）；選取工具拖牆端點也改 10 px、Alt 也關掉角度鎖與拱高／尺寸的格線；
+  飛行模式不加 Shift 加速（Shift 已經是下降，規格改寫，跑步留給行走模式）；「行走轉頭」滑桿標「上線後生效」；Windows 單按 Alt 不再把焦點交給瀏覽器選單（沒在 Windows 實測）。
+  驗收：`npm test` client／server 全綠；`client/test/controlFeel.test.ts` 13 條，mutant「滾輪改回每事件 ×1.1」紅 3、「貼牆改回量中線」紅 2、「拿掉牆尾檢查」紅 1；
+  `node bench/verify-b16.mjs` 8 項全過（mutant「拿掉 dt 封頂」紅 2），截圖 `bench/results/b16-settings.png`
 
 ## B17 2D 熱圖加牆遮擋  [未開始]
 - 規格：同檔第二節「2D」
