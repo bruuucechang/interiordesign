@@ -138,3 +138,38 @@
   B14 三視角截圖改前改後平均差 0.001／0.007／0.0023（雜訊內）；同一頁來回切四次每次截圖逐像素相同、貼圖／幾何／程式數持平（沒有洩漏）；
   `npm test` client 539／server 142 綠；verify-b10 `--runs 0`、verify-b14 interact 不回歸。
   **沒動的**：第一次切 3D 仍是 266 ms，其中約 270 ms 是第一次編 23 個 shader（冷啟動，不是重建）；要壓得在 2D 閒置時先編好，留給之後決定
+
+## B16 靈敏度重調  [未開始]
+- 規格：`docs/spec-game-mode.md` 第一節（數字表在那裡）
+- 目標：3D 轉視角、WASD、3D／2D 滾輪、2D 吸附、家具靠牆改成表上的值；Alt 暫停吸附；操作設定面板四條滑桿（localStorage）
+- 驗收：`npm test` 綠；新測試釘 2D 滾輪縮放對 deltaY 成比例且每次事件封頂 ×1.1（改回固定 ×1.1 會紅）；headless 量按住 W 1 秒移動 250±30 cm
+- 碰：`client/src/core/view3d.ts`、`view3dMath.ts`、`editor.ts`、`tools/draw.ts`、`tools/place.ts`、新 `ui/controls-settings.ts`
+- 不做：介面重排（B20）
+
+## B17 2D 熱圖加牆遮擋  [未開始]
+- 規格：同檔第二節「2D」
+- 目標：每盞燈到量測點的連線碰到牆就擋，門窗開口透光、隔間線不擋；反射項照舊每房自己算
+- 驗收：關起來的房間跟原型數字差 ≤ 1%（`lighting.test.ts` 原有數字照過）；新增「隔壁燈從門口透過來」「L 形轉角後變暗」兩條，各自 mutant 紅一次；熱圖重算仍 < 50 ms（verify-lighting）
+- 碰：`client/src/core/lighting.ts`、`lightzones.ts`、`client/test/lighting.test.ts`
+- 不做：3D（B18）
+
+## B18 3D 燈真的發光（距離衰減）  [未開始]
+- 規格：同檔第二節「3D」
+- 目標：燈變光源、decay 2、流明換坎德拉、色溫換色；只亮所在房間＋門口連過去的房間，最近 4 盞投影子；黃昏／夜晚自動開、白天手動；迴路跟 2D 面板連動
+- 驗收：夜晚 A1 截圖目視（燈下亮、往外暗、隔壁不亮）；換算函式有測試；verify-b10「再切一次 ≤ 200 ms」照過
+- 碰：`client/src/core/view3d.ts`、新 `core/lights3dEmit.ts`（純函式）＋測試
+- 不做：烘焙光照、全域光照
+
+## B19 行走模式（含樓梯）  [未開始]
+- 規格：同檔第三節
+- 目標：3D 行走鈕／V；指標鎖定、滑鼠轉頭、WASD、Shift 跑；圓形角色撞牆沿牆滑、門開口可過；樓梯換層；2D 顯示位置
+- 驗收：碰撞是純函式並有測試（直走撞牆停、斜走沿牆滑、穿門、窄門過不去、樓梯高度線性）；headless 在 A1 從客廳走進臥室（經門）截圖、對牆走 3 秒位置不穿過牆
+- 碰：新 `core/walk.ts`（純函式）＋測試、`view3d.ts`、`keys3d.ts`、`main.ts`
+- 不做：家具碰撞、跳、開門動畫
+
+## B20 遊戲式建造介面  [未開始]
+- 規格：同檔第四節
+- 目標：頂列三區、底部型錄列（大分類→小分類）、屬性選到才出現、樓層鈕右下、語言統一、導覽不自動跳
+- 驗收：1440×900、1280×800 截圖給使用者看；inspect-ui 掃不重疊；所有 `bench/verify-*.mjs` 跟著改並重跑通過；`npm test` 綠
+- 碰：`client/index.html`、`style.css`、`client/src/ui/*`、`main.ts`、`bench/verify-*.mjs`
+- 不做：家具名英文翻譯
