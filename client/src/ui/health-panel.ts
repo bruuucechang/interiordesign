@@ -62,15 +62,15 @@ export function scheduleHealth(editor: Editor, doc: Doc) {
 }
 
 function paintBadge() {
-  const b = document.querySelector('[data-act="health"]') as HTMLElement | null;
-  if (!b) return;
-  const chip = b.querySelector('.health-count') as HTMLElement | null;
-  if (!chip) return;
-  chip.textContent = String(findings.length);
-  chip.classList.toggle('none', findings.length === 0);
-  b.title = findings.length
-    ? `空間健檢：${findings.length} 項提醒`
-    : '空間健檢：目前沒有提醒';
+  // Two chips since B20: on the 空間健檢 item and on the 檢視 menu button it hides in.
+  const title = findings.length
+    ? `${t('空間健檢')}：${findings.length} ${t('項提醒')}`
+    : `${t('空間健檢')}：${t('目前沒有提醒')}`;
+  for (const chip of document.querySelectorAll<HTMLElement>('#topbar .health-count')) {
+    chip.textContent = String(findings.length);
+    chip.classList.toggle('none', findings.length === 0);
+    chip.title = title;
+  }
 }
 
 function row(f: Finding, editor: Editor, doc: Doc): HTMLElement {
@@ -157,14 +157,16 @@ function render(editor: Editor, doc: Doc) {
   // 數字是哪來的，就寫在清單下面。使用者對「70cm」有意見的時候，唯一有用的資訊是
   // 「這是誰的 70」——這跟牆厚 12cm 那個 tooltip 是同一條規則（design-rules 9.5.4）。
   const note = document.createElement('div'); note.className = 'hf-note';
-  note.textContent = `淨距用的是「${DEFAULTS.region}」的一般值：床邊 ${CLEARANCE.bedSide}、`
-    + `餐桌 ${CLEARANCE.diningPullOut}、馬桶側 ${CLEARANCE.toiletSide}、洗手台前 ${CLEARANCE.basinFront} 公分。`
-    + '這些是常見的人因尺寸，不是法規；覺得不合你的案子，忽略那一條就好。';
+  note.textContent = t('淨距用的是「{region}」的一般值：床邊 {bed}、餐桌 {dining}、馬桶側 {toilet}、洗手台前 {basin} 公分。')
+      .replace('{region}', () => String(DEFAULTS.region)).replace('{bed}', String(CLEARANCE.bedSide)).replace('{dining}', String(CLEARANCE.diningPullOut))
+      .replace('{toilet}', String(CLEARANCE.toiletSide)).replace('{basin}', String(CLEARANCE.basinFront))
+    + t('這些是常見的人因尺寸，不是法規；覺得不合你的案子，忽略那一條就好。');
   body.appendChild(note);
   if (findings.some(f => f.severity === 'lighting')) {
     const ln = document.createElement('div'); ln.className = 'hf-note';
-    ln.textContent = `照明用的也是一般值：床面 ${LIGHTING.bedLux}、書桌 ${LIGHTING.deskLux}、櫃前與門口 ${LIGHTING.cabinetLux} lux，`
-      + `均勻度 ${LIGHTING.uniformity}；以桌面高度、全部迴路開著、中間色牆面計算，沒算日光與家具擋光。`;
+    ln.textContent = t('照明用的也是一般值：床面 {bed}、書桌 {desk}、櫃前與門口 {cab} lux，')
+      .replace('{bed}', String(LIGHTING.bedLux)).replace('{desk}', String(LIGHTING.deskLux)).replace('{cab}', String(LIGHTING.cabinetLux))
+      + t('均勻度 {u}；以桌面高度、全部迴路開著、中間色牆面計算，沒算日光與家具擋光。').replace('{u}', String(LIGHTING.uniformity));
     body.appendChild(ln);
   }
 

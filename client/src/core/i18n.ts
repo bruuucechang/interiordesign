@@ -16,12 +16,64 @@
 //     `textContent`. A translation file is data, and data that can become an
 //     element is an injection waiting for a contributor.
 
+import { EN_PROPS } from './i18n-en-props';     // ui/properties.ts
+import { EN_PANELS } from './i18n-en-panels';   // lighting / health / modals / settings / onboarding / tools
+
 export type Lang = 'zh-Hant' | 'en';
 
 const KEY = 'interior_lang';
 
 /** Everything not in here falls through to the key itself, which is 繁中. */
 const EN: Record<string, string> = {
+  ...EN_PROPS, ...EN_PANELS,
+  // B20 build-mode chrome
+  '檔案': 'File', '檢視': 'View', '設定': 'Settings', '說明': 'Help',
+  '開啟…': 'Open…', '匯入': 'Import', '底圖（照片或掃描）…': 'Underlay (photo or scan)…',
+  'DXF 圖檔…': 'DXF drawing…', '專案檔…': 'Project file…', '專案檔（可再編輯）': 'Project file (editable)',
+  'PNG 影像': 'PNG image', 'PDF（畫面快照）': 'PDF (snapshot)', '施工圖 PDF…': 'Construction PDF…',
+  '360 全景': '360° panorama', '面積報表（Excel）': 'Area report (Excel)', '3D 模型': '3D model',
+  '照度熱圖': 'Lighting heat map', '縮放': 'Zoom', '縮小': 'Zoom out', '放大': 'Zoom in', '回到 100%': 'Back to 100%',
+  '縮放至全部 — 整張圖放進畫面（扣掉開著的面板）': 'Fit all — the whole plan in view (minus open panels)',
+  '全螢幕': 'Full screen', '這個瀏覽器不讓網頁進入全螢幕': 'This browser will not let the page go full screen',
+  '吸附格線與牆': 'Snap to grid and walls',
+  '吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。\n關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。':
+    'Snap — ends stick to the grid and to other walls’ ends, midpoints and faces.\nTurn it off to place anywhere; usually off while tracing, on while drawing.',
+  '操作靈敏度…': 'Control sensitivity…', '介面語言': 'Language',
+  '只看平面圖': 'Plan only', '平面圖與 3D 並排': 'Plan and 3D side by side', '只看 3D': '3D only',
+  '光線時段': 'Time of day', '復原（⌘Z）': 'Undo (⌘Z)', '重做（⌘⇧Z）': 'Redo (⌘⇧Z)',
+  '導覽（一分鐘）': 'Tour (one minute)', '2D 平面': '2D plan', '拖曳調整比例，雙擊回到對半': 'Drag to resize; double-click for half and half',
+  '收起（並取消選取）': 'Close (and deselect)',
+  '你點的線是牆的哪一面': 'Which face of the wall you click',
+  '量錯面，整間房子會差半個牆厚（12cm 的牆就是 6cm，四面牆下來一間房差 12cm）。\n現場量內緣就選「左緣／右緣」，量中心線才選「中心」。':
+    'Pick the wrong face and the flat is out by half a wall (6 cm on a 12 cm wall, 12 cm per room).\nMeasured a face on site: Left or Right. Measured the centre line: Centre.',
+  '中心線 — 你點的線是牆的正中間。\n從 CAD 圖描牆通常用這個。': 'Centre — the line you click is the middle of the wall.\nUsually right when tracing a CAD drawing.',
+  '左緣 — 你點的線是牆的左面，牆往右長出厚度。\n拿捲尺貼著牆的這一面量出來的數字，選這個才對得上。': 'Left face — the line you click is the wall’s left face; the thickness grows to the right.\nPick this when the tape was held against this face.',
+  '右緣 — 你點的線是牆的右面，牆往左長出厚度。\n拿捲尺貼著牆的另一面量的話選這個。': 'Right face — the line you click is the wall’s right face; the thickness grows to the left.\nPick this when the tape was held against the other face.',
+  '結構': 'Structure', '燈與電': 'Lights & power', '插座': 'Sockets', '開關': 'Switches',
+  '燈位與排風': 'Light points & fans', '樓梯': 'Stairs', '選取': 'Select',
+  '選取與移動：拖曳物件移動，拖曳空白處平移畫面（Esc）': 'Select and move: drag a thing to move it, drag empty space to pan (Esc)',
+  '風格': 'Style', '全部風格': 'All styles', '搜尋': 'Search', '件': 'items',
+  '這個風格沒有符合的家具 — 把風格換回「全部風格」看看': 'Nothing in this style — try “All styles”',
+  '沒有符合的家具 — 換個名字搜尋': 'Nothing matches — try another name',
+  '安裝高度': 'Mounted at', '樓板高度': 'Floor level', '樓層名稱': 'Floor name', '刪除樓層': 'Delete floor',
+  '項提醒': 'notes', '目前沒有提醒': 'nothing to note',
+  '第一次用嗎？': 'First time here?',
+  '一分鐘的導覽會指給你看：牆從哪裡畫、家具在哪裡、怎麼走進房子裡。之後也可以從「說明」叫出來。':
+    'A one-minute tour shows where walls are drawn, where the furniture is, and how to walk inside. Help can bring it back later.',
+  '不用了': 'No thanks', '看導覽': 'Take the tour',
+  '行走：點畫面用滑鼠轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或兩次 Esc 離開':
+    'Walking: click the view to look with the mouse · WASD to walk · Shift to run · walk up the stairs to change floor · F or Esc twice to leave',
+  '點地板放下去 · Q／E 轉 90° · Esc 放下手上的東西': 'Click the floor to place · Q/E turn 90° · Esc to put it down',
+  '點牆放上門窗 · Esc 放下手上的東西': 'Click a wall to place it · Esc to put it down',
+  '方案名稱': 'Plan name', '已儲存': 'Saved', '剛剛': 'just now', '（我的版本）': ' (my version)',
+  '這份圖在別的地方被存過了（{when}）。\n\n直接存下去會蓋掉那一版。\n\n按「確定」另存成新的一份（兩版都保住），\n按「取消」先不存 — 你的改動仍在本機，什麼都不會弄丟。':
+    'This plan was saved somewhere else ({when}).\n\nSaving now would overwrite that version.\n\nOK saves yours as a new copy (both versions kept),\nCancel holds off — your changes stay on this device, nothing is lost.',
+  '這份平面圖屬於另一個使用者（或另一個瀏覽器）。\n\n你的改動沒有被存進去，但完整地留在這台機器上。\n\n按「確定」另存成你自己的一份，按「取消」先不存。':
+    'This plan belongs to another user (or another browser).\n\nYour changes were not saved into it, but they are all still on this device.\n\nOK saves them as your own copy, Cancel holds off.',
+  '存不上去 — 改動留在本機，連上線會自動送出': 'Could not save — changes stay on this device and go up once connected',
+  '隱藏這個圖層': 'Hide this layer', '顯示這個圖層': 'Show this layer', '解鎖這個圖層': 'Unlock this layer',
+  '鎖定這個圖層': 'Lock this layer', '往上一層': 'Move up', '往下一層': 'Move down',
+
   // topbar
   '新建': 'New', '儲存': 'Save', '開啟': 'Open', '底圖': 'Underlay',
   '復原': 'Undo', '重做': 'Redo', '匯出': 'Export',

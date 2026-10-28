@@ -42,7 +42,7 @@ const STEPS_EN: Step[] = [
     title: 'This tool does one thing',
     body: 'It draws a floor plan, and grows the 3D of it at the same time.\n\n'
       + 'You draw on the left; the right becomes the actual rooms as you go.\n'
-      + 'You can press Skip at any point. The "?" in the toolbar opens the full guide, and this tour can be replayed from there.',
+      + 'You can press Skip at any point. Help, at the top right, opens the full guide and can replay this tour.',
   },
   {
     target: '#pane2d',
@@ -51,30 +51,30 @@ const STEPS_EN: Step[] = [
       + 'Scroll to zoom; drag empty space to move around.',
   },
   {
-    target: '#left',
-    title: 'Tools and furniture live on the left',
-    body: 'Drawing tools at the top — Wall is the one you will use most.\n'
-      + 'Below them, 251 pieces of furniture you can search and filter by style.\n\n'
-      + 'Pick a tool, then click on the plan.',
+    target: '#catalog',
+    title: 'Everything you build with is along the bottom',
+    body: 'Structure holds the drawing tools — Wall is the one you will use most. Then the furniture, one room at a time, then lights and power, then stairs.\n'
+      + 'Pick a category and its pieces open in a second row; search and the style filter are at the right.\n\n'
+      + 'Pick a piece, then click on the plan.',
   },
   {
-    target: '[data-act="import-image"]',
-    title: 'Got a photo of a floor plan? Import it here',
+    target: '#fileMenu',
+    title: 'Got a photo of a floor plan? File → Import',
     body: 'If you have a drawing or a photo, import it and trace over it — much faster than starting empty.\n\n'
       + 'You will be asked to **set the scale first**: draw a line along something the drawing gives a dimension for, and type that real length.\n'
       + 'Skip that and the traced plan looks completely normal while every measurement in it is wrong.',
   },
   {
-    target: '#wallRef',
+    target: '[data-cat="structure"]',
     title: 'Which face of the wall are you clicking?',
-    body: 'A wall has thickness, so on the drawing it is really two lines.\n\n'
+    body: 'A wall has thickness, so on the drawing it is really two lines. Open Structure and the wall tools show the choice at the end of the row.\n\n'
       + 'Measuring on site with a tape against one face? Pick Left or Right face. Tracing a CAD drawing? Pick Centre.\n'
       + 'Get it wrong and the whole flat is out by half a wall — on a 12 cm wall that is 12 cm per room.',
   },
   {
-    target: '#right',
-    title: 'Select something, set exact numbers here',
-    body: 'Click any wall or object and its size, position and finish appear here.\n\n'
+    target: null,
+    title: 'Select something, set exact numbers at the right',
+    body: 'Click any wall or object and a panel slides out at the right with its size, position and finish; it goes away again when nothing is selected.\n\n'
       + 'Units switch between cm, m, inches and feet.\n\n'
       + 'Prefer not to use the mouse? While drawing a wall, type the length, Tab for the angle, Enter to place.',
   },
@@ -82,7 +82,18 @@ const STEPS_EN: Step[] = [
     target: '#viewModes',
     title: '2D, split, 3D',
     body: 'Split is the usual one: change something on the left, see it on the right immediately.\n\n'
-      + 'In 3D, WASD walks, the arrow keys slide the view, and dragging turns it.',
+      + 'In 3D, WASD flies, the arrow keys slide the view, and dragging turns it.',
+  },
+  {
+    target: '#walkToggle',
+    title: 'Walk through it',
+    body: 'Walk puts you inside at eye height: walls stop you, doors let you through, stairs take you up.\n\n'
+      + 'Click the view to look around with the mouse; WASD to walk, Shift to run, F to leave.',
+  },
+  {
+    target: '#floors',
+    title: 'Floors, bottom right',
+    body: 'One button per floor, the highest on top. ＋ adds one; double-click a floor to rename it.',
   },
   {
     target: '#saveStatus',
@@ -99,7 +110,7 @@ const STEPS_ZH: Step[] = [
     title: '這個工具做一件事',
     body: '把一張平面圖畫出來，並且同時長出 3D。\n\n'
       + '左邊是你畫圖的地方，右邊會即時變成立體的房子。\n'
-      + '整段教學隨時可以按「跳過」。工具列的「?」是完整使用說明，這份教學也可以從那裡再播一次。',
+      + '整段教學隨時可以按「跳過」。右上角的「說明」裡有完整使用說明，這份教學也可以從那裡再播一次。',
   },
   {
     target: '#pane2d',
@@ -108,30 +119,30 @@ const STEPS_ZH: Step[] = [
       + '滑鼠滾輪縮放，拖曳空白處移動畫面。',
   },
   {
-    target: '#left',
-    title: '工具和家具都在左邊',
-    body: '上面是畫圖工具——最常用的是「直線牆」。\n'
-      + '下面是 251 件家具，可以搜尋、依風格篩選。\n\n'
-      + '點一個工具，再到中間的圖上點。',
+    target: '#catalog',
+    title: '蓋房子用的東西都在底下這一排',
+    body: '「結構」是畫圖工具——最常用的是「直線牆」。接著是依房間分的家具、燈與電、樓梯。\n'
+      + '點一個分類，第二排會展開那一類的東西；右邊可以搜尋、依風格篩選。\n\n'
+      + '點一件，再到圖上點一下放下去。',
   },
   {
-    target: '[data-act="import-image"]',
-    title: '有平面圖的照片嗎？從這裡匯入',
+    target: '#fileMenu',
+    title: '有平面圖的照片嗎？「檔案」→ 匯入底圖',
     body: '手上有圖檔或照片的話，匯入它，然後沿著它描——比從零開始畫快得多。\n\n'
       + '匯入之後會**先請你校正比例**：在圖上標了尺寸的地方拉一條線、輸入實際公分。\n'
       + '不做這一步的話，描出來的圖看起來完全正常，但每一個尺寸都是錯的。',
   },
   {
-    target: '#wallRef',
+    target: '[data-cat="structure"]',
     title: '你點的線，是牆的哪一面？',
-    body: '牆有厚度，所以圖上一道牆其實有兩條線。\n\n'
+    body: '牆有厚度，所以圖上一道牆其實有兩條線。打開「結構」，牆的工具那一排最後面可以選。\n\n'
       + '拿捲尺貼著牆量的人選「左緣／右緣」；從 CAD 圖描的人選「中心」。\n'
       + '選錯的話整間房子會差半個牆厚——12 公分的牆，一間房就差 12 公分。',
   },
   {
-    target: '#right',
-    title: '選了東西，就在這裡改精確數字',
-    body: '點選任何一道牆或一件家具，這裡會出現它的長寬高、位置、材質。\n\n'
+    target: null,
+    title: '選了東西，右邊會滑出它的數字',
+    body: '點選任何一道牆或一件家具，右邊會滑出它的長寬高、位置、材質；沒選東西時收起來。\n\n'
       + '也可以切換單位：公分／公尺／英寸／英尺。\n\n'
       + '不想用滑鼠？畫牆時直接打數字，Tab 切角度，Enter 放置。',
   },
@@ -139,7 +150,18 @@ const STEPS_ZH: Step[] = [
     target: '#viewModes',
     title: '2D、並排、3D',
     body: '並排最常用：左邊改一筆，右邊立刻看到結果。\n\n'
-      + '在 3D 裡用 WASD 走動、方向鍵平移畫面、拖曳轉視角。',
+      + '在 3D 裡用 WASD 飛、方向鍵平移畫面、拖曳轉視角。',
+  },
+  {
+    target: '#walkToggle',
+    title: '走進去看看',
+    body: '「行走」讓你用人的高度走進房子裡：牆會擋、門可以過、樓梯可以上下樓。\n\n'
+      + '點一下畫面就能用滑鼠轉頭，WASD 走、Shift 跑、F 離開。',
+  },
+  {
+    target: '#floors',
+    title: '樓層在右下角',
+    body: '一層一顆按鈕，最高的在上面。「＋」加一層，雙擊樓層可以改名字。',
   },
   {
     target: '#saveStatus',
@@ -302,22 +324,30 @@ export function startTour(whenDone?: () => void) {
 }
 
 /**
- * First run on this machine? Then teach, **once**.
+ * The first time this machine sees an empty plan: a small note in the
+ * bottom-right corner offering the tour, instead of the tour itself (B20).
  *
- * "Once" is recorded the moment it opens, not when it is finished. It used to
- * be written only by `end()`, so somebody who met the tour, read two bubbles
- * and closed the window met the identical tour on the next launch — and the
- * report was that the instructions "跳出來的時機很奇怪". They were not random;
- * they were the same first run, over and over, because nothing had recorded it.
- *
- * (The desktop build had a second, larger version of that: it fell back to a
- * random port when 8791 was taken, and a new port is a new origin, so every
- * launch got an empty localStorage. Fixed in `server/desktop.py` — this flag is
- * only as durable as the origin it is written to.)
+ * It used to start on its own, over a page the person had not looked at yet.
+ * Answering either way — or pressing 說明 → 導覽 — records it as seen, so it is
+ * offered once. A plan that already has something in it is not a first run.
  */
-export function maybeStartTour(whenDone?: () => void) {
-  if (tourSeen()) return false;
-  markSeen();
-  startTour(whenDone);
-  return true;
+export function maybeNudgeTour(doc: { objects: unknown[] }, whenDone?: () => void) {
+  if (tourSeen() || doc.objects.length || document.querySelector('.tour-nudge')) return;
+  const box = document.createElement('div');
+  box.className = 'tour-nudge'; box.setAttribute('role', 'status');
+  const b = document.createElement('b'); b.textContent = t('第一次用嗎？');
+  const p = document.createElement('p'); p.textContent = t('一分鐘的導覽會指給你看：牆從哪裡畫、家具在哪裡、怎麼走進房子裡。之後也可以從「說明」叫出來。');
+  const acts = document.createElement('div'); acts.className = 'acts';
+  const no = document.createElement('button'); no.textContent = t('不用了');
+  const yes = document.createElement('button'); yes.className = 'primary'; yes.textContent = t('看導覽');
+  no.onclick = () => { markSeen(); box.remove(); };
+  yes.onclick = () => { markSeen(); box.remove(); startTour(whenDone); };
+  acts.append(no, yes);
+  box.append(b, p, acts);
+  document.body.appendChild(box);
+}
+
+/** Taking the tour from the 說明 menu answers the note too. */
+export function dismissTourNudge() {
+  document.querySelector('.tour-nudge')?.remove();
 }

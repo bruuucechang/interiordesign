@@ -19,7 +19,8 @@ const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
 await p.addInitScript(() => {
   // Benches are not testing onboarding, and the first-run tour would eat the
   // first Escape (its capture listener) and cover the app with an overlay.
-  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+  // 方案照擁有者分開存（伺服器只回自己的）；這份是 own_orsxp52fbvey 的，不帶就是 404、空白方案。
+  try { localStorage.setItem('interior_tour_seen', '1'); localStorage.setItem('interior_owner', 'own_orsxp52fbvey'); localStorage.setItem('interior_lang', 'zh-Hant'); } catch { /* ignore */ }
 });
 
 const errs = [];

@@ -33,6 +33,7 @@ let fails = 0;
 const check = (name, ok, extra = '') => { console.log(`${ok ? '✔' : '✖'} ${name}${extra ? '  ' + extra : ''}`); if (!ok) fails++; };
 
 // --- 基準線：按鈕與空白鍵是同一份狀態 ---
+await page.click('[data-cat="structure"]');   // B20：牆基準在「結構」那一排
 await page.click('#wallRef button[data-ref="left"]');
 check('按鈕切到左緣', await page.evaluate(() => window.__app.editor.wallRef) === 'left');
 check('按鈕會亮起來', await page.evaluate(() => !!document.querySelector('#wallRef button[data-ref="left"].active')));

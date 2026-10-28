@@ -37,7 +37,7 @@ page.on('pageerror', (e) => { console.log('PAGEERROR', String(e).split('\n')[0])
 await page.goto(`${BASE}/?perf=1&plan=${PLAN}`);
 await page.waitForFunction((id) => window.__app?.doc.project.id === id && window.__app.doc.objects.length > 0, PLAN, { timeout: 30000 });
 await page.waitForTimeout(2000);
-await page.click('[data-act="lighting"]');
+await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());   // B20：在「檢視」選單裡
 await page.waitForTimeout(1500);
 
 const roomBox = (name) => page.locator('#lightRooms .lp-room', { has: page.locator('.lp-room-head b', { hasText: name }) });

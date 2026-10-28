@@ -6,6 +6,7 @@ import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, arcSpan, wallCont
 import { Box, wallBox, pushOut, groupPushOut } from '../core/clearance';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';
+import { t } from '../core/i18n';
 
 const WALL_SNAP = 40; // cm — how close to a wall to snap an opening onto it
 
@@ -53,7 +54,7 @@ export class OpeningTool implements Tool {
   cursor = 'crosshair';
   private cand: OpeningFit | null = null;
   constructor(private ctx: ToolCtx, public kind: 'door' | 'window') {
-    this.name = kind; this.hint = kind === 'door' ? '在牆上點擊放置門' : '在牆上點擊放置窗（可貼合彎曲牆體）';
+    this.name = kind; this.hint = kind === 'door' ? t('在牆上點擊放置門') : t('在牆上點擊放置窗（可貼合彎曲牆體）');
   }
   name: string; hint: string;
 
@@ -226,7 +227,7 @@ export function groupClearOfWalls(
 
 // Place the currently-selected furniture item, then switch to the select tool.
 export class FurnitureTool implements Tool {
-  name = 'furniture'; cursor = 'crosshair'; hint = '點擊放置所選家具（可再選取調整）';
+  name = 'furniture'; cursor = 'crosshair'; hint = t('點擊放置所選家具（可再選取調整）');
   constructor(private ctx: ToolCtx) {}
 
   private fit: { pos: Vec; angle: number } | null = null;
@@ -316,7 +317,7 @@ export function fitElectricalToWall(p: Vec, walls: readonly { a: Vec; b: Vec; th
 
 export class ElectricalTool implements Tool {
   name = 'electrical'; cursor = 'crosshair';
-  hint = '點擊放置；插座／開關會自動貼牆並轉向，燈具可放在任意位置';
+  hint = t('點擊放置；插座／開關會自動貼牆並轉向，燈具可放在任意位置');
   constructor(private ctx: ToolCtx) {}
 
   private spec() { return ELECTRICAL_BY_ID[this.ctx.currentElectrical]; }

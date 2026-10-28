@@ -46,18 +46,22 @@ console.log('U1 頂列寬度');
 for (const lang of ['zh-Hant', 'en']) {
   for (const w of [1280, 1366, 1440, 1500, 1600, 1680, 1700, 1701, 1760, 1800, 1920, 2000]) {
     const page = await open(w, { lang });
+    // B20：縮放收進「檢視」選單，頂列分左中右三區。改量：頁面不橫向溢出、三區都不溢出、
+    // 頂列上每一個看得到的控制項都完整落在視窗內、頂列只有一列高。
     const m = await page.evaluate(() => {
       const bar = document.getElementById('topbar');
-      const zin = document.getElementById('zoomIn').getBoundingClientRect();
-      const zout = document.getElementById('zoomOut').getBoundingClientRect();
+      const zones = [...bar.querySelectorAll('.tb-left, .tb-center, .tb-right')];
+      const ctls = [...bar.querySelectorAll('.tb-left > *, .tb-center > *, .tb-right > *')]
+        .filter((e) => e.getBoundingClientRect().width > 0);
       return {
         sw: document.documentElement.scrollWidth, iw: innerWidth,
-        bar: bar.scrollWidth, barClient: bar.clientWidth, barH: bar.getBoundingClientRect().height,
-        zin: zin.right, zoutW: zout.width, cls: bar.className,
+        over: zones.filter((z) => z.scrollWidth > z.clientWidth + 1).map((z) => z.className),
+        out: ctls.filter((e) => e.getBoundingClientRect().right > innerWidth + 0.5).length,
+        barH: bar.getBoundingClientRect().height, cls: bar.className,
       };
     });
-    const ok = m.sw === m.iw && m.bar <= m.barClient && m.zin <= m.iw && m.zoutW >= 20 && m.barH < 60;
-    check(`${lang} ${w}`, ok, `scrollWidth=${m.sw} 頂列=${m.bar}/${m.barClient} 高=${Math.round(m.barH)} ＋右緣=${Math.round(m.zin)} ${m.cls}`);
+    const ok = m.sw === m.iw && !m.over.length && !m.out && m.barH < 60;
+    check(`${lang} ${w}`, ok, `scrollWidth=${m.sw} 溢出=${m.over.join(',') || '無'} 出界=${m.out} 高=${Math.round(m.barH)} ${m.cls}`);
     if (w === 1920 && lang === 'zh-Hant') await page.screenshot({ path: OUT + 'b8-topbar-1920.png', clip: { x: 0, y: 0, width: 1920, height: 60 } });
     await page.close();
   }
@@ -68,17 +72,20 @@ for (const lang of ['zh-Hant', 'en']) {
 for (const w of [1920, 2000]) {
   const page = await open(w);
   await page.evaluate(() => {
+    // 撐到右區剛好多出 40px：收掉文字標籤（行走、開燈、說明）就放得下。
+    const right = document.querySelector('#topbar .tb-right');
+    const used = [...right.children].reduce((w, e) => w + e.getBoundingClientRect().width, 0);
     const pad = document.createElement('span');
-    pad.style.cssText = 'display:inline-block;width:400px;flex-shrink:0';
-    document.getElementById('zoomIn').parentElement.before(pad);
+    pad.style.cssText = `display:inline-block;width:${right.clientWidth - used + 40}px;flex-shrink:0`;
+    right.prepend(pad);
   });
   await page.waitForTimeout(300);
   const m = await page.evaluate(() => ({
     sw: document.documentElement.scrollWidth, iw: innerWidth,
-    zin: document.getElementById('zoomIn').getBoundingClientRect().right,
+    zin: document.querySelector('#topbar .tb-right > :last-child').getBoundingClientRect().right,
     cls: document.getElementById('topbar').className,
   }));
-  check(`${w} 頂列撐寬 400px 後自己收標籤`, m.sw === m.iw && m.zin <= m.iw && m.cls.includes('tight'),
+  check(`${w} 頂列右區撐到溢出後自己收標籤`, m.sw === m.iw && m.zin <= m.iw && m.cls.includes('tight'),
     `scrollWidth=${m.sw} ＋右緣=${Math.round(m.zin)} class=${m.cls}`);
   await page.close();
 }
@@ -91,18 +98,18 @@ for (const w of [1280, 1500, 1920]) {
     light: !document.getElementById('lightPanel').classList.contains('hidden'),
     health: !document.getElementById('healthPanel').classList.contains('hidden'),
   }));
-  await page.click('[data-act="lighting"]');
+  await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());   // B20：在「檢視」選單裡
   await page.waitForTimeout(300);
-  await page.click('[data-act="health"]');
+  await page.evaluate(() => document.querySelector('[data-act="health"]').click());   // B20：在「檢視」選單裡
   await page.waitForTimeout(300);
   let v = await visible();
   check(`${w} 開照度再開健檢 → 只剩健檢`, v.health && !v.light, JSON.stringify(v));
-  await page.click('[data-act="lighting"]');
+  await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());   // B20：在「檢視」選單裡
   await page.waitForTimeout(300);
   v = await visible();
   check(`${w} 再開照度 → 只剩照度`, v.light && !v.health, JSON.stringify(v));
 
-  await page.click('#zoomFit');
+  await page.evaluate(() => document.querySelector('#zoomFit').click());   // B20：在「檢視」選單裡
   await page.waitForTimeout(400);
   const fit = await page.evaluate(() => {
     const { doc, editor } = window.__app;

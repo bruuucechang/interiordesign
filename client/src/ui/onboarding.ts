@@ -42,16 +42,16 @@ export function stepsFor(doc: Doc): { label: string; done: boolean }[] {
   const p = progress(doc);
   if (route === 'scratch') {
     return [
-      { label: '選左側「直線牆」開始畫', done: p.traced },
-      { label: '要精確長度就直接打數字（Tab 切角度、Enter 放置）', done: false },
-      { label: '工具列的「中心／左緣／右緣」＝你點的線是牆的哪一面', done: false },
+      { label: t('打開底下的「結構」，選「直線牆」開始畫'), done: p.traced },
+      { label: t('要精確長度就直接打數字（Tab 切角度、Enter 放置）'), done: false },
+      { label: t('「結構」那排最後的「中心／左緣／右緣」＝你點的線是牆的哪一面'), done: false },
     ];
   }
   return [
-    { label: '匯入底圖', done: p.imported },
-    { label: '校正比例（沿圖上標好的尺寸拉一條線）', done: p.calibrated },
-    { label: '底圖鎖定，避免描圖時誤拖', done: p.locked },
-    { label: '用「直線牆」沿著底圖描', done: p.traced },
+    { label: t('匯入底圖'), done: p.imported },
+    { label: t('校正比例（沿圖上標好的尺寸拉一條線）'), done: p.calibrated },
+    { label: t('底圖鎖定，避免描圖時誤拖'), done: p.locked },
+    { label: t('用「直線牆」沿著底圖描'), done: p.traced },
   ];
 }
 
@@ -70,9 +70,9 @@ export function renderSteps(editor: Editor, doc: Doc) {
   const box = document.createElement('div');
   box.id = 'stepStrip'; box.className = 'step-strip';
   const head = document.createElement('div'); head.className = 'step-head';
-  head.textContent = route === 'trace' ? '從底圖描' : '純手繪';
+  head.textContent = route === 'trace' ? t('從底圖描') : t('純手繪');
   const close = document.createElement('button'); close.className = 'step-close';
-  close.title = t('不再顯示'); close.setAttribute('aria-label', '不再顯示');
+  close.title = t('不再顯示'); close.setAttribute('aria-label', t('不再顯示'));
   close.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   close.onclick = () => { localStorage.setItem(DISMISSED, '1'); box.remove(); };
   head.appendChild(close);

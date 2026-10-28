@@ -36,7 +36,7 @@ const check = (name, ok, got = '') => { console.log(`${ok ? '✔' : '✘'} ${nam
 
 await page.goto('http://localhost:5180/?plan=plan1151022');
 await page.waitForTimeout(2500);
-await page.click('[data-act="lighting"]');
+await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());   // B20：在「檢視」選單裡
 await page.waitForTimeout(1500);
 
 for (const [name, want] of Object.entries(EXPECT)) {

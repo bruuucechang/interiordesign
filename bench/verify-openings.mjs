@@ -42,7 +42,8 @@ const page = await browser.newPage({ viewport: { width: 1500, height: 950 } });
 await page.addInitScript(() => {
   // Benches are not testing onboarding, and the first-run tour would eat the
   // first Escape (its capture listener) and cover the app with an overlay.
-  try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+  // zh-Hant：檢查讀的是中文欄位名（B20 之後屬性面板會照瀏覽器語言翻成英文）。
+  try { localStorage.setItem('interior_tour_seen', '1'); localStorage.setItem('interior_lang', 'zh-Hant'); } catch { /* ignore */ }
 });
 
 page.on('pageerror', (e) => { console.error('PAGEERROR', String(e).split('\n')[0]); fail++; });
@@ -117,13 +118,25 @@ check('改寬度後兩側加總仍等於牆長',
   Math.round(Number(f[kl]) + 120 + Number(f[kr])) === 600, `${f[kl]} + 120 + ${f[kr]}`);
 
 // --- 圖上不再畫那兩個綠色數字 ---
+// 量平面圖本身（#canvas）。B20 以前這裡寫 `document.querySelector('canvas')`，拿到的是
+// 左欄第一個家具縮圖的小畫布，所以一直是 0、什麼都沒量到。改量 #canvas 之後，門本身
+// （門扇、開門弧線）就是這個顏色，所以只數門的範圍（門寬＋開門半徑，外加 12 px）以外的——
+// 被拿掉的那兩組數字畫在門兩側牆段的中點，離門很遠。實測：拿掉門是 0。
 const green = await page.evaluate(() => {
-  const c = document.querySelector('#view2d canvas') ?? document.querySelector('canvas');
+  const { editor, doc } = window.__app;
+  const door = doc.objects.find((o) => o.id === 'd1');
+  const dpr = editor.vp.dpr, r = door.width + 12 / editor.vp.scale;
+  const p0 = editor.vp.toScreen({ x: door.x - r, y: door.y - r }), p1 = editor.vp.toScreen({ x: door.x + r, y: door.y + r });
+  const box = [Math.min(p0.x, p1.x) * dpr, Math.min(p0.y, p1.y) * dpr, Math.max(p0.x, p1.x) * dpr, Math.max(p0.y, p1.y) * dpr];
+  const c = document.querySelector('#canvas');
   const g = c.getContext('2d', { willReadFrequently: true });
   const d = g.getImageData(0, 0, c.width, c.height).data;
   let n = 0;
   for (let i = 0; i < d.length; i += 4)            // #8bffb0 前後
-    if (d[i] > 0x70 && d[i] < 0xa8 && d[i + 1] > 0xe0 && d[i + 2] > 0x90 && d[i + 2] < 0xd0) n++;
+    if (d[i] > 0x70 && d[i] < 0xa8 && d[i + 1] > 0xe0 && d[i + 2] > 0x90 && d[i + 2] < 0xd0) {
+      const x = (i / 4) % c.width, y = Math.floor(i / 4 / c.width);
+      if (!(x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3])) n++;
+    }
   return n;
 });
 check('圖上沒有那組薄荷綠數字了', green === 0, `${green} 個綠色像素`);

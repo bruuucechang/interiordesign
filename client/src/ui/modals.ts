@@ -27,18 +27,17 @@ export function dwgNotSupportedModal() {
   wrap.className = 'modal';
   wrap.innerHTML = `
     <div class="modal-box">
-      <div class="modal-head"><span>DWG 需要先轉成 DXF</span><button data-x>✕</button></div>
+      <div class="modal-head"><span>${t('DWG 需要先轉成 DXF')}</span><button data-x>✕</button></div>
       <div class="plot-form">
-        <p class="plot-note">DWG 是 Autodesk 的封閉格式，沒有可靠的開源讀取方式，
-          所以這裡只吃 <b>DXF</b>。轉檔是一步的事，任選一種：</p>
+        <p class="plot-note">${t('DWG 是 Autodesk 的封閉格式，沒有可靠的開源讀取方式，所以這裡只吃 {dxf}。轉檔是一步的事，任選一種：').replace('{dxf}', '<b>DXF</b>')}</p>
         <ul class="dwg-ways">
-          <li><b>AutoCAD／BricsCAD</b>：開啟後「另存新檔」選 DXF</li>
-          <li><b>ODA File Converter</b>（免費，Autodesk 官方格式聯盟出品）：批次 DWG → DXF</li>
-          <li><b>FreeCAD / LibreCAD</b>（免費開源）：開啟後匯出成 DXF</li>
-          <li>線上轉檔服務 —— 但圖面若涉及業主資料，別上傳</li>
+          <li><b>AutoCAD／BricsCAD</b>${t('：開啟後「另存新檔」選 DXF')}</li>
+          <li><b>ODA File Converter</b>${t('（免費，Autodesk 官方格式聯盟出品）：批次 DWG → DXF')}</li>
+          <li><b>FreeCAD / LibreCAD</b>${t('（免費開源）：開啟後匯出成 DXF')}</li>
+          <li>${t('線上轉檔服務 —— 但圖面若涉及業主資料，別上傳')}</li>
         </ul>
-        <p class="plot-note">存成 <b>R2010 或更早</b>的 DXF 相容性最好。</p>
-        <div class="plot-actions"><button data-x2>知道了</button></div>
+        <p class="plot-note">${t('存成 {v} 的 DXF 相容性最好。').replace('{v}', '<b>' + t('R2010 或更早') + '</b>')}</p>
+        <div class="plot-actions"><button data-x2>${t('知道了')}</button></div>
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -63,12 +62,12 @@ export async function dxfImportModal(editor: Editor, doc: Doc, file: string) {
     .map(u => `<option value="${u}"${u === info.unit ? ' selected' : ''}>${u}</option>`).join('');
   wrap.innerHTML = `
     <div class="modal-box">
-      <div class="modal-head"><span>匯入 DXF（${info.dxfversion}）</span><button data-x>✕</button></div>
+      <div class="modal-head"><span>${t('匯入 DXF（{v}）').replace('{v}', String(info.dxfversion))}</span><button data-x>✕</button></div>
       <div class="plot-form">
-        <label>單位 <select data-unit>${unitRow}</select></label>
+        <label>${t('單位')} <select data-unit>${unitRow}</select></label>
         <p class="plot-note${info.unitGuessed ? ' warn' : ''}" data-note></p>
         <div class="dxf-layers" data-layers></div>
-        <div class="plot-actions"><button data-go>匯入勾選圖層</button></div>
+        <div class="plot-actions"><button data-go>${t('匯入勾選圖層')}</button></div>
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -83,8 +82,8 @@ export async function dxfImportModal(editor: Editor, doc: Doc, file: string) {
     const row = document.createElement('label');
     row.className = 'dxf-layer';
     row.innerHTML = `<input type="checkbox" value="${l.layer}"${l.suggested ? ' checked' : ''}>
-      <span class="lname">${l.layer || '(未命名)'}</span>
-      <span class="lmeta">${l.segments} 段</span>`;
+      <span class="lname">${l.layer || t('(未命名)')}</span>
+      <span class="lmeta">${l.segments} ${t('段')}</span>`;
     host.appendChild(row);
   }
 
@@ -93,8 +92,8 @@ export async function dxfImportModal(editor: Editor, doc: Doc, file: string) {
   const refresh = () => {
     const cm = { mm: 0.1, cm: 1, m: 100, in: 2.54, ft: 30.48 }[unitEl.value] ?? 1;
     const w = info.extent.w * cm / 100, h = info.extent.h * cm / 100;
-    note.textContent = `${info.unitGuessed ? '⚠ 檔案未標示單位，以下為推測 — ' : ''}`
-      + `依此單位，圖面約 ${w.toFixed(1)} × ${h.toFixed(1)} m`;
+    note.textContent = `${info.unitGuessed ? t('⚠ 檔案未標示單位，以下為推測 — ') : ''}`
+      + t('依此單位，圖面約 {w} × {h} m').replace('{w}', w.toFixed(1)).replace('{h}', h.toFixed(1));
   };
   unitEl.onchange = refresh;
   refresh();
@@ -118,7 +117,7 @@ export async function dxfImportModal(editor: Editor, doc: Doc, file: string) {
     }
     editor.selectTool('select');
     editor.resetView();
-    flash(`已從 DXF 匯入 ${walls.length} 道牆`);
+    flash(t('已從 DXF 匯入 {n} 道牆').replace('{n}', String(walls.length)));
   };
 }
 
@@ -132,16 +131,16 @@ export function plotModal(doc: Doc, name: string) {
   wrap.className = 'modal';
   wrap.innerHTML = `
     <div class="modal-box">
-      <div class="modal-head"><span>匯出施工圖 PDF</span><button data-x>✕</button></div>
+      <div class="modal-head"><span>${t('匯出施工圖 PDF')}</span><button data-x>✕</button></div>
       <div class="plot-form">
-        <label>比例 <select data-scale>${SCALES.map(s => `<option value="${s}"${s === auto.scale ? ' selected' : ''}>1:${s}</option>`).join('')}</select></label>
-        <label>紙張 <select data-paper>${['A4', 'A3'].map(p => `<option value="${p}"${p === auto.paper ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
-        <label>方向 <select data-orient>
-          <option value="landscape"${auto.orientation === 'landscape' ? ' selected' : ''}>橫式</option>
-          <option value="portrait"${auto.orientation === 'portrait' ? ' selected' : ''}>直式</option>
+        <label>${t('比例')} <select data-scale>${SCALES.map(s => `<option value="${s}"${s === auto.scale ? ' selected' : ''}>1:${s}</option>`).join('')}</select></label>
+        <label>${t('紙張')} <select data-paper>${['A4', 'A3'].map(p => `<option value="${p}"${p === auto.paper ? ' selected' : ''}>${p}</option>`).join('')}</select></label>
+        <label>${t('方向')} <select data-orient>
+          <option value="landscape"${auto.orientation === 'landscape' ? ' selected' : ''}>${t('橫式')}</option>
+          <option value="portrait"${auto.orientation === 'portrait' ? ' selected' : ''}>${t('直式')}</option>
         </select></label>
         <p class="plot-note" data-note></p>
-        <div class="plot-actions"><button data-go>匯出</button></div>
+        <div class="plot-actions"><button data-go>${t('匯出')}</button></div>
       </div>
     </div>`;
   document.body.appendChild(wrap);
@@ -162,8 +161,8 @@ export function plotModal(doc: Doc, name: string) {
     const fits = needW <= area.w && needH <= area.h;
     const pages = doc.project.floors.length;
     note.textContent = fits
-      ? `圖面 ${(extent.w / 100).toFixed(1)} × ${(extent.h / 100).toFixed(1)} m，可完整容納。共 ${pages} 頁（每樓層一頁）。`
-      : `⚠ 裝不下：需要 ${needW.toFixed(0)} × ${needH.toFixed(0)} mm，可用 ${area.w.toFixed(0)} × ${area.h.toFixed(0)} mm。圖面會被裁切。`;
+      ? t('圖面 {w} × {h} m，可完整容納。共 {p} 頁（每樓層一頁）。').replace('{w}', (extent.w / 100).toFixed(1)).replace('{h}', (extent.h / 100).toFixed(1)).replace('{p}', String(pages))
+      : t('⚠ 裝不下：需要 {nw} × {nh} mm，可用 {aw} × {ah} mm。圖面會被裁切。').replace('{nw}', needW.toFixed(0)).replace('{nh}', needH.toFixed(0)).replace('{aw}', area.w.toFixed(0)).replace('{ah}', area.h.toFixed(0));
     note.classList.toggle('warn', !fits);
   };
   [scaleEl, paperEl, orientEl].forEach(e => e.onchange = refresh);
@@ -196,7 +195,7 @@ export function plotModal(doc: Doc, name: string) {
 
 export async function openModal(editor: Editor, doc: Doc) {
   const modal = $('#modal'); const list = $('#projectList');
-  list.innerHTML = '<div class="muted" style="padding:12px">載入中…</div>';
+  list.innerHTML = '<div class="muted" style="padding:12px">' + t('載入中…') + '</div>';
   modal.classList.remove('hidden');
   const projects = await listProjects();
   list.innerHTML = '';
@@ -208,7 +207,7 @@ export async function openModal(editor: Editor, doc: Doc) {
   imp.className = 'import-file';
   imp.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">'
     + '<path d="M12 16V5m0 0 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>'
-    + '<span>從檔案匯入專案檔…</span>';
+    + '<span>' + t('從檔案匯入專案檔…') + '</span>';
   imp.onclick = () => { modal.classList.add('hidden'); $<HTMLInputElement>('#projectFileInput').click(); };
   list.appendChild(imp);
   // No live plans is **not** a reason to skip the bin — it is the strongest
@@ -252,7 +251,7 @@ export async function openModal(editor: Editor, doc: Doc) {
   const ORDER = ['尚未上傳', '今天', '昨天', '這一週', '這個月', '更早'];
   const heads = new Map<string, HTMLElement>();
   for (const name of ORDER) {
-    const h = document.createElement('div'); h.className = 'proj-group'; h.textContent = name;
+    const h = document.createElement('div'); h.className = 'proj-group'; h.textContent = t(name);
     heads.set(name, h); list.appendChild(h);
     for (const p of projects.filter(q => bucketOf(q.updatedAt) === name)) {
       const row = document.createElement('div'); row.className = 'project-row';
@@ -268,8 +267,8 @@ export async function openModal(editor: Editor, doc: Doc) {
         // carry the content, not just the name again.
         const full = await loadProject(p.id);
         const n = full ? (full.floors ?? []).reduce((a, f) => a + (f.objects?.length ?? 0), 0) : null;
-        const detail = n === null ? '' : `\n\n這份有 ${n} 個物件，上次編輯 ${p.updatedAt ?? '不明'}。`;
-        if (!confirm(`把「${p.name}」移到回收桶？${detail}\n\n30 天內都可以從「回收桶」還原。`)) return;
+        const detail = n === null ? '' : '\n\n' + t('這份有 {n} 個物件，上次編輯 {d}。').replace('{n}', String(n)).replace('{d}', p.updatedAt ?? t('不明'));
+        if (!confirm(t('把「{name}」移到回收桶？').replace('{name}', () => p.name) + detail + '\n\n' + t('30 天內都可以從「回收桶」還原。'))) return;
         await deleteProject(p.id); row.remove(); apply();
       };
       row.append(nm, dt, del);
@@ -297,7 +296,7 @@ export async function openModal(editor: Editor, doc: Doc) {
       const any = rows.some(r => r.el.style.display !== 'none' && bucketOf(r.meta.updatedAt) === name);
       h.style.display = any ? '' : 'none';
     }
-    count.textContent = q ? `符合 ${shown} / ${rows.length}` : `共 ${rows.length} 份`;
+    count.textContent = q ? t('符合 {a} / {b}').replace('{a}', String(shown)).replace('{b}', String(rows.length)) : t('共 {n} 份').replace('{n}', String(rows.length));
   }
   search.oninput = apply;
   apply();
@@ -319,14 +318,14 @@ async function renderBin(editor: Editor, doc: Doc, list: HTMLElement, modal: HTM
 
   const head = document.createElement('div');
   head.className = 'proj-group'; head.style.marginTop = '14px';
-  head.textContent = `回收桶（${binned.length}）· 30 天後自動清除`;
+  head.textContent = t('回收桶（{n}）· 30 天後自動清除').replace('{n}', String(binned.length));
   list.appendChild(head);
 
   for (const p of binned) {
     const row = document.createElement('div'); row.className = 'project-row binned';
     const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name;
     const dt = document.createElement('span'); dt.className = 'pdate';
-    dt.textContent = p.deletedAtIso ? `刪除於 ${p.deletedAtIso.slice(0, 10)}` : '已刪除';
+    dt.textContent = p.deletedAtIso ? t('刪除於 {d}').replace('{d}', p.deletedAtIso.slice(0, 10)) : t('已刪除');
     const back = document.createElement('button'); back.className = 'restore'; back.textContent = t('還原');
     back.onclick = async (e) => {
       e.stopPropagation();

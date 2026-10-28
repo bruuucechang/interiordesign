@@ -9,169 +9,184 @@
   </head>
   <body>
     <div id="app">
-      <!-- top bar -->
+      <!-- top bar (B20): three zones, the way a build mode does it — the file on
+           the left, which view in the middle, the things you reach for while
+           looking at the house on the right. Everything else lives in the
+           檔案／檢視／設定／說明 menus, whose items stay in the DOM (hidden), so
+           `[data-act=…]` still finds them. Every button left on the bar has a
+           word or a tooltip. -->
       <header id="topbar">
-        <span class="brand">🏡 <span data-i18n="室內設計繪圖">室內設計繪圖</span></span>
-        <input id="projectName" class="proj-name" value="未命名平面圖" data-i18n-value="未命名平面圖" />
-        <span id="saveStatus" class="save-status" aria-live="polite"></span>
-        <div class="spacer"></div>
-        <!-- Every button carries an icon and a `.lbl`. Below the breakpoint in
-             style.css the labels go and the icons stay, which is what keeps all
-             21 items on one row: at 1512 — the Air's own screen — the labelled
-             bar wrapped to two rows, and by 1180 the zoom control had wrapped
-             off the end and could not be clicked at all.
-             Icons rather than emoji so a label-less bar reads as one set; the
-             time-of-day <select> keeps its emoji because option text cannot be
-             markup. -->
-        <button data-act="new" title="新建平面圖">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/><path d="M12 11v6m-3-3h6"/></svg>
-          <span class="lbl" data-i18n="新建">新建</span>
-        </button>
-        <button data-act="save" title="儲存">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg>
-          <span class="lbl" data-i18n="儲存">儲存</span>
-        </button>
-        <button data-act="open" title="開啟專案">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 9H5z"/></svg>
-          <span class="lbl" data-i18n="開啟">開啟</span>
-        </button>
-        <button data-act="import-image" title="匯入底圖以描繪（可調整位置、大小、透明度）">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 5-4 4 3 3-2 6 5"/></svg>
-          <span class="lbl" data-i18n="底圖">底圖</span>
-        </button>
-        <span class="sep"></span>
-        <button data-act="undo" title="復原 (Ctrl+Z)">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a6 6 0 0 1 0 12H8"/><path d="m7 4-4 4 4 4"/></svg>
-          <span class="lbl" data-i18n="復原">復原</span>
-        </button>
-        <button data-act="redo" title="重做 (Ctrl+Shift+Z)">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8H10a6 6 0 0 0 0 12h6"/><path d="m17 4 4 4-4 4"/></svg>
-          <span class="lbl" data-i18n="重做">重做</span>
-        </button>
-        <span class="sep"></span>
-        <!-- Drawn, not typed. These three were `⭳ 匯出 ▾` and `⌨`; Arial has no
-             glyph for any of them, so the export button read as `□ 匯出 □`. -->
-        <div id="exportMenu" class="menu"><button id="exportToggle" title="匯出檔案">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-          <span class="lbl" data-i18n="匯出">匯出</span>
-          <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-        </button></div>
-        <select id="langSel" class="lang-select" title="Interface language / 介面語言" aria-label="Interface language">
-          <option value="zh-Hant">中</option>
-          <option value="en">EN</option>
-        </select>
-        <button data-act="health" title="空間健檢" aria-label="空間健檢">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/><path d="M3 12h4l2-3 2 6 2-4 1.5 1H21"/></svg>
-          <span class="health-count none">0</span>
-        </button>
-        <button data-act="lighting" title="照度：平面圖上的照度熱圖與每個房間的數字" aria-label="照度">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>
-          <span class="lbl" data-i18n="照度">照度</span>
-        </button>
-        <button data-act="help" title="使用說明（完整功能說明，也可以從這裡重播新手教學）" aria-label="使用說明">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.8c0 1.7-2.4 2-2.4 3.5M12 17h.01"/></svg>
-        </button>
-        <button data-act="feel" title="操作設定：轉視角、移動、滾輪的靈敏度" data-i18n-title="操作設定：轉視角、移動、滾輪的靈敏度" aria-label="操作設定">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
-        </button>
-        <button data-act="shortcuts" title="鍵盤快捷鍵" aria-label="鍵盤快捷鍵">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9.5 14h5"/></svg>
-        </button>
-        <span class="sep"></span>
-        <div class="view-modes" id="viewModes">
-          <button data-mode="2d" title="只看平面圖">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 20 3v17z"/><path d="M13 15h3M9.5 18.5h3"/></svg>
-            <span class="lbl" data-i18n="2D">2D</span>
-          </button>
-          <button data-mode="split" title="平面圖與 3D 並排">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>
-            <span class="lbl" data-i18n="分割">分割</span>
-          </button>
-          <button data-mode="3d" title="只看 3D">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
-            <span class="lbl" data-i18n="3D">3D</span>
-          </button>
+        <div class="tb-left">
+          <span class="brand" title="室內設計繪圖" data-i18n-title="室內設計繪圖" aria-hidden="true">🏡</span>
+          <input id="projectName" class="proj-name" value="未命名平面圖" data-i18n-value="未命名平面圖" aria-label="方案名稱" />
+          <span id="saveStatus" class="save-status" aria-live="polite"></span>
+          <div class="menu" id="fileMenu">
+            <button class="menu-btn" aria-haspopup="true" aria-expanded="false">
+              <span class="lbl" data-i18n="檔案">檔案</span>
+              <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="menu-pop" hidden>
+              <button data-act="new"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/><path d="M12 11v6m-3-3h6"/></svg><span data-i18n="新建">新建</span><kbd>⌘N</kbd></button>
+              <button data-act="open"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 9H5z"/></svg><span data-i18n="開啟…">開啟…</span><kbd>⌘O</kbd></button>
+              <button data-act="save"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg><span data-i18n="儲存">儲存</span><kbd>⌘S</kbd></button>
+              <div class="menu-group" data-i18n="匯入">匯入</div>
+              <button data-act="import-image"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 5-4 4 3 3-2 6 5"/></svg><span data-i18n="底圖（照片或掃描）…">底圖（照片或掃描）…</span></button>
+              <button data-act="import-dxf"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10m0 0 4 4m-4-4-4 4"/><path d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/></svg><span data-i18n="DXF 圖檔…">DXF 圖檔…</span></button>
+              <button data-act="import-project"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 9H5z"/></svg><span data-i18n="專案檔…">專案檔…</span></button>
+              <div class="menu-group" data-i18n="匯出">匯出</div>
+              <button data-act="export-project"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3M8 21v-7h8v7"/></svg><span data-i18n="專案檔（可再編輯）">專案檔（可再編輯）</span></button>
+              <button data-act="export-png"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m3 16 5-4 4 3 3-2 6 5"/></svg><span data-i18n="PNG 影像">PNG 影像</span></button>
+              <button data-act="export-pdf"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5"/><path d="M9 17h6"/></svg><span data-i18n="PDF（畫面快照）">PDF（畫面快照）</span></button>
+              <button data-act="plot-pdf"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 20 3v17z"/><path d="M13 15h3M9.5 18.5h3"/></svg><span data-i18n="施工圖 PDF…">施工圖 PDF…</span><kbd>⌘P</kbd></button>
+              <button data-act="export-pano"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18"/></svg><span data-i18n="360 全景">360 全景</span></button>
+              <button data-act="export-report"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18"/><rect x="5" y="11" width="4" height="7"/><rect x="10" y="6" width="4" height="12"/><rect x="15" y="14" width="4" height="4"/></svg><span data-i18n="面積報表（Excel）">面積報表（Excel）</span></button>
+              <button data-act="export-glb"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg><span data-i18n="3D 模型">3D 模型</span></button>
+            </div>
+          </div>
+          <div class="menu" id="viewMenu">
+            <!-- The health count rides on the menu button too: it is the one thing in
+                 these menus that has something waiting for you. -->
+            <button class="menu-btn" aria-haspopup="true" aria-expanded="false">
+              <span class="lbl" data-i18n="檢視">檢視</span><span class="health-count none menu-badge">0</span>
+              <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="menu-pop" hidden>
+              <button data-act="lighting"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><span data-i18n="照度熱圖">照度熱圖</span></button>
+              <button data-act="health"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/><path d="M3 12h4l2-3 2 6 2-4 1.5 1H21"/></svg><span data-i18n="空間健檢">空間健檢</span><span class="health-count none">0</span></button>
+              <button data-act="layers"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg><span data-i18n="圖層">圖層</span></button>
+              <div class="menu-group" data-i18n="縮放">縮放</div>
+              <div class="menu-row zoom-ctl">
+                <button id="zoomOut" title="縮小" data-i18n-title="縮小" aria-label="縮小">−</button>
+                <button id="zoomLabel" class="zoom" title="回到 100%" data-i18n-title="回到 100%">100%</button>
+                <button id="zoomIn" title="放大" data-i18n-title="放大" aria-label="放大">＋</button>
+                <!-- 照度／健檢面板開著時會扣掉它們，整張圖落在沒被蓋住的那一塊。 -->
+                <button id="zoomFit" title="縮放至全部 — 整張圖放進畫面（扣掉開著的面板）" data-i18n-title="縮放至全部 — 整張圖放進畫面（扣掉開著的面板）"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span data-i18n="全部">全部</span></button>
+              </div>
+              <button data-act="fullscreen"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg><span data-i18n="全螢幕">全螢幕</span></button>
+            </div>
+          </div>
+          <div class="menu" id="settingsMenu">
+            <button class="menu-btn" aria-haspopup="true" aria-expanded="false">
+              <span class="lbl" data-i18n="設定">設定</span>
+              <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="menu-pop" hidden>
+              <label class="menu-check" title="吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。&#10;關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。" data-i18n-title="吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。&#10;關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。">
+                <input type="checkbox" id="snapToggle" checked />
+                <span data-i18n="吸附格線與牆">吸附格線與牆</span><kbd>Alt</kbd>
+              </label>
+              <button data-act="feel"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span data-i18n="操作靈敏度…">操作靈敏度…</span></button>
+              <div class="menu-row">
+                <span data-i18n="介面語言">介面語言</span>
+                <select id="langSel" class="lang-select" aria-label="Interface language">
+                  <option value="zh-Hant">繁體中文</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
-        <select id="timeOfDay" class="time-select" title="光線時段">
-          <option value="morning" data-i18n="早晨" data-i18n-emoji="🌅" data-i18n-opt="早晨">🌅 早晨</option>
-          <option value="noon" selected data-i18n-opt="正午">☀️ 正午</option>
-          <option value="dusk" data-i18n-opt="黃昏">🌆 黃昏</option>
-          <option value="night" data-i18n-opt="夜晚">🌙 夜晚</option>
-        </select>
-        <button id="walkToggle" class="lamps-toggle" title="行走：在 3D 裡用人的高度走，牆會擋、門可以過（F）" data-i18n-title="行走：在 3D 裡用人的高度走，牆會擋、門可以過（F）" aria-pressed="false">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-6 3 3v3M9 12l2-4 4 2 2 3M11 8l-2 5"/></svg>
-          <span class="lbl" data-i18n="行走">行走</span>
-        </button>
-        <button id="lampsToggle" class="lamps-toggle" title="3D 開燈：燈具真的發光（黃昏、夜晚自動開）" data-i18n-title="3D 開燈：燈具真的發光（黃昏、夜晚自動開）" aria-pressed="false">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/><path d="M12 7v3" opacity=".6"/></svg>
-          <span class="lbl" data-i18n="開燈">開燈</span>
-        </button>
-        <span class="sep"></span>
-        <label class="chk" title="吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。&#10;關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。">
-          <input type="checkbox" id="snapToggle" checked />
-          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M9 4v16M15 4v16" opacity=".55"/><circle cx="15" cy="9" r="2.4"/></svg>
-          <span class="lbl" data-i18n="吸附">吸附</span>
-        </label>
-        <!-- The wall is drawn as its two faces, with the reference one picked out
-             heavy. A box with a thick left border and a box with a thick right
-             border are the same box once the labels collapse — which is how the
-             export button ended up as two meaningless squares in the first
-             place. Two faces plus one emphasis reads at 16px. -->
-        <div class="view-modes" id="wallRef" title="你在圖上點的那條線，是牆的哪一面？&#10;量錯面，整間房子會差半個牆厚（12cm 的牆就是 6cm，四面牆下來一間房差 12cm）。&#10;現場量內緣就選「左緣/右緣」，量中心線才選「中心」。畫的途中可按 R 切換。">
-          <button data-ref="center" title="中心線 — 你點的線是牆的正中間。&#10;從 CAD 圖描牆通常用這個（圖上兩條線的中點）。">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16M18 4v16" opacity=".45"/><path d="M12 3v18" stroke-width="2.6" stroke-dasharray="3.5 3"/></svg>
-            <span class="lbl" data-i18n="中心">中心</span>
-          </button>
-          <button data-ref="left" title="左緣 — 你點的線是牆的左面，牆往右長出厚度。&#10;拿捲尺貼著牆的這一面量出來的數字，選這個才對得上。">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 4v16" opacity=".45"/><path d="M6 3v18" stroke-width="4"/></svg>
-            <span class="lbl" data-i18n="左緣">左緣</span>
-          </button>
-          <button data-ref="right" title="右緣 — 你點的線是牆的右面，牆往左長出厚度。&#10;拿捲尺貼著牆的另一面量的話選這個。">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v16" opacity=".45"/><path d="M18 3v18" stroke-width="4"/></svg>
-            <span class="lbl" data-i18n="右緣">右緣</span>
-          </button>
+
+        <div class="tb-center">
+          <div class="view-modes" id="viewModes">
+            <button data-mode="2d" title="只看平面圖" data-i18n-title="只看平面圖">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 20 3v17z"/><path d="M13 15h3M9.5 18.5h3"/></svg>
+              <span class="lbl" data-i18n="2D">2D</span>
+            </button>
+            <button data-mode="split" title="平面圖與 3D 並排" data-i18n-title="平面圖與 3D 並排">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg>
+              <span class="lbl" data-i18n="分割">分割</span>
+            </button>
+            <button data-mode="3d" title="只看 3D" data-i18n-title="只看 3D">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>
+              <span class="lbl" data-i18n="3D">3D</span>
+            </button>
+          </div>
         </div>
-        <div class="zoom-ctl">
-          <button id="zoomOut" title="縮小">−</button>
-          <span id="zoomLabel" class="zoom" title="點擊重設為 100%">100%</span>
-          <button id="zoomIn" title="放大">＋</button>
-          <!-- 照度／健檢面板開著時會扣掉它們，整張圖落在沒被蓋住的那一塊。 -->
-          <button id="zoomFit" title="縮放至全部 — 整張圖放進畫面（扣掉開著的面板）" aria-label="縮放至全部">
-            <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+
+        <div class="tb-right">
+          <button id="walkToggle" class="lamps-toggle" title="行走：在 3D 裡用人的高度走，牆會擋、門可以過（F）" data-i18n-title="行走：在 3D 裡用人的高度走，牆會擋、門可以過（F）" aria-pressed="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-6 3 3v3M9 12l2-4 4 2 2 3M11 8l-2 5"/></svg>
+            <span class="lbl" data-i18n="行走">行走</span>
           </button>
+          <select id="timeOfDay" class="time-select" title="光線時段" data-i18n-title="光線時段" aria-label="光線時段">
+            <option value="morning" data-i18n-opt="早晨">🌅 早晨</option>
+            <option value="noon" selected data-i18n-opt="正午">☀️ 正午</option>
+            <option value="dusk" data-i18n-opt="黃昏">🌆 黃昏</option>
+            <option value="night" data-i18n-opt="夜晚">🌙 夜晚</option>
+          </select>
+          <button id="lampsToggle" class="lamps-toggle" title="3D 開燈：燈具真的發光（黃昏、夜晚自動開）" data-i18n-title="3D 開燈：燈具真的發光（黃昏、夜晚自動開）" aria-pressed="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/><path d="M12 7v3" opacity=".6"/></svg>
+            <span class="lbl" data-i18n="開燈">開燈</span>
+          </button>
+          <span class="sep"></span>
+          <button data-act="undo" title="復原（⌘Z）" data-i18n-title="復原（⌘Z）" aria-label="復原">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h11a6 6 0 0 1 0 12H8"/><path d="m7 4-4 4 4 4"/></svg>
+          </button>
+          <button data-act="redo" title="重做（⌘⇧Z）" data-i18n-title="重做（⌘⇧Z）" aria-label="重做">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8H10a6 6 0 0 0 0 12h6"/><path d="m17 4 4 4-4 4"/></svg>
+          </button>
+          <div class="menu" id="helpMenu">
+            <button class="menu-btn" aria-haspopup="true" aria-expanded="false" title="說明" data-i18n-title="說明">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.8c0 1.7-2.4 2-2.4 3.5M12 17h.01"/></svg>
+              <span class="lbl" data-i18n="說明">說明</span>
+            </button>
+            <div class="menu-pop right" hidden>
+              <button data-act="help"><span data-i18n="使用說明">使用說明</span></button>
+              <button data-act="shortcuts"><span data-i18n="鍵盤快捷鍵">鍵盤快捷鍵</span></button>
+              <button data-act="tour"><span data-i18n="導覽（一分鐘）">導覽（一分鐘）</span></button>
+            </div>
+          </div>
         </div>
       </header>
 
       <div id="body">
-        <!-- left: tools + furniture -->
-        <aside id="left">
-          <div id="catalog"></div>
-        </aside>
-
         <!-- center canvas -->
         <main id="stage">
           <div id="pane2d" class="pane">
             <canvas id="canvas"></canvas>
-            <div class="pane-tag">2D 平面</div>
+            <div class="pane-tag" data-i18n="2D 平面">2D 平面</div>
             <div id="hint" class="hint" role="status" aria-live="polite" aria-atomic="true"></div>
           </div>
-          <div id="splitter" title="拖曳調整比例，雙擊回到對半"></div>
+          <div id="splitter" title="拖曳調整比例，雙擊回到對半" data-i18n-title="拖曳調整比例，雙擊回到對半"></div>
           <div id="view3d" class="pane view3d">
             <div class="pane-tag">3D</div>
-            <div class="dock3d"><div id="hint3d" class="hint">WASD 往視線方向飛 · 方向鍵沿畫面平移 · Shift/Space 升降 · Q/E 旋轉物件 · 拖曳旋轉視角 · 滾輪縮放</div></div>
+            <div class="dock3d"><div id="hint3d" class="hint hidden"></div></div>
           </div>
+          <!-- 沒選東西、但面板裡還有底圖或牆面對齊可以調的時候，只留一個小把手。 -->
+          <button id="drawerPeek" class="drawer-peek hidden"></button>
+          <!-- 樓層鈕：畫面右下角，最高的在上面。 -->
+          <div id="floors" class="floor-dock" role="group" aria-label="樓層"></div>
         </main>
 
-        <!-- right: layers + properties -->
-        <aside id="right">
-          <div class="panel-title" data-i18n="樓層">樓層</div>
-          <div id="floors"></div>
-          <div class="panel-title collapsible collapsed" data-collapse="layers" data-i18n="圖層">圖層</div>
-          <div id="layers"></div>
-          <div class="panel-title" data-i18n="屬性">屬性</div>
+        <!-- right: properties (and layers, from 檢視 → 圖層). Slides out only when
+             there is something to show; it floats over the stage so the views never
+             resize on a click. -->
+        <aside id="right" class="drawer closed" aria-label="屬性">
+          <div class="panel-title drawer-head"><span data-i18n="屬性">屬性</span><button data-act="close-drawer" aria-label="收起" title="收起（並取消選取）" data-i18n-title="收起（並取消選取）"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
           <div id="properties"><div class="muted" data-i18n="未選取物件">未選取物件</div></div>
+          <div id="layersBox" class="hidden">
+            <div class="panel-title drawer-head"><span data-i18n="圖層">圖層</span><button data-act="close-layers" aria-label="關閉" title="關閉" data-i18n-title="關閉"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+            <div id="layers"></div>
+          </div>
         </aside>
       </div>
+
+      <!-- bottom: the catalogue, build-mode style. One row of categories; picking
+           one opens the second row with its sub-groups and pictures. -->
+      <footer id="catalogBar">
+        <div id="catalog" class="cat-tabs"></div>
+        <div id="catalogShelf" class="cat-shelf hidden"></div>
+        <!-- 牆基準：畫牆時才有意義，所以跟著「結構」那一排出現（ui.ts 搬過去）。 -->
+        <div class="wallref-box">
+          <span><span data-i18n="你點的線是牆的哪一面">你點的線是牆的哪一面</span>（R）</span>
+          <div class="view-modes" id="wallRef" title="量錯面，整間房子會差半個牆厚（12cm 的牆就是 6cm，四面牆下來一間房差 12cm）。&#10;現場量內緣就選「左緣／右緣」，量中心線才選「中心」。" data-i18n-title="量錯面，整間房子會差半個牆厚（12cm 的牆就是 6cm，四面牆下來一間房差 12cm）。&#10;現場量內緣就選「左緣／右緣」，量中心線才選「中心」。">
+            <button data-ref="center" title="中心線 — 你點的線是牆的正中間。&#10;從 CAD 圖描牆通常用這個。" data-i18n-title="中心線 — 你點的線是牆的正中間。&#10;從 CAD 圖描牆通常用這個。"><span data-i18n="中心">中心</span></button>
+            <button data-ref="left" title="左緣 — 你點的線是牆的左面，牆往右長出厚度。&#10;拿捲尺貼著牆的這一面量出來的數字，選這個才對得上。" data-i18n-title="左緣 — 你點的線是牆的左面，牆往右長出厚度。&#10;拿捲尺貼著牆的這一面量出來的數字，選這個才對得上。"><span data-i18n="左緣">左緣</span></button>
+            <button data-ref="right" title="右緣 — 你點的線是牆的右面，牆往左長出厚度。&#10;拿捲尺貼著牆的另一面量的話選這個。" data-i18n-title="右緣 — 你點的線是牆的右面，牆往左長出厚度。&#10;拿捲尺貼著牆的另一面量的話選這個。"><span data-i18n="右緣">右緣</span></button>
+          </div>
+        </div>
+      </footer>
     </div>
 
     <!-- open-project modal -->

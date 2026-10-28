@@ -30,6 +30,8 @@ const hint = document.getElementById('hint') as HTMLElement;
 const pane2d = document.getElementById('pane2d') as HTMLElement;
 const c3d = document.getElementById('view3d') as HTMLElement;
 watchPanelInset(c3d);
+// 樓層鈕與抽屜把手在 #stage 裡貼右邊，照度、健檢面板或抽屜開著時要讓到它們左邊。
+watchPanelInset(document.getElementById('stage') as HTMLElement);
 const viewModes = document.getElementById('viewModes') as HTMLElement;
 const splitter = document.getElementById('splitter') as HTMLElement;
 const wallRefBtns = document.getElementById('wallRef') as HTMLElement;
@@ -333,6 +335,7 @@ if (view3d) {
   };
   v.walk.onToggle = on => {
     walkBtn.classList.toggle('on', on); walkBtn.setAttribute('aria-pressed', String(on));
+    sync3dHint();
     if (on) flash(t('點一下畫面開始用滑鼠轉頭，WASD 走、Shift 跑、F 或兩次 Esc 離開'));
     else { editor.marker = undefined; editor.render(); }
   };
@@ -342,6 +345,28 @@ if (view3d) {
     editor.render();
   };
 } else walkBtn.hidden = true;
+
+/**
+ * The 3D hint strip (B20): it speaks only while something is in hand. Walking
+ * gets the walking keys; holding a piece of furniture, a door or a window gets
+ * how to place it; otherwise it stays out of the picture. The flying keys live
+ * in 說明 → 鍵盤快捷鍵.
+ */
+const hint3d = document.getElementById('hint3d') as HTMLElement;
+function sync3dHint() {
+  const tool = editor.toolName;
+  const text = view3d?.walk.active
+    ? t('行走：點畫面用滑鼠轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或兩次 Esc 離開')
+    : tool === 'furniture' || tool === 'electrical'
+      ? t('點地板放下去 · Q／E 轉 90° · Esc 放下手上的東西')
+      : tool === 'door' || tool === 'window'
+        ? t('點牆放上門窗 · Esc 放下手上的東西')
+        : '';
+  hint3d.textContent = text;
+  hint3d.classList.toggle('hidden', !text);
+}
+{ const prev = editor.hooks.toolChange; editor.hooks.toolChange = n => { prev?.(n); sync3dHint(); }; }
+sync3dHint();
 
 /** A dot with a view cone, the same size on screen at any zoom. */
 function drawWalker(ctx: CanvasRenderingContext2D, x: number, y: number, heading: number, scale: number) {
