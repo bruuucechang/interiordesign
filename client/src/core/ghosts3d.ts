@@ -14,6 +14,7 @@ export class PlacementGhosts {
   private ghost: THREE.Object3D | null = null;
   private openingGhost: THREE.Object3D | null = null;
   private openingGhostKey = '';
+  private warn = false;
 
   constructor(private scene: THREE.Scene) {}
 
@@ -24,6 +25,13 @@ export class PlacementGhosts {
   moveFurniture(p: { x: number; y: number }) {
     const g = this.ghost ?? this.buildGhost();
     if (g) { g.visible = true; g.position.set(p.x, 0, p.y); }
+  }
+
+  /** Red where the piece would not sit well (B22). Applied to the ghost as it is now and to any rebuilt one. */
+  setWarn(on: boolean) {
+    if (on === this.warn) return;
+    this.warn = on;
+    if (this.ghost) tint(this.ghost, on);
   }
 
   /** The cursor left the view. */
@@ -47,6 +55,7 @@ export class PlacementGhosts {
     if (!this.previewItem) return null;
     const g = getFurnitureModel(this.previewItem.id, this.previewItem.w, this.previewItem.h).clone(true);
     ghostify(g);   // shared cloned geometry — only the materials are cloned
+    if (this.warn) tint(g, true);
     this.scene.add(g);
     this.ghost = g;
     return g;
@@ -102,4 +111,21 @@ export class PlacementGhosts {
     this.scene.remove(this.openingGhost);
     this.openingGhost = null; this.openingGhostKey = '';
   }
+}
+
+/** Glow the ghost's (already cloned) materials red, or back to none. */
+function tint(g: THREE.Object3D, on: boolean) {
+  g.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    for (const mm of Array.isArray(m.material) ? m.material : [m.material]) {
+      const sm = mm as THREE.MeshStandardMaterial;
+      if (!sm.emissive) continue;
+      // remember the model's own glow (a lamp shade has one) so turning red off restores it
+      sm.userData.ownEmissive ??= { color: sm.emissive.getHex(), k: sm.emissiveIntensity };
+      const own = sm.userData.ownEmissive as { color: number; k: number };
+      sm.emissive.set(on ? 0xff3344 : own.color);
+      sm.emissiveIntensity = on ? 0.7 : own.k;
+    }
+  });
 }

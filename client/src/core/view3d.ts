@@ -291,6 +291,8 @@ export class View3D {
   setPlacementPreview(item: { id: string; w: number; h: number } | null) { this.ghosts.setPlacementPreview(item); }
   refreshGhost() { this.ghosts.refreshGhost(); }
   setOpeningGhost(spec: OpeningGhostSpec | null) { this.ghosts.setOpeningGhost(spec); }
+  /** Tint the furniture ghost red: the piece would overlap another or sit outside every room (B22). */
+  setGhostWarn(on: boolean) { this.ghosts.setWarn(on); }
 
   // ---- lighting ----
   setTimeOfDay(t: TimeKey) {

@@ -84,9 +84,11 @@ window.addEventListener('keydown', e => { if (e.key === 'Alt') e.preventDefault(
 // drops on the floor point; a door/window snaps onto the wall under the cursor.
 if (view3d) view3d.onFloorClick = (floor, sceneHit) => {
   if (mode === '2d') return;
-  const t = editor.toolName;
-  if (t === 'furniture') editor.placeFurnitureAt(floor.x, floor.y);
-  else if (t === 'door' || t === 'window') editor.placeOpeningAt(t, sceneHit ?? floor);
+  const tool = editor.toolName;
+  if (tool === 'furniture') editor.placeFurnitureAt(floor.x, floor.y);
+  else if ((tool === 'door' || tool === 'window') && !editor.placeOpeningAt(tool, sceneHit ?? floor)) {
+    flash(t('門窗要點在牆上——點一面牆'));
+  }
 };
 if (view3d) view3d.onRotate90 = (deg) => editor.rotateSelection(deg);
 if (view3d) {
@@ -149,11 +151,23 @@ let saved2D: { scale: number; origin: { x: number; y: number } } | null = null;
 
 // Show/hide the 3D placement ghosts as tools change in 3D: furniture ghosts on
 // the floor; a door/window ghost snaps onto the wall the cursor hovers.
+/** Why the furniture under the 3D cursor would not sit well (B22); empty when it would. */
+let ghostWarn = '';
 function updatePlacementPreview() {
   const t = mode === '2d' ? '' : editor.toolName;
   const it = t === 'furniture' ? FURNITURE_BY_ID[editor.currentFurniture] : null;
   view3d?.setPlacementPreview(it ? { id: it.id, w: it.w, h: it.h } : null);
-  if (t === 'door' || t === 'window') {
+  ghostWarn = '';
+  view3d?.setGhostWarn(false);
+  if (it) {
+    // B22: the ghost turns red where the piece would overlap another or sit outside every room.
+    if (view3d) view3d.onHover = (floor) => {
+      const issues = floor ? editor.furnitureIssuesAt(floor.x, floor.y) : [];
+      view3d?.setGhostWarn(issues.length > 0);
+      const next = issues.join('；');
+      if (next !== ghostWarn) { ghostWarn = next; sync3dHint(); }
+    };
+  } else if (t === 'door' || t === 'window') {
     const kind = t, width = kind === 'door' ? 90 : 120;
     if (view3d) view3d.onHover = (floor, sceneHit) => {
       const pt = sceneHit ?? floor;
@@ -357,10 +371,11 @@ function sync3dHint() {
   const tool = editor.toolName;
   const text = view3d?.walk.active
     ? t('行走：點畫面用滑鼠轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或兩次 Esc 離開')
+    : tool === 'furniture' && ghostWarn ? `⚠ ${ghostWarn}`
     : tool === 'furniture' || tool === 'electrical'
-      ? t('點地板放下去 · Q／E 轉 90° · Esc 放下手上的東西')
+      ? t('點地板放下去 · 按住 Shift 連續放 · Q／E 轉 90° · Esc 放下手上的東西')
       : tool === 'door' || tool === 'window'
-        ? t('點牆放上門窗 · Esc 放下手上的東西')
+        ? t('點牆放上門窗 · 按住 Shift 連續放 · Esc 放下手上的東西')
         : '';
   hint3d.textContent = text;
   hint3d.classList.toggle('hidden', !text);
