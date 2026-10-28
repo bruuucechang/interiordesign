@@ -29,8 +29,15 @@ export interface LabelBox {
   priority: number;
 }
 
+/**
+ * Half a pixel of slack. A room's lines are placed in world units and come back
+ * to the screen as 17.999999999999943 px apart, not 18 — without it a strict
+ * comparison calls them overlapping and a room loses its 缺 or area line at
+ * about four zoom levels in ten (B24 review).
+ */
+const EPS = 0.5;
 const overlaps = (a: LabelBox, b: LabelBox) =>
-  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  a.x < b.x + b.w - EPS && b.x < a.x + a.w - EPS && a.y < b.y + b.h - EPS && b.y < a.y + a.h - EPS;
 
 /**
  * Indices of the labels to draw: greedily, best priority first, each kept only

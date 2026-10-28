@@ -197,7 +197,7 @@ export function plotFloorCanvas(project: Project, floorId: string, sheet: SheetC
   vp.origin = { x: extent.x + extent.w / 2 - visW / 2, y: extent.y + extent.h / 2 - visH / 2 };
 
   new Renderer(canvas, vp, doc).render({
-    background: '#ffffff', grid: false, selection: false, roomUse: false, mono: true, skipKinds: ['image', 'area'],
+    background: '#ffffff', grid: false, selection: false, roomUse: false, declutter: false, mono: true, skipKinds: ['image', 'area'],
   });
   return canvas;
 }

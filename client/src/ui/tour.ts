@@ -348,13 +348,14 @@ export function maybeNudgeTour(doc: { objects: unknown[] }, whenDone?: () => voi
 }
 
 /**
- * The plan has something in it now, so this is not a first run any more (B24):
- * the note, if it is up, goes away and counts as answered.
+ * The empty plan has something in it now, so this is not a first run any more
+ * (B24): the note goes away if it is up, and counts as answered either way —
+ * drawing before the note's two seconds were up answers it too.
  */
 export function retireTourNudge() {
-  const box = document.querySelector('.tour-nudge');
-  if (!box) return;
-  markSeen(); box.remove();
+  if (tourSeen()) return;
+  markSeen();
+  document.querySelector('.tour-nudge')?.remove();
 }
 
 /** Taking the tour from the 說明 menu answers the note too. */

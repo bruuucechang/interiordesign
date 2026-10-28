@@ -26,6 +26,7 @@ export interface RenderOpts {
   heat?: (ctx: CanvasRenderingContext2D) => void;   // lighting overlay in world space, over floors, under everything built
   marker?: (ctx: CanvasRenderingContext2D) => void; // walk mode's "you are here", world space, over everything built
   roomUse?: boolean;     // name default rooms by their furniture and say what they lack (default true; exports pass false, B23)
+  declutter?: boolean;   // drop labels that would overlap better ones (default true; exports pass false — paper cannot zoom in, B24)
 }
 
 const INK = '#000000';
@@ -201,10 +202,11 @@ export class Renderer {
     // two are drawn in different passes. Collected in the same order they draw.
     this.setScreen();
     this.labels = [];
-    this.selectedSet = new Set(this.doc.selectedIds);
+    // An export is the same with or without a selection, so it promotes nothing.
+    this.selectedSet = new Set(opts.selection === false ? [] : this.doc.selectedIds);
     pass(o => o.kind === 'room' || o.kind === 'area', o => this.labelObject(o, true));
     pass(o => o.kind !== 'room' && o.kind !== 'area', o => this.labelObject(o, false));
-    const kept = layoutLabels(this.labels, { w: vp.width, h: vp.height });
+    const kept = opts.declutter === false ? new Set(this.labels.keys()) : layoutLabels(this.labels, { w: vp.width, h: vp.height });
     const drawLabels = (under: boolean) => this.labels.forEach((l, i) => { if (l.under === under && kept.has(i)) l.draw(); });
     drawLabels(true);
     this.setWorld();

@@ -36,6 +36,24 @@ test('boxes that only touch are not overlapping (a room\'s stacked lines)', () =
   assert.deepEqual(kept([box(0, 0, P.wall), box(60, 0, P.wall)]), [0, 1]);
 });
 
+test('touching holds in every direction, whichever box has the better priority', () => {
+  // The better label below or to the right of the worse one — catches a `<=` on either side.
+  assert.deepEqual(kept([box(0, 18, P.roomName), box(0, 0, P.wall)]), [0, 1]);
+  assert.deepEqual(kept([box(60, 0, P.roomName), box(0, 0, P.wall)]), [0, 1]);
+});
+
+test('a room\'s lines that come back from world units a hair under 18 px apart are both kept', () => {
+  // c.y ± 18/scale through toScreen gives 17.999999999999943, not 18 (B24 review).
+  assert.deepEqual(kept([box(0, 0, P.roomName), box(0, 17.999999999999943, P.missing), box(0, 35.99999999999989, P.area)]), [0, 1, 2]);
+  // Exactly half a pixel is the edge of the slack: still kept, from either side.
+  for (const [better, worse] of [[box(0, 17.5, P.roomName), box(0, 0, P.wall)], [box(0, 0, P.roomName), box(0, 17.5, P.wall)],
+    [box(59.5, 0, P.roomName), box(0, 0, P.wall)], [box(0, 0, P.roomName), box(59.5, 0, P.wall)]]) {
+    assert.deepEqual(kept([better, worse]), [0, 1], JSON.stringify([better, worse]));
+  }
+  // A real overlap of a pixel still counts.
+  assert.deepEqual(kept([box(0, 0, P.roomName), box(0, 17, P.missing)]), [0]);
+});
+
 test('ties keep input order, so the same plan always shows the same labels', () => {
   assert.deepEqual(kept([box(0, 0, P.wall), box(10, 0, P.wall)]), [0]);
   assert.deepEqual(kept([box(10, 0, P.wall), box(0, 0, P.wall)]), [0]);

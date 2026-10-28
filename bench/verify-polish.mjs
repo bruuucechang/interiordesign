@@ -266,7 +266,9 @@ const overlapping = (bs) => {
   const out = [];
   for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
     const a = bs[i], b = bs[j];
-    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) out.push(`${a.s}×${b.s}`);
+    // 半像素容差同 labelLayout：同一間房的兩行換回螢幕是 17.99999 px，貼著不算疊
+    const e = 0.5;
+    if (a.x < b.x + b.w - e && b.x < a.x + a.w - e && a.y < b.y + b.h - e && b.y < a.y + a.h - e) out.push(`${a.s}×${b.s}`);
   }
   return out;
 };
@@ -282,6 +284,11 @@ console.log('\nB24 空白方案的開場卡');
   ok(c && Math.abs(c.dx) < 2 && Math.abs(c.dy) < 2 && c.text.includes('從這裡開始'), `空白方案：平面圖正中間有「從這裡開始」（偏 ${c ? `${c.dx.toFixed(1)},${c.dy.toFixed(1)}` : '沒有卡'}）`);
   ok(c && c.text.includes('畫牆') && c.text.includes('匯入平面圖照片'), '卡上兩顆鈕：畫牆、匯入平面圖照片');
   await page.screenshot({ path: `${OUT}polish-start-card.png` });
+  await page.setViewportSize({ width: 1280, height: 900 }); await page.waitForTimeout(300);
+  c = await cardBox();
+  ok(c && Math.abs(c.dx) < 2 && Math.abs(c.dy) < 2, '1280 寬：卡照樣在平面圖正中間');
+  await page.screenshot({ path: `${OUT}polish-start-card-1280.png` });
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.waitForTimeout(300);
   // 「匯入平面圖照片」打開的是底圖的檔案選擇器
   const chooser = page.waitForEvent('filechooser', { timeout: 3000 }).catch(() => null);
   await page.click('#startCard [data-start="photo"]');
@@ -325,6 +332,21 @@ console.log('\nB24 導覽提示在有東西之後收起');
   ok(await page.evaluate(() => localStorage.getItem('interior_tour_seen') === '1'), '而且記成看過');
   await ctx.close();
 }
+{
+  // 提示還沒出來（兩秒內）就畫了東西：也算答過，之後不出現
+  const ctx = await br.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  await page.route('**/api/**', (r) => (r.request().method() === 'GET' ? r.continue() : r.abort()));
+  page.on('pageerror', e => errs.push(String(e)));
+  await page.addInitScript(() => { localStorage.setItem('interior_lang', 'zh-Hant'); localStorage.setItem('interior_view_mode', '2d');
+    localStorage.setItem('interior_owner', 'own_orsxp52fbvey'); });
+  await page.goto(`${BASE}/?perf=1`, { timeout: 400000 });
+  await page.waitForFunction(() => !!window.__app, null, { timeout: 60000 });
+  await addRoom(page);
+  await page.waitForTimeout(2500);
+  ok(!(await page.$('.tour-nudge')) && await page.evaluate(() => localStorage.getItem('interior_tour_seen') === '1'), '提示出來前就畫了東西：記成看過、提示不出現');
+  await ctx.close();
+}
 
 console.log('\nB24 第一間房圍出來時鏡頭拉近一次');
 {
@@ -360,6 +382,19 @@ console.log('\nB24 第一間房圍出來時鏡頭拉近一次');
   await ctx.close();
 }
 {
+  // 一次進來整間房子（DXF 匯入、貼上）：不是「畫完牆圍出第一間」，鏡頭不動
+  const { ctx, page } = await open(`${BASE}/?perf=1`, { mode: '2d' });
+  await page.evaluate(() => { const v = window.__app.editor.vp; v.scale = 0.15; window.__app.editor.render(); });
+  await page.evaluate(() => { const d = window.__app.doc; d.commit();
+    const W = (id, a, b) => d.add({ id, kind: 'wall', layer: 'walls', a, b, thickness: 12, height: 280 });
+    W('w1', { x: 0, y: 0 }, { x: 900, y: 0 }); W('w2', { x: 900, y: 0 }, { x: 900, y: 300 });
+    W('w3', { x: 900, y: 300 }, { x: 0, y: 300 }); W('w4', { x: 0, y: 300 }, { x: 0, y: 0 }); W('w5', { x: 400, y: 0 }, { x: 400, y: 300 });
+    d.add({ id: 'r1', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 400, h: 300, name: '房間', auto: true }); });
+  await page.waitForTimeout(700);
+  ok(await page.evaluate(() => window.__app.editor.vp.scale) === 0.15, '整批進來的牆圍出好幾間：第一間偵測到時鏡頭不動');
+  await ctx.close();
+}
+{
   // 打開一份本來就有房間的方案：不動鏡頭
   const { ctx, page } = await open(`${BASE}/?perf=1&plan=plan1151022`, { plan: true, mode: '2d' });
   const v0 = await page.evaluate(() => window.__app.editor.vp.scale);
@@ -377,6 +412,19 @@ console.log('\nB24 第一間房圍出來時鏡頭拉近一次');
   await page.evaluate(() => { const v = window.__app.editor.vp; v.zoomAt({ x: v.width / 2, y: v.height / 2 }, 2.5); window.__app.editor.renderNow(); });
   bs = await labelBoxes(page); bad = overlapping(bs);
   ok(!bad.length, `A1 放大 2.5 倍：${bs.length} 個標籤，疊到的 ${bad.length} 對`);
+  // 施工圖 PDF 不避讓：紙本不能放大，每道牆的長度都要在（審查第 2 條）
+  const plot = await page.evaluate(async () => {
+    const plot = await import('/src/core/plot.ts'), g = await import('/src/core/geometry.ts');
+    const P = CanvasRenderingContext2D.prototype, orig = P.fillText, seen = [];
+    const project = window.__app.doc.serialize(), extent = plot.projectExtent(project), sheet = plot.chooseSheet(extent.w, extent.h);
+    P.fillText = function (...a) { seen.push(String(a[0])); return orig.apply(this, a); };
+    try { plot.plotFloorCanvas(project, project.activeFloorId, sheet, extent); } finally { P.fillText = orig; }
+    const objs = project.floors.find(f => f.id === project.activeFloorId).objects;
+    const pool = [...seen], missing = [];
+    for (const w of objs.filter(o => o.kind === 'wall')) { const s = g.fmtLen(g.dist(w.a, w.b)); const i = pool.indexOf(s); if (i < 0) missing.push(s); else pool.splice(i, 1); }
+    return missing;
+  });
+  ok(!plot.length, `A1 施工圖：每道牆的長度都畫出來${plot.length ? '（少了 ' + plot.join(', ') + '）' : ''}`);
   ok(await page.evaluate(() => window.__app.doc.objects.length) === 180, 'A1 還是 180 件（只讀）');
   await ctx.close();
   void n0;
@@ -397,6 +445,16 @@ console.log('\nB24 小房間的標籤不疊在一起');
   const lo = await at(0.6);
   ok(!overlapping(lo).length && lo.some(b => b.s === '臥室'), `1.5×1.5 m 放床與床頭櫃，縮小時：${lo.map(b => b.s).join(' / ')}，沒有疊到的`);
   await page.screenshot({ path: `${OUT}polish-small-room.png` });
+  // 每個縮放都要有房名、缺、面積三行（審查：浮點把 18 px 算成 17.99999 時會掉一行）
+  await page.evaluate(() => window.__app.doc.update('r1', { w: 400, h: 300 }));
+  const dropped = [];
+  for (let k = 0; k < 40; k++) {
+    const s = 0.3 + k * 0.04;
+    const t = (await at(s)).map(b => b.s);
+    if (!(t.includes('臥室') && t.some(x => x.startsWith('缺：')) && t.some(x => x.endsWith('m²')))) dropped.push(s.toFixed(2));
+  }
+  ok(!dropped.length, `房間 4×3 m、縮放 0.30～1.86 掃 40 個：房名／缺／面積三行都在${dropped.length ? '（掉行：' + dropped.join(', ') + '）' : ''}`);
+  await page.evaluate(() => window.__app.doc.update('r1', { w: 150, h: 150 }));
   const hi = await at(4);
   ok(!overlapping(hi).length && hi.length > lo.length, `放大到 4 倍：標籤變多（${lo.length} → ${hi.length}）、仍不疊`);
   // 選取中的優先：選了牆，它的長度蓋過房名
