@@ -288,8 +288,12 @@ const FACES: Record<'front' | 'back' | 'left' | 'right', { label: string; dir: (
   left: { label: '左側', dir: b => ({ x: -axesOf(b).right.x, y: -axesOf(b).right.y }), half: b => b.w / 2 },
 };
 
-/** Dining chairs (`chair`, `chair_lx`, `sh_oak_chair`…), not armchairs or accent chairs — those are furniture you walk round. */
-const DINING_CHAIR = /^(?!.*arm)(?!accent_)(.*_)?chair(_|$)/;
+/**
+ * The catalogue's 餐廳 chairs, listed, not guessed from the id: 鄉村單椅 and 造型旋轉椅 are
+ * `chair_…` too and are living-room pieces you walk round. test/health.test.ts checks this
+ * list against the catalogue, so a new dining chair cannot be missed silently.
+ */
+export const DINING_CHAIR = /^(chair|chair_painted|chair_plastic|chair_q[1-4]|chair_wood_q|chair_lx|sh_oak_chair|sh_osaka_chair)$/;
 
 /** `item` id → what it needs. Prefixes, so `bed_double` and `bed_single` share one entry. */
 export function needsFor(item: string): ClearanceNeed | null {

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkPlan, visible, needsFor } from '../src/core/health';
+import { checkPlan, visible, needsFor, DINING_CHAIR } from '../src/core/health';
+import { FURNITURE } from '../src/data/furniture';
 import { CLEARANCE } from '../src/model/locale-defaults';
 import { Obj } from '../src/model/schema';
 
@@ -140,10 +141,16 @@ test('餐桌自己的椅子不算擋住入座（B31）；換成櫃子照樣抓',
   assert.equal(f.length, 1, JSON.stringify(f.map(x => x.detail)));
   assert.match(f[0].title, /餐桌/);
   // 扶手椅、單椅不是拉開就坐的餐椅：擋著照樣抓。
-  for (const arm of ['armchair', 'sh_armchair', 'accent_chair']) {
+  for (const arm of ['armchair', 'sh_armchair', 'accent_chair', 'chair_country', 'chair_swivel']) {
     const a = [furn('an', arm, 210, 100, 180, 55), furn('as', arm, 210, 245, 180, 55)];
     assert.equal(checkPlan([...BOX, table, ...a]).filter(x => x.rule === 'clearance-any').length, 1, arm);
   }
+});
+
+test('「不算擋住餐桌」的椅子剛好是目錄裡分類為餐廳的椅子', () => {
+  const dining = FURNITURE.filter(f => /chair/.test(f.id) && f.cat === '餐廳').map(f => f.id).sort();
+  const listed = FURNITURE.filter(f => DINING_CHAIR.test(f.id)).map(f => f.id).sort();
+  assert.deepEqual(listed, dining);
 });
 
 test('馬桶兩側是「每一側都要」，不是「至少一側」', () => {
