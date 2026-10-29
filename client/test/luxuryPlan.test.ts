@@ -42,6 +42,11 @@ test('另存成豪宅版的 id 與名字，A1 本身一個字都不變', () => {
   assert.notEqual(LUXURY_ID, SOURCE_ID);
 });
 
+test('不是單層的方案直接拒絕（燈與傢俱是照 A1 一樓擺的）', () => {
+  const two = src(); two.floors.push({ ...structuredClone(two.floors[0]), id: 'f2' });
+  assert.throws(() => makeLuxury(two), /單層/);
+});
+
 test('舊的嵌燈與 T5 全拿掉，其他水電（插座）留著；新燈都是目錄裡的線燈或崁燈', () => {
   const lx = makeLuxury(src());
   const e = objs(lx).filter(o => o.kind === 'electrical');

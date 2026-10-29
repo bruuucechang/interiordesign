@@ -528,8 +528,12 @@ if (ONLY('b31')) {
   // 3D：每件傢俱、每盞燈都建得出來
   const { ctx: c3, page: p3 } = await open(LX, { plan: true, mode: '3d' });
   await p3.waitForTimeout(6000);
-  const g = await p3.evaluate(() => ({ furn: window.__app.view3d.furnGroup.children.length, lights: window.__app.view3d.lightGroup.children.length }));
-  ok(g.furn >= 39 && g.lights >= sum.lights, `3D：傢俱 ${g.furn} 個物件（≥39）、燈具 ${g.lights}（≥${sum.lights}）`);
+  const g = await p3.evaluate(async () => {
+    const { lightParts } = await import('/src/core/lights3d.ts'), { DEFAULTS } = await import('/src/model/locale-defaults.ts');
+    const want = window.__app.doc.objects.filter(o => o.kind === 'electrical').reduce((a, o) => a + lightParts(o, DEFAULTS.wallHeight).length, 0);
+    return { furn: window.__app.view3d.furnGroup.children.length, lights: window.__app.view3d.lightGroup.children.length, want };
+  });
+  ok(g.furn === 39 && g.lights === g.want, `3D：傢俱 ${g.furn} 個物件（要 39）、燈具零件 ${g.lights}（要 ${g.want}）`);
   await c3.close();
 
   // 對照截圖：A1 vs 豪宅版 × 1440／1280 × 2D 全圖、3D 俯瞰、行走進客廳與老媽房間（主臥）、夜晚

@@ -145,6 +145,8 @@ const isOldLight = (o: Obj) => o.kind === 'electrical' && (o.item === 'downlight
 
 /** A1 → A1 豪宅版。輸入不會被改到。 */
 export function makeLuxury(src: Project): Project {
+  // 燈與補的傢俱是照 A1 一樓的座標擺的，套到別層會疊一份同 id 的東西。
+  if (src.floors.length !== 1) throw new Error(`makeLuxury 只認單層的 A1（這份有 ${src.floors.length} 層）`);
   const p: Project = structuredClone(src);
   p.id = LUXURY_ID;
   p.name = LUXURY_NAME;

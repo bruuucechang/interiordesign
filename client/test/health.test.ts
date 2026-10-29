@@ -139,6 +139,11 @@ test('餐桌自己的椅子不算擋住入座（B31）；換成櫃子照樣抓',
   const f = checkPlan([...BOX, table, ...cabinets]).filter(x => x.rule === 'clearance-any');
   assert.equal(f.length, 1, JSON.stringify(f.map(x => x.detail)));
   assert.match(f[0].title, /餐桌/);
+  // 扶手椅、單椅不是拉開就坐的餐椅：擋著照樣抓。
+  for (const arm of ['armchair', 'sh_armchair', 'accent_chair']) {
+    const a = [furn('an', arm, 210, 100, 180, 55), furn('as', arm, 210, 245, 180, 55)];
+    assert.equal(checkPlan([...BOX, table, ...a]).filter(x => x.rule === 'clearance-any').length, 1, arm);
+  }
 });
 
 test('馬桶兩側是「每一側都要」，不是「至少一側」', () => {

@@ -288,6 +288,9 @@ const FACES: Record<'front' | 'back' | 'left' | 'right', { label: string; dir: (
   left: { label: '左側', dir: b => ({ x: -axesOf(b).right.x, y: -axesOf(b).right.y }), half: b => b.w / 2 },
 };
 
+/** Dining chairs (`chair`, `chair_lx`, `sh_oak_chair`…), not armchairs or accent chairs — those are furniture you walk round. */
+const DINING_CHAIR = /^(?!.*arm)(?!accent_)(.*_)?chair(_|$)/;
+
 /** `item` id → what it needs. Prefixes, so `bed_double` and `bed_single` share one entry. */
 export function needsFor(item: string): ClearanceNeed | null {
   const c = CLEARANCE;
@@ -297,7 +300,7 @@ export function needsFor(item: string): ClearanceNeed | null {
     why: `床邊到牆、櫃或門面約需 ${c.bedSide}cm，方便下床、鋪床與打掃；至少留一側。`,
   };
   if (/^(dining|roundtable|table_wood|table_round|table_painted)/.test(item)) return {
-    anyOf: ['front', 'back'], need: c.diningPullOut, movable: /chair/,
+    anyOf: ['front', 'back'], need: c.diningPullOut, movable: DINING_CHAIR,
     title: '餐桌兩側都無法入座',
     why: `拉開餐椅入座約需 ${c.diningPullOut}cm；至少讓一側長邊留得出來。`,
   };
