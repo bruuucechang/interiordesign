@@ -1,6 +1,7 @@
 import { Obj, Vec } from '../model/schema';
 import { Doc } from '../model/doc';
 import { T5_SIZES, T5_DEFAULT_SIZE } from '../model/catalogue';
+import { isShown } from './viewFilter';
 import { dist, distToSegment, distToQuad, wallControl, pointInRect, pointInPolygon, rotate } from './geometry';
 
 export interface Bounds { x: number; y: number; w: number; h: number; }
@@ -65,7 +66,7 @@ export function hitTest(doc: Doc, p: Vec, tol: number): Obj | undefined {
   const objs = doc.objects;
   for (let i = objs.length - 1; i >= 0; i--) {
     const o = objs[i];
-    if (!doc.isLayerVisible(o.layer) || doc.isLayerLocked(o.layer)) continue;
+    if (!doc.isLayerVisible(o.layer) || doc.isLayerLocked(o.layer) || !isShown(o)) continue;
     if (hitObject(o, p, tol)) return o;
   }
   return undefined;

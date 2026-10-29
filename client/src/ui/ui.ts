@@ -24,6 +24,7 @@ import { setConflictHandler, setNotYoursHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
 import { wireStartCard } from './start-card';
 import { refreshProps } from './properties';
+import { ViewGroup, VIEW_GROUPS, isGroupShown, isShown, setGroupShown, onViewFilterChange, viewGroup } from '../core/viewFilter';
 import { dwgNotSupportedModal, dxfImportModal, plotModal, openModal } from './modals';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -569,6 +570,33 @@ function wireMenus() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && current) { close(); e.stopPropagation(); } }, true);
 }
 
+// 頂列「顯示」(B28): the ticks follow the stored setting; unticking drops what
+// it hides from the selection, so nothing invisible is left to drag or delete.
+// The redraw (2D and 3D) is main.ts's, on the same change.
+function wireShowMenu(doc: Doc) {
+  const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('#showMenu input[data-show]'));
+  const sync = () => {
+    for (const b of boxes) b.checked = isGroupShown(b.dataset.show as ViewGroup);
+    $('#showMenu > .menu-btn').classList.toggle('filtered', boxes.some(b => !b.checked));
+  };
+  for (const b of boxes) b.onchange = () => setGroupShown(b.dataset.show as ViewGroup, b.checked);
+  doc.selectable = isShown;
+  // Placing, pasting or duplicating something that is hidden would add it unseen
+  // (and selected); its group comes back on instead, and says so.
+  doc.onAdd = (o) => {
+    const g = viewGroup(o);
+    if (!g || isGroupShown(g)) return;
+    setGroupShown(g, true);
+    flash(`${t('已重新顯示')}${t(VIEW_GROUPS.find(x => x.id === g)!.name)}`);
+  };
+  onViewFilterChange(() => {
+    sync();
+    const sel = doc.selectedObjects;
+    if (sel.some(o => !isShown(o))) doc.selectMany(sel.filter(isShown).map(o => o.id));
+  });
+  sync();
+}
+
 // ---- the properties drawer ----
 //
 // Out only while there is something in it: a selection, the layers list (檢視 →
@@ -623,6 +651,7 @@ function wireTopbar(editor: Editor, doc: Doc) {
     (btn as HTMLElement).onclick = () => handle((btn as HTMLElement).dataset.act!, editor, doc);
   });
   wireMenus();
+  wireShowMenu(doc);
   wireDrawer(editor, doc);
   wireHelp();
   wireHealth(editor, doc);
@@ -717,7 +746,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       // setTimeout, not requestAnimationFrame: rAF is suspended while the tab is
       // in the background, which would hang the export instead of delaying it.
       await new Promise(r => setTimeout(r, 32));
-      try { flash(editor.hooks.exportPano?.(name()) ?? ''); }
+      try { flash(await editor.hooks.exportPano?.(name()) ?? ''); }
       catch (e) { console.error(e); flash(t('匯出全景失敗')); }
       break;
     case 'export-glb':

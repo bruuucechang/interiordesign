@@ -65,6 +65,21 @@
               <button data-act="fullscreen"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg><span data-i18n="全螢幕">全螢幕</span></button>
             </div>
           </div>
+          <!-- B28: what to see right now. A filter for whoever is looking, kept in
+               this browser — not the plan's 圖層, not undoable, not in any export. -->
+          <div class="menu" id="showMenu">
+            <button class="menu-btn" aria-haspopup="true" aria-expanded="false" title="顯示 — 勾掉的東西 2D、3D 都不畫也點不到，照度照算；只存在這個瀏覽器，不改方案、不影響匯出" data-i18n-title="顯示 — 勾掉的東西 2D、3D 都不畫也點不到，照度照算；只存在這個瀏覽器，不改方案、不影響匯出">
+              <span class="lbl" data-i18n="顯示">顯示</span>
+              <svg class="icon caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="menu-pop" hidden>
+              <label class="menu-check"><input type="checkbox" data-show="lights" checked /><span data-i18n="燈具">燈具</span></label>
+              <label class="menu-check"><input type="checkbox" data-show="outlets" checked /><span data-i18n="插座開關">插座開關</span></label>
+              <label class="menu-check"><input type="checkbox" data-show="furniture" checked /><span data-i18n="家具">家具</span></label>
+              <label class="menu-check"><input type="checkbox" data-show="notes" checked /><span data-i18n="尺寸與標註">尺寸與標註</span></label>
+              <div class="menu-note" data-i18n="全部勾掉＝只看牆、門窗與房間">全部勾掉＝只看牆、門窗與房間</div>
+            </div>
+          </div>
           <div class="menu" id="settingsMenu">
             <button class="menu-btn" aria-haspopup="true" aria-expanded="false">
               <span class="lbl" data-i18n="設定">設定</span>

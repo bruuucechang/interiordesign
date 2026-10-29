@@ -449,6 +449,8 @@ header button:disabled { opacity: 0.4; cursor: default; }
 .menu-pop .icon { opacity: .75; }
 .menu-pop kbd { font: 11px ui-monospace, monospace; color: var(--muted); }
 .menu-check input { margin: 0; accent-color: var(--accent); }
+.menu-note { margin-top: var(--sp-1); border-top: 1px solid var(--line); padding: var(--sp-2) var(--sp-3) 2px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.menu-btn.filtered .lbl { color: var(--accent); }   /* 顯示 has something unticked */
 .menu-group { padding: var(--sp-2) var(--sp-3) 2px; font-size: 11px; color: var(--muted); }
 .menu-group:not(:first-child) { margin-top: var(--sp-1); border-top: 1px solid var(--line); padding-top: var(--sp-2); }
 .menu-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);

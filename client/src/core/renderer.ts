@@ -24,6 +24,8 @@ export interface RenderOpts {
   selection?: boolean;   // draw selection handles (default true)
   mono?: boolean;        // monochrome plot theme (see monoContext)
   skipKinds?: ObjKind[]; // object kinds to leave out entirely (e.g. the underlay image when plotting)
+  show?: (o: Obj) => boolean;   // the screen's 顯示 filter (core/viewFilter.ts); exports leave it out and draw everything
+  lengths?: boolean;             // wall lengths and beam clearances (default true); 顯示 → 尺寸與標註 turns them off on screen
   heat?: (ctx: CanvasRenderingContext2D) => void;   // lighting overlay in world space, over floors, under everything built
   marker?: (ctx: CanvasRenderingContext2D) => void; // walk mode's "you are here", world space, over everything built
   roomUse?: boolean;     // name default rooms by their furniture and say what they lack (default true; exports pass false, B23)
@@ -174,7 +176,8 @@ export class Renderer {
   private renderInto(opts: RenderOpts) {
     const { ctx, vp } = this;
     const skip = opts.skipKinds?.length ? new Set<ObjKind>(opts.skipKinds) : null;
-    const visible = (o: Obj) => !skip || !skip.has(o.kind);
+    const show = opts.show;
+    const visible = (o: Obj) => (!skip || !skip.has(o.kind)) && (!show || show(o));
 
     // The background is paper, not ink, so it bypasses the mono remap.
     const bg = this.canvas.getContext('2d')!;
@@ -222,6 +225,7 @@ export class Renderer {
     // An export is the same with or without a selection, so it promotes nothing.
     this.selectedSet = new Set(opts.selection === false ? [] : this.doc.selectedIds);
     this.declutter = opts.declutter !== false;
+    this.lengths = opts.lengths !== false;
     pass(o => o.kind === 'room' || o.kind === 'area', o => this.labelObject(o, true));
     pass(o => o.kind !== 'room' && o.kind !== 'area', o => this.labelObject(o, false));
     const kept = !this.declutter ? new Set(this.labels.keys()) : layoutLabels(this.labels, { w: vp.width, h: vp.height });
@@ -235,7 +239,7 @@ export class Renderer {
     // labels + selection + previews in screen space
     this.setScreen();
     drawLabels(false);
-    if (opts.selection !== false) { const sel = this.doc.selectedObjects; for (const s of sel) this.drawSelection(s, sel.length === 1); }
+    if (opts.selection !== false) { const sel = this.doc.selectedObjects.filter(visible); for (const s of sel) this.drawSelection(s, sel.length === 1); }
     if (opts.screen) { ctx.save(); opts.screen(ctx); ctx.restore(); }
   }
 
@@ -563,18 +567,21 @@ export class Renderer {
   private labelOwner = '';
   private labelUnder = false;
   private declutter = true;
+  private lengths = true;
 
   private labelObject(o: Obj, under: boolean) {
     this.labelOwner = o.id; this.labelUnder = under;
     const P = LABEL_PRIORITY;
     switch (o.kind) {
       case 'wall': {
+        if (!this.lengths) break;
         const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
         const px = dist(o.a, o.b) * this.vp.scale;
         this.text(mid, fmtLen(dist(o.a, o.b)), '#c9cfdb', 12, P.wall, b => fitsAlong(b.w, px));
         break;
       }
       case 'beam': {
+        if (!this.lengths) break;
         const mid = { x: (o.a.x + o.b.x) / 2, y: (o.a.y + o.b.y) / 2 };
         const px = dist(o.a, o.b) * this.vp.scale;
         this.text(mid, `↥${fmtLen(o.elevation)}`, '#c9a8ea', 12, P.wall, b => fitsAlong(b.w, px));   // underside clearance off the floor
