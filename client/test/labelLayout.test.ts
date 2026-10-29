@@ -75,3 +75,33 @@ test('labels entirely off screen take no room from visible ones', () => {
   // An off-screen higher label sitting on a visible one must not knock it out.
   assert.deepEqual(kept([box(-70, 0, P.roomName), box(-30, 0, P.wall)], { w: 800, h: 600 }), [1]);
 });
+
+import { fitsInside, fitsAlong, turnedExtent } from '../src/core/labelLayout';
+
+test('a name is drawn only when it fits inside its piece on screen (B26)', () => {
+  // A 45 cm nightstand at the A1 full view (0.5 px/cm) is 22 px: 「床頭櫃」 (≈ 45 px box) does not fit.
+  assert.equal(fitsInside({ w: 45, h: 18 }, { w: 22.5, h: 21 }), false);
+  // A 180 cm wardrobe at the same zoom: 90 × 30 px, fits.
+  assert.equal(fitsInside({ w: 45, h: 18 }, { w: 90, h: 30 }), true);
+  // Height counts too: a long low shelf.
+  assert.equal(fitsInside({ w: 45, h: 18 }, { w: 200, h: 19 }), false);
+  // The padding is the edge: exactly label + 2 fits, one under does not.
+  assert.equal(fitsInside({ w: 45, h: 18 }, { w: 47, h: 20 }), true);
+  assert.equal(fitsInside({ w: 45, h: 18 }, { w: 46.9, h: 20 }), false);
+});
+
+test('a wall carries its length only when it is longer than the label on screen', () => {
+  assert.equal(fitsAlong(50, 32), false);   // 65 cm at 0.5 px/cm
+  assert.equal(fitsAlong(50, 81), true);    // 65 cm zoomed to 1.25
+  assert.equal(fitsAlong(50, 62), true);    // exactly label + margin
+  assert.equal(fitsAlong(50, 61.9), false);
+});
+
+test('a turned piece is measured along the screen axes', () => {
+  const e = turnedExtent(200, 60, 90);
+  assert.ok(Math.abs(e.w - 60) < 1e-9 && Math.abs(e.h - 200) < 1e-9);
+  const f = turnedExtent(200, 60, 0);
+  assert.ok(Math.abs(f.w - 200) < 1e-9 && Math.abs(f.h - 60) < 1e-9);
+  const g = turnedExtent(100, 100, 45);
+  assert.ok(Math.abs(g.w - 141.42) < 0.01);
+});

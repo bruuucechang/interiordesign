@@ -110,6 +110,72 @@ console.log('\nB25 家具目錄的燈具照舊是黃的');
   await ctx.close();
 }
 
+// ---------------------------------------------------------------- B26
+console.log('\nB26 家具名與牆長放得下才畫');
+{
+  const { ctx, page } = await open(A1, { plan: true });
+  const texts = () => page.evaluate(() => {
+    const P = CanvasRenderingContext2D.prototype, orig = P.fillText, seen = [];
+    P.fillText = function (s, ...r) { seen.push(String(s)); return orig.call(this, s, ...r); };
+    try { window.__app.editor.renderNow(); } finally { P.fillText = orig; }
+    return seen;
+  });
+  const names = await page.evaluate(() => { const F = new Set(); for (const o of window.__app.doc.objects) if (o.kind === 'furniture') F.add(o.label || o.item); return [...F]; });
+  const furnNames = await page.evaluate(async () => {
+    const { FURNITURE_BY_ID } = await import('/src/data/furniture.ts');
+    return window.__app.doc.objects.filter(o => o.kind === 'furniture').map(o => o.label || FURNITURE_BY_ID[o.item]?.name || '');
+  });
+  void names;
+  const countFurn = (t) => { const pool = [...t]; let n = 0; for (const f of furnNames) { const i = pool.indexOf(f); if (i >= 0) { n++; pool.splice(i, 1); } } return n; };
+  await page.evaluate(() => document.getElementById('zoomFit')?.click());
+  await page.waitForTimeout(500);
+  let t = await texts();
+  const farShort = t.filter(s => /^\d+ cm$/.test(s));
+  ok(!t.includes('65 cm'), `A1 全圖：65 cm 那種短牆不標（畫了的公分數：${farShort.join(', ') || '沒有'}）`);
+  ok(t.includes('5.06 m') && t.includes('7.03 m'), 'A1 全圖：長牆照樣標（5.06 m、7.03 m）');
+  await page.screenshot({ path: `${OUT}declutter-a1-labels.png` });
+  // 以位置判斷：畫面內每件家具，中心有沒有它的名字（同名的兩件分得開）
+  const labelled = () => page.evaluate(async () => {
+    const { FURNITURE_BY_ID } = await import('/src/data/furniture.ts');
+    const P = CanvasRenderingContext2D.prototype, orig = P.fillText, seen = [];
+    P.fillText = function (s, x, y, ...r) { seen.push([String(s), x, y]); return orig.call(this, s, x, y, ...r); };
+    try { window.__app.editor.renderNow(); } finally { P.fillText = orig; }
+    const v = window.__app.editor.vp, out = {};
+    for (const o of window.__app.doc.objects) {
+      if (o.kind !== 'furniture') continue;
+      const c = v.toScreen({ x: o.x + o.w / 2, y: o.y + o.h / 2 });
+      if (c.x < 0 || c.y < 0 || c.x > v.width || c.y > v.height) continue;
+      const name = o.label || FURNITURE_BY_ID[o.item]?.name;
+      out[o.id] = seen.some(([s, x, y]) => s === name && Math.abs(x - c.x) < 1 && Math.abs(y - c.y) < 1);
+    }
+    return out;
+  });
+  const far = await labelled();
+  const hidden = Object.keys(far).filter(id => !far[id]);
+  ok(hidden.length > 0, `A1 全圖：有家具因為太小不標名字（${hidden.length} / ${Object.keys(far).length} 件）`);
+  await page.evaluate((id) => window.__app.doc.select(id), hidden[0]);
+  const sel = await labelled();
+  ok(sel[hidden[0]] === true, `選了其中一件（${hidden[0]}）：它的名字就畫出來`);
+  await page.evaluate(() => window.__app.doc.select(null));
+  await page.evaluate(() => { const v = window.__app.editor.vp; v.zoomAt({ x: v.width / 2, y: v.height / 2 }, 2.5); });
+  const near = await labelled();
+  const ratio = (m) => Object.values(m).filter(Boolean).length / Object.keys(m).length;
+  ok(ratio(near) > ratio(far), `放大 2.5 倍：畫面內標了名字的家具比例變高（${(ratio(far) * 100).toFixed(0)}% → ${(ratio(near) * 100).toFixed(0)}%）`);
+  t = await texts();
+  // 施工圖照舊：每件家具都有名字、每道牆都有長度
+  const plot = await page.evaluate(async () => {
+    const plot = await import('/src/core/plot.ts');
+    const P = CanvasRenderingContext2D.prototype, orig = P.fillText, seen = [];
+    const project = window.__app.doc.serialize(), extent = plot.projectExtent(project), sheet = plot.chooseSheet(extent.w, extent.h);
+    P.fillText = function (...a) { seen.push(String(a[0])); return orig.apply(this, a); };
+    try { plot.plotFloorCanvas(project, project.activeFloorId, sheet, extent); } finally { P.fillText = orig; }
+    return seen;
+  });
+  ok(countFurn(plot) === furnNames.filter(Boolean).length, `施工圖：每件家具都有名字（${countFurn(plot)} / ${furnNames.filter(Boolean).length}）`);
+  ok(await page.evaluate(() => window.__app.doc.objects.length) === 180, 'A1 還是 180 件（只讀）');
+  await ctx.close();
+}
+
 ok(!errs.length, `沒有頁面錯誤${errs.length ? '：' + errs.join(' / ') : ''}`);
 await br.close();
 console.log(fails ? `\n✘ ${fails} 項沒過` : '\n✔ 全部通過');

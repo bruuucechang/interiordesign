@@ -62,3 +62,25 @@ export function layoutLabels(labels: readonly LabelBox[], view?: { w: number; h:
   }
   return out;
 }
+
+// Whether a label has earned a place at all (B26), before the overlap pass.
+// A piece's name belongs inside the piece and a wall's length along the wall:
+// once zooming out shrinks the thing smaller than its own label, the label is
+// covering other things rather than naming this one. Zoom in and it qualifies
+// again. A selected object's labels skip this — selecting is asking.
+
+/** Does a `label`-sized box fit inside `box` (both screen px), with `pad` to spare? */
+export function fitsInside(label: { w: number; h: number }, box: { w: number; h: number }, pad = 2): boolean {
+  return label.w + pad <= box.w && label.h + pad <= box.h;
+}
+
+/** Is a segment `segPx` long on screen long enough to carry a `labelW` label with `margin` to spare? */
+export function fitsAlong(labelW: number, segPx: number, margin = 12): boolean {
+  return segPx >= labelW + margin;
+}
+
+/** The screen-axis extent of a `w × h` rectangle turned by `deg`. */
+export function turnedExtent(w: number, h: number, deg: number): { w: number; h: number } {
+  const r = deg * Math.PI / 180, c = Math.abs(Math.cos(r)), s = Math.abs(Math.sin(r));
+  return { w: w * c + h * s, h: w * s + h * c };
+}
