@@ -1,10 +1,12 @@
 // B28～B31（docs/spec-luxury.md）：分層顯示、燈具種類、溫潤木質傢俱、A1 豪宅版，在真的頁面上驗。
 //
-//   node bench/verify-luxury.mjs [http://localhost:5180]     # 要先 npm run dev
+//   node bench/verify-luxury.mjs [http://localhost:5180] [--only b31]     # 要先 npm run dev；--only 只跑那一塊（b28～b31）
 //
 // Headless、用這台的 Metal。A1 只讀：寫入的 API 全擋（被擋的次數也算進結果）。截圖在 bench/results/luxury-*.png。
 import { chromium } from 'playwright';
-const BASE = process.argv.slice(2).find(a => !a.startsWith('--')) ?? 'http://localhost:5180';
+const argv = process.argv.slice(2), only = argv.includes('--only') ? argv[argv.indexOf('--only') + 1] : null;
+const ONLY = (b) => !only || only === b;
+const BASE = argv.find(a => !a.startsWith('--') && a !== only) ?? 'http://localhost:5180';
 const OUT = new URL('./results/', import.meta.url).pathname;
 const br = await chromium.launch({ args: ['--use-angle=metal', '--ignore-gpu-blocklist'] });
 let fails = 0;
@@ -57,7 +59,7 @@ const OUTLET = /^electrical:(socket|socket2|socketWater|tv|network|switch\d)$/;
 
 // ---------------------------------------------------------------- B28
 console.log('B28 頂列「顯示」：勾掉的 2D、3D 都不畫、點不到，照度照算，不進方案');
-{
+if (ONLY('b28')) {
   const { ctx, page } = await open(A1, { plan: true });
   await page.evaluate(() => document.getElementById('zoomFit')?.click());
   await page.waitForTimeout(500);
@@ -203,7 +205,7 @@ console.log('B28 頂列「顯示」：勾掉的 2D、3D 都不畫、點不到，
 }
 
 console.log('\nB28 插座開關、尺寸線（空白方案，A1 沒有插座）');
-{
+if (ONLY('b28')) {
   const { ctx, page } = await open(`${BASE}/?perf=1`);
   await page.evaluate(() => { const d = window.__app.doc; d.commit();
     d.add({ id: 'w1', kind: 'wall', layer: 'walls', a: { x: 0, y: 0 }, b: { x: 400, y: 0 }, thickness: 12 });
@@ -231,7 +233,7 @@ console.log('\nB28 插座開關、尺寸線（空白方案，A1 沒有插座）'
 
 // ---------------------------------------------------------------- B29
 console.log('\nB29 LED 鋁擠燈＋崁燈系列：2D／3D 畫得出、照度有貢獻、線燈長度可調、「顯示」勾掉時一起藏（空白方案）');
-{
+if (ONLY('b29')) {
   const NEW = ['linearRecessed', 'linearSurface', 'linearCove', 'linearWash', 'linearShelf', 'dlFrameless', 'dlDeep', 'dlAdjust', 'dlWash', 'dlTwin'];
   const NEWRE = new RegExp(`^electrical:(${NEW.join('|')})$`);
   const { ctx, page } = await open(`${BASE}/?perf=1`, { mode: 'split' });
@@ -377,7 +379,7 @@ console.log('\nB29 LED 鋁擠燈＋崁燈系列：2D／3D 畫得出、照度有�
 
 // ---------------------------------------------------------------- B30
 console.log('\nB30 溫潤奢華傢俱：目錄篩得出來、每件 3D 建得出來且尺寸對、貼了實掃材質（空白方案）');
-{
+if (ONLY('b30')) {
   const { ctx, page } = await open(`${BASE}/?perf=1`, { mode: 'split' });
   const LX = await page.evaluate(async () => (await import('/src/data/furniture.ts')).FURNITURE.filter(f => f.style === '溫潤奢華')
     .map(f => ({ id: f.id, name: f.name, w: f.w, h: f.h, height: f.height, mount: f.mount ?? null })));
@@ -482,6 +484,97 @@ console.log('\nB30 溫潤奢華傢俱：目錄篩得出來、每件 3D 建得出
     await p3.screenshot({ path: `${OUT}luxury-b30-3d-${name}.png` });
   }
   await c3.close();
+}
+
+// ---------------------------------------------------------------- B31
+console.log('\nB31 A1 豪宅版：另存一份、燈全換、傢俱換新款、補客餐廳；A1 不動');
+if (ONLY('b31')) {
+  const API = BASE.replace(':5180', ':8791') + '/api';
+  const H = { headers: { 'X-Owner': 'own_orsxp52fbvey' } };
+  const a1 = await fetch(`${API}/projects/plan1151022`, H).then(r => r.json());
+  const lxRow = await fetch(`${API}/projects/plan1151022lx`, H).then(r => r.ok ? r.json() : null);
+  ok(a1.data.floors[0].objects.length === 180, `A1 仍是 180 件（${a1.data.floors[0].objects.length}）`);
+  ok(!!lxRow && lxRow.name === 'A1 豪宅版', `「A1 豪宅版」存在（先跑 npx tsx bench/make-luxury.mjs）`);
+  const LX = `${BASE}/?perf=1&plan=plan1151022lx`;
+  const { ctx, page } = await open(LX, { plan: true });
+  baseline = await page.evaluate(() => JSON.stringify(window.__app.doc.serialize()));
+  const writes0 = writes;
+  const sum = await page.evaluate(() => {
+    const o = window.__app.doc.objects, e = o.filter(x => x.kind === 'electrical'), f = o.filter(x => x.kind === 'furniture');
+    return { n: o.length, old: e.filter(x => x.item === 'downlight' || x.item === 'batten').length, lights: e.length,
+      kinds: [...new Set(e.map(x => x.item))].sort().join(','), furn: f.length,
+      oldFurn: f.filter(x => !/_lx/.test(x.item)).map(x => x.item).join(','), floors: [...new Set(o.filter(x => x.kind === 'room').map(x => x.floor))].sort().join(',') };
+  });
+  ok(sum.old === 0 && sum.lights > 30, `舊的嵌燈與 T5 全拿掉、新燈 ${sum.lights} 盞（${sum.kinds}）`);
+  ok(sum.furn === 39 && !sum.oldFurn, `傢俱 ${sum.furn} 件全是溫潤奢華款${sum.oldFurn ? `（還有舊款 ${sum.oldFurn}）` : ''}`);
+  ok(sum.floors === 'oakpale,terrazzo,tile', `地板：${sum.floors}（臥室客廳淡橡木、衛浴磚、陽台磨石子）`);
+  // 空間健檢：打開面板，數照明那一類
+  await page.waitForTimeout(800);
+  await page.evaluate(() => document.querySelector('[data-act="health"]').click());
+  await page.waitForTimeout(600);
+  const health = await page.evaluate(() => ({ lighting: document.querySelectorAll('#healthBody .hf.lighting').length,
+    all: [...document.querySelectorAll('#healthBody .hf')].map(e => e.className.replace('hf ', '') + ':' + e.querySelector('b')?.textContent).join(' | ') }));
+  ok(health.lighting === 0, `空間健檢的照明提醒 0 條（全部：${health.all || '沒有'}）`);
+  await page.evaluate(() => document.querySelector('[data-act="close-health"]').click());
+  // 照度面板每間有燈的房都算得出來
+  await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());
+  await page.waitForFunction(() => window.__app.lighting.rooms.length > 0, null, { timeout: 60000 });
+  const rooms = await page.evaluate(() => window.__app.lighting.rooms.filter(r => r.lums > 0).map(r => Math.round(r.avg)));
+  ok(rooms.length === 7 && rooms.every(a => a >= 100), `7 間有燈的房平均都 ≥100 lux（${rooms.join('、')}）`);
+  await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());
+  ok(writes === writes0, `打開豪宅版沒有送出改過的方案（${writes - writes0} 次）`);
+  await ctx.close();
+
+  // 3D：每件傢俱、每盞燈都建得出來
+  const { ctx: c3, page: p3 } = await open(LX, { plan: true, mode: '3d' });
+  await p3.waitForTimeout(6000);
+  const g = await p3.evaluate(async () => {
+    const { lightParts } = await import('/src/core/lights3d.ts'), { DEFAULTS } = await import('/src/model/locale-defaults.ts');
+    const want = window.__app.doc.objects.filter(o => o.kind === 'electrical').reduce((a, o) => a + lightParts(o, DEFAULTS.wallHeight).length, 0);
+    return { furn: window.__app.view3d.furnGroup.children.length, lights: window.__app.view3d.lightGroup.children.length, want };
+  });
+  ok(g.furn === 39 && g.lights === g.want, `3D：傢俱 ${g.furn} 個物件（要 39）、燈具零件 ${g.lights}（要 ${g.want}）`);
+  await c3.close();
+
+  // 對照截圖：A1 vs 豪宅版 × 1440／1280 × 2D 全圖、3D 俯瞰、行走進客廳與老媽房間（主臥）、夜晚
+  const shotsOf = async (url, tag, w, h) => {
+    const { ctx, page } = await open(url, { plan: true, w, h });
+    await page.evaluate(() => document.getElementById('zoomFit')?.click());
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}luxury-b31-${tag}-${w}-2d.png` });
+    await ctx.close();
+    const { ctx: cc, page: pp } = await open(url, { plan: true, mode: '3d', w, h });
+    await pp.waitForTimeout(6000);
+    const cam = (pos, tgt) => pp.evaluate(([pos, tgt]) => { const v = window.__app.view3d; v.camera.position.set(...pos); v.controls.target.set(...tgt); v.controls.update?.(); }, [pos, tgt]);
+    await cam([690, 1500, 1500], [690, 0, 620]);
+    await pp.waitForTimeout(1500);
+    await pp.screenshot({ path: `${OUT}luxury-b31-${tag}-${w}-3d.png` });
+    // 站在 (x, y)、看向 (tx, ty)：進行走之後直接把人放過去（自動出生點會挑最空的一角，對照不了）
+    const walk = async (name, x, y, tx, ty) => {
+      await cam([x, 900, y + 300], [x, 0, y]);
+      await pp.waitForTimeout(500);
+      await pp.click('#walkToggle'); await pp.waitForTimeout(800);
+      await pp.evaluate(([x, y, h]) => { const w = window.__app.view3d.walk; w.walker.x = x; w.walker.y = y;
+        w.yaw = Math.atan2(-Math.cos(h), -Math.sin(h)); w.pitch = -0.12; w.place(); }, [x, y, Math.atan2(ty - y, tx - x)]);
+      await pp.waitForTimeout(2000);
+      await pp.screenshot({ path: `${OUT}luxury-b31-${tag}-${w}-walk-${name}.png` });
+      await pp.keyboard.press('f'); await pp.waitForTimeout(600);
+    };
+    await walk('living', 330, 700, 760, 1000);
+    await walk('master', 900, 545, 1120, 150);
+    await pp.selectOption('#timeOfDay', 'night'); await pp.waitForTimeout(2500);
+    await cam([690, 1500, 1500], [690, 0, 620]); await pp.waitForTimeout(1500);
+    await pp.screenshot({ path: `${OUT}luxury-b31-${tag}-${w}-3d-night.png` });
+    await walk('living-night', 330, 700, 760, 1000);
+    await walk('master-night', 900, 545, 1120, 150);
+    await cc.close();
+  };
+  for (const [w, h] of [[1440, 900], [1280, 800]]) {
+    await shotsOf(A1, 'a1', w, h);
+    await shotsOf(LX, 'lx', w, h);
+  }
+  const a1b = await fetch(`${API}/projects/plan1151022`, H).then(r => r.json());
+  ok(JSON.stringify(a1b.data) === JSON.stringify(a1.data) && a1b.updatedAtIso === a1.updatedAtIso, `跑完 A1 一個字都沒變（${a1b.updatedAtIso}）`);
 }
 
 ok(errs.length === 0, `沒有頁面錯誤（${errs.slice(0, 3).join(' | ') || '0'}）`);

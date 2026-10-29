@@ -109,6 +109,13 @@ ASSETS = {
     'rosewood':      (PH, 'rosewood_veneer1'),     # 花梨木皮：中式
 }
 
+# Materials made from a scan above instead of downloaded: same planks and
+# normals, colour pulled to a target mean. `oakpale` (淡橡木地板, B31) is the
+# light oak a 溫潤奢華 plan wants; every oak scan on both sources is mid-brown.
+DERIVED = {
+    'oakpale': ('wood', (0xd6, 0xb6, 0x8e)),
+}
+
 # `paint` (乳膠漆) is deliberately absent from both sources. Every plaster scan
 # is a rough render, and at room scale a rough render on a painted wall reads as
 # sandpaper — the exact failure this project already hit once when the procedural
@@ -195,6 +202,28 @@ def one(mid: str, src: str, asset: str, force: bool) -> dict:
     return entry
 
 
+def derive(mid: str, base: str, rgb: tuple[int, int, int]) -> dict:
+    """`base`'s maps with the colour map scaled so its mean is `rgb`; normals and ARM copied."""
+    src, d = OUT / base, OUT / mid
+    d.mkdir(parents=True, exist_ok=True)
+    im = cv2.imread(str(src / 'color.jpg')).astype(np.float32)
+    # Lift towards the target in two steps: a gain per channel for the hue, then
+    # flatten the contrast a little — a pale oak's grain is fainter, not just brighter.
+    mean = im.reshape(-1, 3).mean(axis=0)
+    target = np.array(rgb[::-1], dtype=np.float32)
+    out = target + (im - mean) * 0.7
+    cv2.imwrite(str(d / 'color.jpg'), np.clip(out, 0, 255).astype(np.uint8), [cv2.IMWRITE_JPEG_QUALITY, QUALITY])
+    for k in ('normal', 'arm'):
+        shutil.copyfile(src / f'{k}.jpg', d / f'{k}.jpg')
+    b, g, r = cv2.mean(cv2.imread(str(d / 'color.jpg')))[:3]
+    entry = json.loads((src / 'meta.json').read_text(encoding='utf-8'))
+    entry |= {'attribution': entry['attribution'] + '，調成淡橡木色', 'derivedFrom': base,
+              'swatch': '#%02x%02x%02x' % (int(r), int(g), int(b))}
+    (d / 'meta.json').write_text(json.dumps(entry, ensure_ascii=False), encoding='utf-8')
+    print(f'  {mid:<12} 由 {base} 調色      {entry["swatch"]}')
+    return entry
+
+
 def main() -> int:
     force = '--force' in sys.argv
     if force and OUT.exists():
@@ -202,6 +231,7 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     print(f'{len(ASSETS)} 種材質 → {OUT.relative_to(ROOT)}  ({SIZE}²)')
     manifest = {mid: one(mid, src, asset, force) for mid, (src, asset) in ASSETS.items()}
+    manifest |= {mid: derive(mid, base, rgb) for mid, (base, rgb) in DERIVED.items()}
     (OUT / 'manifest.json').write_text(
         json.dumps({'sources': {PH: 'https://polyhaven.com', ACG: 'https://ambientcg.com'},
                     'license': 'CC0 1.0', 'size': SIZE, 'materials': manifest},
