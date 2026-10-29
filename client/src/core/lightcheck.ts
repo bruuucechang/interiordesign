@@ -44,12 +44,12 @@ const deg = (r: number) => Math.round(r);
  * （或埋在牆厚裡——圖上牆心線就是房間外框時，吸附會落在那裡）、整支長度都在那一面
  * 的範圍內，而且是朝外照（背靠著它）。
  */
-/** Plan points along a light: SEG of them along a ceiling linear light (B29), its centre otherwise. */
+/** Plan points along a light: both ends and SEG + 1 between along a ceiling linear light (B29), its centre otherwise. */
 function along(L: Luminaire): { x: number; y: number }[] {
   if (!L.line) return [{ x: L.x, y: L.y }];
   const { length, axis } = L.line;
-  return Array.from({ length: SEG }, (_, i) => {
-    const t = (i + 0.5) / SEG - 0.5;
+  return Array.from({ length: SEG + 1 }, (_, i) => {
+    const t = i / SEG - 0.5;
     return { x: L.x + axis[0] * length * t, y: L.y + axis[1] * length * t };
   });
 }

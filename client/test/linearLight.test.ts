@@ -226,6 +226,9 @@ test('health check: a linear run over a full-height wardrobe is flagged even whe
     { id: 'l1', kind: 'electrical', layer: 'electrical', item: 'linearRecessed', x: 200, y: 250, angle: 0, length: 300 }] as Obj[];
   const f = lightingFindings(objs, 280).filter(f => f.rule === 'light-cabinet');
   assert.ok(f.some(f => f.id.startsWith('light-cab-above:l1:')), f.map(f => f.title).join(' | '));
+  // Its very end 15 cm into the wardrobe still counts as over it, not merely near.
+  const tip = objs.map(o => o.id === 'l1' ? { ...o, x: 391, length: 600 } : o) as Obj[];
+  assert.ok(lightingFindings(tip, 280).some(f => f.id.startsWith('light-cab-above:l1:')));
   // Shortened so the whole run is clear of it, it is only "too near" at most.
   const short = objs.map(o => o.id === 'l1' ? { ...o, length: 60 } : o) as Obj[];
   assert.ok(!lightingFindings(short, 280).some(f => f.id.startsWith('light-cab-above:l1:')));
