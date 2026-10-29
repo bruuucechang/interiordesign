@@ -104,4 +104,9 @@ test('a turned piece is measured along the screen axes', () => {
   assert.ok(Math.abs(f.w - 200) < 1e-9 && Math.abs(f.h - 60) < 1e-9);
   const g = turnedExtent(100, 100, 45);
   assert.ok(Math.abs(g.w - 141.42) < 0.01);
+  // How the renderer uses it: the label turned into the piece's frame. A 200×15
+  // shelf at 45° cannot carry a 30×18 label even though its bounding box could.
+  assert.equal(fitsInside(turnedExtent(30, 18, 45), { w: 200, h: 15 }), false);
+  assert.equal(fitsInside(turnedExtent(30, 18, 0), { w: 200, h: 40 }), true);
+  assert.equal(fitsInside(turnedExtent(30, 18, 90), { w: 40, h: 200 }), true);   // a tall cabinet turned on its side
 });

@@ -150,19 +150,28 @@ console.log('\nB26 家具名與牆長放得下才畫');
     }
     return out;
   });
+  // 跟「沒有 B26」比：把 text() 的 fits 參數拿掉重畫一次，就是 B24 時的樣子
+  // （換掉頁面上那個 renderer 實例的方法；import 進來的模組跟頁面用的不一定是同一份）
+  const withoutFit = (on) => page.evaluate((on) => {
+    const r = window.__app.editor.renderer;
+    if (on) r.text = function (...a) { return Object.getPrototypeOf(r).text.apply(this, a.slice(0, 5)); };
+    else delete r.text;
+  }, on);
   const far = await labelled();
-  const hidden = Object.keys(far).filter(id => !far[id]);
-  ok(hidden.length > 0, `A1 全圖：有家具因為太小不標名字（${hidden.length} / ${Object.keys(far).length} 件）`);
-  await page.evaluate((id) => window.__app.doc.select(id), hidden[0]);
+  await withoutFit(true); const farOld = await labelled(); await withoutFit(false);
+  const n = (m) => Object.values(m).filter(Boolean).length;
+  const onlyB26 = Object.keys(far).filter(id => farOld[id] && !far[id]);
+  ok(n(far) < n(farOld) && onlyB26.length > 0, `A1 全圖：標名字的家具比沒有這條規則時少（${n(farOld)} → ${n(far)} / ${Object.keys(far).length}；因為太小才拿掉的 ${onlyB26.length} 件）`);
+  await page.evaluate((id) => window.__app.doc.select(id), onlyB26[0]);
   const sel = await labelled();
-  ok(sel[hidden[0]] === true, `選了其中一件（${hidden[0]}）：它的名字就畫出來`);
+  ok(sel[onlyB26[0]] === true, `選了其中一件（${onlyB26[0]}）：它的名字就畫出來（沒有 B24 的選取優先也一樣是因為它被放寬）`);
   await page.evaluate(() => window.__app.doc.select(null));
   await page.evaluate(() => { const v = window.__app.editor.vp; v.zoomAt({ x: v.width / 2, y: v.height / 2 }, 2.5); });
   const near = await labelled();
   const ratio = (m) => Object.values(m).filter(Boolean).length / Object.keys(m).length;
   ok(ratio(near) > ratio(far), `放大 2.5 倍：畫面內標了名字的家具比例變高（${(ratio(far) * 100).toFixed(0)}% → ${(ratio(near) * 100).toFixed(0)}%）`);
   t = await texts();
-  // 施工圖照舊：每件家具都有名字、每道牆都有長度
+  // 施工圖照舊：每件家具都有名字（每道牆都有長度在 verify-polish 驗）
   const plot = await page.evaluate(async () => {
     const plot = await import('/src/core/plot.ts');
     const P = CanvasRenderingContext2D.prototype, orig = P.fillText, seen = [];

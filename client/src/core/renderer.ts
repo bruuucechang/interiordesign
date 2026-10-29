@@ -626,8 +626,12 @@ export class Renderer {
         // from the palette sets no label, so those still read 衣櫃 / 冰箱; but a
         // piece traced off a drawing carries the drawing's name — 系統開放衣櫃 4抽,
         // 汙衣櫃 — and that is the whole reason it was written down.
-        const ext = turnedExtent(o.w * this.vp.scale, o.h * this.vp.scale, o.angle);
-        this.text(c, o.label || FURNITURE_BY_ID[o.item]?.name || '', this.quiet ? FURNITURE_LABEL : '#e0b45a', 11, P.furniture, b => fitsInside(b, ext));
+        // The label is turned into the piece's own frame and compared with its
+        // real size: a thin shelf set at 45° has a big square bounding box, but
+        // its name still does not fit on it.
+        const own = { w: o.w * this.vp.scale, h: o.h * this.vp.scale };
+        this.text(c, o.label || FURNITURE_BY_ID[o.item]?.name || '', this.quiet ? FURNITURE_LABEL : '#e0b45a', 11, P.furniture,
+          b => fitsInside(turnedExtent(b.w, b.h, o.angle), own));
         break;
       }
     }
