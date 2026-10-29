@@ -12,6 +12,7 @@ import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygon
 import { handles } from './handles';
 import { roomUse, isDefaultRoomName } from './roomUse';
 import { layoutLabels, LABEL_PRIORITY, LabelBox } from './labelLayout';
+import { quietInk, hatchShown, inkPitch, FURNITURE_LABEL, AREA_INK } from './planInk';
 import { t } from './i18n';
 import { furnitureCenter, bounds } from './hit';
 
@@ -26,6 +27,7 @@ export interface RenderOpts {
   heat?: (ctx: CanvasRenderingContext2D) => void;   // lighting overlay in world space, over floors, under everything built
   marker?: (ctx: CanvasRenderingContext2D) => void; // walk mode's "you are here", world space, over everything built
   roomUse?: boolean;     // name default rooms by their furniture and say what they lack (default true; exports pass false, B23)
+  quiet?: boolean;       // the screen's quieter plan: grey furniture, small light rings, faint hatch dropped when crowded (default true; exports pass false, B25)
   declutter?: boolean;   // drop labels that would overlap better ones (default true; exports pass false — paper cannot zoom in, B24)
 }
 
@@ -90,6 +92,20 @@ export function tintContext(ctx: CanvasRenderingContext2D, color: string): Canva
   }) as CanvasRenderingContext2D;
 }
 
+/** Furniture on the screen plan: the pictograms' amber drawn in warm grey (B25, core/planInk). */
+function quietContext(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
+  return new Proxy(ctx, {
+    get(t, k) {
+      const v = Reflect.get(t, k, t);
+      return typeof v === 'function' ? v.bind(t) : v;
+    },
+    set(t, k, v) {
+      if (k === 'fillStyle' || k === 'strokeStyle') return Reflect.set(t, k, quietInk(v), t);
+      return Reflect.set(t, k, v, t);
+    },
+  }) as CanvasRenderingContext2D;
+}
+
 export function monoContext(ctx: CanvasRenderingContext2D): CanvasRenderingContext2D {
   // Both traps use the real context as the receiver: the canvas accessors are
   // native and throw "Illegal invocation" if `this` is the proxy.
@@ -145,6 +161,7 @@ export class Renderer {
     this.monoInk = !!opts.mono;
     this.heatOn = !!opts.heat;
     this.roomHints = opts.roomUse !== false;
+    this.quiet = opts.quiet !== false && !opts.mono;
     if (opts.mono) this.ctx = monoContext(real);
     try {
       this.renderInto(opts);
@@ -251,7 +268,9 @@ export class Renderer {
   private monoInk = false;
   private heatOn = false;
   private roomHints = true;
+  private quiet = true;
   private hatchCache = new Map<string, CanvasPattern | null>();
+  private hatchStep = new Map<string, number>();   // cm between a hatch's marks, measured off its tile (B25)
   private hatchFor(floor: string | undefined): CanvasPattern | null {
     if (floor && floor.startsWith('#')) return null;
     const def = materialDef(floor, 'floor');
@@ -263,18 +282,22 @@ export class Renderer {
     // the first version drew black on #171a20 and nothing showed up at all
     // except the densest cross-hatch.
     const ink = this.monoInk ? '#000' : '#dfe5f0';
-    const key = def.id + ink;
+    const key = def.id + ink + (this.quiet ? 'q' : '');
     let pat = this.hatchCache.get(key);
     if (pat === undefined) {
       const S = 64;
       const cv = document.createElement('canvas'); cv.width = cv.height = S;
       const c = cv.getContext('2d')!;
-      c.globalAlpha = this.monoInk ? 0.5 : 0.30;   // faint enough to dimension over
+      // Faint enough to dimension over; on screen fainter still (B25: at 0.30 the
+      // planks read as zebra stripes over every room).
+      c.globalAlpha = this.monoInk ? 0.5 : this.quiet ? 0.15 : 0.30;
       c.fillStyle = c.strokeStyle = ink;
       // The material draws in whatever colour it likes; overriding both here
       // after the fact would not work, so materials draw in black and this
       // recolours the result.
       def.hatch(c, S);
+      const cm = def.hatchCm ?? def.tileCm;
+      this.hatchStep.set(key, inkPitch(c.getImageData(0, 0, S, S).data.filter((_, i) => i % 4 === 3), S, 8) / S * cm);
       c.globalCompositeOperation = 'source-in';
       c.globalAlpha = 1;
       c.fillStyle = ink;
@@ -282,11 +305,13 @@ export class Renderer {
       c.globalCompositeOperation = 'source-over';
       pat = this.ctx.createPattern(cv, 'repeat');
       if (pat) {
-        const cm = def.hatchCm ?? def.tileCm;
         pat.setTransform(new DOMMatrix().scaleSelf(cm / S));
       }
       this.hatchCache.set(key, pat);
     }
+    // The plot keeps its hatch at any scale; the screen drops it once the marks
+    // crowd closer than a few pixels, and the room's tint carries on alone.
+    if (this.quiet && !hatchShown(this.hatchStep.get(key) ?? 0, this.vp.scale)) return null;
     return pat;
   }
 
@@ -325,7 +350,7 @@ export class Renderer {
       case 'area': {
         // Dotted and unfilled, so it reads as a note on the room rather than a
         // second room: it divides nothing but the lighting table.
-        ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 1.5 * line;
+        ctx.strokeStyle = this.quiet ? AREA_INK : '#ffd166'; ctx.lineWidth = 1.5 * line;
         ctx.setLineDash([4 * line, 5 * line]);
         ctx.strokeRect(o.x, o.y, o.w, o.h);
         ctx.setLineDash([]);
@@ -437,8 +462,10 @@ export class Renderer {
         ctx.translate(c.x, c.y); ctx.rotate(o.angle * Math.PI / 180); ctx.translate(-o.w / 2, -o.h / 2);
         // A custom colour is applied at the context boundary so the catalogue's
         // draw() functions stay unaware of it.
-        if (item) item.draw(o.color ? tintContext(ctx, o.color) : ctx, o.w, o.h);
-        else { ctx.fillStyle = '#3a4150'; ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.fillRect(0, 0, o.w, o.h); ctx.strokeRect(0, 0, o.w, o.h); }
+        // Otherwise, on screen, the amber the pictograms draw in becomes grey so
+        // only the lights stay yellow (B25); the plot has its own ink already.
+        if (item) item.draw(o.color ? tintContext(ctx, o.color) : this.quiet ? quietContext(ctx) : ctx, o.w, o.h);
+        else { ctx.fillStyle = '#3a4150'; ctx.strokeStyle = this.quiet ? quietInk(color) as string : color; ctx.lineWidth = 2; ctx.fillRect(0, 0, o.w, o.h); ctx.strokeRect(0, 0, o.w, o.h); }
         ctx.restore();
         break;
       }
@@ -460,7 +487,15 @@ export class Renderer {
         }
         ctx.strokeStyle = color; ctx.fillStyle = color;
         ctx.lineWidth = 2;
-        sym(ctx, o);
+        if (!lit && this.quiet && (o.item === 'downlight' || o.item === 'batten')) {
+          // B25: 57 solid yellow dots and 21 bars were the loudest thing on the
+          // A1 plan, sitting on the room names. On screen a downlight is a small
+          // ring and a batten a thin, half-strength bar; the drawing set (plot)
+          // and the lighting overlay keep the full symbols.
+          ctx.globalAlpha = 0.75;
+          if (o.item === 'downlight') { ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.stroke(); }
+          else { ctx.globalAlpha = 0.5; ctx.lineWidth = 1; sym(ctx, o); }
+        } else sym(ctx, o);
         ctx.restore();
         break;
       }
@@ -568,7 +603,7 @@ export class Renderer {
       }
       case 'area': {
         // Along its top edge, out of the way of the room's own name at the room's centre.
-        this.text({ x: o.x + o.w / 2, y: o.y + 14 / this.vp.scale }, o.name || '子區域', '#ffd166', 11, P.roomName);
+        this.text({ x: o.x + o.w / 2, y: o.y + 14 / this.vp.scale }, o.name || '子區域', this.quiet ? AREA_INK : '#ffd166', 11, P.roomName);
         break;
       }
       case 'dimension': {
@@ -584,7 +619,7 @@ export class Renderer {
         // from the palette sets no label, so those still read 衣櫃 / 冰箱; but a
         // piece traced off a drawing carries the drawing's name — 系統開放衣櫃 4抽,
         // 汙衣櫃 — and that is the whole reason it was written down.
-        this.text(c, o.label || FURNITURE_BY_ID[o.item]?.name || '', '#e0b45a', 11, P.furniture);
+        this.text(c, o.label || FURNITURE_BY_ID[o.item]?.name || '', this.quiet ? FURNITURE_LABEL : '#e0b45a', 11, P.furniture);
         break;
       }
     }
