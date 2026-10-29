@@ -36,7 +36,7 @@ const EN: Record<string, string> = {
   '縮放至全部 — 整張圖放進畫面（扣掉開著的面板）': 'Fit all — the whole plan in view (minus open panels)',
   '全螢幕': 'Full screen', '這個瀏覽器不讓網頁進入全螢幕': 'This browser will not let the page go full screen',
   '吸附格線與牆': 'Snap to grid and walls',
-  '顯示': 'Show', '插座開關': 'Sockets & switches', '尺寸與標註': 'Dimensions & notes',
+  '顯示': 'Show', '已重新顯示': 'Showing again: ', '插座開關': 'Sockets & switches', '尺寸與標註': 'Dimensions & notes',
   '全部勾掉＝只看牆、門窗與房間': 'All off = just walls, doors, windows and rooms',
   '顯示 — 勾掉的東西 2D、3D 都不畫也點不到，照度照算；只存在這個瀏覽器，不改方案、不影響匯出':
     'Show — what is unticked is neither drawn nor clickable, in 2D or 3D; lighting still counts it. Kept in this browser only: the plan and exports are unchanged',

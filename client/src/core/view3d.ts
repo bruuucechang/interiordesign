@@ -10,7 +10,7 @@ import { Obj, Vec } from '../model/schema';
 import { dist, angleDeg, quadPoints, wallControl } from './geometry';
 import { curvedWallBands } from './wallGeometry';
 import { buildDoor3D, buildWindow3D } from './openings3d';
-import { getFurnitureModel, getModelHeight } from './furniture3d';
+import { getFurnitureModel, getModelHeight, loadFurnitureModel } from './furniture3d';
 import { lightParts, LightPart } from './lights3d';
 import { Lamps3D } from './lamps3d';
 import { stairFlight } from './furnitureBuilders';
@@ -327,6 +327,18 @@ export class View3D {
     this.onLampsChange?.(this.lampsOn);
   }
   private lastDoc: Doc | null = null;
+  /** Set while exporting (GLB, panorama): 顯示 is a screen filter, an export holds everything. */
+  private buildAll = false;
+  /** Rebuild with everything in it when 顯示 is hiding something; returns whether it did, for `endExport`. */
+  private beginExport(): boolean {
+    const doc = this.lastDoc;
+    const filtered = !!doc && doc.project.floors.some(f => f.objects.some(o => !isShown(o)));
+    if (filtered) { this.buildAll = true; this.build(doc!, false); }
+    return filtered;
+  }
+  private endExport(filtered: boolean) {
+    if (filtered) { this.buildAll = false; this.build(this.lastDoc!, false); }
+  }
   private collectLamps(doc: Doc) {
     this.lamps.setStoreys(doc.project.floors.map(f => {
       const objs = f.objects.filter(o => doc.isLayerVisible(o.layer));
@@ -456,7 +468,7 @@ export class View3D {
       const joins = wallJoins(floor.objects);
       for (const o of floor.objects) {
         if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
-        if (!isShown(o)) continue;   // 顯示 (B28): not built, but its light still goes into collectLamps
+        if (!this.buildAll && !isShown(o)) continue;   // 顯示 (B28): not built, but its light still goes into collectLamps
         // Everything a wall-like object adds gets stamped with where it stands,
         // so the doll's-house cull below can find the near side without having
         // to work out what each mesh was for.
@@ -744,6 +756,11 @@ export class View3D {
   // ground plane, sky, and lights are left out so the file holds just the design.
   async exportGLB(filename: string) {
     const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
+    // Pieces 顯示 has kept out of the scene since loading never asked for their
+    // models, and would go into the file as their stand-in boxes.
+    const items = new Set(this.lastDoc?.project.floors.flatMap(f => f.objects.flatMap(o => o.kind === 'furniture' ? [o.item] : [])) ?? []);
+    await Promise.all([...items].map(loadFurnitureModel));
+    const filtered = this.beginExport();
     const groundWasVisible = this.ground?.visible ?? true;
     if (this.ground) this.ground.visible = false;   // omit the 80 m ground plane
     try {
@@ -756,6 +773,7 @@ export class View3D {
       URL.revokeObjectURL(url);
     } finally {
       if (this.ground) this.ground.visible = groundWasVisible;
+      this.endExport(filtered);
     }
   }
 
@@ -774,6 +792,7 @@ export class View3D {
    * result is the plain lit scene.
    */
   capturePanorama(): HTMLCanvasElement {
+    const filtered = this.beginExport();
     const hidden: THREE.Object3D[] = [];
     for (const o of this.ghosts.objects()) {
       if (o && o.visible) { o.visible = false; hidden.push(o); }
@@ -782,6 +801,7 @@ export class View3D {
       return capturePanorama(this.renderer, this.scene, this.camera.position);
     } finally {
       for (const o of hidden) o.visible = true;
+      this.endExport(filtered);
     }
   }
 

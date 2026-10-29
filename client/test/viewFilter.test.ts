@@ -54,3 +54,25 @@ test('the 顯示 menu has one tick per group', () => {
   const ticks = [...html.matchAll(/data-show="([a-z]+)"/g)].map(m => m[1]);
   assert.deepEqual(ticks, VIEW_GROUPS.map(g => g.id));
 });
+
+test('a hidden group mate or a hidden panel target never enters the selection', async () => {
+  const { Doc } = await import('../src/model/doc');
+  const d = new Doc();
+  const sofa = { ...(piece('sofa') as object), id: 'sofa', group: 'g1' } as Obj;
+  const lamp = { ...(piece('lamp_floor') as object), id: 'lamp', group: 'g1' } as Obj;
+  d.add(sofa); d.add(lamp);
+  d.select('sofa');
+  assert.deepEqual(d.selectedIds.sort(), ['lamp', 'sofa']);   // groups widen as before
+  const hide = new Set<ViewGroup>(['lights']);
+  d.selectable = o => shownWith(hide, o);
+  d.select('sofa');
+  assert.deepEqual(d.selectedIds, ['sofa']);
+  d.selectMany(['lamp']);                                       // a panel row pointing at the hidden lamp
+  assert.deepEqual(d.selectedIds, []);
+  d.select('lamp');
+  assert.deepEqual(d.selectedIds, []);
+});
+
+test('stairs stay with the building', () => {
+  assert.equal(viewGroup(piece('stairs')), null);
+});

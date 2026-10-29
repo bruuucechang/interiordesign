@@ -165,6 +165,17 @@ console.log('B28 頂列「顯示」：勾掉的 2D、3D 都不畫、點不到，
   const hidden3 = await g3();
   ok(hidden3.lights === 0 && hidden3.furn === 0, `3D 全部勾掉：燈具 ${hidden3.lights}、家具 ${hidden3.furn} 個模型`);
   await p3.screenshot({ path: `${OUT}luxury-b28-3d-rooms-only.png` });
+  // 匯出 3D（.glb）不看顯示設定：在檔案產生的那一刻數場景裡的家具與燈具模型
+  const glb = () => p3.evaluate(async () => {
+    const v = window.__app.view3d, oc = URL.createObjectURL, a = HTMLAnchorElement.prototype.click; let got = null;
+    URL.createObjectURL = (b) => { got = { size: b.size, furn: v.furnGroup.children.length, lights: v.lightGroup.children.length }; return oc.call(URL, b); };
+    HTMLAnchorElement.prototype.click = function () {};
+    try { await v.exportGLB('x'); } finally { URL.createObjectURL = oc; HTMLAnchorElement.prototype.click = a; }
+    return got;
+  });
+  const glbHidden = await glb();
+  const afterExport = await g3();
+  ok(afterExport.lights === 0 && afterExport.furn === 0, `匯出完畫面照舊藏著（燈具 ${afterExport.lights}、家具 ${afterExport.furn}）`);
   await tick(p3, 'furniture', true);
   await p3.waitForTimeout(1500);
   const furn3 = await g3();
@@ -176,6 +187,10 @@ console.log('B28 頂列「顯示」：勾掉的 2D、3D 都不畫、點不到，
   // 回到預設，不留給下一段
   for (const g of ['outlets', 'notes']) await tick(p3, g, true);
   ok(await p3.evaluate(() => localStorage.getItem('interior_view_hidden')) === '[]', '全部勾回來');
+  await p3.waitForTimeout(1500);
+  const glbAll = await glb();
+  ok(glbHidden.furn === 29 && glbHidden.lights === glbAll.lights && glbAll.lights > 0 && glbHidden.size > 1e6,
+    `匯出 3D 不受顯示影響（藏著時匯出：家具 ${glbHidden.furn}、燈具 ${glbHidden.lights}；全顯示：家具 ${glbAll.furn}、燈具 ${glbAll.lights}）`);
   await ctx.close();
 }
 
@@ -196,6 +211,13 @@ console.log('\nB28 插座開關、尺寸線（空白方案，A1 沒有插座）'
   ok(count(d, OUTLET) === 0 && count(d, /^dimension:/) === 0 && count(d, /^wall:/) === 1, `勾掉插座開關、尺寸與標註：都不畫、牆照畫（${d.join(' ')}）`);
   await tick(page, 'outlets', true);
   await tick(page, 'notes', true);
+  // 藏著燈具時新增一盞：燈具自動勾回來，不會加了卻看不到
+  await tick(page, 'lights', false);
+  await page.evaluate(() => window.__app.doc.add({ id: 'd1', kind: 'electrical', layer: 'electrical', item: 'downlight', x: 200, y: 100, angle: 0 }));
+  await page.waitForTimeout(300);
+  const back = await page.evaluate(() => ({ on: document.querySelector('#showMenu input[data-show="lights"]').checked, flash: document.body.innerText.includes('已重新顯示燈具') }));
+  d = await drawn(page);
+  ok(back.on && count(d, LIGHT) === 1 && back.flash, `藏著燈具時新增嵌燈：燈具自動勾回來、畫得出來、有提示（勾 ${back.on}、提示 ${back.flash}）`);
   await ctx.close();
 }
 

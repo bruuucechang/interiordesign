@@ -24,7 +24,7 @@ import { setConflictHandler, setNotYoursHandler } from '../net/api';
 import { scheduleReconcile } from './rooms-sync';
 import { wireStartCard } from './start-card';
 import { refreshProps } from './properties';
-import { ViewGroup, isGroupShown, isShown, setGroupShown, onViewFilterChange } from '../core/viewFilter';
+import { ViewGroup, VIEW_GROUPS, isGroupShown, isShown, setGroupShown, onViewFilterChange, viewGroup } from '../core/viewFilter';
 import { dwgNotSupportedModal, dxfImportModal, plotModal, openModal } from './modals';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -580,6 +580,15 @@ function wireShowMenu(doc: Doc) {
     $('#showMenu > .menu-btn').classList.toggle('filtered', boxes.some(b => !b.checked));
   };
   for (const b of boxes) b.onchange = () => setGroupShown(b.dataset.show as ViewGroup, b.checked);
+  doc.selectable = isShown;
+  // Placing, pasting or duplicating something that is hidden would add it unseen
+  // (and selected); its group comes back on instead, and says so.
+  doc.onAdd = (o) => {
+    const g = viewGroup(o);
+    if (!g || isGroupShown(g)) return;
+    setGroupShown(g, true);
+    flash(`${t('已重新顯示')}${t(VIEW_GROUPS.find(x => x.id === g)!.name)}`);
+  };
   onViewFilterChange(() => {
     sync();
     const sel = doc.selectedObjects;

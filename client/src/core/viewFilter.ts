@@ -33,7 +33,8 @@ export const VIEW_GROUPS: readonly { id: ViewGroup; name: string }[] = [
 export function viewGroup(o: Obj): ViewGroup | null {
   switch (o.kind) {
     case 'electrical': return ELECTRICAL_BY_ID[o.item]?.cat === '燈具' ? 'lights' : 'outlets';
-    case 'furniture': return FURNITURE_BY_ID[o.item]?.cat === '燈具' ? 'lights' : 'furniture';
+    // Stairs are how you get between storeys — part of the building, not the furnishing.
+    case 'furniture': return o.item === 'stairs' ? null : FURNITURE_BY_ID[o.item]?.cat === '燈具' ? 'lights' : 'furniture';
     case 'dimension': case 'area': return 'notes';
     default: return null;
   }
