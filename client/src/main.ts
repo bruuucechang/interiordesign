@@ -388,9 +388,31 @@ function sync3dHint() {
       : tool === 'door' || tool === 'window'
         ? t('點牆放上門窗 · 按住 Shift 連續放 · Esc 放下手上的東西')
         : '';
+  // B27: the walking keys are read once on the way in; after six seconds the
+  // line fades, and comes back while the pointer is near the bottom edge.
+  const walking = !!view3d?.walk.active;
+  if (walking && !hint3d.classList.contains('walk-hint')) armWalkHint();
+  hint3d.classList.toggle('walk-hint', walking);
+  if (!walking) { clearTimeout(walkHintTimer); hint3d.classList.remove('faded'); }
   hint3d.textContent = text;
   hint3d.classList.toggle('hidden', !text);
 }
+let walkHintTimer: number | undefined;
+function armWalkHint() {
+  hint3d.classList.remove('faded');
+  clearTimeout(walkHintTimer);
+  walkHintTimer = window.setTimeout(() => hint3d.classList.add('faded'), 6000);
+}
+// While the mouse is captured for looking around there is no "near the bottom
+// edge"; letting go of it (the first Esc) brings the line back instead.
+document.addEventListener('pointerlockchange', () => {
+  if (!document.pointerLockElement && hint3d.classList.contains('walk-hint')) armWalkHint();
+});
+document.getElementById('view3d')?.addEventListener('mousemove', (e) => {
+  if (!hint3d.classList.contains('walk-hint') || document.pointerLockElement) return;   // captured: clientY is frozen
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  if (r.bottom - e.clientY < 90) armWalkHint();
+});
 { const prev = editor.hooks.toolChange; editor.hooks.toolChange = n => { prev?.(n); sync3dHint(); }; }
 sync3dHint();
 

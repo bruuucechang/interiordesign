@@ -39,7 +39,11 @@ export function refreshProps(editor: Editor, doc: Doc) {
     empty.className = 'muted'; empty.textContent = t('未選取物件');
     host.appendChild(empty);
     renderUnderlay(editor, doc, host);
-    renderFaceSteps(editor, doc, host);
+    // In a box of its own so the drawer can tell it apart (B27): the wall-face
+    // list no longer puts a handle at the top right — 空間健檢 carries it.
+    const faces = document.createElement('div'); faces.className = 'facesteps';
+    host.appendChild(faces);
+    renderFaceSteps(editor, doc, faces);
     return;
   }
   if (ids.length > 1) {   // multi-selection: align / distribute / duplicate / delete
@@ -698,6 +702,14 @@ function renderUnderlay(editor: Editor, doc: Doc, host: HTMLElement) {
  * 一部分——把它寫進存檔，等於讓一個人的決定跟著檔案傳給下一個人。
  */
 const SKIP_KEY = 'interior_facestep_skipped';
+/** Fired on window when a face step is skipped or brought back, so 空間健檢's count follows. */
+export const FACESTEPS_CHANGED = 'interior:facesteps-changed';
+
+/** Wall-face steps still waiting (not skipped) — what 空間健檢 counts and lists (B27). */
+export function faceStepCount(editor: Editor, doc: Doc): number {
+  const skipped = readSkips(doc.project.id);
+  return editor.faceSteps().filter(s => !skipped.has(stepId(s))).length;
+}
 const stepId = (s: { moverId: string; anchorId: string }) => `${s.moverId}|${s.anchorId}`;
 
 function readSkips(planId: string): Set<string> {
@@ -713,6 +725,7 @@ function writeSkip(planId: string, id: string) {
     all[planId] = [...new Set([...(all[planId] ?? []), id])];
     localStorage.setItem(SKIP_KEY, JSON.stringify(all));
   } catch { /* 記不住總比壞掉好 */ }
+  window.dispatchEvent(new Event(FACESTEPS_CHANGED));
 }
 
 function clearSkips(planId: string) {
@@ -721,6 +734,7 @@ function clearSkips(planId: string) {
     delete all[planId];
     localStorage.setItem(SKIP_KEY, JSON.stringify(all));
   } catch { /* 同上 */ }
+  window.dispatchEvent(new Event(FACESTEPS_CHANGED));
 }
 
 function renderFaceSteps(editor: Editor, doc: Doc, host: HTMLElement) {

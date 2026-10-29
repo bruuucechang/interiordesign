@@ -419,7 +419,6 @@ header button:disabled { opacity: 0.4; cursor: default; }
 #topbar .menu.open > .menu-btn { background: var(--accent-soft); }
 .menu-btn .caret { width: 12px; height: 12px; opacity: .6; }
 .lbl { white-space: nowrap; }
-.menu-badge.none { display: none; }
 .time-select { height: var(--ctl-h); background: transparent; border: 1px solid var(--line); color: var(--text);
   border-radius: var(--radius-m); padding: 0 6px; cursor: pointer; font-size: var(--fs-body); flex: none; }
 .time-select:hover { background: var(--panel2); }
@@ -581,3 +580,10 @@ body.drawer-open .light-panel { right: calc(var(--drawer-w) + 20px); }
 .start-card button { height: 30px; padding: 0 14px; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; font-size: var(--fs-label); }
 .start-card button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .start-card.passive { opacity: .35; pointer-events: none; }
+/* B27 介面角落：3D 的按鍵條平常不顯示，滑鼠在 3D 那一格上或按著移動鍵時才出現；
+   行走提示 6 秒後淡出（main.ts 加 .faded），滑鼠到下緣或放開滑鼠鎖定時回來。 */
+.key-hud { opacity: 0; transition: opacity .2s; }
+.view3d:hover .key-hud, .key-hud.live { opacity: 1; }
+#hint3d.walk-hint { transition: opacity .6s; }
+#hint3d.walk-hint.faded { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .key-hud, #hint3d.walk-hint { transition: none; } }

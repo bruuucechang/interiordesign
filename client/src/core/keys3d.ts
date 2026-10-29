@@ -37,9 +37,18 @@ export const isTextField = (el: { isContentEditable?: boolean; tagName: string; 
  */
 export function attachFlyKeys(container: HTMLElement, pressed: Set<string>, active: () => boolean, rotate: (deg: number) => void) {
   const keyChips: Record<string, HTMLElement> = {};
+  // B27: the key strip stays out of sight until it has something to say — the
+  // pointer is over the 3D view (CSS :hover) or a movement key is down.
+  let hudTimer: number | undefined;
+  const held = new Set<string>();   // chips lit right now: the strip stays while any key is down
   const flashChip = (k: string, on: boolean) => {
     const c = keyChips[k];
     if (!c) return;
+    if (on) { held.add(k); hud.classList.add('live'); clearTimeout(hudTimer); }
+    else {
+      held.delete(k);
+      if (!held.size) { clearTimeout(hudTimer); hudTimer = window.setTimeout(() => hud.classList.remove('live'), 1200); }
+    }
     c.style.background = on ? '#7bc6ff' : 'rgba(255,255,255,0.06)';
     c.style.color = on ? '#0b0f14' : '#8b93a3';
   };
