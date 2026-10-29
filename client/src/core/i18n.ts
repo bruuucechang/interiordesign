@@ -106,7 +106,7 @@ const EN: Record<string, string> = {
   '隔間線': 'Partition', '門': 'Door', '窗': 'Window',
   '搜尋家具…': 'Search furniture…', '全部': 'All',
   '現代': 'Modern', '北歐': 'Nordic', '日式': 'Japanese', '古典': 'Classical',
-  '鄉村': 'Country', '工業': 'Industrial', '中式': 'Chinese',
+  '鄉村': 'Country', '工業': 'Industrial', '中式': 'Chinese', '溫潤奢華': 'Warm luxe',
   '牆體': 'Walls', '房間': 'Rooms', '門窗': 'Openings', '家具': 'Furniture',
   '水電配置': 'Electrical', '尺寸標註': 'Dimensions',
 

@@ -47,7 +47,7 @@ export interface FurnitureItem {
    * than no filter, so the tags were re-cut from a contact sheet of the
    * thumbnails.
    */
-  style?: '現代' | '古典' | '鄉村' | '工業' | '中式' | '日式' | '北歐';
+  style?: '現代' | '古典' | '鄉村' | '工業' | '中式' | '日式' | '北歐' | '溫潤奢華';
   /**
    * Built by `furnitureBuilders.ts` on purpose, with no downloaded model behind it.
    *
@@ -1015,6 +1015,93 @@ export const FURNITURE: FurnitureItem[] = [
     } },
   { id: 'sh_pool_table', name: '撞球桌', style: '現代', cat: '客廳', w: 256, h: 139, height: 82, draw(ctx, w, h) {
       body(ctx); rr(ctx, 0, 0, w, h, 6); ctx.fill(); ctx.stroke();
+    } },
+  // ---- 溫潤奢華（B30）：淡橡木、米白布紗、亮面石材、極少量香檳金屬 ----
+  // 3D 的零件在 core/luxeParts.ts（純函式、量得到尺寸）。id 的開頭跟舊款同一個，
+  // 健檢的淨空與照明規則是照開頭認的，理由寫在 LUXE_PARTS 上面。
+  { id: 'bed_lx', name: '溫潤雙人床', style: '溫潤奢華', cat: '臥室', proc: true, w: 160, h: 210, height: 105, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; ctx.beginPath(); ctx.moveTo(2, 10); ctx.lineTo(w - 2, 10); ctx.stroke();
+      rr(ctx, 8, 15, w / 2 - 12, 34, 4); ctx.stroke(); rr(ctx, w / 2 + 4, 15, w / 2 - 12, 34, 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(4, 72); ctx.lineTo(w - 4, 72); ctx.stroke();
+    } },
+  { id: 'nightstand_lx', name: '溫潤床頭櫃', style: '溫潤奢華', cat: '臥室', proc: true, w: 50, h: 40, height: 50, draw(ctx, w, h) { drawers(ctx, w, h, 2); } },
+  { id: 'wardrobe_lx', name: '溫潤對開衣櫃', style: '溫潤奢華', cat: '臥室', proc: true, w: 120, h: 60, height: 240, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 55)));
+    } },
+  { id: 'wardrobe_lx_slide', name: '溫潤推拉衣櫃', style: '溫潤奢華', cat: '臥室', proc: true, w: 180, h: 65, height: 240, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(2, Math.round(w / 90)));
+      ctx.strokeStyle = '#e0b45a55'; ctx.beginPath(); ctx.moveTo(2, h - 2); ctx.lineTo(w - 2, h - 2); ctx.stroke();
+    } },
+  { id: 'desk_lx', name: '溫潤書桌', style: '溫潤奢華', cat: '書房', proc: true, w: 140, h: 65, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'tall_cabinet_lx', name: '溫潤高櫃', style: '溫潤奢華', cat: '書房', proc: true, w: 90, h: 40, height: 220, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 55)));
+    } },
+  { id: 'shoe_cabinet_lx', name: '溫潤鞋櫃', style: '溫潤奢華', cat: '客廳', proc: true, w: 120, h: 38, height: 210, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 55)));
+    } },
+  { id: 'cabinet_kitchen_lx', name: '石面廚房下櫃', style: '溫潤奢華', cat: '廚房', proc: true, w: 180, h: 60, height: 90, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 60)));
+    } },
+  { id: 'cabinet_kitchen_lx_sink', name: '石面水槽流理台', style: '溫潤奢華', cat: '廚房', proc: true, w: 120, h: 60, height: 118, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 60)));
+      ctx.strokeStyle = '#7bc6ff'; rr(ctx, (w - Math.min(70, w - 20)) / 2, 10, Math.min(70, w - 20), h - 20, 3); ctx.stroke();
+    } },
+  { id: 'cabinet_kitchen_lx_hob', name: '石面爐台流理台', style: '溫潤奢華', cat: '廚房', proc: true, w: 90, h: 60, height: 90, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 60)));
+      ctx.strokeStyle = '#ff5c72'; [[0.32, 0.5], [0.68, 0.5]].forEach(([px, py]) => { ctx.beginPath(); ctx.arc(w * px, h * py, 9, 0, 7); ctx.stroke(); });
+    } },
+  { id: 'upper_cabinet_lx', name: '溫潤廚房吊櫃', style: '溫潤奢華', cat: '廚房', proc: true, w: 120, h: 35, height: 70, mount: 'wall', draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 45)));
+    } },
+  { id: 'kitchen_island_lx', name: '石面中島', style: '溫潤奢華', cat: '廚房', proc: true, w: 200, h: 90, height: 90, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; ctx.beginPath(); ctx.moveTo(4, h * 0.3); ctx.lineTo(w - 4, h * 0.3); ctx.stroke();
+    } },
+  { id: 'fridge_lx', name: '嵌入冰箱', style: '溫潤奢華', cat: '廚房', proc: true, w: 75, h: 65, height: 210, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 3); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#7bc6ff'; ctx.beginPath(); ctx.moveTo(6, h - 6); ctx.lineTo(w - 6, h - 6); ctx.stroke();
+    } },
+  { id: 'toilet_lx', name: '壁掛馬桶', style: '溫潤奢華', cat: '浴室', proc: true, w: 38, h: 55, height: 100, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, 6, 1); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(w / 2, h * 0.58, w / 2 - 2, h * 0.38, 0, 0, 7); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'vanity_lx', name: '石面浴櫃', style: '溫潤奢華', cat: '浴室', proc: true, w: 90, h: 50, height: 105, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 60)));
+      ctx.strokeStyle = '#7bc6ff'; ctx.beginPath(); ctx.ellipse(w / 2, h / 2 + 1, Math.min(46, w * 0.55) / 2, (h - 14) / 2, 0, 0, 7); ctx.stroke();
+    } },
+  { id: 'shower_lx', name: '玻璃淋浴間', style: '溫潤奢華', cat: '浴室', proc: true, w: 120, h: 90, height: 200, draw(ctx, w, h) {
+      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#7bc6ff'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, h - 1); ctx.lineTo(w * 0.45, h - 1); ctx.moveTo(w * 0.42, h - 3); ctx.lineTo(w, h - 3); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w / 2, 30, 6, 0, 7); ctx.stroke();
+    } },
+  { id: 'sofa_l_lx', name: '溫潤 L 型沙發', style: '溫潤奢華', cat: '客廳', proc: true, w: 280, h: 170, height: 78, draw(ctx, w, h) {
+      const sd = Math.min(95, h * 0.6), cw = Math.min(90, w * 0.35);
+      body(ctx);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w, h); ctx.lineTo(w - cw, h); ctx.lineTo(w - cw, sd); ctx.lineTo(0, sd); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; ctx.beginPath(); ctx.moveTo(18, 22); ctx.lineTo(w - 2, 22); ctx.moveTo(18, 22); ctx.lineTo(18, sd); ctx.stroke();
+    } },
+  { id: 'coffee_lx', name: '石面茶几', style: '溫潤奢華', cat: '客廳', proc: true, w: 120, h: 60, height: 38, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'tv_lx', name: '溫潤電視櫃', style: '溫潤奢華', cat: '客廳', proc: true, w: 200, h: 40, height: 45, draw(ctx, w, h) {
+      cabinet(ctx, w, h, Math.max(1, Math.round(w / 60)));
+    } },
+  { id: 'rug_lx', floorCover: true, name: '羊毛地毯', style: '溫潤奢華', cat: '客廳', proc: true, w: 240, h: 170, height: 1.5, draw(ctx, w, h) {
+      ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
+      rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
+      rr(ctx, 8, 8, w - 16, h - 16, 1); ctx.stroke();
+    } },
+  { id: 'dining_lx', name: '溫潤餐桌', style: '溫潤奢華', cat: '餐廳', proc: true, w: 180, h: 90, height: 75, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+    } },
+  { id: 'chair_lx', name: '布面餐椅', style: '溫潤奢華', cat: '餐廳', proc: true, w: 48, h: 55, height: 82, draw(ctx, w, h) {
+      body(ctx); rr(ctx, 0, 0, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#e0b45a88'; ctx.beginPath(); ctx.moveTo(3, 5); ctx.lineTo(w - 3, 5); ctx.stroke();
     } },
 ];
 

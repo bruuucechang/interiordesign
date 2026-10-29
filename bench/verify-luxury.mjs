@@ -375,6 +375,115 @@ console.log('\nB29 LED 鋁擠燈＋崁燈系列：2D／3D 畫得出、照度有�
   await ctx.close();
 }
 
+// ---------------------------------------------------------------- B30
+console.log('\nB30 溫潤奢華傢俱：目錄篩得出來、每件 3D 建得出來且尺寸對、貼了實掃材質（空白方案）');
+{
+  const { ctx, page } = await open(`${BASE}/?perf=1`, { mode: 'split' });
+  const LX = await page.evaluate(async () => (await import('/src/data/furniture.ts')).FURNITURE.filter(f => f.style === '溫潤奢華')
+    .map(f => ({ id: f.id, name: f.name, w: f.w, h: f.h, height: f.height, mount: f.mount ?? null })));
+  ok(LX.length >= 18, `目錄有 ${LX.length} 件溫潤奢華`);
+  // 真的選單：風格下拉多一個「溫潤奢華」，搜 _lx 篩得出全部；換成北歐就一件都沒有
+  const opts = await page.$$eval('.style-select option', os => os.map(o => o.value));
+  ok(opts.includes('溫潤奢華'), `風格下拉有「溫潤奢華」（${opts.filter(Boolean).join('、')}）`);
+  await page.selectOption('.style-select', '溫潤奢華');
+  await page.fill('.furn-search', '_lx');
+  await page.waitForTimeout(300);
+  const shown = await page.$$eval('.cat-strip .furn-btn[data-furn]', bs => bs.map(b => b.dataset.furn));
+  ok(shown.length === LX.length && LX.every(f => shown.includes(f.id)), `篩「溫潤奢華」＋搜 _lx：面板列出 ${shown.length} 件`);
+  await page.selectOption('.style-select', '北歐');
+  await page.waitForTimeout(200);
+  ok(await page.locator('.cat-strip .furn-btn[data-furn]').count() === 0, '換成北歐：一件都不列');
+  await page.selectOption('.style-select', '');
+  await page.fill('.furn-search', '');
+
+  // 一間 1500×1100 的房間，22 件排成網格（照目錄尺寸、高度、掛牆的離地 150）
+  const placed = await page.evaluate((LX) => {
+    const d = window.__app.doc; d.commit();
+    const w = (id, a, b) => d.add({ id, kind: 'wall', layer: 'walls', a, b, thickness: 12 });
+    const W = 1500, H = 1100;
+    w('w1', { x: 0, y: 0 }, { x: W, y: 0 }); w('w2', { x: W, y: 0 }, { x: W, y: H });
+    w('w3', { x: W, y: H }, { x: 0, y: H }); w('w4', { x: 0, y: H }, { x: 0, y: 0 });
+    d.add({ id: 'r1', kind: 'room', layer: 'rooms', x: 0, y: 0, w: W, h: H, name: '展示間', poly: [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }] });
+    let x = 40, y = 40, row = 0;
+    const out = [];
+    for (const f of LX) {
+      if (x + f.w > W - 40) { x = 40; y += row + 50; row = 0; }
+      const o = { id: `F_${f.id}`, kind: 'furniture', layer: 'furniture', item: f.id, x, y, w: f.w, h: f.h, angle: 0, label: f.name,
+        height: f.height, ...(f.mount === 'wall' ? { elevation: 150 } : {}) };
+      d.add(o); out.push(o);
+      x += f.w + 50; row = Math.max(row, f.h);
+    }
+    d.select(null);
+    return out;
+  }, LX);
+  ok(placed.every(o => o.y + o.h < 1100), `22 件都放得進房間（最下面到 ${Math.max(...placed.map(o => o.y + o.h))}）`);
+  await page.evaluate(() => document.getElementById('zoomFit')?.click());
+  await page.waitForTimeout(800);
+  const d2 = await drawn(page);
+  ok(placed.every(o => d2.includes(`furniture:${o.item}`)), `2D 每件都畫（${count(d2, /^furniture:.*_lx/)} 件）`);
+  await page.screenshot({ path: `${OUT}luxury-b30-2d.png` });
+
+  // 3D：等實掃貼圖都到，量每件的外框
+  await page.waitForFunction(() => window.__app.view3d.furnGroup.children.length > 0, null, { timeout: 60000 });
+  await page.waitForTimeout(4000);
+  const m3 = await page.evaluate((placed) => {
+    const g = window.__app.view3d.furnGroup;
+    const out = [];
+    for (const o of placed) {
+      const cx = o.x + o.w / 2, cz = o.y + o.h / 2;
+      const c = g.children.find(k => Math.abs(k.position.x - cx) < 0.5 && Math.abs(k.position.z - cz) < 0.5);
+      if (!c) { out.push({ id: o.item, missing: true }); continue; }
+      c.updateMatrixWorld(true);
+      let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity], meshes = 0, mapped = 0;
+      c.traverse(m => {
+        if (!m.isMesh) return;
+        meshes++;
+        const mm = Array.isArray(m.material) ? m.material[0] : m.material;
+        if (mm?.map || mm?.normalMap) mapped++;
+        const geo = m.geometry; geo.computeBoundingBox();
+        const b = geo.boundingBox.clone().applyMatrix4(m.matrixWorld);
+        for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], ['x', 'y', 'z'].map(k => b.min[k])[i]); hi[i] = Math.max(hi[i], ['x', 'y', 'z'].map(k => b.max[k])[i]); }
+      });
+      out.push({ id: o.item, meshes, mapped, w: hi[0] - lo[0], h: hi[2] - lo[2], top: hi[1], bottom: lo[1], want: { w: o.w, h: o.h, top: (o.elevation ?? 0) + o.height } });
+    }
+    return out;
+  }, placed);
+  const miss = m3.filter(r => r.missing).map(r => r.id);
+  ok(!miss.length, `3D 每件都建出來（缺 ${miss.join('、') || '0'}）`);
+  const bad = m3.filter(r => !r.missing && (Math.abs(r.w - r.want.w) > 1.2 || Math.abs(r.h - r.want.h) > 1.2 || Math.abs(r.top - r.want.top) > 1.2));
+  ok(!bad.length, `3D 尺寸＝目錄的寬×深×高（誤差 ≤ 1.2cm；不對的：${bad.map(r => `${r.id} ${r.w.toFixed(1)}×${r.h.toFixed(1)}×${r.top.toFixed(1)}`).join('、') || '0'}）`);
+  const flat = m3.filter(r => !r.missing && r.mapped === 0).map(r => r.id);
+  ok(!flat.length, `每件都有貼實掃材質的零件（全是純色的：${flat.join('、') || '0'}）`);
+  console.log('  ' + m3.map(r => `${r.id} ${r.meshes} 塊`).join('、'));
+
+  // 截圖：白天、從房間一角往下看整組
+  await page.evaluate(() => {
+    const v = window.__app.view3d;
+    v.camera.position.set(-250, 650, 1450); v.controls.target.set(750, 60, 500); v.controls.update?.();
+  });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${OUT}luxury-b30-split.png` });
+  await ctx.close();
+
+  // 只看 3D、大一點：近看臥室組與廚房組
+  const { ctx: c3, page: p3 } = await open(`${BASE}/?perf=1`, { mode: '3d', w: 1440, h: 900 });
+  await p3.evaluate((placed) => { const d = window.__app.doc; d.commit();
+    const w = (id, a, b) => d.add({ id, kind: 'wall', layer: 'walls', a, b, thickness: 12 });
+    w('w1', { x: 0, y: 0 }, { x: 1500, y: 0 }); w('w2', { x: 1500, y: 0 }, { x: 1500, y: 1100 });
+    w('w3', { x: 1500, y: 1100 }, { x: 0, y: 1100 }); w('w4', { x: 0, y: 1100 }, { x: 0, y: 0 });
+    for (const o of placed) d.add(o);
+    d.select(null);
+  }, placed);
+  await p3.waitForTimeout(5000);
+  const shots = [['near-a', [-150, 330, 700], [450, 90, 150]], ['near-b', [600, 330, 1350], [800, 80, 650]], ['near-c', [1650, 330, 1350], [1100, 90, 800]]];
+  for (const [name, cam, tgt] of shots) {
+    await p3.evaluate(([cam, tgt]) => { const v = window.__app.view3d; v.camera.position.set(...cam); v.controls.target.set(...tgt); v.controls.update?.(); }, [cam, tgt]);
+    await p3.waitForTimeout(1200);
+    await p3.screenshot({ path: `${OUT}luxury-b30-3d-${name}.png` });
+  }
+  await c3.close();
+}
+
 ok(errs.length === 0, `沒有頁面錯誤（${errs.slice(0, 3).join(' | ') || '0'}）`);
 await br.close();
 console.log(fails ? `\n${fails} 項沒過` : '\n全部通過');

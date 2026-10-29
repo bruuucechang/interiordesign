@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { applyScan } from './textures3d';
 import { DEFAULTS } from '../model/locale-defaults';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { LUXE_PARTS, type LuxeMat, type Part } from './luxeParts';
+import { FURNITURE_BY_ID } from '../data/furniture';
 
 // Proper 3D furniture models assembled from primitives, using rounded-box
 // geometry so cushions/bodies look soft instead of blocky.
@@ -715,6 +717,66 @@ export function stairFlight(w: number, h: number, rise: number): THREE.Group {
   return g;
 }
 
+// ---- 溫潤奢華（B30）：零件在 ./luxeParts，這裡只換成材質 ----
+//
+// 色號（spec-luxury.md 第三節，agent 自己定的，回報時列出）：
+// 淡橡木＝實掃 oak_veneer_02 原色（#dcb995）；米白布紗 #e6dfd2；淺灰褐 #b9ad9c；
+// 寢具 #f4f1ea；地毯 #e3dccf；亮面米色石材 #e8dfd0；淺灰石紋 #cbc8c2；
+// 霧面香檳金屬 #c8b48a（粗糙度 0.4，不是亮金）。
+// 材質依零件大小各做一份——貼圖的重複次數照面的公分數算，240cm 的門片跟 3cm 的
+// 收邊共用一份，木紋會被拉長八十倍。
+function luxeMaterial(kind: LuxeMat, size: [number, number]): THREE.Material {
+  switch (kind) {
+    case 'oak': return woodMat(0xdcb995, 0.5, size, 'oak');
+    case 'linen': return fabricMat(0xe6dfd2, 1, size, 'weave');
+    case 'taupe': return fabricMat(0xb9ad9c, 1, size, 'weave');
+    case 'sheet': return fabricMat(0xf4f1ea, 0.95, size, 'weave');
+    case 'wool': return fabricMat(0xe3dccf, 1, size, 'carpet');
+    case 'stone': case 'stoneGrey': {
+      const m = new THREE.MeshPhysicalMaterial({ color: kind === 'stone' ? 0xe8dfd0 : 0xcbc8c2, roughness: kind === 'stone' ? 0.2 : 0.32,
+        metalness: 0, clearcoat: kind === 'stone' ? 0.75 : 0.45, clearcoatRoughness: 0.15, envMapIntensity: 1.1 });
+      m.name = kind;
+      applyScan(m, 'marble', size[0], size[1], { colour: false });   // 取石紋的凹凸，顏色照色號
+      return m;
+    }
+    case 'champagne': return metalMat(0xc8b48a, 0.4, size);
+    case 'shadow': return plinthMat();
+    case 'glass': return glassMat(0xe8f0f0, 0.16);
+    case 'ceramic': return ceramicMat(0xf3f1ec);
+    case 'steel': return metalMat(0xb9bcc0, 0.3, size);
+    case 'hob': {
+      const m = new THREE.MeshPhysicalMaterial({ color: 0x141517, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05 });
+      m.name = 'hob';
+      return m;
+    }
+  }
+}
+
+/** 零件 → 網格。圓柱用單位圓柱縮放到外框，所以可以是橢圓（洗手盆）。 */
+export function luxeModel(parts: readonly Part[]): THREE.Group {
+  const g = new THREE.Group();
+  const mats = new Map<string, THREE.Material>();
+  for (const p of parts) {
+    const sx = p.x[1] - p.x[0], sy = p.y[1] - p.y[0], sz = p.z[1] - p.z[0];
+    const cx = (p.x[0] + p.x[1]) / 2, cy = (p.y[0] + p.y[1]) / 2, cz = (p.z[0] + p.z[1]) / 2;
+    // 貼圖照看得到的那一面算：薄板（檯面、地毯）是上面，其他是正面
+    const face: [number, number] = sy < Math.min(sx, sz) * 0.3 ? [sx, sz] : [sx, sy];
+    const key = `${p.mat}|${Math.round(face[0] / 10)}|${Math.round(face[1] / 10)}`;
+    let m = mats.get(key);
+    if (!m) { m = luxeMaterial(p.mat, face); mats.set(key, m); }
+    if (p.cyl) {
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), m);
+      c.scale.set(Math.max(0.5, sx), Math.max(0.5, sy), Math.max(0.5, sz));
+      c.position.set(cx, cy, cz);
+      g.add(c);
+    } else if (p.r && Math.min(sx, sy, sz) >= 2) g.add(rbox(sx, sy, sz, p.r, m, cx, cy, cz));   // rbox 會把 1cm 以下撐到 1cm
+    else g.add(box(sx, sy, sz, m, cx, cy, cz));
+  }
+  return g;
+}
+
+const luxe = (id: string) => (w: number, h: number) => luxeModel(LUXE_PARTS[id](w, h, FURNITURE_BY_ID[id]?.height ?? 75));
+
 export const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   stairs: (w, h) => stairFlight(w, h, DEFAULTS.wallHeight),
   dining: (w, h) => table(w, h, 75), desk: (w, h) => table(w, h, 75), coffee,
@@ -762,4 +824,6 @@ export const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> 
   nd_wardrobe:   (w, h) => wardrobeModel(w, h, 190, { doors: 2, base: 'feet', handle: 'knob' }),
   nd_shelf:      (w, h) => shelfModel(w, h, 150, 4),
   nd_bench:      (w, h) => table(w, h, 45),
+  // 溫潤奢華（B30）
+  ...Object.fromEntries(Object.keys(LUXE_PARTS).map(id => [id, luxe(id)])),
 };
