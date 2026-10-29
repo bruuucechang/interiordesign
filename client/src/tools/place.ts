@@ -5,7 +5,7 @@ import { layerForKind, ELECTRICAL_BY_ID } from '../model/catalogue';
 import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, arcSpan, wallControl } from '../core/geometry';
 import { Box, wallBox, pushOut, groupPushOut } from '../core/clearance';
 import { FURNITURE_BY_ID } from '../data/furniture';
-import { ELECTRICAL_SYMBOLS } from '../data/electrical';
+import { ELECTRICAL_SYMBOLS, QUIET_SYMBOLS } from '../data/electrical';
 import { t } from '../core/i18n';
 import { nearestWallDistance, placementIssues } from '../core/placement';
 
@@ -379,7 +379,8 @@ export class ElectricalTool implements Tool {
       ctx.translate(pos.x, pos.y); ctx.rotate(angle * Math.PI / 180);
       ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166';
       ctx.lineWidth = 2; ctx.lineCap = 'round';
-      sym(ctx);
+      // What lands is what was previewed: the plan's quiet form where it has one (B25).
+      (QUIET_SYMBOLS[spec.id] ?? sym)(ctx);
       ctx.restore();
     });
     this.ctx.render();

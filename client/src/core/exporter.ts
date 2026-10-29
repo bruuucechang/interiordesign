@@ -28,7 +28,7 @@ function renderToCanvas(doc: Doc): HTMLCanvasElement {
   vp.dpr = 1; vp.width = W; vp.height = H; vp.scale = scale;
   vp.origin = { x: bx - pad, y: by - pad };
 
-  new Renderer(canvas, vp, doc).render({ background: '#171a20', grid: false, selection: false, roomUse: false, declutter: false, skipKinds: ['area'] });   // sub-areas are a lighting aid, not part of the drawing
+  new Renderer(canvas, vp, doc).render({ background: '#171a20', grid: false, selection: false, roomUse: false, declutter: false, quiet: false, skipKinds: ['area'] });   // sub-areas are a lighting aid, not part of the drawing
   return canvas;
 }
 
