@@ -17,7 +17,18 @@ const QUIET: Record<string, string> = {
   '#e0b45a': '#a39d90',   // outline and detail lines
   '#f0c869': '#b3ad9f',
   '#ffd98a': '#c4beb0',
+  '#c9c07a': '#a8a597',   // tatami edging (olive-yellow)
+  '#d9c49a': '#b8b2a5',   // Nordic cabinet dividers (straw)
 };
+
+/**
+ * A catalogue lamp is a light, and on the plan only lights are yellow: lamps
+ * keep their colour. A ceiling fan is filed under 燈具 but is not a light (the
+ * same rule roomUse counts lamps by).
+ */
+export function keepsLampInk(item: { cat?: string; name?: string }): boolean {
+  return item.cat === '燈具' && !/扇/.test(item.name ?? '');
+}
 
 /** Furniture name labels on the plan, matching the outline. */
 export const FURNITURE_LABEL = '#b8b2a5';

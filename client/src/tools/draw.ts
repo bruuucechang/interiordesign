@@ -8,6 +8,7 @@ import { applyReference } from '../core/wallEdit';
 import { DEFAULTS } from '../model/locale-defaults';
 import { t } from '../core/i18n';
 import { computeSnap, drawSnap, SnapResult, WallSeg } from '../core/snap';
+import { AREA_INK } from '../core/planInk';
 
 /** 台灣住宅的預設牆厚。來源與其他在地預設值一起列在 locale-defaults.ts。 */
 const WALL_THICKNESS = DEFAULTS.wallThickness;
@@ -179,7 +180,7 @@ export class AreaTool implements Tool {
     if (!this.a) return;
     const a = this.a, b = p.snapped, s = this.ctx.vp.scale;
     this.ctx.setPreview(ctx => {
-      ctx.strokeStyle = '#ffd166'; ctx.setLineDash([4 / s, 5 / s]); ctx.lineWidth = 1.5 / s;
+      ctx.strokeStyle = AREA_INK; ctx.setLineDash([4 / s, 5 / s]); ctx.lineWidth = 1.5 / s;   // as it will be drawn (B25)
       ctx.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y)); ctx.setLineDash([]);
     });
     this.ctx.render();

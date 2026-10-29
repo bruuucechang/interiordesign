@@ -4,7 +4,7 @@ import { Viewport } from './viewport';
 import { Doc } from '../model/doc';
 import { Obj, ObjKind, Vec } from '../model/schema';
 import { FURNITURE_BY_ID } from '../data/furniture';
-import { ELECTRICAL_SYMBOLS } from '../data/electrical';
+import { ELECTRICAL_SYMBOLS, QUIET_SYMBOLS, QUIET_ALPHA } from '../data/electrical';
 import { LIGHT_DEFAULTS } from '../model/catalogue';
 import { DEFAULT_CIRCUIT } from './lighting';
 import { circuitColor } from './lightmap';
@@ -12,7 +12,7 @@ import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygon
 import { handles } from './handles';
 import { roomUse, isDefaultRoomName } from './roomUse';
 import { layoutLabels, LABEL_PRIORITY, LabelBox } from './labelLayout';
-import { quietInk, hatchShown, inkPitch, FURNITURE_LABEL, AREA_INK } from './planInk';
+import { quietInk, hatchShown, inkPitch, keepsLampInk, FURNITURE_LABEL, AREA_INK } from './planInk';
 import { t } from './i18n';
 import { furnitureCenter, bounds } from './hit';
 
@@ -463,8 +463,9 @@ export class Renderer {
         // A custom colour is applied at the context boundary so the catalogue's
         // draw() functions stay unaware of it.
         // Otherwise, on screen, the amber the pictograms draw in becomes grey so
-        // only the lights stay yellow (B25); the plot has its own ink already.
-        if (item) item.draw(o.color ? tintContext(ctx, o.color) : this.quiet ? quietContext(ctx) : ctx, o.w, o.h);
+        // only the lights stay yellow (B25) — lamps from the furniture catalogue
+        // are lights too and keep theirs; the plot has its own ink already.
+        if (item) item.draw(o.color ? tintContext(ctx, o.color) : this.quiet && !keepsLampInk(item) ? quietContext(ctx) : ctx, o.w, o.h);
         else { ctx.fillStyle = '#3a4150'; ctx.strokeStyle = this.quiet ? quietInk(color) as string : color; ctx.lineWidth = 2; ctx.fillRect(0, 0, o.w, o.h); ctx.strokeRect(0, 0, o.w, o.h); }
         ctx.restore();
         break;
@@ -487,15 +488,12 @@ export class Renderer {
         }
         ctx.strokeStyle = color; ctx.fillStyle = color;
         ctx.lineWidth = 2;
-        if (!lit && this.quiet && (o.item === 'downlight' || o.item === 'batten')) {
-          // B25: 57 solid yellow dots and 21 bars were the loudest thing on the
-          // A1 plan, sitting on the room names. On screen a downlight is a small
-          // ring and a batten a thin, half-strength bar; the drawing set (plot)
-          // and the lighting overlay keep the full symbols.
-          ctx.globalAlpha = 0.75;
-          if (o.item === 'downlight') { ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.stroke(); }
-          else { ctx.globalAlpha = 0.5; ctx.lineWidth = 1; sym(ctx, o); }
-        } else sym(ctx, o);
+        // B25: 57 solid yellow dots and 21 bars were the loudest thing on the A1
+        // plan, sitting on the room names. On screen they take their quiet forms;
+        // the plot and the lighting overlay keep the full symbols.
+        const q = !lit && this.quiet ? QUIET_SYMBOLS[o.item] : undefined;
+        if (q) { ctx.globalAlpha = QUIET_ALPHA[o.item] ?? 1; q(ctx, o); }
+        else sym(ctx, o);
         ctx.restore();
         break;
       }

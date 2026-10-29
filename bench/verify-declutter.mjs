@@ -66,14 +66,17 @@ console.log('B25 只有燈是黃的、地板條紋');
   const hatchNear = p.filter(x => x.op === 'fill' && x.c === 'pattern').length;
   ok(hatchNear > 0, `放大到 1.5 px/cm：地板紋路出現（${hatchNear} 塊）`);
   await page.screenshot({ path: `${OUT}declutter-a1-zoom.png` });
-  // 照度熱圖開著：燈照舊用迴路顏色畫實心
-  await page.evaluate(() => document.querySelector('[data-act="lighting"]')?.click());
+  // 照度熱圖開著：燈照舊用迴路顏色畫實心，沒有任何淡化的燈
+  ok(await page.evaluate(() => !!document.querySelector('[data-act="lighting"]')), '「照度熱圖」按鈕在');
+  await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());
   await page.waitForTimeout(1500);
+  ok(await page.evaluate(() => !!window.__app.editor.heat), '照度熱圖打開了');
   p = await paints(page);
-  const litSolid = p.filter(x => x.op === 'fill' && x.a === 1 && x.c !== 'pattern' && !x.c.startsWith('#0e1218') && /^#/.test(x.c)).length;
-  await page.evaluate(() => document.querySelector('[data-act="lighting"]')?.click());   // 關回來
+  const faded = p.filter(x => x.c.startsWith('#ffd166') && x.a < 1).length;
+  const lit = p.filter(x => x.op === 'fill' && x.a === 1 && /^#/.test(x.c) && !/^#(3a4150|2b3340|0e1218|31414e)/.test(x.c)).length;
+  ok(faded === 0 && lit >= 57, `照度熱圖開著：沒有淡化的燈（${faded} 筆）、燈照舊實心（${lit} 筆）`);
+  await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());   // 關回來
   await page.waitForTimeout(500);
-  ok(litSolid > 57, `照度熱圖開著：燈照舊畫實心（${litSolid} 筆實心填色）`);
   // PNG 匯出照舊：家具照舊琥珀色、燈照舊實心
   const png = await page.evaluate(async () => {
     const ex = await import('/src/core/exporter.ts');
@@ -88,6 +91,22 @@ console.log('B25 只有燈是黃的、地板條紋');
   });
   ok(png.some(s => /^#e0b45a/.test(s)) && png.some(s => s === '#ffd166|1'), `PNG 匯出照舊：家具琥珀色、燈實心（${png.length} 筆${png.find(s => s.startsWith('ERR')) ?? ''}）`);
   ok(await page.evaluate(() => window.__app.doc.objects.length) === 180, 'A1 還是 180 件（只讀）');
+  await ctx.close();
+}
+
+console.log('\nB25 家具目錄的燈具照舊是黃的');
+{
+  const { ctx, page } = await open(`${BASE}/?perf=1`);
+  const ink = (item) => page.evaluate((item) => { const d = window.__app.doc; d.commit();
+    d.add({ id: 'f-' + item, kind: 'furniture', layer: 'furniture', item, x: 0, y: 0, w: 60, h: 60, angle: 0, label: '' });
+    const v = window.__app.editor.vp; v.scale = 2; v.centerOn(0, 0, 60, 60);
+    const P = CanvasRenderingContext2D.prototype, os = P.stroke, out = new Set();
+    P.stroke = function (...a) { out.add(String(this.strokeStyle).toLowerCase()); return os.apply(this, a); };
+    try { window.__app.editor.renderNow(); } finally { P.stroke = os; }
+    d.remove('f-' + item); return [...out]; }, item);
+  const lamp = await ink('lamp_ceiling'), wardrobe = await ink('wardrobe');
+  ok(lamp.some(c => /^#f0c869/.test(c)), `吸頂燈（家具目錄）在平面圖上照舊黃色（${lamp.join(' ')}）`);
+  ok(!wardrobe.some(c => AMBER.test(c)), `衣櫃換成灰色（${wardrobe.join(' ')}）`);
   await ctx.close();
 }
 

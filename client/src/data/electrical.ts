@@ -17,6 +17,22 @@ const R = 11;   // cm — nominal symbol radius, so symbols read at 1:50
 // length); the palette and the placement preview draw without it.
 type Draw = (ctx: CanvasRenderingContext2D, o?: Electrical) => void;
 
+/**
+ * The screen plan's quieter forms of the two lights a flat has dozens of (B25):
+ * a downlight is a small ring instead of a filled dot, a batten an outlined
+ * 3 cm strip instead of a filled 6 cm bar. The drawing set (plot), the lighting
+ * overlay and the catalogue keep `ELECTRICAL_SYMBOLS`. The caller sets colour,
+ * alpha (`QUIET_ALPHA`) and leaves the line width alone.
+ */
+export const QUIET_SYMBOLS: Partial<Record<ElectricalId, Draw>> = {
+  downlight: ctx => { ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.stroke(); },
+  batten: (ctx, o) => {
+    const half = T5_SIZES[o?.size ?? T5_DEFAULT_SIZE].length / 2;
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.rect(-half, -3, half * 2, 3); ctx.stroke();
+  },
+};
+export const QUIET_ALPHA: Partial<Record<ElectricalId, number>> = { downlight: 0.75, batten: 0.6 };
+
 const circle = (ctx: CanvasRenderingContext2D, r = R) => {
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
 };
