@@ -167,6 +167,19 @@ def test_t5_battens_are_counted_per_length():
     ]
 
 
+def test_linear_lights_are_counted_per_length():
+    # B29: a 120 cm and a 240 cm aluminium profile are different orders too.
+    def lin(length: float, label: str = "嵌入式鋁擠線燈") -> Electrical:
+        return Electrical(id="e", kind="electrical", layer="electrical", item="linearRecessed",
+                          label=label, length=length, x=0, y=0, angle=0)
+    r = build_report(plan(floor("1F", [lin(120), lin(120.2), lin(240), lin(60, label="")])))
+    assert r["floors"][0]["electrical"] == [
+        {"item": "linearRecessed 60 cm", "count": 1},
+        {"item": "嵌入式鋁擠線燈 120 cm", "count": 2},
+        {"item": "嵌入式鋁擠線燈 240 cm", "count": 1},
+    ]
+
+
 def test_the_t5_default_matches_the_catalogue():
     # The client owns the default; this side only copies it.
     import re

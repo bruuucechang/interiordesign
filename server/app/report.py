@@ -77,6 +77,9 @@ def build_report(project: Project, name: str = "") -> dict[str, Any]:
                 if o.item == ElectricalId.batten:
                     size = o.size.value if o.size else T5_DEFAULT_SIZE
                     label = f"{o.label or 'T5'} {size} 尺"
+                elif o.length is not None:
+                    # B29 linear lights are ordered by length too.
+                    label = f"{o.label or o.item.value} {round(o.length)} cm"
                 else:
                     label = o.label or o.item.value or "配件"
                 elec[label] = elec.get(label, 0) + 1

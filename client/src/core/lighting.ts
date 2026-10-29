@@ -7,7 +7,8 @@
 //
 //   · downward lights (downlight, ceiling light, spotlight, pendant): a cosⁿ
 //     source pointing at the floor, n from the beam angle (120° → n = 1, which
-//     is Lambertian), normalised so the lower hemisphere carries the flux
+//     is Lambertian), normalised so the lower hemisphere carries the flux; a
+//     ceiling linear light (B29) is SEG of them along its length, Φ/SEG each
 //   · tubes (T5 batten, wall light): cut into SEG segments, each a half
 //     cylinder against its wall that lights the side it faces and fades towards
 //     the tube's ends; I₀ = 2Φ / π² / SEG
@@ -28,7 +29,8 @@
 import type { Electrical, Opening, Room, Vec, Wall } from '../model/schema';
 import { quadPoints, wallControl } from './geometry';
 import { openingSpan, openingsOnWall } from './wallGeometry';
-import { ELECTRICAL_BY_ID, LIGHT_DEFAULTS, T5_SIZES, T5_DEFAULT_SIZE, T5_BELOW_CEILING } from '../model/catalogue';
+import { ELECTRICAL_BY_ID, LIGHT_DEFAULTS, LINEAR_LIGHTS, T5_SIZES, T5_DEFAULT_SIZE, T5_BELOW_CEILING } from '../model/catalogue';
+import { linearLength, linearOutput } from './linearLight';
 import type { Box } from './clearance';
 
 export const MAINTENANCE = 0.8;
@@ -50,6 +52,8 @@ export interface Luminaire {
   exponent?: number;
   /** For a tube: its length, the unit vector along it, and the unit vector it lights. */
   tube?: { length: number; axis: [number, number]; face: [number, number] };
+  /** A downward light that is a line (a ceiling linear light, B29): its length and the unit vector along it. */
+  line?: { length: number; axis: [number, number] };
 }
 
 /** cosⁿ exponent whose intensity halves at half the beam angle. */
@@ -86,6 +90,19 @@ export function luminaire(e: Electrical, ceiling: number): Luminaire | null {
       lumens: e.lumens ?? t5.lumens, watts: t5.watts,
       tube: { length: t5.length, axis, face },
     };
+  }
+  const lin = LINEAR_LIGHTS[e.item];
+  if (lin) {
+    // B29: as long as the object says, its flux that length's worth.
+    const length = linearLength(e), out = linearOutput(e.item, length);
+    const lumens = e.lumens ?? out.lumens;
+    if (lin.dist.type === 'down') {
+      return { ...base, z: ceiling, lumens, watts: out.watts, exponent: beamExponent(e.beam ?? lin.dist.beam), line: { length, axis } };
+    }
+    const below = lin.dist.belowCeiling;
+    const z = below === undefined ? (e.elevation ?? ELECTRICAL_BY_ID[e.item].elevation)
+      : Math.min(e.elevation ?? Infinity, ceiling - below);
+    return { ...base, z, lumens, watts: out.watts, tube: { length, axis, face } };
   }
   const spec = LIGHT_DEFAULTS[e.item];
   if (!spec) return null;
@@ -201,7 +218,12 @@ function rawSources(lums: readonly Luminaire[]): Source[] {
   for (const L of lums) {
     if (!L.tube) {
       const n = L.exponent ?? 1;
-      s.push({ x: L.x, y: L.y, z: L.z, n: [0, 0, -1], exp: n, I: L.lumens * (n + 1) / (2 * Math.PI) });
+      // A line of downward light is SEG of the same cosⁿ source, each its share of the flux.
+      const k = L.line ? SEG : 1;
+      for (let i = 0; i < k; i++) {
+        const t = L.line ? (i + 0.5) / SEG - 0.5 : 0, len = L.line?.length ?? 0, ax = L.line?.axis ?? [0, 0];
+        s.push({ x: L.x + ax[0] * len * t, y: L.y + ax[1] * len * t, z: L.z, n: [0, 0, -1], exp: n, I: L.lumens / k * (n + 1) / (2 * Math.PI) });
+      }
       continue;
     }
     const { length, axis, face } = L.tube;

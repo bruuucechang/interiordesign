@@ -25,6 +25,16 @@ class ElectricalId(StrEnum):
     wallLight = 'wallLight'
     batten = 'batten'
     exhaust = 'exhaust'
+    linearRecessed = 'linearRecessed'
+    linearSurface = 'linearSurface'
+    linearCove = 'linearCove'
+    linearWash = 'linearWash'
+    linearShelf = 'linearShelf'
+    dlFrameless = 'dlFrameless'
+    dlDeep = 'dlDeep'
+    dlAdjust = 'dlAdjust'
+    dlWash = 'dlWash'
+    dlTwin = 'dlTwin'
 
 
 class Hinge(StrEnum):
@@ -126,6 +136,10 @@ class Electrical(BaseModel):
     kind: Literal['electrical']
     label: str | None = None
     layer: str
+    length: float | None = Field(
+        None,
+        description="Length (cm) of an LED aluminium linear light (B29), along the symbol's local x. Absent = the catalogue's default length.",
+    )
     lumens: float | None = Field(
         None, description='Luminous flux (lm), overriding the catalogue default.'
     )

@@ -103,6 +103,8 @@ export interface Electrical extends Base {
   circuit?: number;
   /** T5 batten length in feet. The tube runs along the symbol's local x and lights its "up" side (-y, into the room). */
   size?: T5Size;
+  /** Length (cm) of an LED aluminium linear light (B29), along the symbol's local x. Absent = the catalogue's default length. */
+  length?: number;
 }
 
 export type T5Size = 1 | 2 | 3 | 4;
@@ -110,7 +112,10 @@ export type T5Size = 1 | 2 | 3 | 4;
 export type ElectricalId =
   | 'socket' | 'socket2' | 'socketWater' | 'tv' | 'network'
   | 'switch1' | 'switch2' | 'switch3'
-  | 'ceilingLight' | 'downlight' | 'spotlight' | 'pendant' | 'wallLight' | 'batten' | 'exhaust';
+  | 'ceilingLight' | 'downlight' | 'spotlight' | 'pendant' | 'wallLight' | 'batten' | 'exhaust'
+  // B29: LED aluminium linear lights (length set on the object) and the downlight series.
+  | 'linearRecessed' | 'linearSurface' | 'linearCove' | 'linearWash' | 'linearShelf'
+  | 'dlFrameless' | 'dlDeep' | 'dlAdjust' | 'dlWash' | 'dlTwin';
 
 export type Obj = Wall | Beam | Partition | Room | Area | Opening | Furniture | Dimension | ImageObj | Electrical;
 

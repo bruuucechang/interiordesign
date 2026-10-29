@@ -1,7 +1,7 @@
 import { Tool, ToolCtx, PointerInfo } from './types';
 import { genId, Doc } from '../model/doc';
 import { Vec, Obj } from '../model/schema';
-import { layerForKind, ELECTRICAL_BY_ID } from '../model/catalogue';
+import { layerForKind, ELECTRICAL_BY_ID, LINEAR_LIGHTS, belowCeiling, isWallLight } from '../model/catalogue';
 import { closestOnSegment, angleDeg, dist, fmtLen, arcOpening, arcSpan, wallControl } from '../core/geometry';
 import { Box, wallBox, pushOut, groupPushOut } from '../core/clearance';
 import { FURNITURE_BY_ID } from '../data/furniture';
@@ -356,7 +356,7 @@ export class ElectricalTool implements Tool {
 
   private fitToWall(p: Vec): { pos: Vec; angle: number } | null {
     const walls = this.ctx.doc.objects.filter(o => o.kind === 'wall') as Extract<Obj, { kind: 'wall' }>[];
-    const light = this.ctx.currentElectrical === 'batten' || this.ctx.currentElectrical === 'wallLight';
+    const light = isWallLight(this.ctx.currentElectrical);
     return fitElectricalToWall(p, walls, light);
   }
 
@@ -395,9 +395,11 @@ export class ElectricalTool implements Tool {
     this.ctx.doc.add({
       id, kind: 'electrical', layer: layerForKind('electrical'),
       item: spec.id, x: pos.x, y: pos.y, angle,
-      // A batten hangs off the ceiling, not the floor: left unset, the lighting
-      // maths puts it just under whatever ceiling its floor has.
-      ...(spec.id === 'batten' ? {} : { elevation: spec.elevation }), label: spec.name,
+      // A batten (and a cove or wall-wash strip) hangs off the ceiling, not the
+      // floor: left unset, the lighting maths puts it just under whatever
+      // ceiling its floor has. A linear light lands at its default length.
+      ...(belowCeiling(spec.id) !== undefined ? {} : { elevation: spec.elevation }), label: spec.name,
+      ...(LINEAR_LIGHTS[spec.id] ? { length: LINEAR_LIGHTS[spec.id]!.length.def } : {}),
     } as Obj);
     this.ctx.doc.select(id);
     // Stay on the tool: a plan needs many fittings, and re-picking the tool

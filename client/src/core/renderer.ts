@@ -5,7 +5,7 @@ import { Doc } from '../model/doc';
 import { Obj, ObjKind, Vec } from '../model/schema';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS, QUIET_SYMBOLS, QUIET_ALPHA } from '../data/electrical';
-import { LIGHT_DEFAULTS } from '../model/catalogue';
+import { isLightItem } from '../model/catalogue';
 import { DEFAULT_CIRCUIT } from './lighting';
 import { circuitColor } from './lightmap';
 import { fmtLen, fmtArea, dist, angleDeg, sub, len, rotate, polygonArea, polygonCentroid, wallControl, closestOnSegment, wallCap, wallEndCounts, wallEndCaps } from './geometry';
@@ -485,7 +485,7 @@ export class Renderer {
         // Over the lighting overlay a light takes its switch group's colour —
         // the same chip the panel's circuit list shows — on a dark halo, since
         // the layer colour is a yellow that vanishes into a lit room.
-        const lit = this.heatOn && (o.item === 'batten' || LIGHT_DEFAULTS[o.item]);
+        const lit = this.heatOn && isLightItem(o.item);
         if (lit) {
           ctx.strokeStyle = ctx.fillStyle = '#0e1218'; ctx.lineWidth = 6;
           sym(ctx, o);

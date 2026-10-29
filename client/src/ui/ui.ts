@@ -1,10 +1,11 @@
 import { Editor } from '../core/editor';
 import { openFeelSettings } from './controls-settings';
 import { Doc, genId } from '../model/doc';
-import { Obj, Project } from '../model/schema';
+import { Electrical, Obj, Project } from '../model/schema';
 import { ELECTRICAL } from '../model/catalogue';
 import { FURNITURE, FURNITURE_CATS, FurnitureItem } from '../data/furniture';
 import { ELECTRICAL_SYMBOLS } from '../data/electrical';
+import { isLinear } from '../core/linearLight';
 import { snap } from '../core/geometry';
 
 import { exportPNG, exportPDF } from '../core/exporter';
@@ -250,7 +251,8 @@ function buildCatalog(editor: Editor) {
     ctx.translate(30, 28); ctx.scale(0.85, 0.85);
     ctx.strokeStyle = '#ffd166'; ctx.fillStyle = '#ffd166';
     ctx.lineWidth = 2; ctx.lineCap = 'round';
-    ELECTRICAL_SYMBOLS[spec.id](ctx);
+    // A linear light's button shows a short run: its default 1.2–2.4 m would not fit the 60 px chip.
+    ELECTRICAL_SYMBOLS[spec.id](ctx, isLinear(spec.id) ? { length: 50 } as Electrical : undefined);
     const n = document.createElement('span'); n.className = 'fname'; n.textContent = spec.name;
     b.append(cv, n);
     b.onclick = () => {
@@ -291,7 +293,12 @@ function buildCatalog(editor: Editor) {
       { label: '燈具', els: FURNITURE.filter(f => f.cat === '燈具').map(furnButton) },
       ...['插座', '開關', '燈具'].map(c => ({
         label: c === '燈具' ? '燈位與排風' : c,
-        els: ELECTRICAL.filter(e => e.cat === c).map(elecButton),
+        els: ELECTRICAL.filter(e => e.cat === c && !e.series).map(elecButton),
+      })),
+      // B29: the LED linear lights and the downlight series, a row each.
+      ...(['鋁擠燈', '崁燈系列'] as const).map(s => ({
+        label: s === '鋁擠燈' ? 'LED 鋁擠燈' : s,
+        els: ELECTRICAL.filter(e => e.series === s).map(elecButton),
       })),
     ] },
     furnTab('常用', '樓梯', TAB_ICON.stairs),
