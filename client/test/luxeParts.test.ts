@@ -75,6 +75,21 @@ test('對開衣櫃的門片照寬度分，門縫 6mm', () => {
   }
 });
 
+// 拉溝是讀出「這是門」的那一條：被前面的零件整條擋住就等於沒有（推拉衣櫃的後軌門片曾經這樣）
+test('香檳金屬拉溝沒有被前面的零件整條擋住', () => {
+  for (const id of ids) {
+    const f = FURNITURE_BY_ID[id];
+    for (const [w, h] of sizesOf(f.w, f.h)) {
+      const parts = LUXE_PARTS[id](w, h, f.height!);
+      for (const c of parts.filter(p => p.mat === 'champagne')) {
+        const cover = parts.find(p => p !== c && p.mat !== 'glass' && p.z[0] >= c.z[1] - 0.001
+          && p.x[0] <= c.x[0] && p.x[1] >= c.x[1] && p.y[0] <= c.y[0] && p.y[1] >= c.y[1]);
+        assert.ok(!cover, `${id} ${w}×${h}：x ${c.x} y ${c.y} 的金屬被 ${cover?.mat} x ${cover?.x} 擋住`);
+      }
+    }
+  }
+});
+
 test('水槽流理台的檯面在 90，龍頭高出去的部分不算檯面', () => {
   const parts = LUXE_PARTS.cabinet_kitchen_lx_sink(120, 60, FURNITURE_BY_ID.cabinet_kitchen_lx_sink.height!);
   const top = parts.find(p => p.mat === 'stone')!;

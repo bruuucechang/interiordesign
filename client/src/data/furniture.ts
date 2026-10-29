@@ -1091,7 +1091,7 @@ export const FURNITURE: FurnitureItem[] = [
   { id: 'tv_lx', name: '溫潤電視櫃', style: '溫潤奢華', cat: '客廳', proc: true, w: 200, h: 40, height: 45, draw(ctx, w, h) {
       cabinet(ctx, w, h, Math.max(1, Math.round(w / 60)));
     } },
-  { id: 'rug_lx', floorCover: true, name: '羊毛地毯', style: '溫潤奢華', cat: '客廳', proc: true, w: 240, h: 170, height: 1.5, draw(ctx, w, h) {
+  { id: 'rug_lx', floorCover: true, name: '羊毛地毯', style: '溫潤奢華', cat: '客廳', proc: true, w: 240, h: 170, height: 2, draw(ctx, w, h) {
       ctx.fillStyle = '#2b3340'; ctx.strokeStyle = '#6d7890'; ctx.lineWidth = 2;
       rr(ctx, 0, 0, w, h, 2); ctx.fill(); ctx.stroke();
       rr(ctx, 8, 8, w - 16, h - 16, 1); ctx.stroke();

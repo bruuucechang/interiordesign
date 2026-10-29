@@ -759,8 +759,9 @@ export function luxeModel(parts: readonly Part[]): THREE.Group {
   for (const p of parts) {
     const sx = p.x[1] - p.x[0], sy = p.y[1] - p.y[0], sz = p.z[1] - p.z[0];
     const cx = (p.x[0] + p.x[1]) / 2, cy = (p.y[0] + p.y[1]) / 2, cz = (p.z[0] + p.z[1]) / 2;
-    // 貼圖照看得到的那一面算：薄板（檯面、地毯）是上面，其他是正面
-    const face: [number, number] = sy < Math.min(sx, sz) * 0.3 ? [sx, sz] : [sx, sy];
+    // 貼圖照看得到的那一面算，也就是最薄的那一軸以外的兩軸：檯面、地毯是上面，
+    // 側板與瀑布石材是側面，其他是正面
+    const face: [number, number] = sy <= Math.min(sx, sz) ? [sx, sz] : sx < Math.min(sy, sz) ? [sz, sy] : [sx, sy];
     const key = `${p.mat}|${Math.round(face[0] / 10)}|${Math.round(face[1] / 10)}`;
     let m = mats.get(key);
     if (!m) { m = luxeMaterial(p.mat, face); mats.set(key, m); }

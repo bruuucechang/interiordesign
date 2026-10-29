@@ -89,7 +89,7 @@ function bed(w: number, h: number, H: number): Part[] {
   o.push(P('linen', [-W + 5, W - 5], [32, H - 6], [-D + 4, -D + hb], 3));       // 布面軟包
   o.push(P('sheet', [-W + 4, W - 4], [30, 52], [-D + hb + 1, D - 3], 5));       // 床墊
   o.push(P('linen', [-W + 2, W - 2], [36, 55], [-D + hb + 62, D - 1], 4));      // 被子垂到兩側
-  o.push(P('sheet', [-W + 2, W - 2], [52, 57], [-D + hb + 56, -D + hb + 70], 2)); // 反折的被頭
+  o.push(P('sheet', [-W + 2.5, W - 2.5], [52, 57], [-D + hb + 56, -D + hb + 70], 2)); // 反折的被頭
   o.push(P('taupe', [-W + 1, W - 1], [54, 56.5], [D - 55, D - 25], 1));        // 床尾毯
   const n = w >= 140 ? 2 : 1, pw = (w - 16 - (n - 1) * 6) / n;
   for (let i = 0; i < n; i++) {
@@ -102,7 +102,7 @@ function bed(w: number, h: number, H: number): Part[] {
 function nightstand(w: number, h: number, H: number): Part[] {
   const W = w / 2, D = h / 2, o: Part[] = [];
   o.push(P('shadow', [-W + 3, W - 3], [0, 6], [-D + 2, D - 4]));
-  o.push(P('oak', [-W, W], [6, H - 2], [-D, D - 2.2]));
+  o.push(P('oak', [-W, W], [6, H - 2], [-D, D - 2.4]));
   const n = 2, top = H - 2, dh = (top - 6) / n;
   for (let i = 0; i < n; i++) {
     const y0 = 6 + dh * i, y1 = y0 + dh;
@@ -123,8 +123,9 @@ function wardrobe(w: number, h: number, H: number): Part[] {
 
 function wardrobeSlide(w: number, h: number, H: number): Part[] {
   const W = w / 2, D = h / 2, o: Part[] = [];
-  const n = slideLeaves(w), lw = Math.min(w, w / n + 4);       // 片與片重疊 4cm
-  o.push(P('oak', [-W, W], [0, H], [-D, D - 5.6]));              // 櫃身
+  const n = slideLeaves(w), lw = Math.min(w, w / n + 4);       // 每片多 4cm，跟鄰片重疊
+  const ov = n === 1 ? 0 : lw - (w - lw) / (n - 1);
+  o.push(P('oak', [-W, W], [6, H - 4], [-D, D - 5.8]));          // 櫃身（夾在上下軌之間，不跟軌道的面疊在一起）
   o.push(P('oak', [-W, W], [0, 6], [-D, D], 0.5));               // 下軌
   o.push(P('oak', [-W, W], [H - 4, H], [-D, D], 0.5));           // 上軌
   o.push(P('shadow', [-W, W], [6, H - 4], [D - 5.8, D - 5.6]));
@@ -132,7 +133,8 @@ function wardrobeSlide(w: number, h: number, H: number): Part[] {
     const c = n === 1 ? 0 : -W + lw / 2 + i * (w - lw) / (n - 1);
     const z: Span = i % 2 ? [D - 5.5, D - 3.3] : [D - 2.5, D - 0.3];   // 兩條軌，前後錯開
     o.push(P('oak', [c - lw / 2, c + lw / 2], [6.3, H - 4.3], z));
-    const edge = i === n - 1 ? c - lw / 2 + 1.5 : c + lw / 2 - 2.5;     // 拉溝在推得開的那一側
+    // 拉溝在推得開的那一側、離邊超過跟鄰片的重疊，不然後軌那片的拉溝被前片整條擋住
+    const edge = i === n - 1 ? c - lw / 2 + ov + 2 : c + lw / 2 - ov - 3;
     o.push(P('champagne', [edge, edge + 1], [90, 150], [z[1], z[1] + 0.3]));
   }
   return o;
@@ -147,7 +149,7 @@ function desk(w: number, h: number, H: number): Part[] {
   o.push(P('oak', [-W + 4, W - 4], [H - 35, H - t], [-D, -D + 2]));            // 擋板
   const dw = Math.min(70, w * 0.45);
   o.push(P('oak', [-dw / 2, dw / 2], [H - t - 9, H - t], [-D + 2, D - 4]));    // 抽屜盒
-  o.push(P('champagne', [-dw / 2 + 3, dw / 2 - 3], [H - t - 9, H - t - 8.2], [D - 4.3, D - 4]));  // 底下的拉溝
+  o.push(P('champagne', [-dw / 2 + 3, dw / 2 - 3], [H - t - 9.1, H - t - 8.2], [D - 4, D - 3.7]));  // 底下的拉溝（比抽屜盒多凸 3mm、低 1mm）
   return o;
 }
 
@@ -156,14 +158,14 @@ function tallCab(w: number, h: number, H: number, plinth: number, niche: Span): 
   const W = w / 2, D = h / 2, o: Part[] = [];
   const t = 2, n = doorCount(w);
   o.push(P('shadow', [-W + 2, W - 2], [0, plinth], [-D, D - 5]));
-  o.push(P('oak', [-W, W], [plinth, H], [-D, -D + t]));                          // 背板
+  o.push(P('oak', [-W + t, W - t], [plinth, H], [-D, -D + t]));                  // 背板（夾在兩側板之間）
   o.push(P('oak', [-W, -W + t], [plinth, H], [-D, D]));                          // 兩側
   o.push(P('oak', [W - t, W], [plinth, H], [-D, D]));
-  o.push(P('oak', [-W + t, W - t], [plinth, niche[0]], [-D + t, D - 2.2]));      // 下櫃身
+  o.push(P('oak', [-W + t, W - t], [plinth, niche[0]], [-D + t, D - 2.4]));      // 下櫃身
   doorRow(o, -W + t, W - t, plinth, niche[0], D - 2.2, D - 0.3, n);
   o.push(P('champagne', [-W + t, W - t], [niche[0] - 1, niche[0] - 0.4], [D - 0.3, D]));  // 下門頂的拉溝
   o.push(P('stoneGrey', [-W + t, W - t], [niche[0], niche[0] + 2], [-D + t, D]));  // 平台石材
-  o.push(P('oak', [-W + t, W - t], [niche[1], H], [-D + t, D - 2.2]));           // 上櫃身
+  o.push(P('oak', [-W + t, W - t], [niche[1], H], [-D + t, D - 2.4]));           // 上櫃身
   doorRow(o, -W + t, W - t, niche[1], H, D - 2.2, D - 0.3, n);
   return o;
 }
@@ -177,9 +179,9 @@ function kitchenBase(w: number, h: number, H: number, opts: KitchenOpts = {}): P
   const top = COUNTER - COUNTER_T, n = doorCount(w, 60);
   o.push(P('shadow', [-W + 1, W - 1], [0, 10], [-D, D - 6]));
   o.push(P('oak', [-W, W], [10, top], [-D, D - 3.4]));
-  o.push(P('champagne', [-W, W], [top - 3, top], [D - 4, D - 3]));            // 檯面下的拉溝
+  o.push(P('champagne', [-W + 0.1, W - 0.1], [top - 3, top], [D - 4, D - 3]));   // 檯面下的拉溝（兩端內縮 1mm，不跟櫃身側面疊）
   doorRow(o, -W, W, top - 17, top - 3, D - 3.2, D - 1, n);                    // 抽屜
-  o.push(P('champagne', [-W, W], [top - 20, top - 17], [D - 4, D - 3]));      // 抽屜與門之間的拉溝
+  o.push(P('champagne', [-W + 0.1, W - 0.1], [top - 20, top - 17], [D - 4, D - 3]));   // 抽屜與門之間的拉溝
   doorRow(o, -W, W, 10, top - 20, D - 3.2, D - 1, n);                         // 門
   // 石材檯面（前緣比門多出 1cm）；有爐面時讓爐面跟檯面齊平，檯面低 1mm 免得兩個面疊在一起閃
   o.push(P('stone', [-W, W], [top, opts.hob ? COUNTER - 0.1 : COUNTER], [-D, D], 0.4));
@@ -198,7 +200,7 @@ function kitchenBase(w: number, h: number, H: number, opts: KitchenOpts = {}): P
 
 function upperCab(w: number, h: number, H: number): Part[] {
   const W = w / 2, D = h / 2, o: Part[] = [];
-  o.push(P('oak', [-W, W], [2.5, H], [-D, D - 2.2]));
+  o.push(P('oak', [-W, W], [2.5, H], [-D, D - 2.4]));
   // 門片比櫃身往下多 2.5cm：手從底下扳，不用把手
   doorRow(o, -W, W, 0, H, D - 2.2, D, doorCount(w, 45));
   return o;
@@ -212,7 +214,7 @@ function island(w: number, h: number): Part[] {
   o.push(P('stone', [W - end, W], [0, top], [-D, D]));
   o.push(P('shadow', [-W + end, W - end], [0, 10], [-D + seat + 2, D - 6]));
   o.push(P('oak', [-W + end, W - end], [10, top], [-D + seat, D - 3.4]));
-  o.push(P('champagne', [-W + end, W - end], [top - 3, top], [D - 4, D - 3]));
+  o.push(P('champagne', [-W + end + 0.1, W - end - 0.1], [top - 3, top], [D - 4, D - 3]));
   doorRow(o, -W + end, W - end, 10, top - 3, D - 3.2, D - 1, doorCount(w - 2 * end, 60));
   return o;
 }
@@ -251,7 +253,7 @@ function vanity(w: number, h: number, H: number): Part[] {
   const W = w / 2, D = h / 2, o: Part[] = [];
   const top = 85, t = 3, bottom = 30, wall = 3;
   o.push(P('stoneGrey', [-W, W], [0, H], [-D, -D + wall]));
-  o.push(P('oak', [-W, W], [bottom, top - t], [-D + wall, D - 2.2]));
+  o.push(P('oak', [-W, W], [bottom, top - t], [-D + wall, D - 2.4]));
   doorRow(o, -W, W, bottom, top - t, D - 2.2, D - 0.3, Math.max(1, Math.round(w / 60)));
   o.push(P('champagne', [-W, W], [top - t - 1.2, top - t], [D - 0.3, D]));
   o.push(P('stone', [-W, W], [top - t, top], [-D + wall, D], 0.4));
@@ -267,8 +269,8 @@ function shower(w: number, h: number, H: number): Part[] {
   const W = w / 2, D = h / 2, o: Part[] = [];
   o.push(P('stoneGrey', [-W, W], [0, 4], [-D, D]));
   const fixed = w * 0.45;                                                      // 固定片＋拉門
-  o.push(P('glass', [-W, -W + fixed], [4, H - 2], [D - 1, D - 0.2]));
-  o.push(P('glass', [-W + fixed - 4, W], [4, H - 2], [D - 1.8, D - 1]));
+  o.push(P('glass', [-W + 1.5, -W + fixed], [4, H - 2], [D - 1, D - 0.2]));      // 玻璃夾在側框之間
+  o.push(P('glass', [-W + fixed - 4, W - 1.5], [4, H - 2], [D - 1.8, D - 1]));
   o.push(P('champagne', [-W, W], [H - 2, H], [D - 2, D]));                     // 頂框
   o.push(P('champagne', [-W, -W + 1.5], [4, H - 2], [D - 2, D]));              // 側框
   o.push(P('champagne', [W - 1.5, W], [4, H - 2], [D - 2, D]));
@@ -284,10 +286,10 @@ function sofaL(w: number, h: number, H: number): Part[] {
   const sd = Math.min(95, h * 0.6), cw = Math.min(90, w * 0.35), back = 22, arm = 18, seatY = 42;
   o.push(P('shadow', [-W + 5, W - 5], [0, 6], [-D + 5, -D + sd - 5]));
   o.push(P('shadow', [W - cw + 5, W - 5], [0, 6], [-D + sd - 5, D - 5]));
-  o.push(P('linen', [-W, W], [6, seatY - 10], [-D, -D + sd], 3));             // 主座底座
-  o.push(P('linen', [W - cw, W], [6, seatY - 10], [-D + sd - 3, D], 3));      // 貴妃底座
+  o.push(P('linen', [-W + 0.5, W - 0.5], [6, seatY - 10], [-D + 0.5, -D + sd], 3));   // 主座底座（內縮半公分，不跟靠背、扶手的外面疊在一起）
+  o.push(P('linen', [W - cw, W - 0.5], [6, seatY - 10], [-D + sd, D], 3));      // 貴妃底座（接在主座前面，不重疊）
   o.push(P('linen', [-W, W], [6, H], [-D, -D + back], 6));                    // 靠背
-  o.push(P('linen', [-W, -W + arm], [6, seatY + 18], [-D + back - 4, -D + sd], 5));   // 左扶手
+  o.push(P('linen', [-W + 0.3, -W + arm], [6, seatY + 18], [-D + back - 4, -D + sd + 0.5], 5));   // 左扶手（比底座多凸半公分）
   const run = w - cw - arm, n = Math.max(1, Math.round(run / 80)), cwid = run / n;
   for (let i = 0; i < n; i++) {
     const a = -W + arm + cwid * i;
@@ -295,7 +297,7 @@ function sofaL(w: number, h: number, H: number): Part[] {
   }
   o.push(P('linen', [W - cw + 0.5, W - 0.5], [seatY - 10, seatY], [-D + back, D], 4));             // 貴妃座墊
   o.push(P('taupe', [-W + arm + 8, -W + arm + 52], [seatY, seatY + 32], [-D + back, -D + back + 14], 6));
-  o.push(P('taupe', [W - cw + 10, W - 14], [seatY, seatY + 30], [-D + back, -D + back + 14], 6));
+  o.push(P('taupe', [W - cw + 10, Math.max(W - cw + 11, W - 14)], [seatY, seatY + 30], [-D + back, -D + back + 14], 6));
   return o;
 }
 
@@ -312,7 +314,7 @@ function tvStand(w: number, h: number, H: number): Part[] {
   const W = w / 2, D = h / 2, o: Part[] = [];
   const t = 3, plinth = 12;
   o.push(P('shadow', [-W + 5, W - 5], [0, plinth], [-D + 2, D - 6]));
-  o.push(P('oak', [-W, W], [plinth, H - t], [-D, D - 2.2]));
+  o.push(P('oak', [-W, W], [plinth, H - t], [-D, D - 2.4]));
   doorRow(o, -W, W, plinth, H - t, D - 2.2, D - 0.3, doorCount(w, 60));
   o.push(P('champagne', [-W, W], [H - t - 1.2, H - t], [D - 0.3, D]));
   o.push(P('stoneGrey', [-W, W], [H - t, H], [-D, D], 0.4));
