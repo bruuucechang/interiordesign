@@ -155,10 +155,11 @@ export function belowCeiling(id: string): number | undefined {
  */
 export const COUNTER_ITEMS: ReadonlySet<string> = new Set([
   'cabinet_kitchen', 'kitchen_island', 'sink', 'sh_cab_sink', 'sh_cab_lower', 'sh_cab_corner', 'sh_cab_drawers',
+  'cabinet_kitchen_lx', 'cabinet_kitchen_lx_sink', 'cabinet_kitchen_lx_hob', 'kitchen_island_lx',
 ]);
-export const VANITY_ITEMS: ReadonlySet<string> = new Set(['vanity', 'sh_vanity', 'sh_washbasin']);
+export const VANITY_ITEMS: ReadonlySet<string> = new Set(['vanity', 'sh_vanity', 'sh_washbasin', 'vanity_lx']);
 /** Worktop height where a piece's catalogue height is not its top: the shop sink unit's 121 includes the tap. */
-export const COUNTER_TOP: Readonly<Record<string, number>> = { sh_cab_sink: 88 };
+export const COUNTER_TOP: Readonly<Record<string, number>> = { sh_cab_sink: 88, cabinet_kitchen_lx_sink: 90 };
 
 /**
  * The default layers.

@@ -348,7 +348,7 @@ function buildCatalog(editor: Editor) {
   const style = document.createElement('select'); style.className = 'style-select';
   style.title = t('風格'); style.setAttribute('aria-label', t('風格'));
   // 單選：使用者選第二個風格的意思幾乎一定是「改看這個」，不是「兩個都要」。
-  for (const st of ['', '現代', '北歐', '日式', '古典', '鄉村', '工業', '中式']) {
+  for (const st of ['', '現代', '溫潤奢華', '北歐', '日式', '古典', '鄉村', '工業', '中式']) {
     const o = document.createElement('option'); o.value = st; o.textContent = st ? t(st) : t('全部風格');
     style.appendChild(o);
   }
