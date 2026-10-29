@@ -377,12 +377,19 @@
   分類 `client/src/core/viewFilter.ts`。重跑：`npx tsx --test client/test/viewFilter.test.ts`（9 條、mutant 全抓到）；`node bench/verify-luxury.mjs`（要先 npm run dev）。
   附帶發現（範圍外、沒改）：自動存檔在換頁前會把沒變的內容重送一次 PUT（內容與載入時相同）。
 
-## B29 燈具種類：LED 鋁擠燈＋崁燈系列  [未開始]
+## B29 燈具種類：LED 鋁擠燈＋崁燈系列  [完成]
 - 規格：同檔第二節
 - 目標：5 種鋁擠線燈＋5 種崁燈，2D 符號、3D 外觀、照度資料；線燈可調長度
 - 驗收：線燈流明依長度的單元測試＋mutant；verify-luxury 每種新燈 2D／3D 畫得出、照度有貢獻
 - 碰：`model/catalogue.ts`、`data/electrical.ts`、3D 燈具建置、`ui/ui.ts`（燈與電分類）
 - 不做：`lighting.ts` 的公式
+- 結果（2026-10-29，PR #30 合併，審查兩輪）：新增 10 種燈，cat 都是「燈具」（B28 勾掉時一起藏），「燈與電」多「LED 鋁擠燈」「崁燈系列」兩排。
+  資料（3000K，`model/catalogue.ts` 的 `LINEAR_LIGHTS`／`LIGHT_DEFAULTS`）：嵌入式鋁擠線燈 800 lm/m 10 W/m 110°、明裝 1000 lm/m 12 W/m、間接燈槽 800 lm/m 8 W/m（天花下 15 cm）、洗牆 900 lm/m 12 W/m（天花下 5 cm）、櫃內層板燈 400 lm/m 5 W/m；
+  無邊框 7.5 cm 7 W 560 lm 60°、深藏防眩 10 W 800 lm 36°、可調角度投射 7 W 560 lm 24°、洗牆崁燈 10 W 750 lm 80°、雙頭格柵 14 W 1100 lm 36°（7.5 cm 款照 OSRAM 7 W 560 lm，線燈照一般鋁擠燈每米規格；其他是同瓦數常見值）。
+  線燈長度存 `Electrical.length`（cm，30～600，層板 20～240），`core/linearLight.ts` 管長度與「每米流明×長度」；屬性面板打「燈長」，流明預設跟著變；報表依長度分列。
+  照度：天花線燈在 `rawSources` 切成 16 段同一個 cosⁿ 點光源、各分 Φ/16——`lux` 公式沒動、既有燈數字逐位元不變，但這是新增的程式路徑，不是純資料。照明健檢沿整支線燈判斷頂天櫃與枕頭；層板燈可貼任何櫃子。3D 天花線燈拆 3 盞光源（佔 12 個燈位中的 3 個）。
+  重跑：`npx tsx --test client/test/linearLight.test.ts`（19 條，mutant 19/19 抓到）；`node bench/verify-luxury.mjs` 的 B29 段。
+  沒做：拖端點改長度（T5 原本也沒有，規格寫「或打數字」）；可調角度／洗牆的照射方向（照度模型沒有瞄準，照樣當往下照）。
 
 ## B30 溫潤木質低調奢華傢俱一整套  [未開始]
 - 規格：同檔第三節
