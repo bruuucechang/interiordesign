@@ -419,7 +419,6 @@ header button:disabled { opacity: 0.4; cursor: default; }
 #topbar .menu.open > .menu-btn { background: var(--accent-soft); }
 .menu-btn .caret { width: 12px; height: 12px; opacity: .6; }
 .lbl { white-space: nowrap; }
-.menu-badge.none { display: none; }
 .time-select { height: var(--ctl-h); background: transparent; border: 1px solid var(--line); color: var(--text);
   border-radius: var(--radius-m); padding: 0 6px; cursor: pointer; font-size: var(--fs-body); flex: none; }
 .time-select:hover { background: var(--panel2); }

@@ -164,7 +164,9 @@ function render(editor: Editor, doc: Doc) {
     detail.textContent = t('這幾處的牆面差不到 5 公分——平面圖上看不出來，3D 會露出一條牆的端面。選一面拉齊，或略過。');
     const acts = document.createElement('div'); acts.className = 'hf-acts';
     const go = document.createElement('button'); go.className = 'hf-btn'; go.textContent = t('看這幾處');
-    go.onclick = () => window.dispatchEvent(new Event(SHOW_FACESTEPS));
+    // This panel sits where the drawer comes out; it steps aside so the list it
+    // points to is what you see, not a panel that looks like nothing happened.
+    go.onclick = () => { close(); window.dispatchEvent(new Event(SHOW_FACESTEPS)); };
     acts.appendChild(go);
     el.append(head, detail, acts);
     body.appendChild(el);

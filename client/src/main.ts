@@ -409,7 +409,7 @@ document.addEventListener('pointerlockchange', () => {
   if (!document.pointerLockElement && hint3d.classList.contains('walk-hint')) armWalkHint();
 });
 document.getElementById('view3d')?.addEventListener('mousemove', (e) => {
-  if (!hint3d.classList.contains('walk-hint')) return;
+  if (!hint3d.classList.contains('walk-hint') || document.pointerLockElement) return;   // captured: clientY is frozen
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
   if (r.bottom - e.clientY < 90) armWalkHint();
 });

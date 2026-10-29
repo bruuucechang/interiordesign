@@ -594,7 +594,9 @@ function syncDrawer(doc: Doc) {
   document.querySelector('[data-act="layers"]')?.classList.toggle('active', layersOpen);
   peek.classList.toggle('hidden', isOpen || !extras);
   if (extras && !isOpen) {
-    const names = Array.from(props.querySelectorAll('.panel-title, .facestep-head')).map(e => (e.textContent ?? '').trim()).filter(Boolean);
+    // The handle names what it opens — not the wall-face list, which 空間健檢 carries (B27).
+    const names = Array.from(props.querySelectorAll('.panel-title, .facestep-head')).filter(e => !e.closest('.facesteps'))
+      .map(e => (e.textContent ?? '').trim()).filter(Boolean);
     peek.textContent = `‹ ${names[0] ?? t('屬性')}`;
     peek.title = names.join('、');
   }

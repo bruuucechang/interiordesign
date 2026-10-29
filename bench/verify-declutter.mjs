@@ -209,6 +209,10 @@ console.log('\nB27 介面角落');
   await page.waitForTimeout(500);
   const shown = await page.evaluate(() => document.querySelectorAll('#properties .facestep').length);
   ok(!(await drawerClosed()) && shown === 2, `按「看這幾處」：抽屜打開、列出 2 處（${shown}）`);
+  // 而且看得到：第一列的位置上最上面的就是抽屜，不是被健檢面板蓋住
+  const onTop = await page.evaluate(() => { const r = document.querySelector('#properties .facestep').getBoundingClientRect();
+    return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#right'); });
+  ok(onTop, '抽屜裡的對齊列表沒被空間健檢面板蓋住');
   await page.evaluate(() => { const b = document.querySelector('#properties .facesteps .linkish'); b?.click(); });
   await page.waitForTimeout(700);
   const after = await page.evaluate(() => document.querySelector('[data-act="health"]').textContent.trim());
@@ -231,6 +235,18 @@ console.log('\nB27 介面角落');
 {
   const { ctx, page } = await open(A1, { plan: true, mode: '3d' });
   await page.waitForTimeout(1500);
+  // 按著移動鍵、滑鼠不在 3D 上（放在頂列）：按鍵條出現；另一個鍵點一下放開，還按著的那個讓它留著
+  const hudOpacity = () => page.evaluate(() => { const h = document.querySelector('.key-hud'); return h ? Number(getComputedStyle(h).opacity) : -1; });
+  await page.mouse.move(700, 20);
+  await page.keyboard.down('w');
+  // 淡入 0.2 秒，3D 剛載入時鍵盤處理也可能晚一點接上：等它出現（最多 2 秒），不是固定睡 300 ms
+  await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('.key-hud')).opacity) === 1, null, { timeout: 2000 }).catch(() => {});
+  const down = await hudOpacity();
+  await page.keyboard.press('a'); await page.waitForTimeout(1700);
+  const held = await hudOpacity();
+  await page.keyboard.up('w'); await page.waitForTimeout(1700);
+  const up = await hudOpacity();
+  ok(down === 1 && held === 1 && up === 0, `只看 3D、滑鼠在頂列：按住 W 按鍵條出現（${down}），點一下 A 之後照樣留著（${held}），W 放開後收起（${up}）`);
   await page.click('#walkToggle'); await page.waitForTimeout(800);
   const hint = () => page.evaluate(() => { const h = document.getElementById('hint3d'); return { text: h.textContent, op: Number(getComputedStyle(h).opacity), hidden: h.classList.contains('hidden') }; });
   let h = await hint();
