@@ -277,6 +277,8 @@ export interface ClearanceNeed {
   need: number;
   title: string;
   why: string;
+  /** Pieces that do not count as in the way: a dining table's own chairs are pulled out to sit down, not walked around. */
+  movable?: RegExp;
 }
 
 const FACES: Record<'front' | 'back' | 'left' | 'right', { label: string; dir: (b: Box) => Vec; half: (b: Box) => number }> = {
@@ -295,7 +297,7 @@ export function needsFor(item: string): ClearanceNeed | null {
     why: `床邊到牆、櫃或門面約需 ${c.bedSide}cm，方便下床、鋪床與打掃；至少留一側。`,
   };
   if (/^(dining|roundtable|table_wood|table_round|table_painted)/.test(item)) return {
-    anyOf: ['front', 'back'], need: c.diningPullOut,
+    anyOf: ['front', 'back'], need: c.diningPullOut, movable: /chair/,
     title: '餐桌兩側都無法入座',
     why: `拉開餐椅入座約需 ${c.diningPullOut}cm；至少讓一側長邊留得出來。`,
   };
@@ -328,7 +330,9 @@ function clearances(furniture: Furniture[], blockers: Box[]): Finding[] {
     const need = needsFor(f.item);
     if (!need) continue;
     const b = boxOf(f);
-    const others = blockers.filter(z => !(z.cx === b.cx && z.cy === b.cy && z.w === b.w && z.h === b.h));
+    const same = (z: Box) => (y: Box) => z.cx === y.cx && z.cy === y.cy && z.w === y.w && z.h === y.h;
+    const moves = need.movable ? furniture.filter(g => need.movable!.test(g.item)).map(boxOf) : [];
+    const others = blockers.filter(z => !same(z)(b) && !moves.some(same(z)));
     const measure = (k: keyof typeof FACES) => freeFace(b, FACES[k].dir(b), FACES[k].half(b), others, need.need);
 
     if (need.anyOf) {

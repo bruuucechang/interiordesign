@@ -577,6 +577,9 @@ export const MATERIALS: MaterialDef[] = [
   // ---- 第二批：只有掃描圖的材質，見 scanned() 上方的說明 ----------------
   scanned('oaklight', '淺色海島型', 'floor', 208, '#9a7147',
     { roughness: 0.6, hatch: (c, s) => hatchLines(c, s, 0, s / 9), hatchCm: 208 }),
+  // B31：由 wood 的掃描調成淡橡木色（scripts/fetch_textures.py 的 DERIVED），溫潤奢華的地板。
+  scanned('oakpale', '淡橡木地板', 'floor', 199, '#d5b58d',
+    { roughness: 0.62, hatch: (c, s) => hatchLines(c, s, 0, s / 7), hatchCm: 199 }),
   scanned('parquet', '方塊拼木', 'floor', 225, '#775b32',
     { roughness: 0.6, hatch: (c, s) => hatchGrid(c, s, 4, 4, false), hatchCm: 112 }),
   scanned('granite', '花崗石', 'floor', 230, '#4d4e4e',
