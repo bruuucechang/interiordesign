@@ -45,7 +45,7 @@ export class Editor implements ToolCtx {
   /** Set by the UI layer; the calibrate tool reports its outcome through it. */
   onCalibrated?: (message: string, ok?: boolean) => void;
 
-  hooks: { command?: (name: string) => void; toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => string; wallRef?: (r: Reference) => void } = {};
+  hooks: { command?: (name: string) => void; toolChange?: (name: string) => void; zoom?: (pct: number) => void; export3d?: (name: string) => void; exportPano?: (name: string) => Promise<string>; wallRef?: (r: Reference) => void } = {};
 
   private previewW?: DrawFn;
   private previewS?: DrawFn;

@@ -76,3 +76,17 @@ test('a hidden group mate or a hidden panel target never enters the selection', 
 test('stairs stay with the building', () => {
   assert.equal(viewGroup(piece('stairs')), null);
 });
+
+test('grouping with a hidden mate keeps the mate in the new group', async () => {
+  const { Doc } = await import('../src/model/doc');
+  const d = new Doc();
+  d.add({ ...(piece('sofa') as object), id: 'sofa', group: 'g1' } as Obj);
+  d.add({ ...(piece('lamp_floor') as object), id: 'lamp', group: 'g1' } as Obj);
+  d.add({ ...(piece('armchair') as object), id: 'chair' } as Obj);
+  d.selectable = o => shownWith(new Set<ViewGroup>(['lights']), o);
+  d.selectMany(['sofa', 'chair']);
+  const gid = d.groupSelection();
+  const g = (id: string) => d.objects.find(o => o.id === id)!.group;
+  assert.ok(gid);
+  assert.deepEqual([g('sofa'), g('lamp'), g('chair')], [gid, gid, gid]);
+});

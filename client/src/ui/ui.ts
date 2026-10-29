@@ -746,7 +746,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       // setTimeout, not requestAnimationFrame: rAF is suspended while the tab is
       // in the background, which would hang the export instead of delaying it.
       await new Promise(r => setTimeout(r, 32));
-      try { flash(editor.hooks.exportPano?.(name()) ?? ''); }
+      try { flash(await editor.hooks.exportPano?.(name()) ?? ''); }
       catch (e) { console.error(e); flash(t('匯出全景失敗')); }
       break;
     case 'export-glb':

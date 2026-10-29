@@ -336,6 +336,15 @@ export class View3D {
     if (filtered) { this.buildAll = true; this.build(doc!, false); }
     return filtered;
   }
+  /**
+   * Pieces 顯示 has kept out of the scene since loading never asked for their
+   * models, and would go into an export as their stand-in boxes. Await before
+   * `beginExport`.
+   */
+  async loadAllModels() {
+    const items = new Set(this.lastDoc?.project.floors.flatMap(f => f.objects.flatMap(o => o.kind === 'furniture' ? [o.item] : [])) ?? []);
+    await Promise.all([...items].map(loadFurnitureModel));
+  }
   private endExport(filtered: boolean) {
     if (filtered) { this.buildAll = false; this.build(this.lastDoc!, false); }
   }
@@ -756,10 +765,7 @@ export class View3D {
   // ground plane, sky, and lights are left out so the file holds just the design.
   async exportGLB(filename: string) {
     const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
-    // Pieces 顯示 has kept out of the scene since loading never asked for their
-    // models, and would go into the file as their stand-in boxes.
-    const items = new Set(this.lastDoc?.project.floors.flatMap(f => f.objects.flatMap(o => o.kind === 'furniture' ? [o.item] : [])) ?? []);
-    await Promise.all([...items].map(loadFurnitureModel));
+    await this.loadAllModels();
     const filtered = this.beginExport();
     const groundWasVisible = this.ground?.visible ?? true;
     if (this.ground) this.ground.visible = false;   // omit the 80 m ground plane

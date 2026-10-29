@@ -142,7 +142,7 @@ let focus: '2d' | '3d' = '2d';
 // 沒有被定位過。那是平面圖的角落、地板高度，於是半個球在建築外面：實測產出的
 // 是一張 4096×2048、除了一小塊地板以外全是天空的圖。而 (0,0,0) 落在平面範圍
 // 內又低於天花板，所以座標檢查放行了。它擋得住「飛到室外」，擋不住「還沒進去過」。
-editor.hooks.exportPano = (name) => {
+editor.hooks.exportPano = async (name) => {
   if (mode === '2d') {
     return '請先開啟 3D（分割或 3D 檢視）— 全景是從 3D 相機的位置拍的，還沒進去過就沒有位置可拍';
   }
@@ -152,6 +152,7 @@ editor.hooks.exportPano = (name) => {
   if (!isInsidePlan(pose.position, boxes, doc.activeFloor.height)) {
     return '相機在室外 — 用 WASD 飛到室內再匯出';
   }
+  await view3d.loadAllModels();
   savePanorama(view3d.capturePanorama(), pose.yaw, name);
   return '已匯出 360 全景（.jpg + 可直接開啟的 .html）';
 };

@@ -174,6 +174,14 @@ console.log('B28 頂列「顯示」：勾掉的 2D、3D 都不畫、點不到，
     return got;
   });
   const glbHidden = await glb();
+  // 360 全景也一樣：拍的那一刻場景裡家具、燈具都在（等模型載完、全部重建）
+  const pano = await p3.evaluate(async () => {
+    const v = window.__app.view3d, r = v.renderer, orig = r.render; let seen = null;
+    r.render = function (...a) { seen ??= { furn: v.furnGroup.children.length, lights: v.lightGroup.children.length }; return orig.apply(this, a); };
+    try { await v.loadAllModels(); seen = null; v.capturePanorama(); } finally { r.render = orig; }
+    return seen;
+  });
+  ok(pano?.furn === 29 && pano?.lights === 135, `360 全景照舊全拍（拍的時候家具 ${pano?.furn}、燈具 ${pano?.lights}）`);
   const afterExport = await g3();
   ok(afterExport.lights === 0 && afterExport.furn === 0, `匯出完畫面照舊藏著（燈具 ${afterExport.lights}、家具 ${afterExport.furn}）`);
   await tick(p3, 'furniture', true);
