@@ -391,12 +391,23 @@
   重跑：`npx tsx --test client/test/linearLight.test.ts`（19 條，mutant 19/19 抓到）；`node bench/verify-luxury.mjs` 的 B29 段。
   沒做：拖端點改長度（T5 原本也沒有，規格寫「或打數字」）；可調角度／洗牆的照射方向（照度模型沒有瞄準，照樣當往下照）。
 
-## B30 溫潤木質低調奢華傢俱一整套  [未開始]
+## B30 溫潤木質低調奢華傢俱一整套  [完成]
 - 規格：同檔第三節
 - 目標：程式產生的一套新款（床、床頭櫃、衣櫃、書桌、高櫃、鞋櫃、廚房櫃、冰箱、馬桶、浴櫃、淋浴、L 型沙發、茶几、電視櫃、地毯、餐桌、餐椅），風格篩選加「溫潤奢華」
 - 驗收：每件 3D 建得出來、尺寸對；verify-luxury；截圖目視
 - 碰：`data/furniture.ts`、`core/furnitureBuilders.ts`、材質
 - 不做：刪舊款、下載掃描模型
+- 結果（2026-10-29，PR #31 合併，審查兩輪）：22 件，風格「溫潤奢華」（英文 Warm luxe），全是程式產生（`proc: true`）、都寫了目錄高度。
+  零件是純資料：`core/luxeParts.ts` 的 `LUXE_PARTS`（軸對齊盒子／圓柱＋材質名），`furnitureBuilders.ts` 的 `luxeModel` 只換材質。
+  id（B31 換傢俱用）：`bed_lx` 溫潤雙人床 160×210×105、`nightstand_lx` 50×40×50、`wardrobe_lx` 對開 120×60×240（門數＝寬/55 取整）、`wardrobe_lx_slide` 推拉 180×65×240、
+  `desk_lx` 140×65×75、`tall_cabinet_lx` 90×40×220、`shoe_cabinet_lx` 120×38×210（中間有石材平台）、`cabinet_kitchen_lx` 下櫃 180×60×90、`cabinet_kitchen_lx_sink` 水槽 120×60（檯面 90，含龍頭 118）、
+  `cabinet_kitchen_lx_hob` 爐台 90×60×90、`upper_cabinet_lx` 吊櫃 120×35×70（掛牆，放下離地 150）、`kitchen_island_lx` 石面中島 200×90×90、`fridge_lx` 嵌入冰箱 75×65×210、
+  `toilet_lx` 壁掛馬桶 38×55×100、`vanity_lx` 石面浴櫃 90×50×105、`shower_lx` 玻璃淋浴間 120×90×200、`sofa_l_lx` L 型沙發 280×170×78（貴妃在右）、`coffee_lx` 120×60×38、`tv_lx` 200×40×45、`rug_lx` 240×170×2、`dining_lx` 180×90×75、`chair_lx` 48×55×82。
+  id 開頭沿用舊款（`bed_`、`wardrobe`、`toilet`、`vanity`、`fridge`、`shower_`、`dining`、`desk`），健檢淨空與照明分區照樣認；新廚櫃進 `COUNTER_ITEMS`、浴櫃進 `VANITY_ITEMS`。
+  色號（agent 定）：淡橡木＝實掃 oak_veneer_02 原色 #dcb995；米白布紗 #e6dfd2；淺灰褐 #b9ad9c；寢具 #f4f1ea；地毯 #e3dccf；亮面米色石材 #e8dfd0；淺灰石紋 #cbc8c2；霧面香檳金屬 #c8b48a（只用在拉溝、沖水板、淋浴框、龍頭、床頭收邊）。
+  坑：3D 高度從模型最低點量（`getModelHeight`），整件懸空會被拉長——懸空浴櫃靠後面的石紋假牆落地，測試擋「最低點在地板」。
+  重跑：`npx tsx --test client/test/luxeParts.test.ts`（8 條；mutant 7 個抓到 6，書桌腳板變窄這種外觀細節不在外框測試範圍）；`node bench/verify-luxury.mjs` 的 B30 段（截圖 `bench/results/luxury-b30-*.png`）。
+  沒處理：不合理的極小尺寸（床深 ≤73、寬 <24 的馬桶／淋浴／餐桌）零件會反轉或超框。
 
 ## B31 A1 豪宅版：另存、換燈、換傢俱、補客餐廳  [未開始]
 - 規格：同檔第四節
