@@ -26,6 +26,7 @@ import { applyStatic, currentLang, t } from './core/i18n';
 import { savePanorama, isInsidePlan } from './core/panorama';
 import { nearestWallDistance } from './core/placement';
 import { fmtLen } from './core/geometry';
+import { onViewFilterChange } from './core/viewFilter';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const hint = document.getElementById('hint') as HTMLElement;
@@ -431,6 +432,13 @@ let rebuildTimer: number | undefined;
 doc.onChange(() => {
   clearTimeout(rebuildTimer);
   rebuildTimer = window.setTimeout(() => { if (mode !== '2d') view3d?.build(doc, false); }, 120);
+});
+
+// 顯示 (B28) is not a plan change, so it has its own redraw: both views, now.
+onViewFilterChange(() => {
+  editor.render();
+  clearTimeout(rebuildTimer);
+  if (mode !== '2d') view3d?.build(doc, false);
 });
 
 window.addEventListener('resize', () => {

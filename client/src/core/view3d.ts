@@ -29,6 +29,7 @@ import { capturePanorama } from './panorama';
 import { nextResolution, onWorkloadChange, initialState, ResolutionState } from './resolution';
 import { mark, done } from './perf';
 import { DEFAULTS } from '../model/locale-defaults';
+import { isShown } from './viewFilter';
 
 /** 台灣住宅的預設牆高——見 model/locale-defaults.ts。 */
 const WALL_H = DEFAULTS.wallHeight;
@@ -455,6 +456,7 @@ export class View3D {
       const joins = wallJoins(floor.objects);
       for (const o of floor.objects) {
         if (o.kind === 'image' || !doc.isLayerVisible(o.layer)) continue;   // underlay images are 2D-only
+        if (!isShown(o)) continue;   // 顯示 (B28): not built, but its light still goes into collectLamps
         // Everything a wall-like object adds gets stamped with where it stands,
         // so the doll's-house cull below can find the near side without having
         // to work out what each mesh was for.

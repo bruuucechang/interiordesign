@@ -16,6 +16,7 @@ import { Obj, Vec } from '../model/schema';
 import { layerForKind } from '../model/catalogue';
 import { hintChanged } from '../ui/feedback';
 import { placementIssues } from './placement';
+import { isShown, isGroupShown } from './viewFilter';
 
 export class Editor implements ToolCtx {
   vp: Viewport;
@@ -124,7 +125,7 @@ export class Editor implements ToolCtx {
    */
   renderNow() {
     if (this.drawRaf) { cancelAnimationFrame(this.drawRaf); this.drawRaf = 0; }
-    this.renderer.render({ world: this.previewW, screen: this.previewS, heat: this.heat, marker: this.marker });
+    this.renderer.render({ world: this.previewW, screen: this.previewS, heat: this.heat, marker: this.marker, show: isShown, lengths: isGroupShown('notes') });
   }
   /** The lighting overlay, while the 照度 panel is open (ui/lighting-panel.ts). */
   heat?: (ctx: CanvasRenderingContext2D) => void;
@@ -439,7 +440,7 @@ export class Editor implements ToolCtx {
    */
   selectAll() {
     const ids = this.doc.objects
-      .filter(o => this.doc.isLayerVisible(o.layer) && !this.doc.isLayerLocked(o.layer))
+      .filter(o => this.doc.isLayerVisible(o.layer) && !this.doc.isLayerLocked(o.layer) && isShown(o))
       .map(o => o.id);
     if (ids.length) this.doc.selectMany(ids);
   }

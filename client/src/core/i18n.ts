@@ -36,6 +36,10 @@ const EN: Record<string, string> = {
   '縮放至全部 — 整張圖放進畫面（扣掉開著的面板）': 'Fit all — the whole plan in view (minus open panels)',
   '全螢幕': 'Full screen', '這個瀏覽器不讓網頁進入全螢幕': 'This browser will not let the page go full screen',
   '吸附格線與牆': 'Snap to grid and walls',
+  '顯示': 'Show', '插座開關': 'Sockets & switches', '尺寸與標註': 'Dimensions & notes',
+  '全部勾掉＝只看牆、門窗與房間': 'All off = just walls, doors, windows and rooms',
+  '顯示 — 勾掉的東西 2D、3D 都不畫也點不到，照度照算；只存在這個瀏覽器，不改方案、不影響匯出':
+    'Show — what is unticked is neither drawn nor clickable, in 2D or 3D; lighting still counts it. Kept in this browser only: the plan and exports are unchanged',
   '吸附 — 端點會黏到格線、其他牆的端點/中點/牆面。\n關掉才能放在任意位置；描底圖時通常關掉，自己畫時開著比較容易接得起來。':
     'Snap — ends stick to the grid and to other walls’ ends, midpoints and faces.\nTurn it off to place anywhere; usually off while tracing, on while drawing.',
   '操作靈敏度…': 'Control sensitivity…', '介面語言': 'Language',
