@@ -426,7 +426,7 @@ export function reaching(r: LightRoom, all: readonly Luminaire[]): Luminaire[] {
   const cand: { L: Luminaire; bound: number }[] = [];
   for (const L of all) {
     if (mine.has(L)) continue;
-    const half = L.tube ? L.tube.length / 2 : 0;
+    const half = (L.tube?.length ?? L.line?.length ?? 0) / 2;   // a ceiling linear light reaches from its ends too
     let rho = Infinity;
     for (const q of ways) rho = Math.min(rho, Math.max(0, Math.hypot(q.x - L.x, q.y - L.y) - half));
     cand.push({ L, bound: reachBound(L, rho) });
@@ -461,10 +461,11 @@ export function reachBound(L: Luminaire, rho: number): number {
   return MAINTENANCE * peak * f;
 }
 
-/** Does a straight line run from the light (its middle and ends, for a tube) to any opening, at a height inside it? */
+/** Does a straight line run from the light (its middle and ends, for a tube or a ceiling linear light) to any opening, at a height inside it? */
 function seesWayIn(shade: readonly ShadeSeg[], L: Luminaire, ways: readonly Portal[]): boolean {
-  const from = L.tube
-    ? [-0.45, 0, 0.45].map(k => ({ x: L.x + L.tube!.axis[0] * L.tube!.length * k, y: L.y + L.tube!.axis[1] * L.tube!.length * k }))
+  const run = L.tube ?? L.line;
+  const from = run
+    ? [-0.45, 0, 0.45].map(k => ({ x: L.x + run.axis[0] * run.length * k, y: L.y + run.axis[1] * run.length * k }))
     : [{ x: L.x, y: L.y }];
   for (const q of ways) for (const f of from) for (const z of [q.z0 + 1, (q.z0 + q.z1) / 2, q.z1 - 1]) {
     if (!wallBetween(shade, f.x, f.y, L.z, q.x, q.y, z)) return true;

@@ -218,13 +218,19 @@ export function refreshProps(editor: Editor, doc: Doc) {
     if (lin) {
       // B29: any length the profile comes in, held to the catalogue's bounds; its
       // flux follows, and so does the default the 流明 field shows.
-      dim(sec.body, t('燈長'), linearLength(e), v => {
+      const lenInput = dim(sec.body, t('燈長'), linearLength(e), v => {
         const length = linearLength({ item: e.item, length: v });
         up(e, { length });
         if (lmInput) {
           const lm = String(linearOutput(e.item, length).lumens);
           lmInput.placeholder = lm; lmInput.title = `${t('留空＝預設')} ${lm}`;
         }
+      });
+      // Each keystroke is held to the bounds ("2" of "20" stores 30); once the
+      // field is left, show what was stored rather than what was typed.
+      lenInput.addEventListener('change', () => {
+        const cur = doc.objects.find(o => o.id === e.id);
+        if (cur?.kind === 'electrical') lenInput.value = fieldValue(linearLength(cur), unit);
       });
       info(sec.body, t('每米'), `${lin.lmPerM} lm · ${lin.wPerM} W`);
     }

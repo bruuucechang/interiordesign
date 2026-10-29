@@ -19,6 +19,20 @@ from .rooms import polygon_signed_area
 PING_PER_M2 = 1 / 3.30579   # 1 坪 = 3.30579 m²
 #: A batten with no `size` is this long — must match `T5_DEFAULT_SIZE` in client/src/model/catalogue.ts.
 T5_DEFAULT_SIZE = 4
+#: B29 linear lights: (default, min, max) length in cm — must match `LINEAR_LIGHTS` in client/src/model/catalogue.ts.
+LINEAR_LENGTHS = {
+    "linearRecessed": (120, 30, 600),
+    "linearSurface": (120, 30, 600),
+    "linearCove": (240, 30, 600),
+    "linearWash": (180, 30, 600),
+    "linearShelf": (60, 20, 240),
+}
+
+
+def linear_length(item: str, length: float | None) -> float:
+    """The length the editor draws: the stored one held to the bounds, or the default (core/linearLight.ts)."""
+    default, lo, hi = LINEAR_LENGTHS[item]
+    return default if length is None else min(hi, max(lo, length))
 
 #: What the object statistics table lists, and the label each row gets.
 COUNTED_KINDS = {
@@ -77,9 +91,9 @@ def build_report(project: Project, name: str = "") -> dict[str, Any]:
                 if o.item == ElectricalId.batten:
                     size = o.size.value if o.size else T5_DEFAULT_SIZE
                     label = f"{o.label or 'T5'} {size} 尺"
-                elif o.length is not None:
-                    # B29 linear lights are ordered by length too.
-                    label = f"{o.label or o.item.value} {round(o.length)} cm"
+                elif o.item.value in LINEAR_LENGTHS:
+                    # B29 linear lights are ordered by length too, at the length the editor draws.
+                    label = f"{o.label or o.item.value} {round(linear_length(o.item.value, o.length))} cm"
                 else:
                     label = o.label or o.item.value or "配件"
                 elec[label] = elec.get(label, 0) + 1

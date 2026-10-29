@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import { isLinear, linearLength, linearOutput, fittingLength } from '../src/core/linearLight';
 import { luminaire, sources, lux } from '../src/core/lighting';
 import { lightParts, CEILING_GAP } from '../src/core/lights3d';
-import { emitters } from '../src/core/lightEmit';
+import { emitters, LINE_SPOTS } from '../src/core/lightEmit';
 import { electricalEnds, hitTest } from '../src/core/hit';
 import { ELECTRICAL, ELECTRICAL_BY_ID, LINEAR_LIGHTS, LIGHT_DEFAULTS, T5_SIZES, isLightItem, isWallLight, belowCeiling } from '../src/model/catalogue';
 import { ELECTRICAL_SYMBOLS, QUIET_SYMBOLS, QUIET_ALPHA } from '../src/data/electrical';
-import type { Electrical, ElectricalId } from '../src/model/schema';
+import type { Electrical, ElectricalId, Obj } from '../src/model/schema';
+import { lightingFindings } from '../src/core/lightcheck';
 
 const LINEAR: ElectricalId[] = ['linearRecessed', 'linearSurface', 'linearCove', 'linearWash', 'linearShelf'];
 const DOWN: ElectricalId[] = ['dlFrameless', 'dlDeep', 'dlAdjust', 'dlWash', 'dlTwin'];
@@ -169,11 +170,17 @@ test('3D: a linear light is as long as its run, along its angle', () => {
   assert.ok(twin.every(p => Math.abs(p.x - 100) < 1e-9) && Math.abs(Math.abs(twin[0].y - twin[1].y) - 9) < 1e-9);
 });
 
-test('3D emitters: one per new fitting, pointing down or into the room', () => {
+test('3D emitters: one per fitting, a ceiling linear light spread along its run; pointing down or into the room', () => {
   const objs = [...LINEAR, ...DOWN].map((id, i) => el(id, { id: `e${i}` }));
   const em = emitters(objs, C);
-  assert.equal(em.length, 10);
+  assert.equal(em.length, 10 + 2 * (LINE_SPOTS - 1));
   for (const e of em) assert.ok(e.candela > 0 && (e.dir[2] === -1 || e.dir[2] === 0));
+  assert.equal(new Set(em.map(e => e.id)).size, em.length);
+  // The three spots of a 300 cm run share its flux and spread along it.
+  const run = emitters([el('linearRecessed', { length: 300, x: 0, y: 0 })], C);
+  const one = emitters([el('dlFrameless', { x: 0, y: 0, lumens: 2400, beam: 110 })], C)[0];
+  assert.ok(Math.abs(run.reduce((a, e) => a + e.candela, 0) - one.candela) < 1e-6);
+  assert.deepEqual(run.map(e => Math.round(e.x)), [-100, 0, 100]);
 });
 
 test('2D: every fitting has a drawing-set symbol and a quiet one, with an alpha', () => {
@@ -212,3 +219,41 @@ test('a linear light is grabbed anywhere along its length, a point fitting only 
   assert.equal(hitTest(docOf(run), { x: 190, y: 20 }, 0), undefined);
   assert.equal(hitTest(docOf(el('dlDeep', { x: 0, y: 0 })), { x: 190, y: 3 }, 0), undefined);
 });
+
+// Review of PR #30: the health check saw a ceiling linear light only at its middle, and had nowhere to mount a shelf light.
+test('health check: a linear run over a full-height wardrobe is flagged even when its middle is clear', () => {
+  const objs = [...box600(), { id: 'c2', kind: 'furniture', layer: 'furniture', item: 'wardrobe', x: 6, y: 100, w: 100, h: 300, angle: 0, height: 280 },
+    { id: 'l1', kind: 'electrical', layer: 'electrical', item: 'linearRecessed', x: 200, y: 250, angle: 0, length: 300 }] as Obj[];
+  const f = lightingFindings(objs, 280).filter(f => f.rule === 'light-cabinet');
+  assert.ok(f.some(f => f.id.startsWith('light-cab-above:l1:')), f.map(f => f.title).join(' | '));
+  // Shortened so the whole run is clear of it, it is only "too near" at most.
+  const short = objs.map(o => o.id === 'l1' ? { ...o, length: 60 } : o) as Obj[];
+  assert.ok(!lightingFindings(short, 280).some(f => f.id.startsWith('light-cab-above:l1:')));
+});
+
+test('health check: a linear run passing over the pillow glares from its nearest point', () => {
+  // Bed against the top wall, pillow end at y ≈ 6; the run's middle is far off at the foot, its end over the pillow.
+  const bed = { id: 'b1', kind: 'furniture', layer: 'furniture', item: 'bed_double', x: 200, y: 6, w: 160, h: 200, angle: 0 };
+  const run = (x: number) => ({ id: 'l1', kind: 'electrical', layer: 'electrical', item: 'linearRecessed', x, y: 40, angle: 0, length: 400 });
+  // "light-pillow:" is the direct-glare finding (within glareDirect of straight up).
+  const glare = (o: object) => lightingFindings([...box600(), bed, o] as Obj[], 280).filter(f => f.id.startsWith('light-pillow:') && f.targets.includes('l1'));
+  assert.ok(glare(run(480)).length > 0, 'end over the pillow');
+  assert.equal(glare({ ...run(480), length: 60 }).length, 0, 'a short run there is off to the side');
+});
+
+test('health check: a shelf light on the face of a low cabinet counts as mounted', () => {
+  const cab = { id: 'c1', kind: 'furniture', layer: 'furniture', item: 'cabinet', x: 200, y: 6, w: 200, h: 40, angle: 0, height: 90 };
+  const shelf = { id: 's1', kind: 'electrical', layer: 'electrical', item: 'linearShelf', x: 300, y: 46, angle: 180, length: 120, elevation: 80 };
+  const mount = (objs: object[]) => lightingFindings([...box600(), ...objs] as Obj[], 280).filter(f => f.rule === 'light-mount');
+  assert.equal(mount([cab, shelf]).length, 0);
+  assert.equal(mount([shelf]).length, 1, 'with no cabinet behind it, it still is not');
+  // Other wall strips still need a wall, a beam or a full-height cabinet.
+  assert.equal(mount([cab, { ...shelf, item: 'linearWash' }]).length, 1);
+});
+
+function box600(): object[] {
+  const W = (id: string, a: object, b: object) => ({ id, kind: 'wall', layer: 'walls', a, b, thickness: 12 });
+  return [W('w1', { x: 0, y: 0 }, { x: 600, y: 0 }), W('w2', { x: 600, y: 0 }, { x: 600, y: 500 }),
+    W('w3', { x: 600, y: 500 }, { x: 0, y: 500 }), W('w4', { x: 0, y: 500 }, { x: 0, y: 0 }),
+    { id: 'r1', kind: 'room', layer: 'rooms', x: 0, y: 0, w: 600, h: 500, name: '臥室', poly: [{ x: 0, y: 0 }, { x: 600, y: 0 }, { x: 600, y: 500 }, { x: 0, y: 500 }] }];
+}
