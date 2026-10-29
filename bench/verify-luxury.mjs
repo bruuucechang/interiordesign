@@ -37,7 +37,8 @@ async function open(url, { plan = false, mode = '2d', w = 1440, h = 900, ctx = n
   await page.waitForTimeout(1500);
   return { ctx, page };
 }
-const A1 = `${BASE}/?perf=1&plan=plan1151022`;
+// 2026-10-29 起 A1 本身換成豪宅版；B28～B30 與對照截圖量的是另存的原版
+const A1 = `${BASE}/?perf=1&plan=plan1151022orig`;
 // 用真的選單勾／取消
 const tick = async (page, group, on) => {
   await page.click('#showMenu > .menu-btn');
@@ -156,7 +157,7 @@ if (ONLY('b28')) {
   const kept = await page.$$eval('#showMenu input[data-show]', bs => bs.filter(b => b.checked).length);
   d = await drawn(page);
   ok(kept === 0 && count(d, /^(electrical|furniture):/) === 0, `重新整理後設定還在（勾著 ${kept} 個、畫了水電＋家具 ${count(d, /^(electrical|furniture):/)} 件）`);
-  ok(await page.evaluate(() => window.__app.doc.objects.length) === 180, 'A1 還是 180 件（只讀）');
+  ok(await page.evaluate(() => window.__app.doc.objects.length) === 180, 'A1 原版還是 180 件（只讀）');
   ok(writes === writes0, `重新整理也沒有送出改過的方案（${writes - writes0} 次）`);
   await page.close();
 
@@ -493,7 +494,8 @@ if (ONLY('b31')) {
   const H = { headers: { 'X-Owner': 'own_orsxp52fbvey' } };
   const a1 = await fetch(`${API}/projects/plan1151022`, H).then(r => r.json());
   const lxRow = await fetch(`${API}/projects/plan1151022lx`, H).then(r => r.ok ? r.json() : null);
-  ok(a1.data.floors[0].objects.length === 180, `A1 仍是 180 件（${a1.data.floors[0].objects.length}）`);
+  ok(a1.data.floors[0].objects.length === 159, `A1 已採用豪宅版、159 件（${a1.data.floors[0].objects.length}）`);
+  ok(JSON.stringify(a1.data.floors) === JSON.stringify(lxRow?.data.floors), 'A1 的內容跟「A1 豪宅版」一樣');
   ok(!!lxRow && lxRow.name === 'A1 豪宅版', `「A1 豪宅版」存在（先跑 npx tsx bench/make-luxury.mjs）`);
   const LX = `${BASE}/?perf=1&plan=plan1151022lx`;
   const { ctx, page } = await open(LX, { plan: true });

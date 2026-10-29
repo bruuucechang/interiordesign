@@ -5,6 +5,9 @@
 // 只讀 A1（GET），只寫豪宅版（PUT 到另一個 id）。可以重跑：豪宅版已存在就整份覆寫。
 // 寫之前先用健檢自己的函式驗一次：照明提醒不是 0 就不寫、結束碼 1。
 // 換了什麼、為什麼在 client/src/data/luxuryPlan.ts。
+//
+// 2026-10-29 使用者裁示 A1 改成豪宅版（A1 本身已經是 makeLuxury 的結果，原版備份在 ~/.interior-designer-backups/）。
+// 再從 A1 產生會把燈和傢俱疊兩次，所以 A1 裡已經有 lx_ 開頭的物件就拒跑。
 import { makeLuxury, LUXURY_ID, SOURCE_ID } from '../client/src/data/luxuryPlan.ts';
 import { lightingFindings } from '../client/src/core/lightcheck.ts';
 
@@ -21,6 +24,10 @@ const get = async (id) => {
 
 const a1 = await get(SOURCE_ID);
 if (!a1) { console.error(`讀不到 ${SOURCE_ID}`); process.exit(1); }
+if (a1.data.floors.some(fl => fl.objects.some(o => String(o.id).startsWith('lx_')))) {
+  console.error(`${SOURCE_ID} 已經是豪宅版（有 lx_ 物件），再產生會疊兩次；要重做請先用 ~/.interior-designer-backups/ 的原版還原 A1`);
+  process.exit(1);
+}
 const before = JSON.stringify(a1.data);
 const lx = makeLuxury(a1.data);
 
