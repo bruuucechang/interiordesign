@@ -1,7 +1,8 @@
 import { Editor } from '../core/editor';
 import { Doc, genId } from '../model/doc';
 import { Obj, Vec, T5Size } from '../model/schema';
-import { layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL_BY_ID, LIGHT_DEFAULTS, T5_SIZES, T5_DEFAULT_SIZE, T5_BELOW_CEILING } from '../model/catalogue';
+import { layerForKind, DOOR_STYLES, WINDOW_STYLES, ELECTRICAL_BY_ID, LIGHT_DEFAULTS, LINEAR_LIGHTS, T5_SIZES, T5_DEFAULT_SIZE, belowCeiling, isLightItem, isWallLight } from '../model/catalogue';
+import { linearLength, linearOutput } from '../core/linearLight';
 import { DEFAULT_CIRCUIT } from '../core/lighting';
 import { dist, snap, angleDeg, distToSegment, closestOnSegment, polygonArea, pointInPolygon, pointInRect } from '../core/geometry';
 import { getModelHeight } from '../core/furniture3d';
@@ -179,6 +180,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
       const v = parseFloat(inp.value); if (!isNaN(v) && v >= 0) set(v);
     });
     row.append(l, inp); parent.appendChild(row);
+    return inp;
   };
   /** One-of-a-few as a strip of buttons, the door-style picker's shape. */
   const pick = <V,>(parent: HTMLElement, label: string, opts: { v: V; label: string; title?: string }[], cur: V, set: (v: V) => void) => {
@@ -205,20 +207,42 @@ export function refreshProps(editor: Editor, doc: Doc) {
   const lightFields = (e: Extract<Obj, { kind: 'electrical' }>) => {
     const isT5 = e.item === 'batten';
     const spec = LIGHT_DEFAULTS[e.item];
-    if (!isT5 && !spec) return;
+    const lin = LINEAR_LIGHTS[e.item];
+    if (!isT5 && !spec && !lin) return;
     const sec = section(t('燈光'));
     if (isT5) {
       pick(sec.body, t('T5 長度'), ([1, 2, 3, 4] as T5Size[]).map(n => ({ v: n, label: `${n} ${t('尺')}`, title: `${T5_SIZES[n].length} cm · ${T5_SIZES[n].lumens} lm` })),
            e.size ?? T5_DEFAULT_SIZE, v => up(e, { size: v }));
     }
-    const lm = isT5 ? T5_SIZES[e.size ?? T5_DEFAULT_SIZE].lumens : spec!.lumens;
-    num(sec.body, t('流明 (lm)'), e.lumens, lm, v => up(e, { lumens: v }));
-    if (spec?.dist.type === 'down') num(sec.body, t('光束角 (°)'), e.beam, spec.dist.beam, v => up(e, { beam: v }));
+    let lmInput: HTMLInputElement | undefined;
+    if (lin) {
+      // B29: any length the profile comes in, held to the catalogue's bounds; its
+      // flux follows, and so does the default the 流明 field shows.
+      const lenInput = dim(sec.body, t('燈長'), linearLength(e), v => {
+        const length = linearLength({ item: e.item, length: v });
+        up(e, { length });
+        if (lmInput) {
+          const lm = String(linearOutput(e.item, length).lumens);
+          lmInput.placeholder = lm; lmInput.title = `${t('留空＝預設')} ${lm}`;
+        }
+      });
+      // Each keystroke is held to the bounds ("2" of "20" stores 30); once the
+      // field is left, show what was stored rather than what was typed.
+      lenInput.addEventListener('change', () => {
+        const cur = doc.objects.find(o => o.id === e.id);
+        if (cur?.kind === 'electrical') lenInput.value = fieldValue(linearLength(cur), unit);
+      });
+      info(sec.body, t('每米'), `${lin.lmPerM} lm · ${lin.wPerM} W`);
+    }
+    const lm = isT5 ? T5_SIZES[e.size ?? T5_DEFAULT_SIZE].lumens : lin ? linearOutput(e.item, linearLength(e)).lumens : spec!.lumens;
+    lmInput = num(sec.body, t('流明 (lm)'), e.lumens, lm, v => up(e, { lumens: v }));
+    const beam = spec?.dist.type === 'down' ? spec.dist.beam : lin?.dist.type === 'down' ? lin.dist.beam : undefined;
+    if (beam !== undefined) num(sec.body, t('光束角 (°)'), e.beam, beam, v => up(e, { beam: v }));
     pick(sec.body, t('色溫'), [undefined, 2700, 3000, 4000, 5000, 6500].map(k => ({ v: k, label: k ? `${k}K` : t('未指定') })),
          e.cct, v => up(e, { cct: v }));
     pick(sec.body, t('迴路'), [1, 2, 3, 4, 5, 6].map(c => ({ v: c, label: String(c), title: t('照度面板用來比較開法的開關群組，不是配線') })),
          e.circuit ?? DEFAULT_CIRCUIT, v => up(e, { circuit: v }));
-    if (isT5 || e.item === 'wallLight') {
+    if (isWallLight(e.item)) {
       // "Up" on the symbol is the side it lights; angle 0 is the top of the screen.
       pick(sec.body, t('照向'), [{ v: 0, label: t('↑ 上') }, { v: 90, label: t('→ 右') }, { v: 180, label: t('↓ 下') }, { v: 270, label: t('← 左') }],
            ((Math.round(e.angle) % 360) + 360) % 360, v => up(e, { angle: v }));
@@ -545,7 +569,7 @@ export function refreshProps(editor: Editor, doc: Doc) {
       const spec = ELECTRICAL_BY_ID[o.item];
       info(basics, t('種類'), o.label || spec?.name || o.item);
       const ceiling = doc.activeFloor.height;
-      if (spec?.mount === 'ceiling' && o.item !== 'pendant' && LIGHT_DEFAULTS[o.item]) {
+      if (spec?.mount === 'ceiling' && o.item !== 'pendant' && isLightItem(o.item)) {
         // The lighting maths puts a ceiling fitting at the ceiling whatever is
         // stored, so an editable height here would be a field that does nothing.
         info(basics, t('安裝高度'), `${t('天花板')}（${formatLength(ceiling, unit)}）`);
@@ -553,7 +577,8 @@ export function refreshProps(editor: Editor, doc: Doc) {
         // A batten left unset hangs just under this floor's ceiling, and one
         // stored higher than that is clamped there (lighting.ts::luminaire):
         // show where the maths puts it, not the catalogue's 265.
-        const shown = o.item === 'batten' ? Math.min(o.elevation ?? Infinity, ceiling - T5_BELOW_CEILING) : (o.elevation ?? spec?.elevation ?? 30);
+        const below = belowCeiling(o.item);
+        const shown = below !== undefined ? Math.min(o.elevation ?? Infinity, ceiling - below) : (o.elevation ?? spec?.elevation ?? 30);
         dim(basics, t('安裝高度'), shown, v => up(o, { elevation: Math.max(0, v) }));
       }
       lightFields(o);

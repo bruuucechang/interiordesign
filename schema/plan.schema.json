@@ -166,6 +166,10 @@
         "layer": {
           "$ref": "#/definitions/LayerId"
         },
+        "length": {
+          "description": "Length (cm) of an LED aluminium linear light (B29), along the symbol's local x. Absent = the catalogue's default length.",
+          "type": "number"
+        },
         "lumens": {
           "description": "Luminous flux (lm), overriding the catalogue default.",
           "type": "number"
@@ -208,7 +212,17 @@
         "pendant",
         "wallLight",
         "batten",
-        "exhaust"
+        "exhaust",
+        "linearRecessed",
+        "linearSurface",
+        "linearCove",
+        "linearWash",
+        "linearShelf",
+        "dlFrameless",
+        "dlDeep",
+        "dlAdjust",
+        "dlWash",
+        "dlTwin"
       ],
       "type": "string"
     },

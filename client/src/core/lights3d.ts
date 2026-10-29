@@ -37,6 +37,20 @@ export const LIGHT_SIZE = {
   /** T5 batten section: width on the wall, depth off it. */
   batten: { h: 2.5, d: 3 },
   exhaust: { w: 25, h: 1 },
+  // B29. Linear: `w` the profile's width across the run, `h` its height; a
+  // recessed one shows only its lens in a slightly wider dark slot.
+  linearRecessed: { slot: 4, lens: 2.5, h: 0.6 },
+  linearSurface: { w: 5, h: 5 },
+  linearCove: { h: 1.5, d: 2 },
+  linearWash: { h: 2, d: 3 },
+  linearShelf: { h: 1, d: 1.5 },
+  // Downlights: `lens` the glowing disc, `trim` the ring round it (0 = frameless).
+  dlFrameless: { lens: 3.4, trim: 3.75, h: 0.3 },
+  dlDeep: { lens: 2.2, trim: 4.75, h: 0.6 },
+  dlAdjust: { lens: 2.5, trim: 4.5, h: 0.6 },
+  dlWash: { lens: 3, trim: 4.5, h: 0.6 },
+  /** Twin grille: the frame, and each head's lens 4.5 cm either side of the middle. */
+  dlTwin: { w: 18, d: 9, h: 0.6, lens: 2.5, gap: 4.5 },
 } as const;
 
 /** Clears the ceiling plane so a flush fitting does not z-fight with it. */
@@ -55,6 +69,38 @@ export function lightParts(e: Electrical, ceiling: number): LightPart[] {
   if (!L) return [];
   const top = ceiling - CEILING_GAP;
   switch (e.item) {
+    case 'dlFrameless': case 'dlDeep': case 'dlAdjust': case 'dlWash': {
+      // A round hole in the ceiling: a dark trim, the lens a hair below it.
+      const s = LIGHT_SIZE[e.item];
+      return [
+        { shape: 'cylinder', x: L.x, y: L.y, z: top - s.h / 2, r: s.trim, h: s.h, glow: false },
+        { shape: 'cylinder', x: L.x, y: L.y, z: top - s.h - 0.1, r: s.lens, h: 0.2, glow: true },
+      ];
+    }
+    case 'dlTwin': {
+      const s = LIGHT_SIZE.dlTwin, r = e.angle * Math.PI / 180;
+      const head = (k: number): LightPart => ({
+        shape: 'cylinder', x: L.x + Math.cos(r) * s.gap * k, y: L.y + Math.sin(r) * s.gap * k,
+        z: top - s.h - 0.1, r: s.lens, h: 0.2, glow: true,
+      });
+      return [{ shape: 'box', x: L.x, y: L.y, z: top - s.h / 2, w: s.w, d: s.d, h: s.h, angle: e.angle, glow: false }, head(-1), head(1)];
+    }
+    case 'linearRecessed': {
+      // A slot in the ceiling as long as the run, its lens glowing inside it.
+      const s = LIGHT_SIZE.linearRecessed, len = L.line?.length ?? 0;
+      return [
+        { shape: 'box', x: L.x, y: L.y, z: top - s.h / 2, w: len + 1, d: s.slot, h: s.h, angle: e.angle, glow: false },
+        { shape: 'box', x: L.x, y: L.y, z: top - s.h - 0.1, w: len, d: s.lens, h: 0.2, angle: e.angle, glow: true },
+      ];
+    }
+    case 'linearSurface': {
+      // An aluminium bar on the ceiling, its underside the diffuser.
+      const s = LIGHT_SIZE.linearSurface, len = L.line?.length ?? 0;
+      return [
+        { shape: 'box', x: L.x, y: L.y, z: top - s.h / 2, w: len, d: s.w, h: s.h, angle: e.angle, glow: false },
+        { shape: 'box', x: L.x, y: L.y, z: top - s.h - 0.1, w: len - 1, d: s.w - 1, h: 0.2, angle: e.angle, glow: true },
+      ];
+    }
     case 'downlight': {
       const s = LIGHT_SIZE.downlight;
       // The lens sits a hair below the trim so the two never share a depth.
@@ -88,13 +134,15 @@ export function lightParts(e: Electrical, ceiling: number): LightPart[] {
     }
   }
   if (!L.tube) return [];
-  // A tube (T5 batten, wall light) is mounted on a wall or a cabinet face and
-  // lights the side it faces, so its body stands off the mounting point
-  // towards that side by half its depth — the symbol is drawn on the wall line.
-  const isBatten = e.item === 'batten';
-  const w = isBatten ? L.tube.length : LIGHT_SIZE.wallLight.w;
-  const d = isBatten ? LIGHT_SIZE.batten.d : LIGHT_SIZE.wallLight.d;
-  const h = isBatten ? LIGHT_SIZE.batten.h : LIGHT_SIZE.wallLight.h;
+  // A tube (T5 batten, wall light, B29 cove / wash / shelf strip) is mounted on
+  // a wall or a cabinet face and lights the side it faces, so its body stands
+  // off the mounting point towards that side by half its depth — the symbol is
+  // drawn on the wall line.
+  const sec = e.item === 'batten' ? LIGHT_SIZE.batten
+    : e.item === 'linearCove' || e.item === 'linearWash' || e.item === 'linearShelf' ? LIGHT_SIZE[e.item] : null;
+  const w = sec ? L.tube.length : LIGHT_SIZE.wallLight.w;
+  const d = sec ? sec.d : LIGHT_SIZE.wallLight.d;
+  const h = sec ? sec.h : LIGHT_SIZE.wallLight.h;
   const z = Math.max(h / 2, Math.min(L.z, top - h / 2));
   return [{
     shape: 'box', x: L.x + L.tube.face[0] * d / 2, y: L.y + L.tube.face[1] * d / 2, z,

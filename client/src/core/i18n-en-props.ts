@@ -12,7 +12,7 @@ export const EN_PROPS: Record<string, string> = {
   '左緣對齊（相對各自的畫線方向）': 'Align left edges (relative to each wall\'s drawing direction)',
   '中心線對齊': 'Align centerlines', '右緣對齊': 'Align right edges',
   '留空＝預設': 'Blank = default',
-  'T5 長度': 'T5 length', '尺': 'ft',
+  'T5 長度': 'T5 length', '尺': 'ft', '燈長': 'Length', '每米': 'Per metre',
   '流明 (lm)': 'Lumens (lm)', '光束角 (°)': 'Beam angle (°)', '未指定': 'Unspecified',
   '照度面板用來比較開法的開關群組，不是配線': 'Switch group the lighting panel uses to compare scenes; not wiring',
   '↑ 上': '↑ Up', '→ 右': '→ Right', '↓ 下': '↓ Down', '← 左': '← Left',

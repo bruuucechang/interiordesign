@@ -10,6 +10,7 @@
 
 import { ElectricalId, Electrical } from '../model/schema';
 import { T5_SIZES, T5_DEFAULT_SIZE } from '../model/catalogue';
+import { linearLength } from '../core/linearLight';
 
 const R = 11;   // cm — nominal symbol radius, so symbols read at 1:50
 
@@ -32,6 +33,53 @@ export const QUIET_SYMBOLS: Partial<Record<ElectricalId, Draw>> = {
   },
 };
 export const QUIET_ALPHA: Partial<Record<ElectricalId, number>> = { downlight: 0.75, batten: 0.6 };
+
+// B29: the linear lights and the downlight series, quiet forms drawn the same
+// way — outlines at 1–1.5 cm, nothing filled, under the same alphas as the T5
+// and the downlight they sit beside.
+const lineHalf = (item: ElectricalId, o?: Electrical) => linearLength({ item, length: o?.length }) / 2;
+const strip = (ctx: CanvasRenderingContext2D, half: number, y0: number, h: number) => {
+  ctx.beginPath(); ctx.rect(-half, y0, half * 2, h); ctx.stroke();
+};
+const ring = (ctx: CanvasRenderingContext2D, r: number) => { ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); };
+Object.assign(QUIET_SYMBOLS, {
+  // Ceiling runs straddle their point; wall runs sit on the lit side of the face they are fixed to.
+  linearRecessed: (ctx, o) => { ctx.lineWidth = 1; strip(ctx, lineHalf('linearRecessed', o), -1.5, 3); },
+  linearSurface: (ctx, o) => {
+    const h = lineHalf('linearSurface', o);
+    ctx.lineWidth = 1; strip(ctx, h, -2.5, 5);
+    ctx.beginPath(); ctx.moveTo(-h, 0); ctx.lineTo(h, 0); ctx.stroke();
+  },
+  linearCove: (ctx, o) => {
+    const h = lineHalf('linearCove', o);
+    ctx.lineWidth = 1; strip(ctx, h, -3, 3);
+    ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.moveTo(-h, -8); ctx.lineTo(h, -8); ctx.stroke(); ctx.setLineDash([]);
+  },
+  linearWash: (ctx, o) => {
+    const h = lineHalf('linearWash', o);
+    ctx.lineWidth = 1; strip(ctx, h, -3, 3);
+    for (let x = -h + 15; x < h; x += 30) { ctx.beginPath(); ctx.moveTo(x, -3); ctx.lineTo(x, -7); ctx.stroke(); }
+  },
+  linearShelf: (ctx, o) => { ctx.lineWidth = 1; ctx.setLineDash([3, 3]); strip(ctx, lineHalf('linearShelf', o), -2, 2); ctx.setLineDash([]); },
+  dlFrameless: ctx => { ctx.lineWidth = 1.5; ring(ctx, 3.75); },
+  dlDeep: ctx => { ctx.lineWidth = 1.5; ring(ctx, 4.75); ctx.lineWidth = 1; ring(ctx, 2); },
+  dlAdjust: ctx => {
+    ctx.lineWidth = 1.5; ring(ctx, 4.5);
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 8); ctx.stroke();
+  },
+  dlWash: ctx => {
+    ctx.lineWidth = 1.5; ring(ctx, 4.5);
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, 7.5, Math.PI * 1.2, Math.PI * 1.8); ctx.stroke();
+  },
+  dlTwin: ctx => {
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.rect(-9, -4.5, 18, 9); ctx.stroke();
+    for (const x of [-4.5, 4.5]) { ctx.beginPath(); ctx.arc(x, 0, 2.5, 0, Math.PI * 2); ctx.stroke(); }
+  },
+} satisfies Partial<Record<ElectricalId, Draw>>);
+Object.assign(QUIET_ALPHA, {
+  linearRecessed: 0.6, linearSurface: 0.6, linearCove: 0.6, linearWash: 0.6, linearShelf: 0.6,
+  dlFrameless: 0.75, dlDeep: 0.75, dlAdjust: 0.75, dlWash: 0.75, dlTwin: 0.75,
+});
 
 const circle = (ctx: CanvasRenderingContext2D, r = R) => {
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -115,6 +163,45 @@ export const ELECTRICAL_SYMBOLS: Record<ElectricalId, Draw> = {
     const half = T5_SIZES[o?.size ?? T5_DEFAULT_SIZE].length / 2;
     ctx.beginPath(); ctx.rect(-half, -6, half * 2, 6); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(0, -R - 3); ctx.stroke();
+  },
+  // B29, the drawing set's forms: the run to scale and filled, like the T5.
+  linearRecessed: (ctx, o) => {                         // a slot: filled strip between two lines
+    const h = lineHalf('linearRecessed', o);
+    ctx.beginPath(); ctx.rect(-h, -2, h * 2, 4); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-h, -5); ctx.lineTo(h, -5); ctx.moveTo(-h, 5); ctx.lineTo(h, 5); ctx.stroke();
+  },
+  linearSurface: (ctx, o) => {                          // a filled bar
+    const h = lineHalf('linearSurface', o);
+    ctx.beginPath(); ctx.rect(-h, -3, h * 2, 6); ctx.fill(); ctx.stroke();
+  },
+  linearCove: (ctx, o) => {                             // the strip, and the cove edge dashed in front of it
+    const h = lineHalf('linearCove', o);
+    ctx.beginPath(); ctx.rect(-h, -5, h * 2, 5); ctx.fill(); ctx.stroke();
+    ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.moveTo(-h, -12); ctx.lineTo(h, -12); ctx.stroke(); ctx.setLineDash([]);
+  },
+  linearWash: (ctx, o) => {                             // the strip with ticks on its lit side
+    const h = lineHalf('linearWash', o);
+    ctx.beginPath(); ctx.rect(-h, -5, h * 2, 5); ctx.fill(); ctx.stroke();
+    for (let x = -h + 15; x < h; x += 30) { ctx.beginPath(); ctx.moveTo(x, -5); ctx.lineTo(x, -R); ctx.stroke(); }
+  },
+  linearShelf: (ctx, o) => {                            // a slim strip, dashed: inside a cabinet
+    const h = lineHalf('linearShelf', o);
+    ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.rect(-h, -3, h * 2, 3); ctx.stroke(); ctx.setLineDash([]);
+  },
+  dlFrameless: ctx => { circle(ctx, R * 0.4); ctx.fill(); ctx.stroke(); },
+  dlDeep: ctx => { circle(ctx, R * 0.6); ctx.stroke(); circle(ctx, R * 0.3); ctx.fill(); },
+  dlAdjust: ctx => {                                    // ring with a short aim arrow
+    circle(ctx, R * 0.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, R * 1.2);
+    ctx.moveTo(-R * 0.25, R * 0.9); ctx.lineTo(0, R * 1.2); ctx.lineTo(R * 0.25, R * 0.9); ctx.stroke();
+  },
+  dlWash: ctx => {                                      // ring with an arc on the side it washes
+    circle(ctx, R * 0.5); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.9, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+  },
+  dlTwin: ctx => {                                      // a grille frame with two heads
+    ctx.beginPath(); ctx.rect(-R, -R * 0.5, R * 2, R); ctx.stroke();
+    for (const x of [-R * 0.5, R * 0.5]) { ctx.beginPath(); ctx.arc(x, 0, R * 0.3, 0, Math.PI * 2); ctx.fill(); }
   },
   exhaust: ctx => {                                     // circle with fan blades
     circle(ctx); ctx.stroke();

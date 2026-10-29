@@ -54,7 +54,7 @@ const EN: Record<string, string> = {
   '左緣 — 你點的線是牆的左面，牆往右長出厚度。\n拿捲尺貼著牆的這一面量出來的數字，選這個才對得上。': 'Left face — the line you click is the wall’s left face; the thickness grows to the right.\nPick this when the tape was held against this face.',
   '右緣 — 你點的線是牆的右面，牆往左長出厚度。\n拿捲尺貼著牆的另一面量的話選這個。': 'Right face — the line you click is the wall’s right face; the thickness grows to the left.\nPick this when the tape was held against the other face.',
   '結構': 'Structure', '燈與電': 'Lights & power', '插座': 'Sockets', '開關': 'Switches',
-  '燈位與排風': 'Light points & fans', '樓梯': 'Stairs', '選取': 'Select',
+  '燈位與排風': 'Light points & fans', 'LED 鋁擠燈': 'LED linear lights', '崁燈系列': 'Downlight series', '樓梯': 'Stairs', '選取': 'Select',
   '選取與移動：拖曳物件移動，拖曳空白處平移畫面（Esc）': 'Select and move: drag a thing to move it, drag empty space to pan (Esc)',
   '風格': 'Style', '全部風格': 'All styles', '搜尋': 'Search', '件': 'items',
   '這個風格沒有符合的家具 — 把風格換回「全部風格」看看': 'Nothing in this style — try “All styles”',

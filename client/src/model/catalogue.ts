@@ -31,6 +31,8 @@ export interface ElectricalSpec {
   /** Default height above the floor, in cm — the values Taiwanese practice uses. */
   elevation: number;
   cat: string;
+  /** B29: which palette row a luminaire sits in; absent = the original 燈位與排風 row. */
+  series?: '鋁擠燈' | '崁燈系列';
 }
 
 // Defaults follow common Taiwanese practice: general sockets at 30 cm, sockets
@@ -51,6 +53,19 @@ export const ELECTRICAL: ElectricalSpec[] = [
   { id: 'wallLight',   name: '壁燈',     mount: 'wall',    elevation: 180, cat: '燈具' },
   { id: 'batten',      name: 'T5 層板燈', mount: 'wall',   elevation: 265, cat: '燈具' },
   { id: 'exhaust',     name: '排風扇',   mount: 'ceiling', elevation: 270, cat: '燈具' },
+  // B29 (docs/spec-luxury.md §2). Linear lights run along the symbol's local x
+  // and are as long as `Electrical.length`; the two ceiling ones light the floor
+  // below, the wall ones the side they face.
+  { id: 'linearRecessed', name: '嵌入式鋁擠線燈', mount: 'ceiling', elevation: 270, cat: '燈具', series: '鋁擠燈' },
+  { id: 'linearSurface',  name: '明裝鋁擠線燈',   mount: 'ceiling', elevation: 270, cat: '燈具', series: '鋁擠燈' },
+  { id: 'linearCove',     name: '間接燈槽',       mount: 'wall',    elevation: 265, cat: '燈具', series: '鋁擠燈' },
+  { id: 'linearWash',     name: '洗牆鋁擠燈',     mount: 'wall',    elevation: 265, cat: '燈具', series: '鋁擠燈' },
+  { id: 'linearShelf',    name: '櫃內層板燈',     mount: 'wall',    elevation: 180, cat: '燈具', series: '鋁擠燈' },
+  { id: 'dlFrameless', name: '無邊框崁燈',       mount: 'ceiling', elevation: 270, cat: '燈具', series: '崁燈系列' },
+  { id: 'dlDeep',      name: '深藏防眩崁燈',     mount: 'ceiling', elevation: 270, cat: '燈具', series: '崁燈系列' },
+  { id: 'dlAdjust',    name: '可調角度投射崁燈', mount: 'ceiling', elevation: 270, cat: '燈具', series: '崁燈系列' },
+  { id: 'dlWash',      name: '洗牆崁燈',         mount: 'ceiling', elevation: 270, cat: '燈具', series: '崁燈系列' },
+  { id: 'dlTwin',      name: '雙頭格柵崁燈',     mount: 'ceiling', elevation: 270, cat: '燈具', series: '崁燈系列' },
 ];
 export const ELECTRICAL_BY_ID: Record<string, ElectricalSpec> =
   Object.fromEntries(ELECTRICAL.map(e => [e.id, e]));
@@ -75,6 +90,40 @@ export const LIGHT_DEFAULTS: Partial<Record<ElectricalId, LightSpec>> = {
   spotlight:    { lumens: 600,  watts: 7,  dist: { type: 'down', beam: 36 } },
   pendant:      { lumens: 1000, watts: 12, dist: { type: 'down', beam: 120 } },
   wallLight:    { lumens: 400,  watts: 5,  dist: { type: 'tube', length: 20 } },
+  // B29 downlights, 3000K. The 7.5 cm units are OSRAM's 7 W 560 lm (Costco TW
+  // listing, 2026-10); the rest are the same order for their wattage. An
+  // adjustable or wall-wash head is still counted pointing straight down —
+  // the maths has no aim (lighting.ts).
+  dlFrameless: { lumens: 560,  watts: 7,  dist: { type: 'down', beam: 60 } },
+  dlDeep:      { lumens: 800,  watts: 10, dist: { type: 'down', beam: 36 } },
+  dlAdjust:    { lumens: 560,  watts: 7,  dist: { type: 'down', beam: 24 } },
+  dlWash:      { lumens: 750,  watts: 10, dist: { type: 'down', beam: 80 } },
+  dlTwin:      { lumens: 1100, watts: 14, dist: { type: 'down', beam: 36 } },
+};
+
+/**
+ * LED aluminium linear lights (B29), 3000K, per metre of light. Recessed and
+ * surface profiles are a 10 W/m, 800 lm/m strip behind a diffuser (DIALux
+ * listing of a typical profile); a cove is the bare 8 W/m, 800 lm/m strip
+ * (舞光 2835 strip); a wall washer is a denser 12 W/m; a shelf light a 5 W/m
+ * strip in a slim profile. `length` (cm) is the default and its bounds — a run
+ * longer than 6 m is two drivers and two objects.
+ *
+ * `down` ones light the floor below as a row of cosⁿ sources; `tube` ones are
+ * mounted on a wall or cabinet face like a T5 and light the side they face,
+ * hanging `belowCeiling` under the ceiling when no elevation is stored.
+ */
+export interface LinearSpec {
+  lmPerM: number; wPerM: number;
+  length: { def: number; min: number; max: number };
+  dist: { type: 'down'; beam: number } | { type: 'tube'; belowCeiling?: number };
+}
+export const LINEAR_LIGHTS: Partial<Record<ElectricalId, LinearSpec>> = {
+  linearRecessed: { lmPerM: 800,  wPerM: 10, length: { def: 120, min: 30, max: 600 }, dist: { type: 'down', beam: 110 } },
+  linearSurface:  { lmPerM: 1000, wPerM: 12, length: { def: 120, min: 30, max: 600 }, dist: { type: 'down', beam: 120 } },
+  linearCove:     { lmPerM: 800,  wPerM: 8,  length: { def: 240, min: 30, max: 600 }, dist: { type: 'tube', belowCeiling: 15 } },
+  linearWash:     { lmPerM: 900,  wPerM: 12, length: { def: 180, min: 30, max: 600 }, dist: { type: 'tube', belowCeiling: 5 } },
+  linearShelf:    { lmPerM: 400,  wPerM: 5,  length: { def: 60,  min: 20, max: 240 }, dist: { type: 'tube' } },
 };
 
 /** T5 battens by length in feet: 舞光 3000K datasheet figures. */
@@ -84,9 +133,19 @@ export const T5_SIZES: Record<T5Size, { length: number; lumens: number; watts: n
   3: { length: 91.2,  lumens: 1540, watts: 14 },
   4: { length: 119.4, lumens: 2000, watts: 18 },
 };
+/** Does this fitting give light (a T5, a catalogue luminaire or a B29 linear light)? */
+export const isLightItem = (id: string) => id === 'batten' || !!LIGHT_DEFAULTS[id as ElectricalId] || !!LINEAR_LIGHTS[id as ElectricalId];
+/** Lights mounted on a wall or cabinet face that light the side they face (step into the room along it to find their room). */
+export const isWallLight = (id: string) => id === 'batten' || id === 'wallLight' || (LINEAR_LIGHTS[id as ElectricalId]?.dist.type === 'tube');
 export const T5_DEFAULT_SIZE: T5Size = 4;
 /** A batten sits this far below the ceiling when no elevation is given (cove lighting). */
 export const T5_BELOW_CEILING = 15;
+/** How far under the ceiling a fitting hangs when it has no elevation of its own (a T5, a cove or wall-wash strip), or undefined if it has a fixed height. */
+export function belowCeiling(id: string): number | undefined {
+  if (id === 'batten') return T5_BELOW_CEILING;
+  const d = LINEAR_LIGHTS[id as ElectricalId]?.dist;
+  return d?.type === 'tube' ? d.belowCeiling : undefined;
+}
 
 /**
  * Furniture that gets a lit work zone of its own (`core/lightzones.ts`): the

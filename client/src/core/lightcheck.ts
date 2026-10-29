@@ -19,7 +19,7 @@ import type { Box } from './clearance';
 import { wallBox } from './clearance';
 import { ELECTRICAL_BY_ID } from '../model/catalogue';
 import { LIGHTING } from '../model/locale-defaults';
-import { Luminaire, PLANES, REFLECTANCE, grid, inside, lightRoom, luminaires, reaching, roomLuminaires, shadeSegs } from './lighting';
+import { Luminaire, PLANES, REFLECTANCE, SEG, grid, inside, lightRoom, luminaires, reaching, roomLuminaires, shadeSegs } from './lighting';
 import { fullHeightBoxes, fullHeightFurniture, furnitureBox } from './lightmap';
 import { distToBox, litBy, pillowPoint, roomZones, toLocal, verdict, isBed, zoneStat } from './lightzones';
 
@@ -44,6 +44,24 @@ const deg = (r: number) => Math.round(r);
  * （或埋在牆厚裡——圖上牆心線就是房間外框時，吸附會落在那裡）、整支長度都在那一面
  * 的範圍內，而且是朝外照（背靠著它）。
  */
+/** Plan points along a light: both ends and SEG + 1 between along a ceiling linear light (B29), its centre otherwise. */
+function along(L: Luminaire): { x: number; y: number }[] {
+  if (!L.line) return [{ x: L.x, y: L.y }];
+  const { length, axis } = L.line;
+  return Array.from({ length: SEG + 1 }, (_, i) => {
+    const t = i / SEG - 0.5;
+    return { x: L.x + axis[0] * length * t, y: L.y + axis[1] * length * t };
+  });
+}
+
+/** The point of a light nearest `p`: on a ceiling linear light, anywhere along it. */
+function nearestOn(L: Luminaire, p: { x: number; y: number }): { x: number; y: number } {
+  if (!L.line) return { x: L.x, y: L.y };
+  const h = L.line.length / 2, [ax, ay] = L.line.axis;
+  const t = Math.max(-h, Math.min(h, (p.x - L.x) * ax + (p.y - L.y) * ay));
+  return { x: L.x + ax * t, y: L.y + ay * t };
+}
+
 function mountedOn(L: Luminaire, b: Box): boolean {
   const t = L.tube!;
   const c = toLocal(b, L.x, L.y);
@@ -165,7 +183,8 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
     if (lm.tube || lm.z < ceiling) continue;   // 吊燈垂在櫃子前面不撞櫃頂
     if (roomOfLum.get(lm.id) !== r.room.id) continue;
     for (const f of cabinets.filter(f => inside(r.lr.poly, f.x + f.w / 2, f.y + f.h / 2))) {
-      const d = distToBox(furnitureBox(f), lm.x, lm.y);
+      // A linear light is over the cabinet if any part of its run is.
+      const box = furnitureBox(f), d = Math.min(...along(lm).map(p => distToBox(box, p.x, p.y)));
       if (d === 0) out.push({
         id: `light-cab-above:${lm.id}:${f.id}`, rule: 'light-cabinet', severity: 'lighting',
         title: `${nameOf(lm)}裝在做到頂的櫃子上方`,
@@ -198,11 +217,14 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
     return b && { ...b, h: b.h + 2 * Math.abs(w.bulge!) };
   }).filter((b): b is Box => !!b);
   const maxWall = Math.max(12, ...walls.map(w => w.thickness));
+  // A shelf light (B29) is fixed inside a cabinet of any height, not only a full-height one.
+  const anyCabinet = objs.filter((o): o is Furniture => o.kind === 'furniture').map(furnitureBox);
   for (const lm of all) {
     if (!lm.tube) continue;
     const room = roomOfLum.get(lm.id);
     const onCurve = curved.some(b => distToBox(b, lm.x, lm.y) <= MOUNT_TOL);
-    if (!onCurve && (!supports.some(b => mountedOn(lm, b)) || crossesWall(lm, wallBoxes))) out.push({
+    const sup = elec.get(lm.id)?.item === 'linearShelf' ? [...supports, ...anyCabinet] : supports;
+    if (!onCurve && (!sup.some(b => mountedOn(lm, b)) || crossesWall(lm, wallBoxes))) out.push({
       id: `light-mount:${lm.id}:${Math.round(lm.x)}:${Math.round(lm.y)}`, rule: 'light-mount', severity: 'lighting',
       title: `${nameOf(lm)}沒有貼著牆或櫃子`,
       detail: `整支 ${Math.round(lm.tube.length)}cm 要背靠在同一面牆、樑或做到頂的櫃子上`,
@@ -230,8 +252,10 @@ function compute(objs: readonly Obj[], ceiling: number): Finding[] {
     for (const bed of beds) {
       const hp = pillowPoint(bed);
       for (const lm of lums) {
-        const ang = Math.atan2(Math.hypot(lm.x - hp.x, lm.y - hp.y), lm.z - L.pillowHeight) * 180 / Math.PI;
-        const behind = (lm.x - hp.x) * hp.toHead.x + (lm.y - hp.y) * hp.toHead.y > 0;
+        // A linear light glares from the part of its run nearest the pillow.
+        const at = nearestOn(lm, hp);
+        const ang = Math.atan2(Math.hypot(at.x - hp.x, at.y - hp.y), lm.z - L.pillowHeight) * 180 / Math.PI;
+        const behind = (at.x - hp.x) * hp.toHead.x + (at.y - hp.y) * hp.toHead.y > 0;
         const base = { rule: 'light-pillow', severity: 'lighting' as const, targets: [lm.id, bed.id], room: room.id };
         if (behind && ang < L.glareNear) out.push({
           ...base, id: `light-pillow-behind:${lm.id}:${bed.id}:${deg(ang)}`,

@@ -8,6 +8,7 @@
 import type { Obj, Vec } from '../model/schema';
 import { FURNITURE_BY_ID } from '../data/furniture';
 import { pointInPolygon } from './geometry';
+import { isLightItem, isWallLight } from '../model/catalogue';
 
 export type RoomUseName = '浴室' | '廚房' | '臥室' | '書房' | '餐廳' | '客廳';
 export interface RoomReading { use: RoomUseName | null; missing: string[]; }
@@ -67,12 +68,12 @@ function describe(o: Obj, poly: Vec[], itemOf: (id: string) => UseItem | undefin
     // edge: step into the room along the way the symbol faces (local -y turned
     // by `angle`, see place.ts fitElectricalToWall) before asking which room.
     let p: Vec = { x: o.x, y: o.y };
-    if (o.item === 'wallLight' || o.item === 'batten') {
+    if (isWallLight(o.item)) {
       const r = o.angle * Math.PI / 180;
       p = { x: o.x + Math.sin(r) * WALL_REACH, y: o.y - Math.cos(r) * WALL_REACH };
     }
     if (!pointInPolygon(p, poly)) return null;
-    const light = ['ceilingLight', 'downlight', 'spotlight', 'pendant', 'wallLight', 'batten'].includes(o.item);
+    const light = isLightItem(o.item);
     return { names: [], lamp: light, exhaust: o.item === 'exhaust' };
   }
   if (o.kind !== 'furniture') return null;

@@ -56,6 +56,9 @@ export function kelvinRGB(k: number): [number, number, number] {
 /** Half-angle where cosⁿ has dropped to 5 % of its peak, capped at `MAX_CONE`. */
 export const coneOf = (n: number) => Math.min(MAX_CONE, Math.acos(Math.pow(0.05, 1 / Math.max(n, 1e-3))));
 
+/** Spots a ceiling linear light becomes in 3D: few, because the scene holds only ACTIVE_LIGHTS at once. */
+export const LINE_SPOTS = 3;
+
 /** The emitters of a storey's fittings, skipping switched-off groups. */
 export function emitters(objs: readonly Obj[], ceiling: number, off?: ReadonlySet<number>): Emitter[] {
   const out: Emitter[] = [];
@@ -71,10 +74,16 @@ export function emitters(objs: readonly Obj[], ceiling: number, off?: ReadonlySe
       });
     } else {
       const n = L.exponent ?? 1;
-      out.push({
-        id: L.id, x: L.x, y: L.y, z: L.z, dir: [0, 0, -1], cone: coneOf(n),
-        candela: MAINTENANCE * L.lumens * (n + 1) / (2 * Math.PI), color, circuit: L.circuit,
-      });
+      // A ceiling linear light (B29) is LINE_SPOTS spots spread along it, sharing its flux,
+      // so a 6 m run lights the floor along its length, not only under its middle.
+      const k = L.line ? LINE_SPOTS : 1;
+      for (let i = 0; i < k; i++) {
+        const t = L.line ? (i + 0.5) / k - 0.5 : 0, len = L.line?.length ?? 0, ax = L.line?.axis ?? [0, 0];
+        out.push({
+          id: k > 1 ? `${L.id}#${i}` : L.id, x: L.x + ax[0] * len * t, y: L.y + ax[1] * len * t, z: L.z, dir: [0, 0, -1], cone: coneOf(n),
+          candela: MAINTENANCE * L.lumens / k * (n + 1) / (2 * Math.PI), color, circuit: L.circuit,
+        });
+      }
     }
   }
   return out;
