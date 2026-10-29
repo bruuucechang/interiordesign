@@ -185,6 +185,71 @@ console.log('\nB26 家具名與牆長放得下才畫');
   await ctx.close();
 }
 
+// ---------------------------------------------------------------- B27
+console.log('\nB27 介面角落');
+{
+  const { ctx, page } = await open(A1, { plan: true, mode: 'split' });
+  await page.waitForTimeout(1500);
+  const viewBtn = await page.evaluate(() => { const b = [...document.querySelectorAll('#topbar .menu-btn')].find(b => /檢視/.test(b.textContent));
+    return { chip: !!b?.querySelector('.health-count'), text: b?.textContent.trim() }; });
+  ok(!viewBtn.chip && !/\d/.test(viewBtn.text), `「檢視」上沒有數字（「${viewBtn.text}」）`);
+  const peek = await page.evaluate(() => { const p = document.getElementById('drawerPeek'); return p && !p.classList.contains('hidden') ? p.textContent : ''; });
+  ok(!/牆面對齊/.test(peek), `右上角沒有常駐的「牆面對齊」（${peek || '沒有把手'}）`);
+  const drawerClosed = () => page.evaluate(() => document.getElementById('right').classList.contains('closed'));
+  ok(await drawerClosed(), '沒選東西時右側抽屜收著');
+  const item = await page.evaluate(() => { const b = document.querySelector('[data-act="health"]'); return b ? b.textContent.trim() : null; });
+  const n = Number((item ?? '').match(/(\d+)\s*$/)?.[1] ?? NaN);
+  ok(n > 0, `「檢視」選單裡的「空間健檢」照樣有數字（「${item}」）`);
+  await page.evaluate(() => document.querySelector('[data-act="health"]').click());
+  await page.waitForTimeout(500);
+  const row = await page.evaluate(() => document.querySelector('#healthBody .facesteps-row')?.textContent ?? '');
+  ok(/牆面對齊（2 處）/.test(row), `空間健檢裡有「牆面對齊（2 處）」（${row.slice(0, 30)}）`);
+  await page.screenshot({ path: `${OUT}declutter-health.png` });
+  await page.evaluate(() => document.querySelector('#healthBody .facesteps-row button').click());
+  await page.waitForTimeout(500);
+  const shown = await page.evaluate(() => document.querySelectorAll('#properties .facestep').length);
+  ok(!(await drawerClosed()) && shown === 2, `按「看這幾處」：抽屜打開、列出 2 處（${shown}）`);
+  await page.evaluate(() => { const b = document.querySelector('#properties .facesteps .linkish'); b?.click(); });
+  await page.waitForTimeout(700);
+  const after = await page.evaluate(() => document.querySelector('[data-act="health"]').textContent.trim());
+  ok(Number(after.match(/(\d+)\s*$/)?.[1] ?? 0) === n - 2, `「全部略過」之後健檢的數字跟著少 2（${item} → ${after}）`);
+  await page.evaluate(() => localStorage.removeItem('interior_facestep_skipped'));
+  await page.evaluate(() => { document.querySelector('[data-act="close-drawer"]')?.click(); document.querySelector('[data-act="close-health"]')?.click(); });
+  await page.waitForTimeout(400);
+  // 3D 的按鍵條
+  const hudOpacity = () => page.evaluate(() => { const h = document.querySelector('.key-hud'); return h ? Number(getComputedStyle(h).opacity) : -1; });
+  await page.mouse.move(200, 400);   // 2D 那一格
+  await page.waitForTimeout(400);
+  ok(await hudOpacity() === 0, `滑鼠不在 3D 上：按鍵條不顯示（opacity ${await hudOpacity()}）`);
+  const v3 = await page.evaluate(() => { const r = document.getElementById('view3d').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+  await page.mouse.move(v3[0], v3[1]);
+  await page.waitForTimeout(400);
+  ok(await hudOpacity() === 1, `滑鼠移到 3D 上：按鍵條出現（opacity ${await hudOpacity()}）`);
+  await page.screenshot({ path: `${OUT}declutter-split.png` });
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open(A1, { plan: true, mode: '3d' });
+  await page.waitForTimeout(1500);
+  await page.click('#walkToggle'); await page.waitForTimeout(800);
+  const hint = () => page.evaluate(() => { const h = document.getElementById('hint3d'); return { text: h.textContent, op: Number(getComputedStyle(h).opacity), hidden: h.classList.contains('hidden') }; });
+  let h = await hint();
+  ok(/行走/.test(h.text) && !h.hidden && h.op === 1, `進入行走：提示出現（opacity ${h.op}）`);
+  await page.mouse.move(700, 300);
+  await page.waitForTimeout(7200);
+  h = await hint();
+  ok(h.op === 0, `6 秒後淡出（opacity ${h.op}）`);
+  const bottom = await page.evaluate(() => document.getElementById('view3d').getBoundingClientRect().bottom);
+  await page.mouse.move(700, bottom - 30);
+  await page.waitForTimeout(800);
+  h = await hint();
+  ok(h.op === 1, `滑鼠移到下緣：提示回來（opacity ${h.op}）`);
+  await page.keyboard.press('f'); await page.waitForTimeout(500);
+  ok(await page.evaluate(() => !document.getElementById('hint3d').classList.contains('walk-hint')), '離開行走：不再是行走提示');
+  ok(await page.evaluate(() => window.__app.doc.objects.length) === 180, 'A1 還是 180 件（只讀）');
+  await ctx.close();
+}
+
 ok(!errs.length, `沒有頁面錯誤${errs.length ? '：' + errs.join(' / ') : ''}`);
 await br.close();
 console.log(fails ? `\n✘ ${fails} 項沒過` : '\n✔ 全部通過');

@@ -198,7 +198,7 @@ const EN: Record<string, string> = {
   '點擊切換樓層，雙擊重新命名': 'Click to switch floor, double-click to rename',
   '不再顯示': 'Do not show again',
 
-  '牆面對齊': 'Wall faces', '落差': 'Out by', '全部略過': 'Skip all',
+  '牆面對齊': 'Wall faces', '落差': 'Out by', '全部略過': 'Skip all', '處': 'places', '看這幾處': 'Show them',
   '這一面': 'This side', '另一面': 'The other side',
   '重新顯示已略過的落差': 'Show skipped face steps again',
 

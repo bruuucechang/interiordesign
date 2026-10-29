@@ -13,7 +13,7 @@ import { flash } from './feedback';
 import { askRoute, renderSteps } from './onboarding';
 import { startTour, maybeNudgeTour, dismissTourNudge } from './tour';
 import { openHelp, wireHelp } from './help';
-import { toggleHealth, wireHealth, scheduleHealth } from './health-panel';
+import { toggleHealth, wireHealth, scheduleHealth, SHOW_FACESTEPS } from './health-panel';
 import { toggleLighting, wireLighting } from './lighting-panel';
 import { panelInsetRight } from './side-panels';
 import { wireTopbarFit } from './topbar-fit';
@@ -580,9 +580,12 @@ let drawerPinned = false;
 function syncDrawer(doc: Doc) {
   const right = $('#right'), props = $('#properties'), peek = $('#drawerPeek');
   const selected = doc.selectedIds.length > 0;
-  const extras = !selected && Array.from(props.children).some(c => !c.classList.contains('muted'));
-  if (!extras) drawerPinned = false;
-  const showProps = selected || (extras && drawerPinned);
+  // The wall-face list does not put a handle up (B27, it is reached from 空間健檢)
+  // but still shows when the drawer has been asked out for it.
+  const extras = !selected && Array.from(props.children).some(c => !c.classList.contains('muted') && !c.classList.contains('facesteps'));
+  const faces = !selected && !!props.querySelector('.facesteps')?.children.length;
+  if (!extras && !faces) drawerPinned = false;
+  const showProps = selected || ((extras || faces) && drawerPinned);
   const isOpen = showProps || layersOpen;
   right.classList.toggle('closed', !isOpen);
   right.classList.toggle('only-layers', !showProps && layersOpen);
@@ -600,6 +603,7 @@ function wireDrawer(editor: Editor, doc: Doc) {
   const sync = () => syncDrawer(doc);
   new MutationObserver(sync).observe($('#properties'), { childList: true });
   $('#drawerPeek').onclick = () => { drawerPinned = true; sync(); };
+  window.addEventListener(SHOW_FACESTEPS, () => { if (doc.selectedIds.length) doc.select(null); drawerPinned = true; sync(); });
   $('[data-act="close-drawer"]').onclick = () => {
     drawerPinned = false; layersOpen = false;
     if (doc.selectedIds.length) doc.select(null);

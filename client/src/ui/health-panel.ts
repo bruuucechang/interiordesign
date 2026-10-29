@@ -15,6 +15,10 @@ import { CLEARANCE, DEFAULTS, LIGHTING } from '../model/locale-defaults';
 import { bounds } from '../core/hit';
 import { t } from '../core/i18n';
 import { announcePanel, onOtherPanel } from './side-panels';
+import { faceStepCount, FACESTEPS_CHANGED } from './properties';
+
+/** Ask the properties drawer to come out with the wall-face list (ui.ts listens). */
+export const SHOW_FACESTEPS = 'interior:show-facesteps';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 
@@ -48,6 +52,7 @@ function setIgnored(planId: string, ids: Set<string>) {
 }
 
 let findings: Finding[] = [];
+let faces = 0;   // wall-face steps waiting (B27: listed here instead of a handle at the top right)
 let open = false;
 
 /** 重算並更新按鈕上的數字。文件一變就呼叫，但實際運算是防抖的。 */
@@ -56,6 +61,7 @@ export function scheduleHealth(editor: Editor, doc: Doc) {
   clearTimeout(timer);
   timer = window.setTimeout(() => {
     findings = visible(checkPlan(doc.objects, doc.activeFloor.height), ignoredFor(doc.project.id));
+    faces = faceStepCount(editor, doc);
     paintBadge();
     if (open) render(editor, doc);
   }, 250);
@@ -63,12 +69,15 @@ export function scheduleHealth(editor: Editor, doc: Doc) {
 
 function paintBadge() {
   // Two chips since B20: on the 空間健檢 item and on the 檢視 menu button it hides in.
-  const title = findings.length
-    ? `${t('空間健檢')}：${findings.length} ${t('項提醒')}`
+  // B27: only on the 空間健檢 item now. The 檢視 button used to carry a red
+  // number too, and a red number on a menu reads as "something is broken".
+  const n = findings.length + faces;
+  const title = n
+    ? `${t('空間健檢')}：${n} ${t('項提醒')}`
     : `${t('空間健檢')}：${t('目前沒有提醒')}`;
   for (const chip of document.querySelectorAll<HTMLElement>('#topbar .health-count')) {
-    chip.textContent = String(findings.length);
-    chip.classList.toggle('none', findings.length === 0);
+    chip.textContent = String(n);
+    chip.classList.toggle('none', n === 0);
     chip.title = title;
   }
 }
@@ -144,7 +153,23 @@ function render(editor: Editor, doc: Doc) {
   const body = $('#healthBody');
   body.innerHTML = '';
 
-  if (!findings.length) {
+  if (faces) {
+    // The wall-face steps keep their own list (two buttons per join, named by
+    // room) in the properties drawer; this row is the way to it.
+    const el = document.createElement('div'); el.className = 'hf facesteps-row';
+    const head = document.createElement('div'); head.className = 'hf-head';
+    const title = document.createElement('b'); title.textContent = `${t('牆面對齊')}（${faces} ${t('處')}）`;
+    head.appendChild(title);
+    const detail = document.createElement('div'); detail.className = 'hf-detail';
+    detail.textContent = t('這幾處的牆面差不到 5 公分——平面圖上看不出來，3D 會露出一條牆的端面。選一面拉齊，或略過。');
+    const acts = document.createElement('div'); acts.className = 'hf-acts';
+    const go = document.createElement('button'); go.className = 'hf-btn'; go.textContent = t('看這幾處');
+    go.onclick = () => window.dispatchEvent(new Event(SHOW_FACESTEPS));
+    acts.appendChild(go);
+    el.append(head, detail, acts);
+    body.appendChild(el);
+  }
+  if (!findings.length && !faces) {
     const ok = document.createElement('div'); ok.className = 'hf-empty';
     ok.textContent = doc.objects.length
       ? t('目前沒有提醒。')
@@ -183,6 +208,7 @@ function render(editor: Editor, doc: Doc) {
 export function openHealth(editor: Editor, doc: Doc) {
   open = true;
   findings = visible(checkPlan(doc.objects, doc.activeFloor.height), ignoredFor(doc.project.id));
+  faces = faceStepCount(editor, doc);
   paintBadge();
   render(editor, doc);
   $('#healthPanel').classList.remove('hidden');
@@ -196,6 +222,7 @@ export function toggleHealth(editor: Editor, doc: Doc) {
 }
 
 export function wireHealth(editor: Editor, doc: Doc) {
+  window.addEventListener(FACESTEPS_CHANGED, () => scheduleHealth(editor, doc));
   $('[data-act="close-health"]').addEventListener('click', close);
   onOtherPanel('health', () => { if (open) close(); });
   window.addEventListener('keydown', (e) => {
