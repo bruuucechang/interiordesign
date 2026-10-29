@@ -323,3 +323,24 @@
   verify-polish 的修正 mutant 各自紅：拿掉 declutter（施工圖少 8 個牆長）、拿掉整批判斷、提示只在出現時才記。`shot-b20`、`verify-b13`、b9／b10／b14／b16／b18／b19、bin、esc、lighting、openings、
   palette、partition、placement、rooms、stretch、textures、wall 全過；b12 只有已知的照度數字項紅；b5／b6／b8 開 A1 沒擋寫入、沒跑。A1 2D 重畫 0.35 → 約 0.39 ms／幀。A1 仍 180 件。
   **審查退回一輪**：房間三行換回螢幕是 17.99999 px，嚴格比較讓約四成縮放掉「缺」或面積；施工圖少 8 個牆長；匯出吃選取；DXF 匯入後拉近到隨便一間。第二輪通過。
+
+## B25 平面圖減量：只有燈是黃的、地板條紋變淡  [未開始]
+- 規格：`docs/spec-declutter.md` 第一、二節
+- 目標：家具框／子區域不再黃色；嵌燈改小的空心圈、燈條變細；舊預設圖層色畫成新色（不改資料）；條紋變淡、全圖時不畫
+- 驗收：「舊預設色換新色」「條紋畫不畫」純函式單元測試＋mutant；verify-declutter 的黃點、家具框顏色、條紋
+- 碰：`core/renderer.ts`、`data/electrical.ts`、`model/catalogue.ts`、`core/materials.ts`
+- 不做：照度熱圖開著時的樣子、匯出、方案資料
+
+## B26 圖上的字：家具名與牆長放得下才畫  [未開始]
+- 規格：同檔第三節
+- 目標：家具名在螢幕上塞得進家具才畫、牆長比牆短就不畫，選取中的永遠畫
+- 驗收：兩條判斷寫成純函式＋單元測試＋mutant；verify-declutter 的短牆、家具名數量、選取
+- 碰：`core/renderer.ts`、`core/labelLayout.ts`
+- 不做：尺寸線、匯出
+
+## B27 介面角落：檢視不掛數字、牆面對齊收進健檢、3D 鍵盤圖與行走提示收起來  [未開始]
+- 規格：同檔第四節
+- 目標：見規格四條
+- 驗收：verify-declutter 的「檢視」數字、牆面對齊在健檢裡、鍵盤圖 hover 才出現、行走提示 6 秒消失；shot-b20 照過；1440／1280 前後對照截圖
+- 碰：`index.html`、`ui/health-panel.ts`、`ui/properties.ts`、`core/keys3d.ts`、`style.css`
+- 不做：3D 本身
