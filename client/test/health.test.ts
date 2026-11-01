@@ -130,6 +130,17 @@ test('床兩側都貼牆，要抓', () => {
   assert.match(f[0].detail, new RegExp(`${CLEARANCE.bedSide}`));
 });
 
+test('床頭櫃不算擋住下床；床邊中段到床尾被擋才抓（2026-11-01）', () => {
+  // 床頭靠上牆，兩邊各一個 50×50 的床頭櫃貼著床頭：兩側其餘都空著
+  const bed = furn('bed', 'bed_double', 100, 20, 152, 188);
+  const ns = [furn('n1', 'nightstand_lx', 50, 20, 50, 50), furn('n2', 'nightstand_lx', 252, 20, 50, 50)];
+  assert.deepEqual(checkPlan([...BOX, bed, ...ns]).filter(x => x.rule === 'clearance-any').map(x => x.detail), []);
+  // 兩側中段到床尾都貼著高櫃：真的下不了床
+  const walls = [furn('c1', 'cabinet', 40, 80, 60, 128), furn('c2', 'cabinet', 252, 80, 60, 128)];
+  const f = checkPlan([...BOX, bed, ...ns, ...walls]).filter(x => x.rule === 'clearance-any');
+  assert.equal(f.length, 1, '兩側中段都被擋，要抓');
+});
+
 test('餐桌自己的椅子不算擋住入座（B31）；換成櫃子照樣抓', () => {
   // 房間中間一張 180×90 的餐桌，長邊兩側各兩張椅子貼著桌邊。
   const table = furn('t', 'dining_lx', 210, 155, 180, 90);

@@ -5,7 +5,7 @@ import { Renderer } from './renderer';
 import { snapPoint, rotate, distToSegment } from './geometry';
 import { bounds } from './hit';
 import { cloneWithOffset, alignMoves, distributeMoves, Move, Edge, Axis } from './arrange';
-import { Reference, alignWalls, splitWallAt, findFaceSteps, FaceStep, Wall } from './wallEdit';
+import { Reference, alignWalls, splitWallAt, findFaceSteps, faceStepEdits, FaceStep, Wall } from './wallEdit';
 import { Tool, ToolCtx, PointerInfo, DrawFn } from '../tools/types';
 import { SelectTool } from '../tools/select';
 import { WallTool, CurvedWallTool, BeamTool, PartitionTool, RoomTool, AreaTool, DimensionTool } from '../tools/draw';
@@ -497,29 +497,16 @@ export class Editor implements ToolCtx {
   }
 
   /**
-   * Pull one join flush, moving the thinner wall onto the chosen face.
-   *
-   * The wall's doors and windows go with it. They are stored in world
-   * coordinates rather than as an offset along their wall, so a wall that moves
-   * without them leaves its openings sitting 4.5 cm off centre — still inside
-   * the wall, still punching a hole, just no longer where the frame is. That is
-   * the kind of wrong that survives a screenshot.
+   * Pull one join flush, moving the thinner wall onto the chosen face — and
+   * what rides on it or ends against it (`faceStepEdits`): its doors, windows
+   * and fittings are stored in world coordinates, and a wall meeting it would
+   * otherwise be left short of it.
    */
   alignFaceStep(s: FaceStep, side: 'left' | 'right'): void {
-    const w = this.doc.objects.find(o => o.id === s.moverId);
-    if (!w || w.kind !== 'wall') return;
-    const shift = s.shift[side];
-    if (Math.abs(shift) < 1e-9) return;
-    const d = { x: s.normal.x * shift, y: s.normal.y * shift };
-
+    const edits = faceStepEdits(this.doc.objects, s, side);
+    if (!edits.length) return;
     this.doc.commit();
-    const moved = { a: { x: w.a.x + d.x, y: w.a.y + d.y }, b: { x: w.b.x + d.x, y: w.b.y + d.y } };
-    // Which openings are on it has to be answered before the wall moves.
-    const riding = this.doc.objects.filter((o): o is Extract<Obj, { kind: 'door' | 'window' }> =>
-      (o.kind === 'door' || o.kind === 'window')
-      && distToSegment({ x: o.x, y: o.y }, w.a, w.b) <= w.thickness / 2 + 10);
-    this.doc.update(w.id, moved as any);
-    for (const o of riding) this.doc.update(o.id, { x: o.x + d.x, y: o.y + d.y } as any);
+    for (const e of edits) this.doc.update(e.id, e.patch as any);
   }
 
   /** Cut the selected wall `atCm` from its a end. False when it declined. */
