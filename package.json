@@ -26,6 +26,7 @@
     "typecheck": "npm --workspace client run typecheck",
     "test": "npm run typecheck && npm run codegen:check && npm run test:client && npm run test:server",
     "test:client": "tsx --test client/test/*.test.ts",
+    "verify:all": "node bench/verify-all.mjs",
     "test:server": "cd server && ../.venv/bin/python -m pytest tests/ -q"
   },
   "devDependencies": {

@@ -44,6 +44,7 @@ remote：`https://github.com/bruuucechang/interiordesign.git`。**全部開發�
 npm run setup:py     # 建 .venv 並安裝後端依賴（第一次才需要）
 npm run dev          # server :8791 + client :5180
 npm test             # 型別檢查 + codegen 新鮮度 + client tsx --test + server pytest
+npm run verify:all   # 依序跑 bench/verify-*.mjs 全套、列總表（要 npm run dev 開著，約 20 分鐘）
 npm run codegen      # schema.ts → plan.schema.json → plan_schema.py
 npm run backfill     # 把 DB 裡的存檔升到目前的 schemaVersion（預設 dry run）
 npm run migrate      # SQLite → PostgreSQL 遷移

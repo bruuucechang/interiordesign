@@ -16,7 +16,8 @@ const PLAN = 'plan1151022orig';   // 數字照換豪宅版之前的 A1 寫的（
 const OWNER = 'own_orsxp52fbvey';
 const OUT = new URL('./results/', import.meta.url).pathname;
 // scripts/report-b6.mts --db 印出來的（區域取樣 10 cm、全部迴路開、中間色牆面）
-const EXPECT = [['玄關', 170], ['走道（臥室門前）', 210], ['東側小廳', 172], ['客廳', 232], ['廚房', 413]];
+// 2026-11-01 重定成 B17（牆擋光）之後的面板值；之前是 170／210／172／232／413。
+const EXPECT = [['玄關', 155], ['走道（臥室門前）', 222], ['東側小廳', 261], ['客廳', 222], ['廚房', 400]];
 
 let fails = 0;
 const check = (n, ok, extra = '') => { console.log(`${ok ? '✔' : '✖'} ${n}${extra !== '' ? '  ' + extra : ''}`); if (!ok) fails++; };
