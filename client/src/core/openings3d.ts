@@ -17,6 +17,19 @@ function mat(color: number, opts: THREE.MeshStandardMaterialParameters = {}) {
 
 // A framed door in one of several styles (single / double / sliding / glass).
 // Built in local coords: X along the opening (width), Z = wall normal, Y up.
+/**
+ * Door and window glass: plain alpha, not `transmission`.
+ *
+ * Any transmissive material in view makes three.js draw every opaque object a
+ * second time into a backbuffer it can see through — on the A1 plan that was
+ * 1906 draw calls a frame instead of 1280, 16 ms instead of 11.5, for flat
+ * panes whose refraction nobody can see: side by side the two renders differ in
+ * 0.13% of pixels. It had also blacked out the whole view behind a glass door
+ * and a quarter of every panorama (see panorama.ts). Reflection stays, through
+ * the environment map.
+ */
+export const paneGlass = () => new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.4, envMapIntensity: 1.4 });
+
 export function buildDoor3D(width: number, h: number, elev: number, style = 'single'): THREE.Group {
   const g = new THREE.Group();
   const d = 12, fw = 7;
@@ -31,7 +44,7 @@ export function buildDoor3D(width: number, h: number, elev: number, style = 'sin
   const panelM = new THREE.MeshPhysicalMaterial({ color: 0x7a4e2c, roughness: 0.45, metalness: 0, clearcoat: 0.25, envMapIntensity: 1.0 });
   applyScan(panelM, 'veneer_walnut', width * 0.66, h * 0.36);
   const metalM = mat(0xc2c7cf, { roughness: 0.28, metalness: 0.92, envMapIntensity: 1.35 });
-  const glassM = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
+  const glassM = paneGlass();
   const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
     const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
   };
@@ -101,7 +114,7 @@ export function buildWindow3D(width: number, h: number, elev: number, style = 's
   const d = 10, fw = 6, iw = width - 2 * fw, ih = h - 2 * fw;
   const frameM = mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
   const sillM = mat(0xe7eaee, { roughness: 0.6 });
-  const glass = () => new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
+  const glass = paneGlass;
   const bx = (bw: number, bh: number, bd: number, m: THREE.Material, x: number, y: number, z: number) => {
     const me = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.5, bw), Math.max(0.5, bh), Math.max(0.5, bd)), m); me.position.set(x, y, z); g.add(me); return me;
   };

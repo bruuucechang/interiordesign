@@ -138,3 +138,21 @@ test('沒有零件的頂面跟地板面疊在同一高度', () => {
     }
   }
 });
+
+// 一件家具幾十個零件，一個零件一次繪製（A1 的 39 件＝347 次）：同材質的併成一個網格。
+// 併完外框一樣、零件沒有跑掉，網格數＝材質數。
+test('奢華風家具同材質的零件併成一個網格，外框不變', async () => {
+  const { luxeModel, mergeByMaterial } = await import('../src/core/furnitureBuilders');
+  for (const id of ids) {
+    const f = FURNITURE_BY_ID[id];
+    const parts = LUXE_PARTS[id](f.w, f.h, f.height!);
+    const before = luxeModel(parts);
+    const mats = new Set(before.children.map(c => (c as THREE.Mesh).material));
+    const boxBefore = new THREE.Box3().setFromObject(before);
+    const after = mergeByMaterial(luxeModel(parts));
+    const boxAfter = new THREE.Box3().setFromObject(after);
+    assert.equal(after.children.length, mats.size, `${id}：${before.children.length} 個零件、${mats.size} 種材質`);
+    for (const k of ['min', 'max'] as const) for (const a of ['x', 'y', 'z'] as const)
+      assert.ok(near(boxBefore[k][a], boxAfter[k][a], 0.05), `${id} 外框 ${k}.${a}：${boxBefore[k][a]} → ${boxAfter[k][a]}`);
+  }
+});

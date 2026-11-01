@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { applyScan } from './textures3d';
 import { DEFAULTS } from '../model/locale-defaults';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LUXE_PARTS, type LuxeMat, type Part } from './luxeParts';
 import { FURNITURE_BY_ID } from '../data/furniture';
 
@@ -644,11 +645,11 @@ const rattanMat = (w: number, h: number) => {
   applyScan(m, 'rattan', w, h, { colour: false });
   return m;
 };
-// 障子的紙：半透、有纖維。用亞麻的織紋當纖維，透光靠 transmission。
+// 障子的紙：半透、有纖維。用亞麻的織紋當纖維，透光靠半透明——transmission 會讓整個場景每幀多畫一次（見 openings3d 的 paneGlass）。
 const shojiPaperMat = () => {
   const m = new THREE.MeshPhysicalMaterial({
     color: 0xf6f1e4, roughness: 0.95, metalness: 0,
-    transmission: 0.55, thickness: 0.4, ior: 1.1, envMapIntensity: 0.8,
+    transparent: true, opacity: 0.85, envMapIntensity: 0.8,
   });
   m.name = 'shoji-paper';
   applyScan(m, 'linen', 30, 30, { colour: false });
@@ -777,7 +778,39 @@ export function luxeModel(parts: readonly Part[]): THREE.Group {
   return g;
 }
 
-const luxe = (id: string) => (w: number, h: number) => luxeModel(LUXE_PARTS[id](w, h, FURNITURE_BY_ID[id]?.height ?? 75));
+/**
+ * One mesh per material instead of one per part.
+ *
+ * A luxe piece is dozens of boxes — door leaves, pulls, plinths, shelves — and
+ * each was its own draw call: 347 a frame for A1's 39 pieces. Parts that share
+ * a material (and so a texture density, see `luxeModel`'s key) are baked into
+ * one geometry in the group's frame. Nothing addresses a part on its own: the
+ * piece is picked, hidden, shadowed and outlined as a whole.
+ */
+export function mergeByMaterial(g: THREE.Group): THREE.Group {
+  const parts = g.children as THREE.Mesh[];
+  if (!parts.every(m => m.isMesh && !Array.isArray(m.material) && m.children.length === 0)) return g;   // not ours to flatten
+  const buckets = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  for (const m of parts) {
+    m.updateMatrix();
+    const geo = m.geometry.clone().applyMatrix4(m.matrix);
+    const mat = m.material as THREE.Material;
+    (buckets.get(mat) ?? buckets.set(mat, []).get(mat)!).push(geo.index ? geo.toNonIndexed() : geo);
+  }
+  const out = new THREE.Group();
+  for (const [mat, geos] of buckets) {
+    const merged = geos.length === 1 ? geos[0] : mergeGeometries(geos);
+    if (!merged) {   // attribute sets differ: keep the parts as they were
+      for (const list of buckets.values()) for (const x of list) x.dispose();
+      return g;
+    }
+    out.add(new THREE.Mesh(merged, mat));
+  }
+  for (const m of parts) m.geometry.dispose();
+  return out;
+}
+
+const luxe = (id: string) => (w: number, h: number) => mergeByMaterial(luxeModel(LUXE_PARTS[id](w, h, FURNITURE_BY_ID[id]?.height ?? 75)));
 
 export const BUILDERS: Record<string, (w: number, h: number) => THREE.Object3D> = {
   stairs: (w, h) => stairFlight(w, h, DEFAULTS.wallHeight),
