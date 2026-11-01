@@ -159,12 +159,11 @@ export class View3D {
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
     this.walk = new WalkMode(this.camera, this.controls, this.renderer.domElement);
-    // F walks in and out while the 3D pane has the keyboard; Esc out once the mouse is free
-    // (the first Esc only releases pointer lock — the browser keeps that one).
+    // F or Esc walks out while the 3D pane has the keyboard (F also walks in).
     window.addEventListener('keydown', e => {
       if (!this.fly || e.repeat || e.metaKey || e.ctrlKey || e.altKey || isTextField(document.activeElement as HTMLInputElement | null)) return;
       if (e.code === 'KeyF') { e.preventDefault(); this.setWalking(!this.walk.active); }
-      else if (e.code === 'Escape' && this.walk.active && !document.pointerLockElement) this.setWalking(false);
+      else if (e.code === 'Escape' && this.walk.active) this.setWalking(false);
     });
     this.setFeel(FEEL_DEFAULTS);
 
@@ -226,8 +225,7 @@ export class View3D {
     dom.addEventListener('pointerdown', e => { this.downXY = { x: e.clientX, y: e.clientY }; });
     dom.addEventListener('pointerup', e => {
       const d = this.downXY; this.downXY = null;
-      // Walking: a click locks the mouse for looking. With the pointer locked
-      // clientX never moves, so every click would read as a still click on the floor.
+      // Walking: a drag is looking around, and a still click is not a placement.
       if (this.walk.active) return;
       if (!this.onFloorClick || !d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return;   // moved → it was orbiting
       const p = this.floorPoint(e);
