@@ -827,6 +827,11 @@ export class View3D {
     this.renderer.domElement.style.height = h + 'px';
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    // Resizing clears the canvas. The loop resizes after this frame's render
+    // (adaptResolution) and a ResizeObserver fires after rAF too, so without a
+    // draw here the browser shows the empty canvas for a frame — a dark flash
+    // every time the adaptive ratio steps (bench/verify-resflash.mjs).
+    if (this.running) this.composer.render();
   }
 
   // Adaptive render resolution — the decision lives in ./resolution, this just
