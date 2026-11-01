@@ -16,6 +16,8 @@ const PLAN = process.argv[3] ?? 'img0199-gen';
 
 const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
+// 只讀：開的是使用者真的方案，寫入一律攔掉（2026-11-01 補，之前會讓它被自動存檔碰到）。
+await p.route('**/api/**', (r) => (r.request().method() === 'GET' ? r.continue() : r.abort()));
 await p.addInitScript(() => {
   // Benches are not testing onboarding, and the first-run tour would eat the
   // first Escape (its capture listener) and cover the app with an overlay.

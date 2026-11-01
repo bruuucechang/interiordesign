@@ -15,6 +15,8 @@ const OWNER = 'own_orsxp52fbvey';
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
+// 只讀：開的是使用者真的方案，寫入一律攔掉（2026-11-01 補，之前會讓它被自動存檔碰到）。
+await page.route('**/api/**', (r) => (r.request().method() === 'GET' ? r.continue() : r.abort()));
 await page.addInitScript((owner) => {
   try {
     localStorage.setItem('interior_tour_seen', '1');
