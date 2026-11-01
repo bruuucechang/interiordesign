@@ -75,7 +75,7 @@ console.log('B21 3D 裡的鍵盤指令');
 
 console.log('\nB21 行走出生點');
 {
-  const { ctx, page } = await open(`${BASE}/?perf=1&plan=plan1151022`, { plan: true, mode: '3d' });
+  const { ctx, page } = await open(`${BASE}/?perf=1&plan=plan1151022orig`, { plan: true, mode: '3d' });
   await page.waitForTimeout(1500);
   const cam0 = await page.evaluate(() => { const c = window.__app.view3d.camera.position; return [c.x, c.y, c.z]; });
   await page.click('#walkToggle'); await page.waitForTimeout(600);
@@ -396,7 +396,7 @@ console.log('\nB24 第一間房圍出來時鏡頭拉近一次');
 }
 {
   // 打開一份本來就有房間的方案：不動鏡頭
-  const { ctx, page } = await open(`${BASE}/?perf=1&plan=plan1151022`, { plan: true, mode: '2d' });
+  const { ctx, page } = await open(`${BASE}/?perf=1&plan=plan1151022orig`, { plan: true, mode: '2d' });
   const v0 = await page.evaluate(() => window.__app.editor.vp.scale);
   await page.waitForTimeout(800);
   ok(await page.evaluate(() => window.__app.editor.vp.scale) === v0, 'A1 打開時（本來就有房間）鏡頭不自己動');

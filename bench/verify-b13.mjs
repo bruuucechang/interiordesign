@@ -9,7 +9,7 @@
 import { chromium } from 'playwright';
 
 const BASE = process.argv[2] ?? 'http://localhost:5180';
-const PLAN = 'plan1151022';
+const PLAN = 'plan1151022orig';   // 數字照換豪宅版之前的 A1 寫的（2026-10-29 A1 換成豪宅版）
 const OWNER = 'own_orsxp52fbvey';
 const OUT = new URL('./results/', import.meta.url).pathname;
 

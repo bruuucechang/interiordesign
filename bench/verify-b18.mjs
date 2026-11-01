@@ -27,7 +27,7 @@ await page.addInitScript(() => { try {
 } catch {} });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e).split('\n')[0]));
-await page.goto(`${BASE}/?perf=1&plan=plan1151022`, { timeout: 400000 });
+await page.goto(`${BASE}/?perf=1&plan=plan1151022orig`, { timeout: 400000 });
 await page.waitForFunction(() => window.__app?.doc.objects.length > 0 && window.__app.view3d, null, { timeout: 400000 });
 await page.waitForLoadState('networkidle', { timeout: 400000 });
 await page.waitForTimeout(3000);

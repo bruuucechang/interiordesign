@@ -34,7 +34,7 @@ let bad = 0;
 page.on('pageerror', (e) => { console.error('PAGEERROR', String(e).split('\n')[0]); bad++; });
 const check = (name, ok, got = '') => { console.log(`${ok ? '✔' : '✘'} ${name}${got !== '' ? `：${got}` : ''}`); if (!ok) bad++; };
 
-await page.goto('http://localhost:5180/?plan=plan1151022');
+await page.goto('http://localhost:5180/?plan=plan1151022orig');
 await page.waitForTimeout(2500);
 await page.evaluate(() => document.querySelector('[data-act="lighting"]').click());   // B20：在「檢視」選單裡
 await page.waitForTimeout(1500);

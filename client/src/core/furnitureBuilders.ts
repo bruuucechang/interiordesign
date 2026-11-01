@@ -741,8 +741,9 @@ function luxeMaterial(kind: LuxeMat, size: [number, number]): THREE.Material {
     }
     case 'champagne': return metalMat(0xc8b48a, 0.4, size);
     case 'shadow': return plinthMat();
-    case 'glass': return glassMat(0xe8f0f0, 0.16);
-    case 'ceramic': return ceramicMat(0xf3f1ec);
+    // 玻璃、陶瓷本來就沒有紋理；取名字讓 bench/verify-textures 認得是刻意的
+    case 'glass': return Object.assign(glassMat(0xe8f0f0, 0.16), { name: 'glass' });
+    case 'ceramic': return Object.assign(ceramicMat(0xf3f1ec), { name: 'ceramic' });
     case 'steel': return metalMat(0xb9bcc0, 0.3, size);
     case 'hob': {
       const m = new THREE.MeshPhysicalMaterial({ color: 0x141517, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05 });

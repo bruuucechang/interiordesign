@@ -18,9 +18,9 @@ import { chromium } from 'playwright';
 
 const BASE = process.argv[2] ?? 'http://localhost:5180';
 const API = process.argv[4] ?? 'http://localhost:8791';
-const PLAN = process.argv[3] ?? 'img0199';
+const PLAN = process.argv[3] ?? 'plan1151022orig';   // img0199 已經不在了（2026-11-01）
 
-const res = await fetch(`${API}/api/projects/${PLAN}`);
+const res = await fetch(`${API}/api/projects/${PLAN}`, { headers: { 'X-Owner': 'own_orsxp52fbvey' } });
 if (!res.ok) {
   console.error(`找不到方案 ${PLAN}（HTTP ${res.status}）—— 傳一個存在的 id 進來，`
     + `或先確認後端在 ${API}`);
@@ -40,6 +40,8 @@ await page.addInitScript(() => {
   // Benches are not testing onboarding, and the first-run tour would eat the
   // first Escape (its capture listener) and cover the app with an overlay.
   try { localStorage.setItem('interior_tour_seen', '1'); } catch { /* ignore */ }
+  // 方案按擁有者隔離（9.4.1）：新開的瀏覽器是新的擁有者，看不到任何一份。
+  try { localStorage.setItem('interior_owner', 'own_orsxp52fbvey'); } catch { /* ignore */ }
 });
 
 const errs = [];
