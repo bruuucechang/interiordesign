@@ -109,9 +109,13 @@ export function nextResolution(
 //
 // AO levels have the same memory as ratios: one measured too slow becomes a
 // ceiling and is not retried, so the search settles instead of oscillating.
+//
+// Only on and off. The sample count is a shader define, so 16 → 8 recompiles
+// GTAO — a 65 ms frame in the middle of an orbit — for a saving that measured
+// as noise next to switching the pass off. `enabled` costs nothing to flip.
 
 /** GTAO samples, ascending; 0 is the pass switched off. */
-export const AO_STEPS = [0, 8, 16] as const;
+export const AO_STEPS = [0, 16] as const;
 
 export interface QualityState {
   res: ResolutionState;
@@ -135,6 +139,32 @@ function ratioAtTop(s: ResolutionState, maxRatio: number): boolean {
   const i = steps.indexOf(s.ratio as (typeof RATIO_STEPS)[number]);
   return i < 0 || i === steps.length - 1 || steps[i + 1] >= s.ceiling;
 }
+
+// ── Remembering where it settled ──
+//
+// Every page load used to start at ratio 1 and search upwards, and every step
+// of that search is a resize — the composer reallocating its targets, 20–130 ms
+// at 2× — so the first quarter-minute of every visit stuttered on the same
+// machine that had found its level yesterday. Keep the settled state per canvas
+// size and display, and start there.
+
+/** How many unchanged sample windows count as settled (~6 s). */
+export const SETTLED_AFTER = 8;
+
+export const qualityKey = (w: number, h: number, dpr: number) => `${w}x${h}@${dpr}`;
+
+/** A stored state, checked rather than trusted: it comes from localStorage. */
+export function parseQuality(v: unknown, maxRatio: number): QualityState | null {
+  const o = v as Partial<{ ratio: number; ceiling: number | null; ao: number; aoCeiling: number | null }> | null;
+  if (!o || !RATIO_STEPS.includes(o.ratio as never) || o.ratio! > maxRatio || !AO_STEPS.includes(o.ao as never)) return null;
+  const ceil = (x: unknown) => (typeof x === 'number' ? x : Infinity);   // JSON has no Infinity: stored as null
+  return { res: { ratio: o.ratio!, goodWindows: 0, ceiling: ceil(o.ceiling) }, ao: o.ao!, aoGood: 0, aoCeiling: ceil(o.aoCeiling) };
+}
+
+export const storeQuality = (q: QualityState) => ({
+  ratio: q.res.ratio, ceiling: Number.isFinite(q.res.ceiling) ? q.res.ceiling : null,
+  ao: q.ao, aoCeiling: Number.isFinite(q.aoCeiling) ? q.aoCeiling : null,
+});
 
 export function nextQuality(q: QualityState, medianFrameMs: number, maxRatio: number): QualityState {
   const ai = Math.max(0, AO_STEPS.indexOf(q.ao as (typeof AO_STEPS)[number]));

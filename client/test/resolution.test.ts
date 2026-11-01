@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   nextResolution, onWorkloadChange, startAt, initialState,
   RATIO_STEPS, TOO_SLOW_MS, KEEPING_UP_MS, CLIMB_AFTER,
-  nextQuality, initialQuality, onQualityWorkloadChange, AO_STEPS,
+  nextQuality, initialQuality, onQualityWorkloadChange, AO_STEPS, parseQuality, storeQuality,
 } from '../src/core/resolution';
 
 const SLOW = TOO_SLOW_MS + 5;    // ~40 fps
@@ -118,9 +118,6 @@ test('slow: AO samples go first, resolution stays', () => {
   let q = { ...initialQuality(2), res: startAt(2) };
   q = nextQuality(q, SLOW, 2);
   assert.equal(q.res.ratio, 2);
-  assert.equal(q.ao, 8);
-  q = nextQuality(q, SLOW, 2);
-  assert.equal(q.res.ratio, 2);
   assert.equal(q.ao, 0);
 });
 
@@ -142,9 +139,9 @@ test('fast: resolution climbs first, AO comes back once it is at the top', () =>
 
 test('an AO level measured too slow is not retried — no oscillation', () => {
   let q = { ...initialQuality(2), res: startAt(2) };
-  q = nextQuality(q, SLOW, 2);                  // 16 too slow → 8
+  q = nextQuality(q, SLOW, 2);                  // 16 too slow → off
   for (let i = 0; i < 40; i++) q = nextQuality(q, VSYNC, 2);
-  assert.equal(q.ao, 8);
+  assert.equal(q.ao, 0);
   assert.equal(q.aoCeiling, 16);
 });
 
@@ -156,7 +153,28 @@ test('a ratio known too slow counts as the top — AO may climb under it', () =>
 });
 
 test('resizing forgets the AO ceiling too', () => {
-  const q = onQualityWorkloadChange({ ...initialQuality(2), aoCeiling: 8 });
+  const q = onQualityWorkloadChange({ ...initialQuality(2), aoCeiling: 16 });
   assert.equal(q.aoCeiling, Infinity);
   assert.equal(q.res.ceiling, Infinity);
+});
+
+test('AO is only on or off — changing the sample count recompiles the shader', () => {
+  assert.deepEqual([...AO_STEPS], [0, 16]);
+});
+
+test('a settled state survives the round trip through JSON, ceilings included', () => {
+  const q = { res: { ratio: 1.5, goodWindows: 3, ceiling: 2 }, ao: 0, aoGood: 2, aoCeiling: 16 };
+  const back = parseQuality(JSON.parse(JSON.stringify(storeQuality(q))), 2)!;
+  assert.deepEqual(back, { res: { ratio: 1.5, goodWindows: 0, ceiling: 2 }, ao: 0, aoGood: 0, aoCeiling: 16 });
+  const free = parseQuality(JSON.parse(JSON.stringify(storeQuality(initialQuality(2)))), 2)!;
+  assert.equal(free.res.ceiling, Infinity);
+  assert.equal(free.aoCeiling, Infinity);
+});
+
+test('a stored state that does not fit is ignored, not obeyed', () => {
+  assert.equal(parseQuality({ ratio: 2, ao: 16 }, 1), null);       // moved to a 1× display
+  assert.equal(parseQuality({ ratio: 1.7, ao: 16 }, 2), null);     // not a step
+  assert.equal(parseQuality({ ratio: 1, ao: 8 }, 2), null);        // an AO level that no longer exists
+  assert.equal(parseQuality('garbage', 2), null);
+  assert.equal(parseQuality(null, 2), null);
 });
