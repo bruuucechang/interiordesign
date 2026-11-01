@@ -1,5 +1,5 @@
 import { areaToDisplay } from './units';
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';   // the library itself loads on demand, in buildPlotPDF
 import { Doc } from '../model/doc';
 import { Project, Floor } from '../model/schema';
 import { Viewport } from './viewport';
@@ -210,12 +210,13 @@ export interface PlotOpts {
 }
 
 /** Build and download a scaled, bordered, titled PDF — one page per floor. */
-export function plotPDF(doc: Doc, name: string, opts: PlotOpts = {}) {
-  buildPlotPDF(doc, name, opts).save(`${name || 'floorplan'}_圖面.pdf`);
+export async function plotPDF(doc: Doc, name: string, opts: PlotOpts = {}) {
+  (await buildPlotPDF(doc, name, opts)).save(`${name || 'floorplan'}_圖面.pdf`);
 }
 
 /** The sheet set itself, without saving — separated so it can be previewed or tested. */
-export function buildPlotPDF(doc: Doc, name: string, opts: PlotOpts = {}): jsPDF {
+export async function buildPlotPDF(doc: Doc, name: string, opts: PlotOpts = {}): Promise<jsPDF> {
+  const { jsPDF } = await import('jspdf');
   const project = doc.serialize();
   const extent = projectExtent(project);
   const auto = chooseSheet(extent.w, extent.h);

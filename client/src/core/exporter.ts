@@ -1,4 +1,5 @@
-import { jsPDF } from 'jspdf';
+// jsPDF is loaded when a PDF is asked for, not with the page: it is about a fifth
+// of the main bundle and most sessions never export one.
 import { Doc } from '../model/doc';
 import { Viewport } from './viewport';
 import { Renderer } from './renderer';
@@ -43,7 +44,8 @@ export function exportPNG(doc: Doc, name: string) {
   download(canvas.toDataURL('image/png'), `${name || 'floorplan'}.png`);
 }
 
-export function exportPDF(doc: Doc, name: string) {
+export async function exportPDF(doc: Doc, name: string) {
+  const { jsPDF } = await import('jspdf');
   const canvas = renderToCanvas(doc);
   const img = canvas.toDataURL('image/png');
   const landscape = canvas.width >= canvas.height;

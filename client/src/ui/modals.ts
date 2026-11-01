@@ -175,18 +175,17 @@ export function plotModal(doc: Doc, name: string) {
     // Chinese into the sheet is the slowest thing this app does and the most
     // likely to run out of memory on a big plan; saying 已匯出 first would make
     // that failure look like a success with a missing file.
-    try {
-      plotPDF(doc, name, {
-        scale: +scaleEl.value,
-        paper: paperEl.value as PaperId,
-        orientation: orientEl.value as Orientation,
-      });
+    plotPDF(doc, name, {
+      scale: +scaleEl.value,
+      paper: paperEl.value as PaperId,
+      orientation: orientEl.value as Orientation,
+    }).then(() => {
       close();
       flash(t('已匯出施工圖 PDF'));
-    } catch (e) {
+    }, (e) => {
       console.error(e);
       flash(t('施工圖產生失敗 — 試試較小的紙張或比例'));
-    }
+    });
   };
 }
 
