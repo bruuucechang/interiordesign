@@ -83,22 +83,27 @@ await page.waitForTimeout(1500);
 const removed = await autoRooms();
 check('刪掉隔間線後合回 1 間', removed.length === 1, JSON.stringify(removed));
 
-// 3D 不能生出任何東西
-const in3d = await page.evaluate(async () => {
+// 3D 不能生出任何東西。不能數網格：隔間線把一間切成兩間，多出來的是新房間的地板
+// （房間會自己認得之後才這樣）。改量隔間線那條線上有沒有長出直立的東西。
+await page.evaluate(async () => {
   document.querySelector('.view-modes button[data-mode="3d"]').click();
   await new Promise(r => setTimeout(r, 1500));
-  let n = 0;
-  window.__app.view3d.staticGroup.traverse(o => { if (o.isMesh) n++; });
-  return n;
-});
-const in3dNoPart = await page.evaluate(async () => {
   window.__app.doc.add({ id: 'p2', kind: 'partition', layer: 'rooms', a: { x: 100, y: 0 }, b: { x: 100, y: 300 } });
   await new Promise(r => setTimeout(r, 1500));
-  let n = 0;
-  window.__app.view3d.staticGroup.traverse(o => { if (o.isMesh) n++; });
-  return n;
 });
-check('隔間線在 3D 不生成任何幾何', in3d === in3dNoPart, `${in3d} → ${in3dNoPart}`);
+const standing = await page.evaluate(() => {
+  const hits = [];
+  window.__app.view3d.staticGroup.updateMatrixWorld(true);
+  window.__app.view3d.staticGroup.traverse(o => {
+    if (!o.isMesh) return;
+    o.geometry.computeBoundingBox();
+    const b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    const tall = b.max.y - b.min.y > 20, thin = b.max.x - b.min.x < 40, onLine = b.min.x <= 100 && b.max.x >= 100;
+    if (tall && thin && onLine) hits.push(o.name || o.type);
+  });
+  return hits;
+});
+check('隔間線在 3D 不生成任何幾何', standing.length === 0, standing.join(', ') || '線上沒有直立的東西');
 
 check('全程沒有例外', errs.length === 0, errs.join(' | '));
 console.log(fails ? `\n${fails} 項失敗` : '\n全部通過');

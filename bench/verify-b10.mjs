@@ -17,7 +17,7 @@ const args = process.argv.slice(2);
 const runsAt = args.indexOf('--runs');
 const RUNS = runsAt >= 0 ? Number(args.splice(runsAt, 2)[1]) : 5;
 const BASE = args[0] ?? 'http://localhost:5180';
-const PLAN = args[1] ?? 'plan1151022';
+const PLAN = args[1] ?? 'plan1151022orig';   // 數字照換豪宅版之前的 A1 寫的
 const OUT = new URL('./results/', import.meta.url).pathname;
 const OWNER = 'own_orsxp52fbvey';
 const LIGHTS = ['downlight', 'spotlight', 'ceilingLight', 'pendant', 'wallLight', 'batten', 'exhaust'];

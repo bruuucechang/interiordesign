@@ -24,7 +24,7 @@ async function open(url, { plan = false, mode = '2d', w = 1440, h = 900 } = {}) 
   await page.waitForTimeout(1500);
   return { ctx, page };
 }
-const A1 = `${BASE}/?perf=1&plan=plan1151022`;
+const A1 = `${BASE}/?perf=1&plan=plan1151022orig`;
 const setScale = (page, s) => page.evaluate((s) => { const v = window.__app.editor.vp; const c = v.toWorld({ x: v.width / 2, y: v.height / 2 });
   v.scale = s; v.centerOn(c.x, c.y, 0, 0); }, s);
 // 重畫一次，記下每次 fill()／stroke() 當下的顏色與透明度

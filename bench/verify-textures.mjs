@@ -29,6 +29,7 @@ const ALL = process.argv.includes('--all');
 // 材質名字對得上這些的，沒有貼圖是刻意的。
 const EXEMPT = [
   { re: /glass|mirror|窗玻璃/i, why: '玻璃與鏡面本來就沒有紋理' },
+  { re: /^hob$/,                why: '黑玻璃爐面' },
   { re: /ceramic|porcelain/i,   why: '上釉陶瓷；圖庫的 ceramic 掃描全是磁磚，貼上去等於加髒污' },
   { re: /emissive|glow|shade|bulb/i, why: '自體發光的燈罩' },
   { re: /water/i,               why: '水面' },
