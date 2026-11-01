@@ -10,6 +10,7 @@
 // Pure: walls in, new walls or moves out. The tools apply them and own undo.
 
 import { Obj, Vec } from '../model/schema';
+import { distToSegment } from './geometry';
 
 export type Wall = Extract<Obj, { kind: 'wall' }>;
 
@@ -239,4 +240,45 @@ export function findFaceSteps(walls: Wall[], tol = 5, tolDeg = 5): FaceStep[] {
     }
   }
   return out.sort((p, q) => p.step - q.step);
+}
+
+/** One object's new fields after pulling a face step flush. */
+export interface FaceStepEdit { id: string; patch: Record<string, unknown>; }
+
+/**
+ * Everything that has to move when a face step is pulled flush — not just the
+ * thinner wall.
+ *
+ * Moving the wall alone left the walls that ended on it 1.6–3.1 cm short (a
+ * new 「牆好像沒接上」 for each one the fix removed) and the cove light screwed
+ * to it floating off the face (2026-11-01, A1). So, by the shift `d` along the
+ * step's normal:
+ *
+ * - the wall itself;
+ * - doors and windows in it, and electrical fittings on it — both are stored
+ *   in world coordinates, not as an offset along their wall;
+ * - the end of any *crossing* wall that met it, so a T or an L stays closed.
+ *   Walls parallel to it are its own run — the anchor among them — and stay put.
+ */
+export function faceStepEdits(objects: readonly Obj[], s: FaceStep, side: 'left' | 'right', tolDeg = 5): FaceStepEdit[] {
+  const w = objects.find((o): o is Wall => o.id === s.moverId && o.kind === 'wall');
+  const shift = s.shift[side];
+  if (!w || Math.abs(shift) < 1e-9) return [];
+  const d = { x: s.normal.x * shift, y: s.normal.y * shift };
+  const add = (p: Vec): Vec => ({ x: p.x + d.x, y: p.y + d.y });
+  const out: FaceStepEdit[] = [{ id: w.id, patch: { a: add(w.a), b: add(w.b) } }];
+  // Asked before the wall moves: what is on it, and what ends against it.
+  const on = (p: Vec, reach: number) => distToSegment(p, w.a, w.b) <= w.thickness / 2 + reach;
+  for (const o of objects) {
+    if (o.id === w.id) continue;
+    if ((o.kind === 'door' || o.kind === 'window' || o.kind === 'electrical') && on(o, 10)) {
+      out.push({ id: o.id, patch: { x: o.x + d.x, y: o.y + d.y } });
+    } else if (o.kind === 'wall' && !o.bulge && angleBetween(w.a, w.b, o.a, o.b) > tolDeg) {
+      const patch: Record<string, unknown> = {};
+      if (on(o.a, o.thickness / 2 + 1)) patch.a = add(o.a);
+      if (on(o.b, o.thickness / 2 + 1)) patch.b = add(o.b);
+      if (Object.keys(patch).length) out.push({ id: o.id, patch });
+    }
+  }
+  return out;
 }

@@ -89,13 +89,13 @@ function axesOf(b: Box): { right: Vec; front: Vec } {
  * a corner has its centre clear and its head blocked, and a single ray down the
  * middle would call that fine.
  */
-function freeFace(b: Box, dir: Vec, half: number, blockers: Box[], want: number): number {
+function freeFace(b: Box, dir: Vec, half: number, blockers: Box[], want: number, at: readonly number[] = [-0.7, 0, 0.7]): number {
   const { right, front } = axesOf(b);
   // The face's own tangent — whichever axis is perpendicular to `dir`.
   const along = Math.abs(dir.x * right.x + dir.y * right.y) > 0.5 ? front : right;
   const halfAlong = along === front ? b.h / 2 : b.w / 2;
   let worst = want;
-  for (const t of [-0.7, 0, 0.7]) {
+  for (const t of at) {
     const from: Vec = {
       x: b.cx + dir.x * half + along.x * halfAlong * t,
       y: b.cy + dir.y * half + along.y * halfAlong * t,
@@ -279,6 +279,13 @@ export interface ClearanceNeed {
   why: string;
   /** Pieces that do not count as in the way: a dining table's own chairs are pulled out to sit down, not walked around. */
   movable?: RegExp;
+  /**
+   * Where along a side face to measure, −1 (back) … 1 (front). A bed is got out of
+   * from the middle towards the foot; the head end of each side is where the
+   * nightstands go, and probing there flagged every bed that had one (2026-11-01:
+   * both beds in A1 read 「左側 0cm、右側 0cm」 with a whole room beside them).
+   */
+  sideAt?: readonly number[];
 }
 
 const FACES: Record<'front' | 'back' | 'left' | 'right', { label: string; dir: (b: Box) => Vec; half: (b: Box) => number }> = {
@@ -299,7 +306,7 @@ export const DINING_CHAIR = /^(chair|chair_painted|chair_plastic|chair_q[1-4]|ch
 export function needsFor(item: string): ClearanceNeed | null {
   const c = CLEARANCE;
   if (/^bed(_|$)/.test(item)) return {
-    anyOf: ['left', 'right'], need: c.bedSide,
+    anyOf: ['left', 'right'], need: c.bedSide, sideAt: [0, 0.7],
     title: '床邊下床空間不足',
     why: `床邊到牆、櫃或門面約需 ${c.bedSide}cm，方便下床、鋪床與打掃；至少留一側。`,
   };
@@ -340,7 +347,9 @@ function clearances(furniture: Furniture[], blockers: Box[]): Finding[] {
     const same = (z: Box) => (y: Box) => z.cx === y.cx && z.cy === y.cy && z.w === y.w && z.h === y.h;
     const moves = need.movable ? furniture.filter(g => need.movable!.test(g.item)).map(boxOf) : [];
     const others = blockers.filter(z => !same(z)(b) && !moves.some(same(z)));
-    const measure = (k: keyof typeof FACES) => freeFace(b, FACES[k].dir(b), FACES[k].half(b), others, need.need);
+    const side = (k: keyof typeof FACES) => k === 'left' || k === 'right';
+    const measure = (k: keyof typeof FACES) =>
+      freeFace(b, FACES[k].dir(b), FACES[k].half(b), others, need.need, side(k) && need.sideAt ? need.sideAt : undefined);
 
     if (need.anyOf) {
       const got = need.anyOf.map(k => ({ k, d: measure(k) }));

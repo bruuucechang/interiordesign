@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { referenceShift, applyReference, splitWallAt, alignWalls, findFaceSteps } from '../src/core/wallEdit';
+import { referenceShift, applyReference, splitWallAt, alignWalls, findFaceSteps, faceStepEdits } from '../src/core/wallEdit';
 import type { Wall } from '../src/core/wallEdit';
 
 const wall = (id: string, ax: number, ay: number, bx: number, by: number, over: Partial<Wall> = {}): Wall =>
@@ -284,4 +284,30 @@ test('厚度相同但中心線飄掉的，動的是短的那道', () => {
   const [s] = findFaceSteps([long, short]);
   near(s.step, 2);
   assert.equal(s.moverId, 'short');
+});
+
+// ---- 對齊牆面時，接在上面的東西要跟著走（2026-11-01，A1 兩處落差對齊後牆端斷 1.6／3.1cm） ----
+
+test('對齊牆面：接上來的牆端、門、牆上的燈跟著走；基準牆與無關的牆不動', () => {
+  const W = (id: string, ax: number, ay: number, bx: number, by: number, thickness: number) =>
+    ({ id, kind: 'wall', layer: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness }) as any;
+  const anchor = W('A', 0, 0, 300, 0, 24);          // 面在 ±12
+  const mover = W('B', 300, 2, 600, 2, 15);          // 面在 9.5／−5.5：一側差 2.5
+  const tee = W('C', 450, 2, 450, 200, 10);          // T 字接在 B 的中心線上
+  const far = W('D', 0, 300, 600, 300, 10);
+  const door = { id: 'd', kind: 'door', layer: 'openings', x: 500, y: 2, angle: 0, width: 80 } as any;
+  const lamp = { id: 'l', kind: 'electrical', layer: 'electrical', item: 'linearCove', x: 400, y: 9, angle: 0 } as any;
+  const objs = [anchor, mover, tee, far, door, lamp];
+  const [s] = findFaceSteps([anchor, mover, tee, far]);
+  assert.ok(s && s.moverId === 'B', JSON.stringify(s));
+  const side = Math.abs(s.shift.left) <= Math.abs(s.shift.right) ? 'left' : 'right';
+  const edits = faceStepEdits(objs, s, side);
+  const by = Object.fromEntries(edits.map(e => [e.id, e.patch as any]));
+  const dy = by.B.a.y - 2;
+  assert.ok(Math.abs(Math.abs(dy) - 2.5) < 1e-6, `B 移了 ${dy}`);
+  assert.deepEqual(by.C, { a: { x: 450, y: 2 + dy } }, 'T 字接上的牆端跟著走，另一端不動');
+  assert.equal(by.d.y, 2 + dy);
+  assert.equal(by.l.y, 9 + dy);
+  assert.equal(by.A, undefined, '基準牆不動');
+  assert.equal(by.D, undefined, '無關的牆不動');
 });
