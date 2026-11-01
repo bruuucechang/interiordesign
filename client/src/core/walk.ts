@@ -19,7 +19,24 @@ import { pointInPolygon, polygonArea, quadPoints, wallControl } from './geometry
 import { openingsOnWall } from './wallGeometry';
 
 /** The walker's numbers (cm, cm/s). Not facts — tuned to feel right; see the spec. */
-export const WALK = { radius: 25, eye: 160, speed: 140, run: 350 } as const;
+export const WALK = { radius: 25, eye: 160, speed: 140, run: 350, turn: 90 } as const;
+
+/**
+ * Held keys → what the walker does this frame. WASD walk and strafe; the arrow
+ * keys are the other hand's set, the way older first-person games and Street
+ * View read them: ↑↓ walk, ←→ turn on the spot (`turn` is +1 for left, in
+ * degrees-per-second units of `WALK.turn`). Shift (`up`) runs. The keys are the
+ * names keys3d puts in the pressed set.
+ */
+export function walkKeys(pressed: ReadonlySet<string>): { forward: number; right: number; turn: number; run: boolean } {
+  const k = (name: string) => (pressed.has(name) ? 1 : 0);
+  return {
+    forward: Math.sign(k('w') + k('panUp') - k('s') - k('panDown')),
+    right: k('d') - k('a'),
+    turn: k('panLeft') - k('panRight'),
+    run: pressed.has('up'),
+  };
+}
 
 /** One solid stretch of wall: a segment with a thickness. */
 export interface Blocker { ax: number; ay: number; bx: number; by: number; half: number }

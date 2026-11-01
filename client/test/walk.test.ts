@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { blockers, move, overlap, resolve, settle, stairProgress, walkSpawn, walkStep, WALK } from '../src/core/walk';
+import { blockers, move, overlap, resolve, settle, stairProgress, walkKeys, walkSpawn, walkStep, WALK } from '../src/core/walk';
 import type { Floor, Obj } from '../src/model/schema';
 import { wallApex } from '../src/core/geometry';
 
@@ -224,4 +224,21 @@ test('with no rooms, walking starts where the camera aimed, pushed clear of wall
   const ws = blockers(objs);
   const s = walkSpawn(objs, ws, { x: 5, y: 0 });
   assert.equal(overlap(s.p, ws), 0);
+});
+
+// 2026-11-02：方向鍵在行走時沒反應（只有 WASD 有）。↑↓ 走、←→ 原地轉身，跟 WASD 疊在一起不會變兩倍快。
+test('walking keys: WASD walk and strafe, ↑↓ walk, ←→ turn, Shift runs', () => {
+  const k = (...keys: string[]) => walkKeys(new Set(keys));
+  assert.deepEqual(k(), { forward: 0, right: 0, turn: 0, run: false });
+  assert.equal(k('w').forward, 1);
+  assert.equal(k('panUp').forward, 1);
+  assert.equal(k('panDown').forward, -1);
+  assert.equal(k('w', 'panUp').forward, 1, 'W and ↑ together are not double speed');
+  assert.equal(k('w', 'panDown').forward, 0);
+  assert.equal(k('d').right, 1);
+  assert.equal(k('a').right, -1);
+  assert.equal(k('panLeft').turn, 1);
+  assert.equal(k('panRight').turn, -1);
+  assert.equal(k('panLeft').right, 0, '← turns, it does not strafe');
+  assert.equal(k('up', 'w').run, true);
 });

@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Doc } from '../model/doc';
-import { Blocker, Walker, WALK, blockers, spawn, walkSpawn, walkStep } from './walk';
+import { Blocker, Walker, WALK, blockers, spawn, walkKeys, walkSpawn, walkStep } from './walk';
 import { FEEL_BASE } from './controlFeel';
 
 /** How far up and down you can look, radians — short of straight, where yaw stops meaning anything. */
@@ -110,7 +110,7 @@ export class WalkMode {
     this.onToggle?.(false);
   }
 
-  /** One frame: WASD from the 3D key set (`up` is Shift — run here, not rise). */
+  /** One frame: WASD and the arrows from the 3D key set (`walkKeys`; `up` is Shift — run here, not rise). */
   frame(dt: number, pressed: ReadonlySet<string>) {
     if (!this.active || !this.doc) return;
     // A storey added or removed since the last rebuild: find ours by id, and
@@ -120,10 +120,10 @@ export class WalkMode {
     if (i < 0) { this.exit(); return; }
     if (this.walls.length !== floors.length) return;
     if (i !== this.walker.floor) this.walker = { ...this.walker, floor: i };
-    const f = (pressed.has('w') ? 1 : 0) - (pressed.has('s') ? 1 : 0);
-    const r = (pressed.has('d') ? 1 : 0) - (pressed.has('a') ? 1 : 0);
-    if (!f && !r) return;
-    const len = Math.hypot(f, r), v = (pressed.has('up') ? WALK.run : WALK.speed) * dt / len;
+    const { forward: f, right: r, turn, run } = walkKeys(pressed);
+    if (turn) this.yaw += turn * WALK.turn * Math.PI / 180 * dt;
+    if (!f && !r) { if (turn) this.place(); return; }
+    const len = Math.hypot(f, r), v = (run ? WALK.run : WALK.speed) * dt / len;
     // Plan frame: three's −z is plan −y. Facing yaw, forward is (−sin, −cos), right is (cos, −sin).
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     const dx = (-sy * f + cy * r) * v, dy = (-cy * f - sy * r) * v;

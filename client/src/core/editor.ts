@@ -129,6 +129,8 @@ export class Editor implements ToolCtx {
   }
   /** The lighting overlay, while the 照度 panel is open (ui/lighting-panel.ts). */
   heat?: (ctx: CanvasRenderingContext2D) => void;
+  /** Walking in 3D (main.ts): the selection is out of sight, so Delete must not remove it (2026-11-02). */
+  walking = false;
   /** Walk mode's position marker, while walking (main.ts). */
   marker?: (ctx: CanvasRenderingContext2D) => void;
   setPreview(world?: DrawFn, screen?: DrawFn) { this.previewW = world; this.previewS = screen; }
@@ -322,7 +324,7 @@ export class Editor implements ToolCtx {
         if (edit[k]) { edit[k](); e.preventDefault(); return; }
       }
       if (inSelect) return;
-      if (!this.inputEnabled && (e.key === 'Delete' || e.key === 'Backspace')) {
+      if (!this.inputEnabled && !this.walking && (e.key === 'Delete' || e.key === 'Backspace')) {
         const objs = this.doc.selectedObjects;
         if (objs.length) { this.doc.commit(); for (const o of objs) this.doc.remove(o.id); e.preventDefault(); }
         return;

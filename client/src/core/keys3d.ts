@@ -33,9 +33,9 @@ export const isTextField = (el: { isContentEditable?: boolean; tagName: string; 
 /**
  * Build the key HUD in `container` and listen on the window.
  *
- * `active()` says whether the fly keys are on; `rotate` gets ±90 for Q/E.
+ * `active()` says whether the fly keys are on; `rotate` gets ±90 for Q/E and says whether it turned anything.
  */
-export function attachFlyKeys(container: HTMLElement, pressed: Set<string>, active: () => boolean, rotate: (deg: number) => void) {
+export function attachFlyKeys(container: HTMLElement, pressed: Set<string>, active: () => boolean, rotate: (deg: number) => boolean) {
   const keyChips: Record<string, HTMLElement> = {};
   // B27: the key strip stays out of sight until it has something to say — the
   // pointer is over the 3D view (CSS :hover) or a movement key is down.
@@ -77,8 +77,8 @@ export function attachFlyKeys(container: HTMLElement, pressed: Set<string>, acti
     // Q/E rotate the selected object 90° (one-shot per press; ignore auto-repeat)
     if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) {
       e.preventDefault();
-      rotate(e.code === 'KeyE' ? 90 : -90);
-      flashChip(e.code === 'KeyE' ? 'e' : 'q', true);
+      // Light the chip only when something turned: while walking Q/E do nothing (2026-11-02).
+      if (rotate(e.code === 'KeyE' ? 90 : -90)) flashChip(e.code === 'KeyE' ? 'e' : 'q', true);
       return;
     }
     const mv = MOVE[e.code], pan = PAN[e.code], up = isShift(e.code), down = e.code === 'Space';

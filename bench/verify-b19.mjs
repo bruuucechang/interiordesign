@@ -2,7 +2,7 @@
 //
 //   node bench/verify-b19.mjs            # 要先 npm run dev（:5180）；--swiftshader 給沒有 GPU 的機器
 //
-// 在 plan1151022 裡：找一扇兩邊各是一間房的門，從一邊對著門走過去要走到另一間；
+// 在 plan1151022 裡：（行走時的按鍵一律按真的鍵，分割畫面另外測一次）找一扇兩邊各是一間房的門，從一邊對著門走過去要走到另一間；
 // 對著一面沒有門窗的牆走 3 秒不能穿過；按 F 進出、按住 W 真的會走；不鎖滑鼠、拖曳轉頭、Esc 一次離開。截圖 bench/results/b19-*.png。
 
 import { chromium } from 'playwright';
@@ -146,6 +146,45 @@ await page.evaluate(() => window.__app.editor.selectTool('select'));
 await page.evaluate(() => document.querySelector('#viewModes [data-mode="2d"]').click());
 await page.waitForTimeout(500);
 check('切到 2D 自動離開行走', await page.evaluate(() => !window.__app.view3d.walk.active && window.__app.editor.marker === undefined));
+
+// 2026-11-02：之前的「按鍵」都是直接呼叫 walk.frame()，跳過鍵盤事件那段，下面三項一直沒被抓到。
+// 這裡一律按真的鍵。
+await page.evaluate(() => document.querySelector('#viewModes [data-mode="3d"]').click());
+await page.waitForTimeout(800);
+await page.evaluate(() => { document.activeElement?.blur?.(); });
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+const furn = await page.evaluate(() => { const a = window.__app; const f = a.doc.objects.find((o) => o.kind === 'furniture'); a.doc.select(f.id); return { id: f.id, angle: f.angle }; });
+await page.keyboard.press('f');
+const held = async (key, ms) => { const a = await page.evaluate(() => window.__app.view3d.walk.state); await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); const b = await page.evaluate(() => window.__app.view3d.walk.state); return { moved: Math.hypot(b.x - a.x, b.y - a.y), turned: (b.yaw - a.yaw) * 180 / Math.PI }; };
+const up = await held('ArrowUp', 800);
+check('行走時按住 ↑ 會往前走', up.moved > 40, `${Math.round(up.moved)} cm`);
+const left = await held('ArrowLeft', 800);
+check('行走時按住 ← 原地轉身', left.turned > 20 && left.moved < 1, `${left.turned.toFixed(0)}°、移動 ${left.moved.toFixed(1)} cm`);
+await page.keyboard.press('e'); await page.keyboard.press('q'); await page.keyboard.press('e');
+check('行走時 Q／E 不會轉到選著的家具', await page.evaluate(([id, a]) => window.__app.doc.objects.find((o) => o.id === id).angle === a, [furn.id, furn.angle]));
+await page.keyboard.press('Delete'); await page.keyboard.press('Backspace');
+check('行走時 Delete／Backspace 不會刪掉選著的家具', await page.evaluate((id) => window.__app.doc.objects.some((o) => o.id === id), furn.id));
+await page.keyboard.press('Escape');
+
+// 分割畫面：滑鼠在 2D 那半邊時，行走照樣拿鍵盤（看 2D 上的位置標記就得把滑鼠移過去）
+await page.evaluate(() => document.querySelector('#viewModes [data-mode="split"]').click());
+await page.waitForTimeout(1500);
+const p2d = await page.locator('#pane2d').boundingBox();
+await page.mouse.move(p2d.x + p2d.width / 2, p2d.y + p2d.height / 2);
+await page.click('#walkToggle');
+await page.mouse.move(p2d.x + p2d.width / 2 + 5, p2d.y + p2d.height / 2 + 5);
+check('分割畫面按行走鈕進入', await page.evaluate(() => window.__app.view3d.walk.active));
+const o0 = await page.evaluate(() => ({ ...window.__app.editor.vp.origin }));
+const sw = await held('w', 800);
+const o1 = await page.evaluate(() => ({ ...window.__app.editor.vp.origin }));
+check('分割畫面、滑鼠在 2D：按住 W 會走', sw.moved > 40, `${Math.round(sw.moved)} cm`);
+check('分割畫面、滑鼠在 2D：W 不會捲動平面圖', o0.x === o1.x && o0.y === o1.y, `位移 ${Math.round(o1.x - o0.x)}, ${Math.round(o1.y - o0.y)}`);
+await page.keyboard.press('Escape');
+check('分割畫面、滑鼠在 2D：Esc 離開行走', await page.evaluate(() => !window.__app.view3d.walk.active));
+const o2 = await page.evaluate(() => ({ ...window.__app.editor.vp.origin }));
+await page.keyboard.down('w'); await page.waitForTimeout(300); await page.keyboard.up('w');
+const o3 = await page.evaluate(() => ({ ...window.__app.editor.vp.origin }));
+check('離開行走後 W 回到捲動平面圖', o2.x !== o3.x || o2.y !== o3.y);
 
 check('沒有頁面錯誤', errs.length === 0, errs.join(' | '));
 await br.close();
