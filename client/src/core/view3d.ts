@@ -26,7 +26,8 @@ import { attachFlyKeys } from './keys3d';
 import { mat, floorMaterial, wallMaterial, recolour } from './surfaces3d';
 import { PlacementGhosts, OpeningGhostSpec } from './ghosts3d';
 import { capturePanorama } from './panorama';
-import { nextQuality, onQualityWorkloadChange, initialState, ResolutionState, AO_STEPS } from './resolution';
+import { nextQuality, onQualityWorkloadChange, initialState, ResolutionState, AO_STEPS, QualityState,
+  SETTLED_AFTER, qualityKey, parseQuality, storeQuality } from './resolution';
 import { mark, done } from './perf';
 import { DEFAULTS } from '../model/locale-defaults';
 import { isShown } from './viewFilter';
@@ -816,8 +817,11 @@ export class View3D {
     // doing, or the ceiling it just learned would be erased immediately.
     if (w !== this.lastSize.w || h !== this.lastSize.h) {
       this.lastSize = { w, h };
-      ({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling } =
-        onQualityWorkloadChange({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling }));
+      // Where this size settled last time, if it did — otherwise search from here.
+      const was = this.ao;
+      this.quality = this.recalled(w, h) ?? onQualityWorkloadChange(this.quality);
+      this.settled = 0;
+      if (this.ao !== was) this.applyAo();
     }
     if (this.res.ratio > this.maxPixelRatio) this.res = { ...this.res, ratio: this.maxPixelRatio, goodWindows: 0 };
     this.renderer.setPixelRatio(this.pixelRatio);
@@ -854,9 +858,28 @@ export class View3D {
   private ao: number = AO_STEPS[AO_STEPS.length - 1];
   private aoGood = 0;
   private aoCeiling = Infinity;
-  private applyAo() {
-    this.gtao.enabled = this.ao > 0;
-    if (this.ao > 0) this.gtao.updateGtaoMaterial({ samples: this.ao });
+  private applyAo() { this.gtao.enabled = this.ao > 0; }   // samples stay at 16: changing them recompiles
+  private get quality(): QualityState { return { res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling }; }
+  private set quality(q: QualityState) { ({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling } = q); }
+  /** Sample windows since the quality last changed; at SETTLED_AFTER it is stored for next time. */
+  private settled = 0;
+  private static readonly QUALITY_KEY = 'interior_3d_quality';
+  private recalled(w: number, h: number): QualityState | null {
+    try {
+      const all = JSON.parse(localStorage.getItem(View3D.QUALITY_KEY) ?? '{}');
+      return parseQuality(all[qualityKey(w, h, window.devicePixelRatio || 1)], this.maxPixelRatio);
+    } catch { return null; }
+  }
+  private remember() {
+    try {
+      const all = JSON.parse(localStorage.getItem(View3D.QUALITY_KEY) ?? '{}');
+      const key = qualityKey(this.lastSize.w, this.lastSize.h, window.devicePixelRatio || 1);
+      delete all[key];
+      all[key] = storeQuality(this.quality);
+      const keys = Object.keys(all);   // a handful of window sizes is plenty; drop the oldest
+      for (const k of keys.slice(0, Math.max(0, keys.length - 8))) delete all[k];
+      localStorage.setItem(View3D.QUALITY_KEY, JSON.stringify(all));
+    } catch { /* private window, quota: it just searches again next time */ }
   }
 
   /**
@@ -881,10 +904,11 @@ export class View3D {
     this.frameTimes.length = 0;
 
     const before = this.res.ratio, aoBefore = this.ao;
-    ({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling } =
-      nextQuality({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling }, median, this.maxPixelRatio));
+    this.quality = nextQuality(this.quality, median, this.maxPixelRatio);
     if (this.ao !== aoBefore) this.applyAo();
     if (this.res.ratio !== before) this.resize();
+    if (this.res.ratio !== before || this.ao !== aoBefore) this.settled = 0;
+    else if (++this.settled === SETTLED_AFTER) this.remember();
   }
 
   /**
