@@ -162,6 +162,8 @@ const left = await held('ArrowLeft', 800);
 check('行走時按住 ← 原地轉身', left.turned > 20 && left.moved < 1, `${left.turned.toFixed(0)}°、移動 ${left.moved.toFixed(1)} cm`);
 await page.keyboard.press('e'); await page.keyboard.press('q'); await page.keyboard.press('e');
 check('行走時 Q／E 不會轉到選著的家具', await page.evaluate(([id, a]) => window.__app.doc.objects.find((o) => o.id === id).angle === a, [furn.id, furn.angle]));
+await page.keyboard.press('Delete'); await page.keyboard.press('Backspace');
+check('行走時 Delete／Backspace 不會刪掉選著的家具', await page.evaluate((id) => window.__app.doc.objects.some((o) => o.id === id), furn.id));
 await page.keyboard.press('Escape');
 
 // 分割畫面：滑鼠在 2D 那半邊時，行走照樣拿鍵盤（看 2D 上的位置標記就得把滑鼠移過去）

@@ -95,7 +95,7 @@ const SECTIONS_ZH: Section[] = [
     body: [
       '頂列正中間可以切「2D／分割／3D」。分割最常用：左邊改一筆，右邊立刻看到。',
       '3D 裡拖曳滑鼠轉視角、滾輪縮放、**WASD 往視線方向走**、Shift 與空白鍵上下升降、方向鍵沿畫面平移。',
-      '頂列右邊的「時段」可以換日照方向與光線顏色；「開燈」讓燈具真的發光（黃昏、夜晚自動開）；「行走」讓你用人的高度走進房子裡，牆會擋、門可以過、樓梯可以上下樓（F 進出）。',
+      '頂列右邊的「時段」可以換日照方向與光線顏色；「開燈」讓燈具真的發光（黃昏、夜晚自動開）；「行走」讓你用人的高度走進房子裡，牆會擋、門可以過、樓梯可以上下樓（F 進出；WASD 或 ↑↓ 走、←→ 轉身）。',
       '如果這台電腦沒有 3D 繪圖能力（很舊的機器、關掉硬體加速、遠端桌面），3D 那一格會顯示說明，**平面圖不受影響**，照樣可以畫、可以出圖。',
     ],
   },
@@ -198,7 +198,7 @@ const SECTIONS_EN: Section[] = [
   {
     title: '9. The 3D view',
     body: [
-      'The middle of the top bar switches 2D / Split / 3D. Split is the usual one. On the right: Walk (at eye height, walls stop you, doors and stairs work — F in and out), time of day, and Lamps.',
+      'The middle of the top bar switches 2D / Split / 3D. Split is the usual one. On the right: Walk (at eye height, walls stop you, doors and stairs work — F in and out; WASD or ↑↓ to walk, ←→ to turn), time of day, and Lamps.',
       'In 3D: drag to turn, scroll to zoom, **WASD walks in the direction you are looking**, Shift and Space go down and up, the arrow keys slide the view.',
       'The time-of-day dropdown changes the sun direction and light colour.',
       'On a machine with no 3D capability (an old laptop, hardware acceleration off, a remote desktop) the 3D pane explains itself and **the plan is unaffected** — drawing and exporting work exactly the same.',

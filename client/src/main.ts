@@ -364,6 +364,7 @@ if (view3d) {
   };
   v.walk.onToggle = on => {
     walkBtn.classList.toggle('on', on); walkBtn.setAttribute('aria-pressed', String(on));
+    editor.walking = on;
     applyFocus();
     sync3dHint();
     if (on) flash(t('按住滑鼠拖曳轉頭，WASD 走、←→ 轉身、Shift 跑、F 或 Esc 離開'));
