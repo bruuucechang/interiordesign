@@ -88,7 +88,7 @@ const STEPS_EN: Step[] = [
     target: '#walkToggle',
     title: 'Walk through it',
     body: 'Walk puts you inside at eye height: walls stop you, doors let you through, stairs take you up.\n\n'
-      + 'Click the view to look around with the mouse; WASD to walk, Shift to run, F to leave.',
+      + 'Drag with the mouse to look around; WASD to walk, Shift to run, F to leave.',
   },
   {
     target: '#floors',
@@ -156,7 +156,7 @@ const STEPS_ZH: Step[] = [
     target: '#walkToggle',
     title: '走進去看看',
     body: '「行走」讓你用人的高度走進房子裡：牆會擋、門可以過、樓梯可以上下樓。\n\n'
-      + '點一下畫面就能用滑鼠轉頭，WASD 走、Shift 跑、F 離開。',
+      + '按住滑鼠拖曳轉頭，WASD 走、Shift 跑、F 離開。',
   },
   {
     target: '#floors',

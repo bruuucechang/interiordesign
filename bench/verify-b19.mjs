@@ -3,7 +3,7 @@
 //   node bench/verify-b19.mjs            # 要先 npm run dev（:5180）；--swiftshader 給沒有 GPU 的機器
 //
 // 在 plan1151022 裡：找一扇兩邊各是一間房的門，從一邊對著門走過去要走到另一間；
-// 對著一面沒有門窗的牆走 3 秒不能穿過；按 F 進出、按住 W 真的會走。截圖 bench/results/b19-*.png。
+// 對著一面沒有門窗的牆走 3 秒不能穿過；按 F 進出、按住 W 真的會走；不鎖滑鼠、拖曳轉頭、Esc 一次離開。截圖 bench/results/b19-*.png。
 
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
@@ -120,13 +120,27 @@ await page.keyboard.press('f');
 check('再按 F 離開', await page.evaluate(() => !window.__app.view3d.walk.active));
 check('離開後 2D 標記收掉', await page.evaluate(() => window.__app.editor.marker === undefined));
 
-// 審查補：行走中選了家具工具、點畫面（鎖滑鼠的那一下）不能放出家具
+// 審查補：行走中選了家具工具、點畫面不能放出家具
 const n0 = await page.evaluate(() => window.__app.doc.objects.length);
 await page.evaluate(() => { const { editor, view3d: v } = window.__app; editor.currentFurniture = 'sofa'; editor.selectTool('furniture'); v.setWalking(true); });
 const box = await page.locator('#view3d canvas').boundingBox();
 await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.7);
 await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.7);
 check('行走中點畫面不會放出家具', await page.evaluate((n) => window.__app.doc.objects.length === n, n0));
+// 2026-11-01：不鎖滑鼠（鎖住就到不了分頁列、別的視窗）；按住左鍵拖曳轉頭；Esc 按一次就離開
+check('點畫面不會鎖住滑鼠', await page.evaluate(() => document.pointerLockElement === null));
+const yaw0 = await page.evaluate(() => window.__app.view3d.walk.yaw);
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2, { steps: 8 });
+await page.mouse.up();
+const yaw1 = await page.evaluate(() => window.__app.view3d.walk.yaw);
+check('按住拖曳會轉頭', Math.abs(yaw1 - yaw0) > 0.2, `${(Math.abs(yaw1 - yaw0) * 180 / Math.PI).toFixed(1)}°`);
+await page.mouse.move(box.x + box.width / 2 - 300, box.y + box.height / 2, { steps: 8 });
+check('沒按住時移動滑鼠不會轉頭', await page.evaluate((y) => window.__app.view3d.walk.yaw === y, yaw1));
+await page.keyboard.press('Escape');
+check('Esc 按一次就離開行走', await page.evaluate(() => !window.__app.view3d.walk.active));
+await page.evaluate(() => window.__app.view3d.setWalking(true));
 await page.evaluate(() => window.__app.editor.selectTool('select'));
 // 切回 2D：自動離開行走、2D 標記收掉
 await page.evaluate(() => document.querySelector('#viewModes [data-mode="2d"]').click());

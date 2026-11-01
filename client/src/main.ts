@@ -362,7 +362,7 @@ if (view3d) {
   v.walk.onToggle = on => {
     walkBtn.classList.toggle('on', on); walkBtn.setAttribute('aria-pressed', String(on));
     sync3dHint();
-    if (on) flash(t('點一下畫面開始用滑鼠轉頭，WASD 走、Shift 跑、F 或兩次 Esc 離開'));
+    if (on) flash(t('按住滑鼠拖曳轉頭，WASD 走、Shift 跑、F 或 Esc 離開'));
     else { editor.marker = undefined; editor.render(); }
   };
   v.walk.onMove = (x, y, heading, floor) => {
@@ -382,7 +382,7 @@ const hint3d = document.getElementById('hint3d') as HTMLElement;
 function sync3dHint() {
   const tool = editor.toolName;
   const text = view3d?.walk.active
-    ? t('行走：點畫面用滑鼠轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或兩次 Esc 離開')
+    ? t('行走：按住滑鼠拖曳轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或 Esc 離開')
     : tool === 'furniture' && ghostWarn ? `⚠ ${ghostWarn}`
     : (tool === 'door' || tool === 'window') && openingMiss ? `⚠ ${openingMiss}`
     : tool === 'furniture' || tool === 'electrical'
@@ -405,13 +405,8 @@ function armWalkHint() {
   clearTimeout(walkHintTimer);
   walkHintTimer = window.setTimeout(() => hint3d.classList.add('faded'), 6000);
 }
-// While the mouse is captured for looking around there is no "near the bottom
-// edge"; letting go of it (the first Esc) brings the line back instead.
-document.addEventListener('pointerlockchange', () => {
-  if (!document.pointerLockElement && hint3d.classList.contains('walk-hint')) armWalkHint();
-});
 document.getElementById('view3d')?.addEventListener('mousemove', (e) => {
-  if (!hint3d.classList.contains('walk-hint') || document.pointerLockElement) return;   // captured: clientY is frozen
+  if (!hint3d.classList.contains('walk-hint')) return;
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
   if (r.bottom - e.clientY < 90) armWalkHint();
 });

@@ -1,6 +1,5 @@
-// Walk mode in the 3D view (B19): eyes 160 cm up, mouse-look under pointer
-// lock, WASD to walk and Shift to run, walls that stop you and doors that do
-// not, stairs between storeys. Where you may stand is ./walk's (pure); this
+// Walk mode in the 3D view (B19): eyes 160 cm up, drag to look around, WASD
+// to walk and Shift to run, walls that stop you and doors that do not, stairs between storeys. Where you may stand is ./walk's (pure); this
 // owns the camera while it is on and hands it back to the orbit controls after.
 import * as THREE from 'three';
 import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -25,18 +24,26 @@ export class WalkMode {
   onToggle: ((on: boolean) => void) | null = null;
 
   constructor(private camera: THREE.PerspectiveCamera, private controls: OrbitControls, private dom: HTMLElement) {
-    dom.addEventListener('click', () => {
-      if (!this.active || document.pointerLockElement === dom) return;
-      // Refused in some frames and in headless browsers; walking still works on the keys alone.
-      void Promise.resolve(dom.requestPointerLock?.()).catch(() => {});
+    // Drag to look (left button held), not pointer lock: a locked mouse can't
+    // reach the tab bar or another window, and Esc is the only way out of it.
+    let drag: { id: number; x: number; y: number } | null = null;
+    dom.addEventListener('pointerdown', e => {
+      if (!this.active || e.button !== 0) return;
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      dom.setPointerCapture?.(e.pointerId);
     });
-    document.addEventListener('mousemove', e => {
-      if (!this.active || document.pointerLockElement !== dom) return;
+    dom.addEventListener('pointermove', e => {
+      if (!this.active || !drag || e.pointerId !== drag.id) return;
       const k = FEEL_BASE.look * this.look * Math.PI / 180;
-      this.yaw -= e.movementX * k;
-      this.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch - e.movementY * k));
+      this.yaw -= (e.clientX - drag.x) * k;
+      this.pitch = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, this.pitch - (e.clientY - drag.y) * k));
+      drag.x = e.clientX; drag.y = e.clientY;
       this.place();
     });
+    const end = (e: PointerEvent) => { if (drag && e.pointerId === drag.id) drag = null; };
+    dom.addEventListener('pointerup', end);
+    dom.addEventListener('pointercancel', end);
+    dom.addEventListener('lostpointercapture', end);
   }
 
   /** The storey being walked, by id: an index would point at another storey once one is added below or removed. */
@@ -91,7 +98,6 @@ export class WalkMode {
   exit() {
     if (!this.active) return;
     this.active = false;
-    if (document.pointerLockElement === this.dom) document.exitPointerLock?.();
     // Back to the view walking started from — like leaving first person in a build
     // game. Staying where the walker stood left the orbit camera against a wall.
     if (this.before) {

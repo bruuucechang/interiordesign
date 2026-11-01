@@ -68,8 +68,8 @@ const EN: Record<string, string> = {
   // B24
   '從這裡開始': 'Start here', '先畫出房子的牆，或匯入平面圖照片照著描。': 'Draw the walls of the place, or import a photo of a floor plan and trace over it.',
   '畫牆': 'Draw walls', '匯入平面圖照片': 'Import a floor plan photo',
-  '行走：點畫面用滑鼠轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或兩次 Esc 離開':
-    'Walking: click the view to look with the mouse · WASD to walk · Shift to run · walk up the stairs to change floor · F or Esc twice to leave',
+  '行走：按住滑鼠拖曳轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或 Esc 離開':
+    'Walking: drag with the mouse to look around · WASD to walk · Shift to run · walk up the stairs to change floor · F or Esc to leave',
   '點地板放下去 · 按住 Shift 連續放 · Q／E 轉 90° · Esc 放下手上的東西': 'Click the floor to place · hold Shift to keep placing · Q/E turn 90° · Esc to put it down',
   '點牆放上門窗 · 按住 Shift 連續放 · Esc 放下手上的東西': 'Click a wall to place it · hold Shift to keep placing · Esc to put it down',
   // B22
@@ -115,7 +115,7 @@ const EN: Record<string, string> = {
   '從檔案匯入專案檔…': 'Import a project file…', '刪除': 'Delete', '還原': 'Restore',
   '行走': 'Walk', '行走：在 3D 裡用人的高度走，牆會擋、門可以過（F）': 'Walk: at eye height in 3D, walls stop you, doors let you through (F)',
   '行走要在 3D 裡：先切到 3D 或分割': 'Walking happens in 3D: switch to 3D or split first',
-  '點一下畫面開始用滑鼠轉頭，WASD 走、Shift 跑、F 或兩次 Esc 離開': 'Click the view to look with the mouse; WASD to walk, Shift to run, F or Esc twice to leave',
+  '按住滑鼠拖曳轉頭，WASD 走、Shift 跑、F 或 Esc 離開': 'Drag with the mouse to look around; WASD to walk, Shift to run, F or Esc to leave',
   '開燈': 'Lamps', '3D 開燈：燈具真的發光（黃昏、夜晚自動開）': 'Lamps in 3D: fittings really shine (on by itself at dusk and night)',
   '操作設定': 'Controls', '操作設定：轉視角、移動、滾輪的靈敏度': 'Controls: turn, move and wheel sensitivity',
   '轉視角': 'Turn', '移動速度': 'Move speed', '滾輪縮放': 'Wheel zoom', '行走轉頭': 'Walk look',
