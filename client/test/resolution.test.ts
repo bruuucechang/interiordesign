@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   nextResolution, onWorkloadChange, startAt, initialState,
   RATIO_STEPS, TOO_SLOW_MS, KEEPING_UP_MS, CLIMB_AFTER,
+  nextQuality, initialQuality, onQualityWorkloadChange, AO_STEPS,
 } from '../src/core/resolution';
 
 const SLOW = TOO_SLOW_MS + 5;    // ~40 fps
@@ -109,4 +110,53 @@ test('a machine that can hold the top ratio climbs all the way there', () => {
   for (let i = 0; i < 40; i++) s = nextResolution(s, VSYNC, 2);
   assert.equal(s.ratio, 2);
   assert.equal(s.ceiling, Infinity);
+});
+
+// ── AO before sharpness ──
+
+test('slow: AO samples go first, resolution stays', () => {
+  let q = { ...initialQuality(2), res: startAt(2) };
+  q = nextQuality(q, SLOW, 2);
+  assert.equal(q.res.ratio, 2);
+  assert.equal(q.ao, 8);
+  q = nextQuality(q, SLOW, 2);
+  assert.equal(q.res.ratio, 2);
+  assert.equal(q.ao, 0);
+});
+
+test('slow with AO already off: only then does resolution drop', () => {
+  let q = { ...initialQuality(2), res: startAt(2), ao: 0 };
+  q = nextQuality(q, SLOW, 2);
+  assert.equal(q.ao, 0);
+  assert.equal(q.res.ratio, 1.5);
+});
+
+test('fast: resolution climbs first, AO comes back once it is at the top', () => {
+  let q = { ...initialQuality(2), ao: 0 };
+  const seen: [number, number][] = [];
+  for (let i = 0; i < 60; i++) { q = nextQuality(q, VSYNC, 2); seen.push([q.res.ratio, q.ao]); }
+  assert.deepEqual(seen[seen.length - 1], [2, AO_STEPS[AO_STEPS.length - 1]]);
+  const firstAo = seen.findIndex(([, ao]) => ao > 0);
+  assert.ok(firstAo > 0 && seen[firstAo][0] === 2, `AO came back at ratio ${seen[firstAo]?.[0]}`);
+});
+
+test('an AO level measured too slow is not retried — no oscillation', () => {
+  let q = { ...initialQuality(2), res: startAt(2) };
+  q = nextQuality(q, SLOW, 2);                  // 16 too slow → 8
+  for (let i = 0; i < 40; i++) q = nextQuality(q, VSYNC, 2);
+  assert.equal(q.ao, 8);
+  assert.equal(q.aoCeiling, 16);
+});
+
+test('a ratio known too slow counts as the top — AO may climb under it', () => {
+  let q = { ...initialQuality(2), res: { ratio: 1.5, goodWindows: 0, ceiling: 2 }, ao: 0 };
+  for (let i = 0; i < 20; i++) q = nextQuality(q, VSYNC, 2);
+  assert.equal(q.res.ratio, 1.5);
+  assert.equal(q.ao, 16);
+});
+
+test('resizing forgets the AO ceiling too', () => {
+  const q = onQualityWorkloadChange({ ...initialQuality(2), aoCeiling: 8 });
+  assert.equal(q.aoCeiling, Infinity);
+  assert.equal(q.res.ceiling, Infinity);
 });
