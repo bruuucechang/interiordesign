@@ -125,3 +125,16 @@ test('3D 建得出來，外框跟目錄尺寸一樣', () => {
     assert.ok(near(box.max.y, f.height!, 1), at);
   }
 });
+
+// 房間地板是 0～4 cm 的板子（view3d 的 room），家具從 y = 0 長上來。
+// 零件的頂面剛好在 4 cm 就跟地板面同一個深度：鏡頭一動就一格一格地閃
+// （2026-11-01 衛浴 A 的淋浴底盤，使用者回報「廁所一閃一閃的破圖」）。
+const FLOOR_TOP = 4;
+test('沒有零件的頂面跟地板面疊在同一高度', () => {
+  for (const id of ids) {
+    const f = FURNITURE_BY_ID[id], H = f.height!;
+    for (const p of LUXE_PARTS[id](f.w, f.h, H)) {
+      assert.ok(!near(p.y[1], FLOOR_TOP), `${id} 的 ${p.mat} 頂面在 ${p.y[1]} cm，跟地板面疊在一起`);
+    }
+  }
+});

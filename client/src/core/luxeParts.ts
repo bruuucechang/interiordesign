@@ -267,13 +267,15 @@ function vanity(w: number, h: number, H: number): Part[] {
 /** 玻璃淋浴間：淺灰石紋止水墩、正面清玻璃＋香檳金屬細框、頂噴。 */
 function shower(w: number, h: number, H: number): Part[] {
   const W = w / 2, D = h / 2, o: Part[] = [];
-  o.push(P('stoneGrey', [-W, W], [0, 4], [-D, D]));
+  // 底盤高出地板 2 cm：頂面在 4 cm 就跟地板面（0～4 cm 的板子）同一深度，鏡頭一動就閃。
+  const tray = 6;
+  o.push(P('stoneGrey', [-W, W], [0, tray], [-D, D]));
   const fixed = w * 0.45;                                                      // 固定片＋拉門
-  o.push(P('glass', [-W + 1.5, -W + fixed], [4, H - 2], [D - 1, D - 0.2]));      // 玻璃夾在側框之間
-  o.push(P('glass', [-W + fixed - 4, W - 1.5], [4, H - 2], [D - 1.8, D - 1]));
+  o.push(P('glass', [-W + 1.5, -W + fixed], [tray, H - 2], [D - 1, D - 0.2]));   // 玻璃夾在側框之間
+  o.push(P('glass', [-W + fixed - 4, W - 1.5], [tray, H - 2], [D - 1.8, D - 1]));
   o.push(P('champagne', [-W, W], [H - 2, H], [D - 2, D]));                     // 頂框
-  o.push(P('champagne', [-W, -W + 1.5], [4, H - 2], [D - 2, D]));              // 側框
-  o.push(P('champagne', [W - 1.5, W], [4, H - 2], [D - 2, D]));
+  o.push(P('champagne', [-W, -W + 1.5], [tray, H - 2], [D - 2, D]));           // 側框
+  o.push(P('champagne', [W - 1.5, W], [tray, H - 2], [D - 2, D]));
   o.push(P('champagne', [-W + fixed + 4, -W + fixed + 6], [90, 130], [D - 0.2, D], 0.5));  // 拉門把
   o.push(P('champagne', [-1, 1], [H - 12, H - 10], [-D, -D + 30]));            // 頂噴的臂
   o.push(P('champagne', [-12, 12], [H - 13, H - 12], [-D + 18, -D + 42], 1));  // 頂噴
