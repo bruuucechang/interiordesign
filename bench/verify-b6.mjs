@@ -12,11 +12,15 @@ import { join, resolve } from 'node:path';
 const ROOT = resolve(import.meta.dirname, '..');
 const OUT = join(ROOT, 'bench/results');
 const OWNER = 'own_orsxp52fbvey';
-// report-b6.mts --db 的整間平均（四捨五入到整數，所以容許 ±1.5）。
+// 整間平均（四捨五入到整數，所以容許 ±1.5）。2026-11-01 重定成 B17（牆擋光）之後的面板值；
+// 之前照 report-b6.mts --db：229／247／215／183／183／108。
 const EXPECT = {
-  'Peter 房間': ['peter', 229], '客廳＋廚房': ['living', 247], '老爸房間': ['dad', 215],
-  '衛浴 A': ['batha', 183], '衛浴 B': ['bathb', 183], '陽台': ['balcony', 108],
+  'Peter 房間': ['peter', 233], '客廳＋廚房': ['living', 246], '老爸房間': ['dad', 220],
+  '衛浴 A': ['batha', 197], '衛浴 B': ['bathb', 197], '陽台': ['balcony', 132],
 };
+// 牆會擋光之後，這三間的角落暗到均勻度掉到 0.4 以下（0.34／0.29／0.39）。原版 A1 的燈沒有
+// 為此重排，這是它現在的真實狀況；只允許這一種提醒，多了別的照樣紅。
+const ALLOWED_WARN = /均勻度 0\.\d+.*低於 0\.4/;
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 } });
@@ -52,8 +56,8 @@ for (const [name, [key, avgWant]] of Object.entries(EXPECT)) {
   check(`${name} 整間平均`, Math.abs(avg - avgWant) <= 1.5, `${avg}（腳本 ${avgWant}）`);
   const pills = await box.locator('.lp-pill').evaluateAll(ps => ps.map(p => p.className));
   check(`${name} 區域全部「夠」`, pills.length > 0 && pills.every(c => /\bok\b/.test(c)), `${pills.length} 個區域`);
-  const warns = await box.locator('.lp-warns li', { hasNotText: '沒有發現問題' }).count();
-  check(`${name} 沒有提醒`, warns === 0, warns);
+  const warns = (await box.locator('.lp-warns li', { hasNotText: '沒有發現問題' }).allTextContents()).filter(t => !ALLOWED_WARN.test(t));
+  check(`${name} 沒有提醒（均勻度除外）`, warns.length === 0, warns.length ? warns.join(' / ') : 0);
   await page.screenshot({ path: join(OUT, `b6-${key}.png`) });
   await box.screenshot({ path: join(OUT, `b6-${key}-panel.png`) });
 }
