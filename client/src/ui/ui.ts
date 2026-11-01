@@ -715,8 +715,7 @@ async function handle(act: string, editor: Editor, doc: Doc) {
       catch (e) { console.error(e); flash(t('匯出 PNG 失敗')); }
       break;
     case 'export-pdf':
-      try { exportPDF(doc, name()); flash(t('已匯出 PDF')); }
-      catch (e) { console.error(e); flash(t('匯出 PDF 失敗')); }
+      exportPDF(doc, name()).then(() => flash(t('已匯出 PDF')), (e) => { console.error(e); flash(t('匯出 PDF 失敗')); });
       break;
     case 'plot-pdf':
       if (!doc.project.floors.some(f => f.objects.some(o => o.kind !== 'image'))) { flash(t('尚無可出圖的內容')); break; }
