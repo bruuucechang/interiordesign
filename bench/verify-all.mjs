@@ -15,10 +15,9 @@ import { resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const LIMIT_MS = 10 * 60 * 1000;
-// 沒有可判斷的結論，不進總表：
-const SKIP = {
-  'verify-flicker': '移動那一半量不出東西（檔頭有寫），而且要另外給一份方案 JSON',
-};
+// 沒有可判斷的結論，不進總表（verify-flicker 本來在這裡，2026-11-01 移除：移動那一半量不出東西；
+// 閃爍改由 verify-resflash 逐幀量）：
+const SKIP = {};
 
 const only = process.argv.slice(2);
 const all = readdirSync(resolve(ROOT, 'bench')).filter(f => /^verify-.*\.mjs$/.test(f) && f !== 'verify-all.mjs').sort();

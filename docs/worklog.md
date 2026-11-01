@@ -294,7 +294,7 @@ Quaternius 抓了兩輪、每輪一小時，快取始終停在 13 個檔，我�
 | `verify-wall.mjs` | 牆編輯的端到端 |
 | `verify-deeplink.mjs` | `?plan=<id>` 對真的後端 |
 | `verify-partition.mjs` | 隔間線端到端 |
-| `verify-flicker.mjs` | 繞著轉，看有沒有閃爍 |
+| `verify-flicker.mjs` | 繞著轉，看有沒有閃爍（2026-11-01 移除：移動那一半量不出東西，改由 `verify-resflash.mjs` 逐幀量閃爍） |
 | `furniture.mjs` | 全目錄排一間房渲一張，外加 manifest 對照 |
 | `verify-palette.mjs` | 面板：搜尋 ∩ 風格、複選是聯集、摺疊不改變篩選、重載記得 |
 | `thumbs.mjs` | 幫沒附預覽圖的模型渲一張（獨立 three.js 頁，透明背景） |
