@@ -26,7 +26,7 @@ import { attachFlyKeys } from './keys3d';
 import { mat, floorMaterial, wallMaterial, recolour } from './surfaces3d';
 import { PlacementGhosts, OpeningGhostSpec } from './ghosts3d';
 import { capturePanorama } from './panorama';
-import { nextResolution, onWorkloadChange, initialState, ResolutionState } from './resolution';
+import { nextQuality, onQualityWorkloadChange, initialState, ResolutionState, AO_STEPS } from './resolution';
 import { mark, done } from './perf';
 import { DEFAULTS } from '../model/locale-defaults';
 import { isShown } from './viewFilter';
@@ -816,7 +816,8 @@ export class View3D {
     // doing, or the ceiling it just learned would be erased immediately.
     if (w !== this.lastSize.w || h !== this.lastSize.h) {
       this.lastSize = { w, h };
-      this.res = onWorkloadChange(this.res);
+      ({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling } =
+        onQualityWorkloadChange({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling }));
     }
     if (this.res.ratio > this.maxPixelRatio) this.res = { ...this.res, ratio: this.maxPixelRatio, goodWindows: 0 };
     this.renderer.setPixelRatio(this.pixelRatio);
@@ -849,6 +850,14 @@ export class View3D {
   private static readonly SAMPLE = 45;   // ~0.75 s at 60 fps: long enough to be steady, short enough to react
 
   private get pixelRatio() { return this.res.ratio; }
+  /** GTAO samples in use (0 = pass off) — given up before resolution, see resolution.ts. */
+  private ao: number = AO_STEPS[AO_STEPS.length - 1];
+  private aoGood = 0;
+  private aoCeiling = Infinity;
+  private applyAo() {
+    this.gtao.enabled = this.ao > 0;
+    if (this.ao > 0) this.gtao.updateGtaoMaterial({ samples: this.ao });
+  }
 
   /**
    * Only ever fed frames the view was actually trying to draw fast.
@@ -871,8 +880,10 @@ export class View3D {
     const median = sorted[sorted.length >> 1];
     this.frameTimes.length = 0;
 
-    const before = this.res.ratio;
-    this.res = nextResolution(this.res, median, this.maxPixelRatio);
+    const before = this.res.ratio, aoBefore = this.ao;
+    ({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling } =
+      nextQuality({ res: this.res, ao: this.ao, aoGood: this.aoGood, aoCeiling: this.aoCeiling }, median, this.maxPixelRatio));
+    if (this.ao !== aoBefore) this.applyAo();
     if (this.res.ratio !== before) this.resize();
   }
 

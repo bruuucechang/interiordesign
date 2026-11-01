@@ -96,3 +96,59 @@ export function nextResolution(
 
   return { ratio: here, goodWindows: 0, ceiling: state.ceiling };
 }
+
+// ── Ambient occlusion goes before sharpness ─────────────────────────────────
+//
+// Walking on a Retina screen used to settle at ratio 1 — half the display's
+// sharpness, and the first thing anyone notices. GTAO is most of a frame's cost
+// at high ratios: on the A1 plan at 1440×900×2, 16 samples ≈ 58 ms, 8 ≈ 46 ms,
+// off ≈ 29 ms — about what ratio 1.25 with full AO costs. Losing contact
+// shading is far less visible than losing half the pixels, so a slow window
+// gives up AO samples first and resolution only once AO is already off; a fast
+// one climbs resolution first and only then buys the samples back.
+//
+// AO levels have the same memory as ratios: one measured too slow becomes a
+// ceiling and is not retried, so the search settles instead of oscillating.
+
+/** GTAO samples, ascending; 0 is the pass switched off. */
+export const AO_STEPS = [0, 8, 16] as const;
+
+export interface QualityState {
+  res: ResolutionState;
+  ao: number;
+  /** Consecutive windows that kept up with resolution at its top. */
+  aoGood: number;
+  /** Lowest AO level measured as too slow here, or Infinity. */
+  aoCeiling: number;
+}
+
+export const initialQuality = (maxRatio: number): QualityState =>
+  ({ res: initialState(maxRatio), ao: AO_STEPS[AO_STEPS.length - 1], aoGood: 0, aoCeiling: Infinity });
+
+/** Canvas resized: forget both ceilings (see `onWorkloadChange`). */
+export const onQualityWorkloadChange = (q: QualityState): QualityState =>
+  ({ res: onWorkloadChange(q.res), ao: q.ao, aoGood: 0, aoCeiling: Infinity });
+
+/** Resolution can climb no further: top step for this display, or the next one is known too slow. */
+function ratioAtTop(s: ResolutionState, maxRatio: number): boolean {
+  const steps = RATIO_STEPS.filter(r => r <= maxRatio);
+  const i = steps.indexOf(s.ratio as (typeof RATIO_STEPS)[number]);
+  return i < 0 || i === steps.length - 1 || steps[i + 1] >= s.ceiling;
+}
+
+export function nextQuality(q: QualityState, medianFrameMs: number, maxRatio: number): QualityState {
+  const ai = Math.max(0, AO_STEPS.indexOf(q.ao as (typeof AO_STEPS)[number]));
+  if (medianFrameMs > TOO_SLOW_MS) {
+    if (ai > 0) {
+      return { res: { ...q.res, goodWindows: 0 }, ao: AO_STEPS[ai - 1], aoGood: 0, aoCeiling: Math.min(q.aoCeiling, q.ao) };
+    }
+    return { ...q, res: nextResolution(q.res, medianFrameMs, maxRatio), aoGood: 0 };
+  }
+  if (!ratioAtTop(q.res, maxRatio)) return { ...q, res: nextResolution(q.res, medianFrameMs, maxRatio), aoGood: 0 };
+  const up = AO_STEPS[ai + 1];
+  if (medianFrameMs <= KEEPING_UP_MS && up !== undefined && up < q.aoCeiling) {
+    const good = q.aoGood + 1;
+    return good >= CLIMB_AFTER ? { ...q, ao: up, aoGood: 0 } : { ...q, aoGood: good };
+  }
+  return { ...q, aoGood: 0 };
+}
