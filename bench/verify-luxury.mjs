@@ -163,7 +163,7 @@ if (ONLY('b28')) {
 
   // 3D：同一個瀏覽器設定（同一個 context 的 localStorage）
   const { page: p3 } = await open(A1, { plan: true, mode: '3d', ctx });
-  const g3 = () => p3.evaluate(() => { const v = window.__app.view3d; return { lights: v.lightGroup.children.length, furn: v.furnGroup.children.length }; });
+  const g3 = () => p3.evaluate(() => { const v = window.__app.view3d; return { lights: v.lightPieces().length, furn: v.furnGroup.children.length }; });
   await p3.waitForTimeout(2000);
   const hidden3 = await g3();
   ok(hidden3.lights === 0 && hidden3.furn === 0, `3D 全部勾掉：燈具 ${hidden3.lights}、家具 ${hidden3.furn} 個模型`);
@@ -171,7 +171,7 @@ if (ONLY('b28')) {
   // 匯出 3D（.glb）不看顯示設定：在檔案產生的那一刻數場景裡的家具與燈具模型
   const glb = () => p3.evaluate(async () => {
     const v = window.__app.view3d, oc = URL.createObjectURL, a = HTMLAnchorElement.prototype.click; let got = null;
-    URL.createObjectURL = (b) => { got = { size: b.size, furn: v.furnGroup.children.length, lights: v.lightGroup.children.length }; return oc.call(URL, b); };
+    URL.createObjectURL = (b) => { got = { size: b.size, furn: v.furnGroup.children.length, lights: v.lightPieces().length }; return oc.call(URL, b); };
     HTMLAnchorElement.prototype.click = function () {};
     try { await v.exportGLB('x'); } finally { URL.createObjectURL = oc; HTMLAnchorElement.prototype.click = a; }
     return got;
@@ -180,7 +180,7 @@ if (ONLY('b28')) {
   // 360 全景也一樣：拍的那一刻場景裡家具、燈具都在（等模型載完、全部重建）
   const pano = await p3.evaluate(async () => {
     const v = window.__app.view3d, r = v.renderer, orig = r.render; let seen = null;
-    r.render = function (...a) { seen ??= { furn: v.furnGroup.children.length, lights: v.lightGroup.children.length }; return orig.apply(this, a); };
+    r.render = function (...a) { seen ??= { furn: v.furnGroup.children.length, lights: v.lightPieces().length }; return orig.apply(this, a); };
     try { await v.loadAllModels(); seen = null; v.capturePanorama(); } finally { r.render = orig; }
     return seen;
   });
@@ -317,9 +317,9 @@ if (ONLY('b29')) {
     return window.__app.doc.objects.filter(o => o.kind === 'electrical').reduce((n, o) => n + lightParts(o, 280).length, 0);
   });
   await page.waitForTimeout(1500);
-  const got3 = await page.evaluate(() => window.__app.view3d.lightGroup.children.length);
+  const got3 = await page.evaluate(() => window.__app.view3d.lightPieces().length);
   ok(got3 === want3 && want3 >= 18, `3D 燈具零件 ${got3} 個（應為 ${want3}）`);
-  const glow = await page.evaluate(() => window.__app.view3d.lightGroup.children.filter(m => m.material?.type === 'MeshBasicMaterial').length);
+  const glow = await page.evaluate(() => window.__app.view3d.lightPieces().filter(p => p.glow).length);
   ok(glow >= 11, `3D 發光的零件 ${glow} 個（雙頭格柵兩顆）`);
   await page.screenshot({ path: `${OUT}luxury-b29-split.png` });
 
@@ -370,7 +370,7 @@ if (ONLY('b29')) {
   await tick(page, 'lights', false);
   await page.waitForTimeout(1200);
   d = await drawn(page);
-  const hid3 = await page.evaluate(() => window.__app.view3d.lightGroup.children.length);
+  const hid3 = await page.evaluate(() => window.__app.view3d.lightPieces().length);
   ok(count(d, NEWRE) === 0 && hid3 === 0, `勾掉燈具：新燈 2D 畫了 ${count(d, NEWRE)} 盞、3D 零件 ${hid3} 個`);
   await tick(page, 'lights', true);
   await page.waitForTimeout(800);
@@ -533,7 +533,7 @@ if (ONLY('b31')) {
   const g = await p3.evaluate(async () => {
     const { lightParts } = await import('/src/core/lights3d.ts'), { DEFAULTS } = await import('/src/model/locale-defaults.ts');
     const want = window.__app.doc.objects.filter(o => o.kind === 'electrical').reduce((a, o) => a + lightParts(o, DEFAULTS.wallHeight).length, 0);
-    return { furn: window.__app.view3d.furnGroup.children.length, lights: window.__app.view3d.lightGroup.children.length, want };
+    return { furn: window.__app.view3d.furnGroup.children.length, lights: window.__app.view3d.lightPieces().length, want };
   });
   ok(g.furn === 39 && g.lights === g.want, `3D：傢俱 ${g.furn} 個物件（要 39）、燈具零件 ${g.lights}（要 ${g.want}）`);
   await c3.close();

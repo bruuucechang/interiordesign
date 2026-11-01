@@ -5,11 +5,12 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Doc } from '../model/doc';
 import { Obj, Vec } from '../model/schema';
 import { dist, angleDeg, quadPoints, wallControl } from './geometry';
 import { curvedWallBands } from './wallGeometry';
-import { buildDoor3D, buildWindow3D } from './openings3d';
+import { buildDoor3D, buildWindow3D, paneGlass } from './openings3d';
 import { getFurnitureModel, getModelHeight, loadFurnitureModel } from './furniture3d';
 import { lightParts, LightPart } from './lights3d';
 import { Lamps3D } from './lamps3d';
@@ -450,7 +451,8 @@ export class View3D {
     const _t0 = mark();
     this.clearStatic();
     this.furnGroup.clear();               // clones share cached geometry/materials — do NOT dispose
-    this.lightGroup.clear();              // same: every fitting is a scaled shared unit mesh
+    for (const c of this.lightGroup.children) if (c.userData.baked) (c as THREE.Mesh).geometry.dispose();   // bakeLights' own
+    this.lightGroup.clear();              // the rest: every fitting is a scaled shared unit mesh
 
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
     const grow = (x: number, z: number) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
@@ -496,6 +498,7 @@ export class View3D {
     // shadows for static meshes (furniture clones inherit from the cache)
     this.staticGroup.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m !== ground) { m.castShadow = true; m.receiveShadow = true; } });
 
+    this.bakeLights();
     const frame = sceneFrame({ minX, maxX, minZ, maxZ });
     const { cx, cz, span } = frame;
 
@@ -692,7 +695,7 @@ export class View3D {
           const d = 10, fw = 6;
           const frameM = mat(0xf2f4f7, { roughness: 0.5, metalness: 0.1 });
           const leafM = new THREE.MeshPhysicalMaterial({ color: 0x8a5a34, roughness: 0.4, metalness: 0, clearcoat: 0.35, envMapIntensity: 1.1 });
-          const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfe0f0, roughness: 0.03, metalness: 0, transmission: 0.9, thickness: 3, ior: 1.5, transparent: true, opacity: 0.5, envMapIntensity: 1.4 });
+          const glass = paneGlass();   // plain alpha, see openings3d
           if (isDoor) {
             this.sweptWall(plan, elev, elev + h, 8, yBase, leafM);
           } else {
@@ -741,6 +744,40 @@ export class View3D {
    * unlit (MeshBasicMaterial) — it reads as lit in every time-of-day preset
    * without being a light source, which is the point (S1: no real lights).
    */
+  /**
+   * Fittings never move between rebuilds, and there are only four kinds of
+   * mesh (box or cylinder, glowing or not) — A1's 72 were 72 draw calls for
+   * what is now four. Baked in world space rather than instanced, so the GLB
+   * export carries them as plain geometry any viewer can open.
+   */
+  private bakeLights() {
+    const kinds = new Map<string, THREE.Mesh[]>();
+    for (const c of this.lightGroup.children) {
+      const m = c as THREE.Mesh;
+      const k = `${m.geometry.uuid}|${(m.material as THREE.Material).uuid}`;
+      (kinds.get(k) ?? kinds.set(k, []).get(k)!).push(m);
+    }
+    const baked: THREE.Mesh[] = [];
+    for (const list of kinds.values()) {
+      const geos = list.map(m => { m.updateMatrix(); return m.geometry.clone().applyMatrix4(m.matrix); });
+      const merged = mergeGeometries(geos);
+      geos.forEach(g => g.dispose());
+      if (!merged) return;   // cannot happen with the shared units; if it does, leave them as they are
+      const one = new THREE.Mesh(merged, list[0].material);
+      one.userData.baked = true;
+      // Where each fitting part was — lightPieces() still answers "is every lamp built?"
+      one.userData.pieces = list.map(m => ({ x: m.position.x, y: m.position.y, z: m.position.z, glow: (m.material as THREE.Material).type === 'MeshBasicMaterial' }));
+      baked.push(one);
+    }
+    this.lightGroup.clear();
+    if (baked.length) this.lightGroup.add(...baked);
+  }
+
+  /** Every fitting part in the scene, one entry per part, after bakeLights merged them. */
+  lightPieces(): { x: number; y: number; z: number; glow: boolean }[] {
+    return this.lightGroup.children.flatMap(c => c.userData.pieces ?? []);
+  }
+
   private lightMesh(p: LightPart, yBase: number): THREE.Mesh {
     if (!this.lightUnits) {
       this.lightUnits = {

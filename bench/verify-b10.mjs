@@ -66,13 +66,13 @@ console.log('S1 3D 的燈');
   const m = await page.evaluate((LIGHTS) => {
     const a = window.__app;
     const fittings = a.doc.objects.filter((o) => o.kind === 'electrical' && LIGHTS.includes(o.item));
-    const g = a.view3d.lightGroup;
-    // 每盞燈至少一個網格落在它的符號附近（±12 cm，壁燈與 T5 會往照的那側讓開幾公分）
-    const pos = g.children.map((c) => c.position);
+    // 每盞燈至少一個零件落在它的符號附近（±12 cm，壁燈與 T5 會往照的那側讓開幾公分）。
+    // 零件在 3D 裡依種類合併成幾個網格（bakeLights），所以問 lightPieces 而不是數子物件。
+    const pos = a.view3d.lightPieces();
     const missing = fittings.filter((o) => !pos.some((p) => Math.hypot(p.x - o.x, p.z - o.y) < 12));
-    return { fittings: fittings.length, meshes: g.children.length, missing: missing.map((o) => o.item + '@' + Math.round(o.x) + ',' + Math.round(o.y)) };
+    return { fittings: fittings.length, meshes: pos.length, missing: missing.map((o) => o.item + '@' + Math.round(o.x) + ',' + Math.round(o.y)) };
   }, LIGHTS);
-  check('每盞燈都有網格', m.fittings > 0 && m.missing.length === 0, `燈 ${m.fittings} 盞、網格 ${m.meshes} 個、缺 ${m.missing.length}${m.missing.length ? '：' + m.missing.slice(0, 5).join(' ') : ''}`);
+  check('每盞燈都有網格', m.fittings > 0 && m.missing.length === 0, `燈 ${m.fittings} 盞、零件 ${m.meshes} 個、缺 ${m.missing.length}${m.missing.length ? '：' + m.missing.slice(0, 5).join(' ') : ''}`);
   await page.screenshot({ timeout: 120000, path: OUT + 'b10-s1-overview.png' });
 
   // 站到崁燈最多的那間房的中央，抬頭看最遠的一盞（斜看才看得到整片天花板）——天花板只有相機在室內、比它低時才畫
