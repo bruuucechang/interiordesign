@@ -256,7 +256,10 @@ function applyMode() {
  * pointer events already go to whichever pane is under the cursor.
  */
 function applyFocus() {
-  const on2d = focus === '2d';
+  // Walking owns the keyboard wherever the pointer is: in a split the pointer
+  // crosses to the plan to see the walker's marker, and W then panned the plan
+  // while Esc and F could not walk out (2026-11-02).
+  const on2d = focus === '2d' && !view3d?.walk.active;
   editor.inputEnabled = on2d;
   view3d?.setFly(!on2d);
   pane2d.classList.toggle('focused', on2d && mode === 'split');
@@ -361,8 +364,9 @@ if (view3d) {
   };
   v.walk.onToggle = on => {
     walkBtn.classList.toggle('on', on); walkBtn.setAttribute('aria-pressed', String(on));
+    applyFocus();
     sync3dHint();
-    if (on) flash(t('按住滑鼠拖曳轉頭，WASD 走、Shift 跑、F 或 Esc 離開'));
+    if (on) flash(t('按住滑鼠拖曳轉頭，WASD 走、←→ 轉身、Shift 跑、F 或 Esc 離開'));
     else { editor.marker = undefined; editor.render(); }
   };
   v.walk.onMove = (x, y, heading, floor) => {
@@ -382,7 +386,7 @@ const hint3d = document.getElementById('hint3d') as HTMLElement;
 function sync3dHint() {
   const tool = editor.toolName;
   const text = view3d?.walk.active
-    ? t('行走：按住滑鼠拖曳轉頭 · WASD 走 · Shift 跑 · 樓梯走上去就換層 · F 或 Esc 離開')
+    ? t('行走：拖曳轉頭 · WASD／↑↓ 走 · ←→ 轉身 · Shift 跑 · 走上樓梯換層 · F／Esc 離開')
     : tool === 'furniture' && ghostWarn ? `⚠ ${ghostWarn}`
     : (tool === 'door' || tool === 'window') && openingMiss ? `⚠ ${openingMiss}`
     : tool === 'furniture' || tool === 'electrical'

@@ -218,7 +218,9 @@ export class View3D {
     this.composer.addPass(new OutputPass());   // applies tone mapping + sRGB after the AO blend
 
     // WASD/QE fly, arrow-key pan and the key HUD — see ./keys3d
-    attachFlyKeys(container, this.pressed, () => this.fly, (deg) => this.onRotate90?.(deg));
+    // Q/E turn the selection — not while walking: the selection is whatever was picked
+    // before walking in, out of sight, and the keys silently spun it (2026-11-02).
+    attachFlyKeys(container, this.pressed, () => this.fly, (deg) => { if (!this.walk.active) this.onRotate90?.(deg); });
 
     // A click (not an orbit drag) on the floor reports the plan coords, so the
     // app can place an object there; while a placement is armed, a translucent
