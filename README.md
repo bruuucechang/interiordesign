@@ -23,40 +23,92 @@ Interior Designer 是一套室內設計繪圖工具，適合想規劃房間格�
 <!-- /readme:about -->
 
 ## 架構
-<!-- readme:arch 2026-11-13 -->
-前端是使用者操作的地方：介面提供工具與設定，編輯器管理平面圖資料，再把結果畫成 2D 畫布與 3D 場景。
+<!-- readme:arch 2026-11-16 -->
+前端是使用者操作的地方。介面把繪圖與編輯操作交給編輯器，編輯器管理平面圖資料，並將變更呈現在 2D 畫布與 3D 場景中。
 
-後端處理專案儲存、房間偵測、底圖牆體辨識和報表。伺服器版使用 PostgreSQL；桌面版在本機執行，使用 SQLite。前端離線時仍可繪圖並存到瀏覽器，連線後再補送。
+後端（FastAPI，`server/app/main.py`）提供方案儲存、房間與牆體辨識、尺寸鏈、DXF 匯入及報表。伺服器版（Docker）使用 PostgreSQL，前端打包後由同一個後端當靜態網站送出；桌面版 `server/desktop.py` 把後端、打包好的前端和一個 SQLite 檔包成單一程式，開瀏覽器當視窗。用哪種資料庫由 `DATABASE_URL` 決定。
+
+瀏覽器也會在 localStorage 保留方案的本機鏡像（`client/src/net/store.ts`）；離線時仍可編輯，恢復連線後再補送尚未同步的變更。
 
 ```mermaid
 flowchart LR
-    User["使用者"] --> UI["操作介面與繪圖工具"]
-    UI --> Doc["平面圖資料"]
-    Doc --> View2D["2D 畫布"]
-    Doc --> View3D["3D 場景"]
-    Doc <--> API["後端 API"]
-    API --> Services["房間偵測、牆體辨識與報表"]
-    API <--> DB[("PostgreSQL 或桌面版 SQLite")]
-    Doc <--> Local[("瀏覽器本機鏡像")]
+    User["使用者"] -->|繪圖與編輯操作| Front["瀏覽器前端 client/src"]
+    Front -->|2D 圖面與 3D 場景| User
+    Front -->|方案鏡像與刪除紀錄| Local["瀏覽器 localStorage"]
+    Local -->|離線時的本機方案| Front
+    Front -->|"HTTP /api/projects、/api/walls/detect、/api/rooms/detect、/api/dimensions/chain、/api/dxf/*"| API["FastAPI 後端 server/app"]
+    API -->|"方案、辨識出的牆與房間、報表與 report.xlsx"| Front
+    API -->|"方案 JSON（依 DATABASE_URL）"| DB["PostgreSQL，或桌面版的 SQLite 檔"]
+    DB -->|已儲存方案| API
+    API -->|"同源送出打包好的前端（static）"| Front
+    Desktop["桌面版 server/desktop.py"] -->|"在本機啟動後端、開瀏覽器"| API
+```
+
+### 前端編輯與顯示
+
+```mermaid
+flowchart LR
+    Main["client/src/main.ts"] -->|建立並連接| UI["client/src/ui/ui.ts"]
+    Main -->|建立| Editor["client/src/core/editor.ts"]
+    Main -->|建立| Doc["client/src/model/doc.ts"]
+    Main -->|平面圖資料| View3D["client/src/core/view3d.ts"]
+    UI -->|編輯操作| Editor
+    Editor -->|物件變更| Doc
+    Editor -->|繪圖與放置操作| Tools["client/src/tools"]
+    Tools -->|物件變更| Doc
+    Editor -->|繪製要求| Renderer["client/src/core/renderer.ts"]
+    Doc -->|平面圖資料| Renderer
+```
+
+### 存檔與同步
+
+```mermaid
+flowchart LR
+    UI["client/src/ui/ui.ts"] -->|"markDirty、scheduleAutosave"| Auto["client/src/ui/autosave.ts"]
+    Auto -->|"saveProject、syncPending"| API["client/src/net/api.ts"]
+    API -->|"putPlan、markDeleted 寫本機鏡像"| Store["client/src/net/store.ts"]
+    Store -->|方案與刪除紀錄| Local["瀏覽器 localStorage"]
+    Local -->|本機鏡像| Store
+    API -->|"HTTP PUT／GET／DELETE /api/projects"| Projects["server/app/routers/projects.py"]
+    Projects -->|方案讀寫| DB["server/app/db.py"]
+    DB -->|已儲存方案| Projects
+    Projects -->|方案與存檔結果、版本衝突| API
+```
+
+### 後端處理
+
+```mermaid
+flowchart LR
+    Main["server/app/main.py"] -->|"include_router 掛上 /api"| Routes["server/app/routers/__init__.py"]
+    Routes --> Compute["routers/compute.py"]
+    Routes --> DxfR["routers/dxf.py"]
+    Routes --> Projects["routers/projects.py"]
+    Routes --> Reports["routers/reports.py"]
+    Compute -->|"牆體 → 房間多邊形"| Rooms["server/app/rooms.py"]
+    Compute -->|"底圖影像 → 牆"| Detect["server/app/detect.py"]
+    Compute -->|"牆 → 尺寸鏈"| Dim["server/app/dimensions.py"]
+    DxfR -->|"DXF 檔與圖層選擇"| DXF["server/app/dxf.py"]
+    Projects -->|方案讀寫| DB["server/app/db.py"]
+    Reports -->|讀已儲存方案| DB
+    Reports -->|"報表與 Excel"| Report["server/app/report.py"]
 ```
 
 | 資料夾 | 放什麼 |
 |---|---|
-| `client/src/model` | 平面圖資料格式、型錄與版本轉換 |
-| `client/src/core` | 編輯、幾何計算、家具與 3D 等核心功能 |
-| `client/src/tools` | 繪圖、選取、放置與校準工具 |
-| `client/src/ui` | 操作介面、面板、引導與自動存檔 |
-| `client/src/net` | 前端 API 與儲存相關程式 |
-| `client/src/data` | 家具、電氣與配置資料 |
-| `client/public/textures` | 材質貼圖 |
+| `client/src` | 前端入口、編輯器、資料模型、工具與介面 |
+| `client/public` | 前端使用的靜態資源與材質貼圖 |
 | `client/test` | 前端測試 |
-| `server/app` | 後端 API、資料庫、辨識與報表 |
+| `server/app` | 後端 API、資料庫存取、辨識與報表 |
+| `server/scripts` | 資料遷移與版本回填腳本 |
 | `server/tests` | 後端測試 |
-| `schema` | 平面圖資料格式定義 |
+| `schema` | 產生的平面圖資料格式定義 |
 | `bench` | 效能與功能驗證腳本 |
-| `scripts`、`tools` | 資料處理、資源及專案檢查工具 |
+| `scripts` | 資料處理、資源下載與程式產生腳本 |
+| `tools` | 專案檢查工具 |
 | `docs` | 設計規則、規格與工作紀錄 |
-| `docker`、`packaging` | 容器啟動與安裝程式設定 |
+| `docs/worklog` | 每日工作日誌 |
+| `docker` | 容器啟動設定 |
+| `packaging` | 安裝程式設定 |
 <!-- /readme:arch -->
 
 ## 怎麼跑
