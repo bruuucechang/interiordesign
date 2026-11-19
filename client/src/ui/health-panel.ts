@@ -15,7 +15,7 @@ import { CLEARANCE, DEFAULTS, LIGHTING } from '../model/locale-defaults';
 import { bounds } from '../core/hit';
 import { t } from '../core/i18n';
 import { announcePanel, onOtherPanel } from './side-panels';
-import { faceStepCount, FACESTEPS_CHANGED } from './properties';
+import { faceStepCount, FACESTEPS_CHANGED } from './Properties';
 
 /** Ask the properties drawer to come out with the wall-face list (ui.ts listens). */
 export const SHOW_FACESTEPS = 'interior:show-facesteps';
