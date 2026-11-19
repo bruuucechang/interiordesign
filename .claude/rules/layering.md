@@ -1,7 +1,6 @@
 ---
 paths:
   - "client/**/*.ts"
-  - "client/**/*.js"
   - "server/**/*.py"
   - "schema/**"
 ---

@@ -1,0 +1,50 @@
+# 乾淨的 Linux 機器從零檢查（規格：~/.claude/skills/ship/ci-spec.md）。
+# 重點是真的 build：macOS 不分大小寫，import 路徑大小寫錯了本機照樣綠。
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:   # 後端測試會在 localhost 開一個暫時的測試庫（server/tests/conftest.py）
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+      - name: 安裝相依
+        run: |
+          npm ci
+          python -m venv .venv
+          .venv/bin/pip install -r server/requirements.txt pytest
+      - name: 冒煙測試
+        run: bash tools/smoke.sh
+      - name: 型別檢查＋codegen 一致
+        run: |
+          npm run typecheck
+          npm run codegen:check
+      - name: 前端測試
+        run: npm run test:client
+      - name: 後端測試
+        run: npm run test:server
+      - name: 前端 build
+        run: npm run build
