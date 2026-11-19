@@ -14,89 +14,88 @@
 <!-- /readme:recent -->
 
 ## 這是什麼
-<!-- readme:about 2026-11-13 -->
-Interior Designer 是一套室內設計繪圖工具，適合想規劃房間格局、家具與照明配置的人使用。可以畫牆、門窗和房間，擺放家具與水電設備，標註尺寸，並切換到 3D 查看空間。
+<!-- readme:about 2026-11-20 -->
+Interior Designer 適合想規劃房間格局、家具和照明配置的人。可以畫牆、門窗與房間，擺放家具和水電設備，標註尺寸，再切換到 3D 查看空間。
 
-工具支援房間面積計算、照度分析、空間健檢及第一人稱行走，也能匯出圖面、報表和 3D 模型。除了瀏覽器版本，另有使用本機資料庫的桌面版。
+工具支援房間面積計算、照度分析、空間健檢與第一人稱行走，也能匯出圖面、報表和 3D 模型。除了瀏覽器版本，也有使用本機資料庫的桌面版。
 
-目前已有完整的繪圖、預覽與匯出功能，近期持續改善行走操作、3D 效能與空間健檢。工作紀錄中仍列有廚房與陽台之間的牆面落差待處理。
+目前已有繪圖、預覽和匯出功能，近期持續改善行走操作、3D 效能與空間健檢。工作紀錄中仍列有廚房與陽台之間的牆面落差待處理。
 <!-- /readme:about -->
 
 ## 架構
-<!-- readme:arch 2026-11-16 -->
-前端是使用者操作的地方。介面把繪圖與編輯操作交給編輯器，編輯器管理平面圖資料，並將變更呈現在 2D 畫布與 3D 場景中。
+<!-- readme:arch 2026-11-20 -->
+前端負責讓使用者畫圖和編輯：介面將操作交給編輯器，編輯器更新方案資料，再把結果畫成 2D 平面圖或 3D 場景。
 
-後端（FastAPI，`server/app/main.py`）提供方案儲存、房間與牆體辨識、尺寸鏈、DXF 匯入及報表。伺服器版（Docker）使用 PostgreSQL，前端打包後由同一個後端當靜態網站送出；桌面版 `server/desktop.py` 把後端、打包好的前端和一個 SQLite 檔包成單一程式，開瀏覽器當視窗。用哪種資料庫由 `DATABASE_URL` 決定。
+FastAPI 後端負責方案儲存、牆體和房間辨識、尺寸鏈、DXF 匯入與報表。一般伺服器版使用 PostgreSQL；桌面版在本機啟動後端、使用 SQLite，並以瀏覽器顯示畫面。
 
-瀏覽器也會在 localStorage 保留方案的本機鏡像（`client/src/net/store.ts`）；離線時仍可編輯，恢復連線後再補送尚未同步的變更。
+瀏覽器也會保留方案的本機鏡像。離線時可繼續編輯，恢復連線後會補送尚未同步的變更。
 
 ```mermaid
 flowchart LR
-    User["使用者"] -->|繪圖與編輯操作| Front["瀏覽器前端 client/src"]
-    Front -->|2D 圖面與 3D 場景| User
+    User["使用者"] -->|繪圖與編輯操作| Front["瀏覽器前端"]
+    Front -->|2D 平面圖與 3D 場景| User
     Front -->|方案鏡像與刪除紀錄| Local["瀏覽器 localStorage"]
-    Local -->|離線時的本機方案| Front
-    Front -->|"HTTP /api/projects、/api/walls/detect、/api/rooms/detect、/api/dimensions/chain、/api/dxf/*"| API["FastAPI 後端 server/app"]
-    API -->|"方案、辨識出的牆與房間、報表與 report.xlsx"| Front
-    API -->|"方案 JSON（依 DATABASE_URL）"| DB["PostgreSQL，或桌面版的 SQLite 檔"]
+    Local -->|本機方案與刪除紀錄| Front
+    Front -->|HTTP 方案、辨識、匯入與報表請求| API["FastAPI 後端"]
+    API -->|方案、辨識結果與報表| Front
+    API -->|方案讀寫| DB["PostgreSQL 或 SQLite"]
     DB -->|已儲存方案| API
-    API -->|"同源送出打包好的前端（static）"| Front
-    Desktop["桌面版 server/desktop.py"] -->|"在本機啟動後端、開瀏覽器"| API
+    Desktop["桌面版啟動程式"] -->|啟動本機後端| API
+    Desktop -->|開啟瀏覽器網址| Front
 ```
 
 ### 前端編輯與顯示
 
 ```mermaid
 flowchart LR
-    Main["client/src/main.ts"] -->|建立並連接| UI["client/src/ui/ui.ts"]
-    Main -->|建立| Editor["client/src/core/editor.ts"]
-    Main -->|建立| Doc["client/src/model/doc.ts"]
-    Main -->|平面圖資料| View3D["client/src/core/view3d.ts"]
+    Main["client/src/main.ts"] -->|初始化介面| UI["client/src/ui/ui.ts"]
+    Main -->|建立編輯器| Editor["client/src/core/editor.ts"]
+    Main -->|建立方案資料| Doc["client/src/model/doc.ts"]
+    Main -->|建立 3D 檢視| View3D["client/src/core/view3d.ts"]
     UI -->|編輯操作| Editor
-    Editor -->|物件變更| Doc
-    Editor -->|繪圖與放置操作| Tools["client/src/tools"]
+    Editor -->|選取、繪圖與放置操作| Tools["client/src/tools"]
     Tools -->|物件變更| Doc
     Editor -->|繪製要求| Renderer["client/src/core/renderer.ts"]
     Doc -->|平面圖資料| Renderer
+    Main -->|方案資料| View3D
 ```
 
 ### 存檔與同步
 
 ```mermaid
 flowchart LR
-    UI["client/src/ui/ui.ts"] -->|"markDirty、scheduleAutosave"| Auto["client/src/ui/autosave.ts"]
-    Auto -->|"saveProject、syncPending"| API["client/src/net/api.ts"]
-    API -->|"putPlan、markDeleted 寫本機鏡像"| Store["client/src/net/store.ts"]
-    Store -->|方案與刪除紀錄| Local["瀏覽器 localStorage"]
-    Local -->|本機鏡像| Store
-    API -->|"HTTP PUT／GET／DELETE /api/projects"| Projects["server/app/routers/projects.py"]
+    UI["client/src/ui/ui.ts"] -->|排程自動存檔| Auto["client/src/ui/autosave.ts"]
+    Auto -->|方案資料與同步要求| API["client/src/net/api.ts"]
+    API -->|方案鏡像與刪除紀錄| Store["client/src/net/store.ts"]
+    Store -->|讀寫鏡像與刪除紀錄| Local["瀏覽器 localStorage"]
+    API -->|HTTP 方案讀寫請求| Projects["server/app/routers/projects.py"]
     Projects -->|方案讀寫| DB["server/app/db.py"]
     DB -->|已儲存方案| Projects
-    Projects -->|方案與存檔結果、版本衝突| API
+    Projects -->|方案與存檔結果| API
 ```
 
 ### 後端處理
 
 ```mermaid
 flowchart LR
-    Main["server/app/main.py"] -->|"include_router 掛上 /api"| Routes["server/app/routers/__init__.py"]
-    Routes --> Compute["routers/compute.py"]
-    Routes --> DxfR["routers/dxf.py"]
-    Routes --> Projects["routers/projects.py"]
-    Routes --> Reports["routers/reports.py"]
-    Compute -->|"牆體 → 房間多邊形"| Rooms["server/app/rooms.py"]
-    Compute -->|"底圖影像 → 牆"| Detect["server/app/detect.py"]
-    Compute -->|"牆 → 尺寸鏈"| Dim["server/app/dimensions.py"]
-    DxfR -->|"DXF 檔與圖層選擇"| DXF["server/app/dxf.py"]
+    Main["server/app/main.py"] -->|掛載 API 路由| Routes["server/app/routers/__init__.py"]
+    Routes -->|計算請求| Compute["server/app/routers/compute.py"]
+    Routes -->|DXF 匯入請求| DxfR["server/app/routers/dxf.py"]
+    Routes -->|方案讀寫請求| Projects["server/app/routers/projects.py"]
+    Routes -->|報表請求| Reports["server/app/routers/reports.py"]
+    Compute -->|牆體資料| Rooms["server/app/rooms.py"]
+    Compute -->|底圖影像| Detect["server/app/detect.py"]
+    Compute -->|牆體與物件資料| Dim["server/app/dimensions.py"]
+    DxfR -->|DXF 資料與圖層選擇| DXF["server/app/dxf.py"]
     Projects -->|方案讀寫| DB["server/app/db.py"]
-    Reports -->|讀已儲存方案| DB
-    Reports -->|"報表與 Excel"| Report["server/app/report.py"]
+    Reports -->|讀取已儲存方案| DB
+    Reports -->|方案資料| Report["server/app/report.py"]
 ```
 
 | 資料夾 | 放什麼 |
 |---|---|
 | `client/src` | 前端入口、編輯器、資料模型、工具與介面 |
-| `client/public` | 前端使用的靜態資源與材質貼圖 |
+| `client/public` | 前端靜態資源與材質貼圖 |
 | `client/test` | 前端測試 |
 | `server/app` | 後端 API、資料庫存取、辨識與報表 |
 | `server/scripts` | 資料遷移與版本回填腳本 |
@@ -112,7 +111,7 @@ flowchart LR
 <!-- /readme:arch -->
 
 ## 怎麼跑
-<!-- readme:run 2026-11-13 -->
+<!-- readme:run 2026-11-20 -->
 本機開發需要 Node.js 20 以上、Python 3.11 以上及 PostgreSQL。安裝依賴並建立資料庫後，啟動前端與後端：
 
 ```bash
@@ -122,7 +121,7 @@ createdb interior_design
 npm run dev
 ```
 
-開啟 http://localhost:5180。若需要額外的家具模型，可執行 `npm run assets`；不下載時仍可使用，但部分家具會以簡化形狀顯示。
+開啟 http://localhost:5180。若需要額外的家具模型，可執行 `npm run assets`；未下載時部分家具會以簡化形狀顯示。
 
 使用 Docker 啟動：
 
@@ -150,13 +149,13 @@ npm test
 npm run verify:all
 ```
 
-桌面版須在目標平台上建置：
+桌面版須在目標平台上建置。macOS 或 Linux：
 
 ```bash
 ./build-desktop.sh
 ```
 
-Windows 使用：
+Windows：
 
 ```bat
 build-desktop.bat
