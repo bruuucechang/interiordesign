@@ -4,13 +4,13 @@
 
 ## 最近更新
 <!-- readme:recent 自動產生，不要手改 -->
+- [2026-11-22](docs/worklog/2026-11-22.md)：docs(readme): 更新最近更新
 - [2026-11-21](docs/worklog/2026-11-21.md)：docs(readme): 更新最近更新
 - [2026-11-20](docs/worklog/2026-11-20.md)：docs(readme): 更新最近更新；docs(readme): 重寫說明與架構
 - [2026-11-19](docs/worklog/2026-11-19.md)：建立跨平台自動檢查，讓專案在乾淨的 Linux 環境驗證測試、型別與建置；補上後端測試所需的資料庫，並修正乾淨環境中會造成檢查失敗的規則
 - [2026-11-18](docs/worklog/2026-11-18.md)：docs(readme): 更新最近更新
 - [2026-11-17](docs/worklog/2026-11-17.md)：docs(readme): 更新最近更新
 - [2026-11-16](docs/worklog/2026-11-16.md)：更新專案說明文件，整理近期變更；重寫系統架構說明，加入整體與子系統圖，並核對實際程式碼
-- [2026-11-15](docs/worklog/2026-11-15.md)：docs(readme): 更新最近更新
 <!-- /readme:recent -->
 
 ## 這是什麼
