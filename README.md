@@ -4,13 +4,13 @@
 
 ## 最近更新
 <!-- readme:recent 自動產生，不要手改 -->
+- [2026-11-28](docs/worklog/2026-11-28.md)：docs(readme): 更新最近更新
 - [2026-11-27](docs/worklog/2026-11-27.md)：docs(readme): 更新最近更新
 - [2026-11-26](docs/worklog/2026-11-26.md)：docs(readme): 更新最近更新
 - [2026-11-25](docs/worklog/2026-11-25.md)：docs(readme): 更新最近更新
 - [2026-11-24](docs/worklog/2026-11-24.md)：docs(readme): 更新最近更新
 - [2026-11-23](docs/worklog/2026-11-23.md)：docs(readme): 更新最近更新
 - [2026-11-22](docs/worklog/2026-11-22.md)：docs(readme): 更新最近更新
-- [2026-11-21](docs/worklog/2026-11-21.md)：docs(readme): 更新最近更新
 <!-- /readme:recent -->
 
 ## 這是什麼
